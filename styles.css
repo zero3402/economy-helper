@@ -1,0 +1,89 @@
+/* Economy Helper - Shared Styles */
+
+/* Base font */
+* {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #a1a1a1;
+}
+
+/* Smooth transitions */
+.term-card {
+    transition: all 0.2s ease;
+}
+
+.term-card:hover {
+    transform: translateY(-2px);
+}
+
+.term-card:active {
+    transform: scale(0.98);
+}
+
+/* Animation */
+.fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Personality test specific */
+.answer-btn {
+    transition: all 0.2s ease;
+}
+
+.answer-btn:hover {
+    transform: scale(1.05);
+}
+
+.answer-btn.selected {
+    transform: scale(1.1);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+}
+
+.result-card {
+    transition: all 0.3s ease;
+}
+
+.result-card:hover {
+    transform: translateY(-4px);
+}
+
+.progress-ring {
+    transition: stroke-dashoffset 0.3s ease;
+}
+
+/* Mobile touch optimization */
+@media (max-width: 640px) {
+    .alphabet-btn {
+        min-width: 36px;
+        min-height: 36px;
+    }
+}

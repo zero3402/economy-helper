@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="corporate">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <!-- Primary Meta Tags -->
+    <title>2025 US Salary Take-Home Pay Calculator | Economy Helper</title>
+    <meta name="title" content="2025 US Salary Take-Home Pay Calculator | Economy Helper">
+    <meta name="description" content="Calculate your 2025 US take-home pay after federal taxes, Social Security, and Medicare. See annual salary to monthly net income breakdown.">
+    <meta name="keywords" content="salary calculator, take home pay, net salary, US taxes 2025, federal income tax, Social Security, Medicare, paycheck calculator">
+    <meta name="author" content="Economy Helper">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://economy-helper.com/salary-calculator.html">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://economy-helper.com/salary-calculator.html">
+    <meta property="og:title" content="2025 US Salary Take-Home Pay Calculator | Economy Helper">
+    <meta property="og:description" content="Calculate your 2025 US take-home pay after federal taxes, Social Security, and Medicare.">
+    <meta property="og:image" content="https://economy-helper.com/og-image.png">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://economy-helper.com/salary-calculator.html">
+    <meta name="twitter:title" content="2025 US Salary Take-Home Pay Calculator | Economy Helper">
+    <meta name="twitter:description" content="Calculate your 2025 US take-home pay after federal taxes, Social Security, and Medicare.">
+
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-slate-50 min-h-screen">
+
+    <header id="header" class="bg-white border-b border-slate-200 sticky top-0 z-50"></header>
+
+    <main class="container mx-auto px-4 py-6 sm:py-10">
+        <section class="max-w-5xl mx-auto">
+            <!-- Hero Section -->
+            <div class="text-center mb-8">
+                <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-800 mb-3">
+                    2025 US Salary Take-Home Pay
+                </h1>
+                <p class="text-slate-500 text-sm sm:text-base max-w-xl mx-auto">
+                    See how much you actually take home after federal taxes, Social Security, and Medicare
+                </p>
+            </div>
+
+            <!-- Tax Info Card -->
+            <div class="bg-gradient-to-r from-emerald-50 to-blue-50 border border-emerald-200 rounded-2xl p-4 sm:p-5 mb-6">
+                <div class="flex items-start gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-emerald-500 to-blue-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-slate-800 mb-1">2025 Federal Tax Rates (Single Filer)</h3>
+                        <p class="text-slate-600 text-sm">
+                            This calculator uses 2025 federal tax brackets, Social Security (6.2% up to $176,100), and Medicare (1.45% + 0.9% over $200K).
+                            <span class="text-emerald-700 font-medium">State taxes vary by location and are shown separately.</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Salary Table -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6">
+                <div class="p-4 sm:p-6 border-b border-slate-100 bg-slate-50">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <h2 class="text-lg sm:text-xl font-semibold text-slate-800">2025 Take-Home Pay Table</h2>
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm text-slate-500">State Tax:</span>
+                            <select id="state-tax-select" class="select select-sm select-bordered bg-white text-sm">
+                                <option value="0">No State Tax (TX, FL, WA...)</option>
+                                <option value="3">Low ~3% (AZ, ND, PA...)</option>
+                                <option value="5" selected>Average ~5% (Most States)</option>
+                                <option value="7">High ~7% (NJ, OR...)</option>
+                                <option value="10">Very High ~10% (CA, NY...)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="table w-full">
+                        <thead>
+                            <tr class="bg-slate-50 border-b border-slate-200">
+                                <th class="text-slate-700 font-semibold text-sm py-4">Annual Salary</th>
+                                <th class="text-slate-700 font-semibold text-sm py-4 text-right">Federal Tax</th>
+                                <th class="text-slate-700 font-semibold text-sm py-4 text-right">FICA</th>
+                                <th class="text-slate-700 font-semibold text-sm py-4 text-right">State Tax</th>
+                                <th class="text-slate-700 font-semibold text-sm py-4 text-right">Total Tax</th>
+                                <th class="text-slate-700 font-semibold text-sm py-4 text-right bg-emerald-50">Annual Net</th>
+                                <th class="text-slate-700 font-semibold text-sm py-4 text-right bg-emerald-50">Monthly Net</th>
+                            </tr>
+                        </thead>
+                        <tbody id="salary-table-body">
+                            <!-- Rows will be generated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Custom Calculator -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6">
+                <div class="p-4 sm:p-6 border-b border-slate-100 bg-slate-50">
+                    <h2 class="text-lg sm:text-xl font-semibold text-slate-800">Custom Salary Calculator</h2>
+                </div>
+                <div class="p-4 sm:p-6">
+                    <div class="flex flex-col sm:flex-row gap-4 mb-6">
+                        <div class="flex-1">
+                            <label class="label">
+                                <span class="label-text font-medium text-slate-700">Annual Salary ($)</span>
+                            </label>
+                            <input type="number" id="custom-salary" placeholder="e.g., 75000"
+                                class="input input-bordered w-full bg-slate-50 focus:bg-white" />
+                        </div>
+                        <div class="flex items-end">
+                            <button id="calculate-btn" class="btn btn-primary px-8">Calculate</button>
+                        </div>
+                    </div>
+
+                    <div id="custom-result" class="hidden">
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                            <div class="bg-slate-50 rounded-xl p-4 text-center">
+                                <p class="text-xs text-slate-500 mb-1">Federal Tax</p>
+                                <p id="result-federal" class="text-lg font-bold text-red-600">-</p>
+                            </div>
+                            <div class="bg-slate-50 rounded-xl p-4 text-center">
+                                <p class="text-xs text-slate-500 mb-1">FICA (SS + Medicare)</p>
+                                <p id="result-fica" class="text-lg font-bold text-red-600">-</p>
+                            </div>
+                            <div class="bg-slate-50 rounded-xl p-4 text-center">
+                                <p class="text-xs text-slate-500 mb-1">State Tax</p>
+                                <p id="result-state" class="text-lg font-bold text-red-600">-</p>
+                            </div>
+                            <div class="bg-slate-50 rounded-xl p-4 text-center">
+                                <p class="text-xs text-slate-500 mb-1">Effective Tax Rate</p>
+                                <p id="result-rate" class="text-lg font-bold text-slate-700">-</p>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                            <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-5 text-center">
+                                <p class="text-sm text-emerald-700 mb-1">Annual Take-Home Pay</p>
+                                <p id="result-annual" class="text-2xl font-bold text-emerald-700">-</p>
+                            </div>
+                            <div class="bg-blue-50 border border-blue-200 rounded-xl p-5 text-center">
+                                <p class="text-sm text-blue-700 mb-1">Monthly Take-Home Pay</p>
+                                <p id="result-monthly" class="text-2xl font-bold text-blue-700">-</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tax Brackets Info -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-4 sm:p-6 border-b border-slate-100 bg-slate-50">
+                    <h2 class="text-lg sm:text-xl font-semibold text-slate-800">2025 Federal Tax Brackets (Single Filer)</h2>
+                </div>
+                <div class="p-4 sm:p-6">
+                    <div class="overflow-x-auto">
+                        <table class="table w-full">
+                            <thead>
+                                <tr class="border-b border-slate-200">
+                                    <th class="text-slate-700 font-semibold text-sm">Tax Rate</th>
+                                    <th class="text-slate-700 font-semibold text-sm">Income Range</th>
+                                    <th class="text-slate-700 font-semibold text-sm text-right">Tax on Bracket</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="border-b border-slate-100">
+                                    <td class="font-medium text-emerald-600">10%</td>
+                                    <td class="text-slate-600">$0 - $11,925</td>
+                                    <td class="text-right text-slate-600">$0 - $1,193</td>
+                                </tr>
+                                <tr class="border-b border-slate-100">
+                                    <td class="font-medium text-emerald-600">12%</td>
+                                    <td class="text-slate-600">$11,926 - $48,475</td>
+                                    <td class="text-right text-slate-600">$1,193 - $5,579</td>
+                                </tr>
+                                <tr class="border-b border-slate-100">
+                                    <td class="font-medium text-yellow-600">22%</td>
+                                    <td class="text-slate-600">$48,476 - $103,350</td>
+                                    <td class="text-right text-slate-600">$5,579 - $17,651</td>
+                                </tr>
+                                <tr class="border-b border-slate-100">
+                                    <td class="font-medium text-orange-600">24%</td>
+                                    <td class="text-slate-600">$103,351 - $197,300</td>
+                                    <td class="text-right text-slate-600">$17,651 - $40,199</td>
+                                </tr>
+                                <tr class="border-b border-slate-100">
+                                    <td class="font-medium text-red-500">32%</td>
+                                    <td class="text-slate-600">$197,301 - $250,525</td>
+                                    <td class="text-right text-slate-600">$40,199 - $57,231</td>
+                                </tr>
+                                <tr class="border-b border-slate-100">
+                                    <td class="font-medium text-red-600">35%</td>
+                                    <td class="text-slate-600">$250,526 - $626,350</td>
+                                    <td class="text-right text-slate-600">$57,231 - $188,770</td>
+                                </tr>
+                                <tr>
+                                    <td class="font-medium text-red-700">37%</td>
+                                    <td class="text-slate-600">$626,351+</td>
+                                    <td class="text-right text-slate-600">$188,770+</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="bg-blue-50 rounded-xl p-4">
+                            <h4 class="font-semibold text-blue-800 mb-2">Social Security Tax</h4>
+                            <p class="text-sm text-blue-700">6.2% on income up to $176,100 (2025)</p>
+                            <p class="text-xs text-blue-600 mt-1">Maximum: $10,918/year</p>
+                        </div>
+                        <div class="bg-purple-50 rounded-xl p-4">
+                            <h4 class="font-semibold text-purple-800 mb-2">Medicare Tax</h4>
+                            <p class="text-sm text-purple-700">1.45% on all income</p>
+                            <p class="text-xs text-purple-600 mt-1">+0.9% on income over $200,000</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer id="footer" class="bg-white border-t border-slate-200 mt-auto"></footer>
+
+    <script>
+        // 2025 Federal Tax Brackets (Single Filer)
+        const taxBrackets = [
+            { min: 0, max: 11925, rate: 0.10 },
+            { min: 11925, max: 48475, rate: 0.12 },
+            { min: 48475, max: 103350, rate: 0.22 },
+            { min: 103350, max: 197300, rate: 0.24 },
+            { min: 197300, max: 250525, rate: 0.32 },
+            { min: 250525, max: 626350, rate: 0.35 },
+            { min: 626350, max: Infinity, rate: 0.37 }
+        ];
+
+        // 2025 FICA rates
+        const SS_RATE = 0.062;
+        const SS_WAGE_BASE = 176100; // 2025 limit
+        const MEDICARE_RATE = 0.0145;
+        const MEDICARE_ADDITIONAL_RATE = 0.009;
+        const MEDICARE_THRESHOLD = 200000;
+
+        // Standard deduction 2025
+        const STANDARD_DEDUCTION = 15000;
+
+        // Calculate Federal Income Tax
+        function calculateFederalTax(income) {
+            const taxableIncome = Math.max(0, income - STANDARD_DEDUCTION);
+            let tax = 0;
+
+            for (const bracket of taxBrackets) {
+                if (taxableIncome > bracket.min) {
+                    const taxableInBracket = Math.min(taxableIncome, bracket.max) - bracket.min;
+                    tax += taxableInBracket * bracket.rate;
+                }
+            }
+            return tax;
+        }
+
+        // Calculate FICA (Social Security + Medicare)
+        function calculateFICA(income) {
+            // Social Security
+            const ssWages = Math.min(income, SS_WAGE_BASE);
+            const ssTax = ssWages * SS_RATE;
+
+            // Medicare
+            let medicareTax = income * MEDICARE_RATE;
+            if (income > MEDICARE_THRESHOLD) {
+                medicareTax += (income - MEDICARE_THRESHOLD) * MEDICARE_ADDITIONAL_RATE;
+            }
+
+            return { ssTax, medicareTax, total: ssTax + medicareTax };
+        }
+
+        // Calculate State Tax (simplified flat rate)
+        function calculateStateTax(income, stateRate) {
+            return income * (stateRate / 100);
+        }
+
+        // Calculate all taxes
+        function calculateTaxes(salary, stateRate) {
+            const federalTax = calculateFederalTax(salary);
+            const fica = calculateFICA(salary);
+            const stateTax = calculateStateTax(salary, stateRate);
+            const totalTax = federalTax + fica.total + stateTax;
+            const netIncome = salary - totalTax;
+            const effectiveRate = (totalTax / salary) * 100;
+
+            return {
+                federalTax,
+                fica: fica.total,
+                stateTax,
+                totalTax,
+                netIncome,
+                monthlyNet: netIncome / 12,
+                effectiveRate
+            };
+        }
+
+        // Format currency
+        function formatCurrency(amount) {
+            return '$' + amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+        }
+
+        // Salary levels to display
+        const salaryLevels = [
+            30000, 40000, 50000, 60000, 70000, 80000, 90000, 100000,
+            120000, 150000, 200000, 250000, 300000, 400000, 500000
+        ];
+
+        // Render salary table
+        function renderSalaryTable(stateRate) {
+            const tbody = document.getElementById('salary-table-body');
+            tbody.innerHTML = '';
+
+            for (const salary of salaryLevels) {
+                const result = calculateTaxes(salary, stateRate);
+                const row = document.createElement('tr');
+                row.className = 'border-b border-slate-100 hover:bg-slate-50';
+
+                row.innerHTML = `
+                    <td class="font-semibold text-slate-800">${formatCurrency(salary)}</td>
+                    <td class="text-right text-red-600">${formatCurrency(result.federalTax)}</td>
+                    <td class="text-right text-red-600">${formatCurrency(result.fica)}</td>
+                    <td class="text-right text-red-600">${formatCurrency(result.stateTax)}</td>
+                    <td class="text-right text-red-700 font-medium">${formatCurrency(result.totalTax)}</td>
+                    <td class="text-right text-emerald-700 font-bold bg-emerald-50">${formatCurrency(result.netIncome)}</td>
+                    <td class="text-right text-emerald-700 font-bold bg-emerald-50">${formatCurrency(result.monthlyNet)}</td>
+                `;
+
+                tbody.appendChild(row);
+            }
+        }
+
+        // Custom calculator
+        function calculateCustom() {
+            const salaryInput = document.getElementById('custom-salary');
+            const stateSelect = document.getElementById('state-tax-select');
+            const resultDiv = document.getElementById('custom-result');
+
+            const salary = parseFloat(salaryInput.value);
+            if (isNaN(salary) || salary <= 0) {
+                alert('Please enter a valid salary amount.');
+                return;
+            }
+
+            const stateRate = parseFloat(stateSelect.value);
+            const result = calculateTaxes(salary, stateRate);
+
+            document.getElementById('result-federal').textContent = formatCurrency(result.federalTax);
+            document.getElementById('result-fica').textContent = formatCurrency(result.fica);
+            document.getElementById('result-state').textContent = formatCurrency(result.stateTax);
+            document.getElementById('result-rate').textContent = result.effectiveRate.toFixed(1) + '%';
+            document.getElementById('result-annual').textContent = formatCurrency(result.netIncome);
+            document.getElementById('result-monthly').textContent = formatCurrency(result.monthlyNet);
+
+            resultDiv.classList.remove('hidden');
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            const stateSelect = document.getElementById('state-tax-select');
+            const calculateBtn = document.getElementById('calculate-btn');
+            const salaryInput = document.getElementById('custom-salary');
+
+            // Initial render
+            renderSalaryTable(parseFloat(stateSelect.value));
+
+            // State tax change
+            stateSelect.addEventListener('change', () => {
+                renderSalaryTable(parseFloat(stateSelect.value));
+                // Also update custom result if visible
+                const resultDiv = document.getElementById('custom-result');
+                if (!resultDiv.classList.contains('hidden')) {
+                    calculateCustom();
+                }
+            });
+
+            // Calculate button
+            calculateBtn.addEventListener('click', calculateCustom);
+
+            // Enter key
+            salaryInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    calculateCustom();
+                }
+            });
+
+            // Initialize Header & Footer
+            initComponents('salary');
+        });
+    </script>
+    <script src="components.js"></script>
+
+</body>
+</html>

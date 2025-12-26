@@ -3,68 +3,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Economy Helper - Financial Dictionary</title>
+
+    <!-- Primary Meta Tags -->
+    <title>Economy Helper - Financial Dictionary | 1,400+ Financial Terms</title>
+    <meta name="title" content="Economy Helper - Financial Dictionary | 1,400+ Financial Terms">
+    <meta name="description" content="Learn 1,400+ financial and economic terms with easy-to-understand definitions and real-world examples. Master investing, trading, banking, and personal finance vocabulary.">
+    <meta name="keywords" content="financial dictionary, economic terms, finance glossary, investment terms, trading vocabulary, banking terms, stock market terminology, personal finance, financial literacy, economy helper">
+    <meta name="author" content="Economy Helper">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://economy-helper.com/">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://economy-helper.com/">
+    <meta property="og:title" content="Economy Helper - Financial Dictionary | 1,400+ Financial Terms">
+    <meta property="og:description" content="Learn 1,400+ financial and economic terms with easy-to-understand definitions and real-world examples. Master investing, trading, and personal finance vocabulary.">
+    <meta property="og:image" content="https://economy-helper.com/og-image.png">
+    <meta property="og:site_name" content="Economy Helper">
+    <meta property="og:locale" content="en_US">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://economy-helper.com/">
+    <meta name="twitter:title" content="Economy Helper - Financial Dictionary | 1,400+ Financial Terms">
+    <meta name="twitter:description" content="Learn 1,400+ financial and economic terms with easy-to-understand definitions and real-world examples.">
+    <meta name="twitter:image" content="https://economy-helper.com/og-image.png">
+
+    <!-- Additional SEO -->
+    <meta name="theme-color" content="#3B82F6">
+    <meta name="apple-mobile-web-app-title" content="Economy Helper">
+    <meta name="application-name" content="Economy Helper">
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "Economy Helper",
+        "description": "Learn 1,400+ financial and economic terms with easy-to-understand definitions and real-world examples.",
+        "url": "https://economy-helper.com/",
+        "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://economy-helper.com/?q={search_term_string}",
+            "query-input": "required name=search_term_string"
+        }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "DefinedTermSet",
+        "name": "Financial Dictionary",
+        "description": "A comprehensive collection of 1,400+ financial and economic terms with definitions and examples.",
+        "url": "https://economy-helper.com/",
+        "inLanguage": "en"
+    }
+    </script>
+
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet" type="text/css" />
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-
-        /* Custom scrollbar */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: #a1a1a1; }
-
-        /* Smooth transitions */
-        .term-card { transition: all 0.2s ease; }
-        .term-card:hover { transform: translateY(-2px); }
-        .term-card:active { transform: scale(0.98); }
-
-        /* Mobile touch optimization */
-        @media (max-width: 640px) {
-            .alphabet-btn { min-width: 36px; min-height: 36px; }
-        }
-    </style>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body class="bg-slate-50 min-h-screen">
 
-    <!-- Header -->
-    <header class="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div class="container mx-auto px-4">
-            <div class="navbar min-h-16 p-0">
-                <div class="navbar-start">
-                    <a href="index.html" class="flex items-center gap-2 text-xl font-bold text-slate-800 hover:text-blue-600 transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                        </svg>
-                        <span class="hidden sm:inline">Economy Helper</span>
-                    </a>
-                </div>
-                <div class="navbar-end">
-                    <!-- Desktop Menu -->
-                    <ul class="menu menu-horizontal px-1 hidden md:flex gap-1">
-                        <li><a href="index.html" class="font-medium text-blue-600 bg-blue-50 rounded-lg">Dictionary</a></li>
-                        <li><a href="#" class="font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg">Personality Test</a></li>
-                    </ul>
-                    <!-- Mobile Menu -->
-                    <div class="dropdown dropdown-end md:hidden">
-                        <label tabindex="0" class="btn btn-ghost btn-circle">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-                            </svg>
-                        </label>
-                        <ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow-lg bg-white rounded-xl w-52 border border-slate-100">
-                            <li><a href="index.html" class="font-medium text-blue-600">Dictionary</a></li>
-                            <li><a href="#" class="font-medium text-slate-600">Personality Test</a></li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </header>
+    <header id="header" class="bg-white border-b border-slate-200 sticky top-0 z-50"></header>
 
     <main class="container mx-auto px-4 py-6 sm:py-10">
         <section class="max-w-4xl mx-auto">
@@ -73,9 +78,24 @@
                 <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-800 mb-3">
                     Financial Dictionary
                 </h1>
-                <p class="text-slate-500 text-sm sm:text-base max-w-xl mx-auto">
-                    Learn 1,300+ financial terms with easy-to-understand definitions and real-world examples
+                <p class="text-slate-500 text-sm sm:text-base max-w-xl mx-auto mb-6">
+                    Learn 1,400+ financial terms with easy-to-understand definitions and real-world examples
                 </p>
+
+                <!-- Today's Terms -->
+                <div class="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-2xl p-4 sm:p-5 max-w-2xl mx-auto">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                            </svg>
+                        </div>
+                        <span class="font-semibold text-slate-700">Today's Terms</span>
+                    </div>
+                    <div id="todays-terms-list" class="flex flex-wrap gap-2">
+                        <!-- Terms will be inserted here -->
+                    </div>
+                </div>
             </div>
 
             <!-- Search Box -->
@@ -143,14 +163,7 @@
         </section>
     </main>
 
-    <!-- Footer -->
-    <footer class="bg-white border-t border-slate-200 mt-auto">
-        <div class="container mx-auto px-4 py-6">
-            <p class="text-center text-slate-500 text-sm">
-                &copy; 2025 Economy Helper. Open source financial education.
-            </p>
-        </div>
-    </footer>
+    <footer id="footer" class="bg-white border-t border-slate-200 mt-auto"></footer>
 
     <!-- Term Detail Modal -->
     <dialog id="term-modal" class="modal modal-bottom sm:modal-middle">
@@ -214,29 +227,29 @@
 
     <script>
         const economyDictionary = {
-            'A': ['Allowance', 'Asset', 'ATM Fee', 'Appraisal', 'Auto Loan', 'Annual Fee', 'Arrears', 'Audit', 'Aggregate Income', 'Apartment Fee', 'Account Transfer', 'Address of Record', 'Adjusted Gross Income', 'Affordability', 'After-Tax Income', 'Agent', 'Alimony', 'Allocation', 'Amortization', 'APR', 'Annuity', 'Appreciation', 'Asset Allocation', 'Auction', 'Average Cost', 'Account Balance', 'Active Income', 'Ad Valorem Tax', 'Adjustable-Rate Mortgage', 'Affluence', 'Age of Retirement', 'Aggressive Investment', 'Agreement', 'All-In-One Card', 'Alternative Investment', 'Altcoin', 'Angel Investor', 'Annual Report', 'Anti-Inflation', 'Appliance Cost', 'Application Fee', 'Arbitrage', 'Asset Management', 'Assessed Value', 'Assumed Debt', 'Asymmetric Information', 'Automatic Debit', 'Average Wage', 'Acquisition Cost', 'Accrual'],
-            'B': ['Balance', 'Bank Run', 'Bankruptcy', 'Bargain', 'Base Interest Rate', 'Basic Income', 'Basis Point', 'Bear Market', 'Beneficiary', 'Benefits', 'Bill', 'Black Friday', 'Blacklist', 'Blue Chip', 'Bond', 'Bonus', 'Borrower', 'Boutique', 'Brand Value', 'Break-Even Point', 'Brokerage Fee', 'Bubble', 'Budget', 'Bull Market', 'Business Expense', 'BOGO', 'Buyback', 'Bad Debt', 'Bailout', 'Balance Sheet', 'Balloon Payment', 'Barter', 'Base Year', 'Basic Needs', 'Batch Processing', 'Below Par', 'Benchmark', 'Bequest', 'Beta', 'Bid', 'Big Mac Index', 'Billing Cycle', 'Bi-Weekly', 'Block Trade', 'Blue-Collar', 'Boarding House', 'Body Corporate', 'Bond Yield', 'Book Value', 'Bottom Line'],
-            'C': ['Capital', 'Capital Gain', 'Cash Flow', 'Cashier\'s Check', 'CD', 'CPA', 'Chain Store', 'Checking Account', 'Child Tax Credit', 'Closing Costs', 'Collateral', 'Commission', 'Commodity', 'Compound Interest', 'Consolidation Loan', 'CPI', 'Contract', 'Cost of Living', 'Coupon', 'Credit Card', 'Credit Score', 'Credit Limit', 'Currency', 'Current Asset', 'Customs Duty', 'Cyclical Stock', 'CapEx', 'Capitalism', 'Cartel', 'Cash Cow', 'Central Bank', 'Chapter 11', 'Charitable Contribution', 'Checking Balance', 'Child Support', 'Civil Penalty', 'Clearance', 'Closing Price', 'Co-signer', 'Coinsurance', 'Commercial Bank', 'Common Stock', 'Company Car', 'Compensation', 'Competitive Price', 'Condition', 'Conglomerate', 'Consumerism', 'Correction', 'Creative Destruction'],
-            'D': ['Daily Expense', 'Day Trading', 'Dead Cat Bounce', 'Debit Card', 'Debt', 'Debt Ceiling', 'DTI', 'Default', 'Deficit', 'Deflation', 'Delayed Payment', 'Delivery Fee', 'Demand', 'Demographics', 'Deposit', 'Depreciation', 'Depression', 'Deregulation', 'Derivative', 'Devaluation', 'Digital Currency', 'Direct Debit', 'Direct Investment', 'Discount', 'Disposable Income', 'Diversification', 'Dividend', 'Dividend Yield', 'Dovish', 'Dow Jones Index', 'Down Payment', 'Downturn', 'Dual Income', 'Dumping', 'Duopoly', 'Durable Goods', 'Duty-Free', 'Deadweight Loss', 'Debit', 'Debt Consolidation', 'Debt Ratio', 'Decoupling', 'Deduction', 'Deep Recession', 'Defensive Stock', 'Deferred Payment', 'Deleveraging', 'Dependent', 'Digital Nomad', 'Diminishing Returns'],
-            'E': ['Energy Price', 'Emergency Fund', 'Exchange Rate', 'Early Retirement', 'E-commerce', 'Earnings', 'Education Cost', 'EV Subsidy', 'Employment Insurance', 'Equity', 'Estate Tax', 'Euro', 'Excess Consumption', 'Exemption', 'Expense', 'Export', 'Externalities', 'E-Wallet', 'Elasticity', 'Embargo', 'Emissions Trading', 'Employee Benefits', 'Endowment', 'Engel\'s Law', 'Entrepreneur', 'Environmental Tax', 'Equilibrium Price', 'Escrow', 'Essential Goods', 'Ethnic Economy', 'Eviction', 'Ex-dividend', 'Exit Strategy', 'Expected Inflation', 'Expenditure', 'Explicit Cost', 'Exploitation', 'Extended Warranty', 'Extraordinary Income', 'Ease of Business', 'Economic Growth', 'Economy of Scale', 'Effective Tax Rate', 'Efficiency', 'Electronic Banking', 'Eligible Receiver', 'ESOP', 'Encryption', 'Economic Endurance', 'Enrichment'],
-            'F': ['Fixed Rate', 'Floating Rate', 'Foreclosure', 'Fraud', 'Free Trade', 'Frugality', 'Full Employment', 'Fund', 'Futures', 'Face Value', 'Factors of Production', 'Fair Trade', 'Family Budget', 'Famine', 'Fast Fashion', 'Fiat Money', 'Fiduciary', 'Financial Freedom', 'Financial Literacy', 'Financial Planner', 'Fintech', 'Fiscal Year', 'Fixed Cost', 'Flat Tax', 'FOB', 'FOMO', 'Foreign Exchange', 'For-Profit', 'Fractional Reserve', 'Franchise', 'Fringe Benefit', 'Functional Income', 'Fundamental Analysis', 'Funding', 'Fungibility', 'Future Value', 'Fake News', 'Family Office', 'Fed Dots Plot', 'Fee', 'Financial Crisis', 'Financial Institution', 'Fine', 'Fiscal Policy', 'Flat Rate', 'Flow', 'Forecasting', 'Foreign Debt', 'Forfeiture', 'Free Rider'],
+            'A': ['Allowance', 'Asset', 'ATM Fee', 'Appraisal', 'Auto Loan', 'Annual Fee', 'Arrears', 'Audit', 'Aggregate Income', 'Apartment Fee', 'Account Transfer', 'Address of Record', 'Adjusted Gross Income', 'Affordability', 'After-Tax Income', 'Agent', 'Alimony', 'Allocation', 'Amortization', 'APR', 'Annuity', 'Appreciation', 'Asset Allocation', 'Auction', 'Average Cost', 'Account Balance', 'Active Income', 'Ad Valorem Tax', 'Adjustable-Rate Mortgage', 'Affluence', 'Age of Retirement', 'Aggressive Investment', 'Agreement', 'All-In-One Card', 'Alternative Investment', 'Altcoin', 'Angel Investor', 'Annual Report', 'Anti-Inflation', 'Appliance Cost', 'Application Fee', 'Arbitrage', 'Asset Management', 'Assessed Value', 'Assumed Debt', 'Asymmetric Information', 'Automatic Debit', 'Average Wage', 'Acquisition Cost', 'Accrual', 'ACH Transfer', 'Auto Insurance', 'ACA (Affordable Care Act)', 'Automatic Savings', 'Average Daily Balance'],
+            'B': ['Balance', 'Bank Run', 'Bankruptcy', 'Bargain', 'Base Interest Rate', 'Basic Income', 'Basis Point', 'Bear Market', 'Beneficiary', 'Benefits', 'Bill', 'Black Friday', 'Blacklist', 'Blue Chip', 'Bond', 'Bonus', 'Borrower', 'Boutique', 'Brand Value', 'Break-Even Point', 'Brokerage Fee', 'Bubble', 'Budget', 'Bull Market', 'Business Expense', 'BOGO', 'Buyback', 'Bad Debt', 'Bailout', 'Balance Sheet', 'Balloon Payment', 'Barter', 'Base Year', 'Basic Needs', 'Batch Processing', 'Below Par', 'Benchmark', 'Bequest', 'Beta', 'Bid', 'Big Mac Index', 'Billing Cycle', 'Bi-Weekly', 'Block Trade', 'Blue-Collar', 'Boarding House', 'Body Corporate', 'Bond Yield', 'Book Value', 'Bottom Line', 'Bitcoin', 'Blockchain', 'Buy Now Pay Later (BNPL)', 'Backdoor Roth', 'Bridge Loan', 'Burn Rate'],
+            'C': ['Capital', 'Capital Gain', 'Cash Flow', 'Cashier\'s Check', 'CD', 'CPA', 'Chain Store', 'Checking Account', 'Child Tax Credit', 'Closing Costs', 'Collateral', 'Commission', 'Commodity', 'Compound Interest', 'Consolidation Loan', 'CPI', 'Contract', 'Cost of Living', 'Coupon', 'Credit Card', 'Credit Score', 'Credit Limit', 'Currency', 'Current Asset', 'Customs Duty', 'Cyclical Stock', 'CapEx', 'Capitalism', 'Cartel', 'Cash Cow', 'Central Bank', 'Chapter 11', 'Charitable Contribution', 'Checking Balance', 'Child Support', 'Civil Penalty', 'Clearance', 'Closing Price', 'Co-signer', 'Coinsurance', 'Commercial Bank', 'Common Stock', 'Company Car', 'Compensation', 'Competitive Price', 'Condition', 'Conglomerate', 'Consumerism', 'Correction', 'Creative Destruction', 'Capital Gains Tax', 'Cash-Out Refinance', 'Catch-Up Contribution', 'COBRA', 'Co-pay', 'Contactless Payment', 'Credit Bureau', 'Credit Freeze', 'Credit History', 'Credit Report', 'Credit Utilization', 'Cryptocurrency'],
+            'D': ['Daily Expense', 'Day Trading', 'Dead Cat Bounce', 'Debit Card', 'Debt', 'Debt Ceiling', 'DTI', 'Default', 'Deficit', 'Deflation', 'Delayed Payment', 'Delivery Fee', 'Demand', 'Demographics', 'Deposit', 'Depreciation', 'Depression', 'Deregulation', 'Derivative', 'Devaluation', 'Digital Currency', 'Direct Debit', 'Direct Investment', 'Discount', 'Disposable Income', 'Diversification', 'Dividend', 'Dividend Yield', 'Dovish', 'Dow Jones Index', 'Down Payment', 'Downturn', 'Dual Income', 'Dumping', 'Duopoly', 'Durable Goods', 'Duty-Free', 'Deadweight Loss', 'Debit', 'Debt Consolidation', 'Debt Ratio', 'Decoupling', 'Deduction', 'Deep Recession', 'Defensive Stock', 'Deferred Payment', 'Deleveraging', 'Dependent', 'Digital Nomad', 'Diminishing Returns', 'Debt Avalanche', 'Debt Snowball', 'Deductible', 'DeFi', 'Dependent Care FSA', 'Digital Wallet', 'Direct Deposit', 'Dollar Cost Averaging'],
+            'E': ['Energy Price', 'Emergency Fund', 'Exchange Rate', 'Early Retirement', 'E-commerce', 'Earnings', 'Education Cost', 'EV Subsidy', 'Employment Insurance', 'Equity', 'Estate Tax', 'Euro', 'Excess Consumption', 'Exemption', 'Expense', 'Export', 'Externalities', 'E-Wallet', 'Elasticity', 'Embargo', 'Emissions Trading', 'Employee Benefits', 'Endowment', 'Engel\'s Law', 'Entrepreneur', 'Environmental Tax', 'Equilibrium Price', 'Escrow', 'Essential Goods', 'Ethnic Economy', 'Eviction', 'Ex-dividend', 'Exit Strategy', 'Expected Inflation', 'Expenditure', 'Explicit Cost', 'Exploitation', 'Extended Warranty', 'Extraordinary Income', 'Ease of Business', 'Economic Growth', 'Economy of Scale', 'Effective Tax Rate', 'Efficiency', 'Electronic Banking', 'Eligible Receiver', 'ESOP', 'Encryption', 'Economic Endurance', 'Enrichment', 'Earnest Money', 'Estate Planning', 'Ethereum', 'ETF', 'Expense Ratio', 'Early Withdrawal Penalty'],
+            'F': ['Fixed Rate', 'Floating Rate', 'Foreclosure', 'Fraud', 'Free Trade', 'Frugality', 'Full Employment', 'Fund', 'Futures', 'Face Value', 'Factors of Production', 'Fair Trade', 'Family Budget', 'Famine', 'Fast Fashion', 'Fiat Money', 'Fiduciary', 'Financial Freedom', 'Financial Literacy', 'Financial Planner', 'Fintech', 'Fiscal Year', 'Fixed Cost', 'Flat Tax', 'FOB', 'FOMO', 'Foreign Exchange', 'For-Profit', 'Fractional Reserve', 'Franchise', 'Fringe Benefit', 'Functional Income', 'Fundamental Analysis', 'Funding', 'Fungibility', 'Future Value', 'Fake News', 'Family Office', 'Fed Dots Plot', 'Fee', 'Financial Crisis', 'Financial Institution', 'Fine', 'Fiscal Policy', 'Flat Rate', 'Flow', 'Forecasting', 'Foreign Debt', 'Forfeiture', 'Free Rider', 'FHA Loan', 'FICA', 'Financial Independence', 'FIRE Movement', 'Flexible Spending Account (FSA)', 'Fraud Alert', '401(k)', 'Fixed Income'],
             'G': ['Gasoline Tax', 'GDP per Capita', 'Gentrification', 'Gift Tax', 'Gig Economy', 'Gini Coefficient', 'Global Warming Impact', 'Gold Standard', 'Goodwill', 'Government Spending', 'Grace Period', 'Greenwashing', 'Gross Income', 'Growth Stock', 'Guarantor', 'Gambling', 'Game Theory', 'Gaps in Wealth', 'General Ledger', 'Generic Brand', 'Gift Card', 'Globalization', 'Gold Ant', 'Golden Hello', 'Golden Parachute', 'Government Bond', 'Graduated Tax', 'Grandfather Clause', 'Gratuity', 'Gray Market', 'Great Depression', 'Green Bond', 'Green Tax', 'Grievance', 'GDP', 'Gross Margin', 'GNP', 'Ground Rent', 'Growth Rate', 'Guarantee', 'Guaranteed Income', 'Guild', 'Gresham\'s Law', 'Gross Profit', 'Growth Strategy', 'Guidance', 'Guilder', 'Gun Jump', 'Gut Feeling', 'G-20'],
-            'H': ['Hard Landing', 'Hedge Fund', 'High-Yield Bond', 'Home Equity', 'Household Debt', 'Housing Bubble', 'Hyperinflation', 'Human Capital', 'Habitual Consumption', 'Haircut', 'Half-Life', 'Hallmarking', 'Hand-to-Mouth', 'Hard Currency', 'Harvest Strategy', 'Hawkish', 'Head of Household', 'Health Insurance', 'Hedging', 'Heir', 'Hidden Tax', 'High-Net-Worth', 'High-Street Bank', 'Hire Purchase', 'Histogram', 'Hoarding', 'Holding Company', 'Holding Period', 'Home Loan', 'Home Ownership', 'Home Run', 'Horizontal Integration', 'Hostile Takeover', 'Hot Money', 'Hourly Wage', 'Household Income', 'Housing Allowance', 'Housing Starts', 'HDI', 'Hunger Gap', 'Hybrid Asset', 'Hybrid Work', 'Hypermarket', 'Hypothecation', 'Hysteresis', 'Hard Assets', 'Hazard Insurance', 'HSA', 'Hedge', 'Home Office Deduction'],
-            'I': ['Inflation', 'Interest Rate', 'Investment', 'Income Tax', 'IPO', 'Index Fund', 'Inheritance', 'Insurance Premium', 'Intangible Asset', 'Inventory', 'Invoice', 'IRA', 'Imbalance', 'IMF', 'Import', 'Incentive', 'Income Gap', 'Indebtedness', 'Indirect Tax', 'Industrialization', 'Inequality', 'Infant Industry', 'Infrastructure', 'Insider Trading', 'Insolvency', 'Installment', 'Institutional Investor', 'Instrument', 'Intangibles', 'Interdependence', 'Interest Cover', 'Intermediate Goods', 'Internal Audit', 'Internal Market', 'International Trade', 'Intervention', 'Intrinsic Value', 'Inventory Turnover', 'Investment Bank', 'Invisible Hand', 'IOUs', 'Irredeemable', 'Issue Price', 'Itemized Deduction', 'Iteration', 'Idle Money', 'Illegal Trade', 'Illiquid', 'Impact Investing', 'Imperialism'],
+            'H': ['Hard Landing', 'Hedge Fund', 'High-Yield Bond', 'Home Equity', 'Household Debt', 'Housing Bubble', 'Hyperinflation', 'Human Capital', 'Habitual Consumption', 'Haircut', 'Half-Life', 'Hallmarking', 'Hand-to-Mouth', 'Hard Currency', 'Harvest Strategy', 'Hawkish', 'Head of Household', 'Health Insurance', 'Hedging', 'Heir', 'Hidden Tax', 'High-Net-Worth', 'High-Street Bank', 'Hire Purchase', 'Histogram', 'Hoarding', 'Holding Company', 'Holding Period', 'Home Loan', 'Home Ownership', 'Home Run', 'Horizontal Integration', 'Hostile Takeover', 'Hot Money', 'Hourly Wage', 'Household Income', 'Housing Allowance', 'Housing Starts', 'HDI', 'Hunger Gap', 'Hybrid Asset', 'Hybrid Work', 'Hypermarket', 'Hypothecation', 'Hysteresis', 'Hard Assets', 'Hazard Insurance', 'HSA', 'Hedge', 'Home Office Deduction', 'HELOC', 'High-Yield Savings Account', 'HOA Fees', 'Home Appraisal', 'HRA'],
+            'I': ['Inflation', 'Interest Rate', 'Investment', 'Income Tax', 'IPO', 'Index Fund', 'Inheritance', 'Insurance Premium', 'Intangible Asset', 'Inventory', 'Invoice', 'IRA', 'Imbalance', 'IMF', 'Import', 'Incentive', 'Income Gap', 'Indebtedness', 'Indirect Tax', 'Industrialization', 'Inequality', 'Infant Industry', 'Infrastructure', 'Insider Trading', 'Insolvency', 'Installment', 'Institutional Investor', 'Instrument', 'Intangibles', 'Interdependence', 'Interest Cover', 'Intermediate Goods', 'Internal Audit', 'Internal Market', 'International Trade', 'Intervention', 'Intrinsic Value', 'Inventory Turnover', 'Investment Bank', 'Invisible Hand', 'IOUs', 'Irredeemable', 'Issue Price', 'Itemized Deduction', 'Iteration', 'Idle Money', 'Illegal Trade', 'Illiquid', 'Impact Investing', 'Imperialism', 'Identity Theft', 'In-Network', 'Income Statement', 'Inflation Hedge', 'Insurance Claim'],
             'J': ['J-Curve', 'Job Security', 'Joint Account', 'Junk Bond', 'Just-in-Time', 'Jobless Claims', 'Joint Venture', 'Journal', 'Judgment', 'Judicial Sale', 'Jumbo Loan', 'Junior Debt', 'Jurisdiction', 'Jury', 'Just Price', 'Justice', 'Job Market', 'Job Creation', 'Job Sharing', 'Joint Liability', 'Joint Ownership', 'Joint Tenancy', 'Journeyman', 'Junk Value', 'J-Reit', 'Jibar', 'Job Crafting', 'Job Description', 'Job Enrichment', 'Job Evaluation', 'Job Grading', 'Job Hunting', 'Job Rotation', 'Job Satisfaction', 'Job Specification', 'Job Turnover', 'Joint Appraisal', 'Joint Cost', 'Joint Demand', 'Joint Float', 'Joint Product', 'Joint Stock', 'Joint Will', 'Journal Entry', 'Journal Voucher', 'Junior Bond', 'Junior Equity', 'Just Cause', 'Jidoka', 'Jargon'],
             'K': ['K-Recovery', 'Keogh Plan', 'Key Currency', 'Key Industry', 'Keynesian', 'Kickback', 'Kite Flying', 'Knights (White/Black)', 'Knock-out', 'Know-how', 'Kondratieff Wave', 'K-Stock', 'KOSPI', 'KOSDAQ', 'K-Bond', 'Kanban', 'Keiretsu', 'Kerb Market', 'Key Indicator', 'Key Performance Indicator (KPI)', 'Key Rate', 'Key Success Factor', 'Kibbutz', 'Kicker', 'Killing (Market)', 'Kind (In-kind)', 'Kinked Demand', 'Kitchen Cycle', 'Kite', 'Kleptocracy', 'K-Money', 'Knowledge Asset', 'Knowledge Economy', 'Knowledge Management', 'Knowledge Worker', 'Kondratieff', 'Krugerrand', 'Kuznets Curve', 'Kyoto Protocol', 'K-Tax', 'K-Efficiency', 'K-Trend', 'Keyboard Economy', 'Key Employee', 'Key Factor', 'Key Personnel', 'Key Ratio', 'Key Symbol', 'Key Value', 'K-Index'],
-            'L': ['Labor Cost', 'Labor Force', 'Labor Union', 'Laissez-faire', 'Land Tax', 'Landmark', 'Large-cap', 'Last Price', 'Latent Demand', 'Launching', 'Law of Demand', 'Law of Supply', 'Layoff', 'Leading Indicator', 'Lease', 'Ledger', 'Legal Tender', 'Lender', 'Letter of Credit', 'Leverage', 'Liability', 'Liberalization', 'License', 'Lien', 'Life Cycle', 'Life Expectancy', 'Life Insurance', 'Lifestyle', 'LIFO', 'Limit Order', 'Limited Liability', 'Line of Credit', 'Liquid Asset', 'Liquidation', 'Liquidity', 'Listed Company', 'Litigation', 'Living Wage', 'Loan', 'Loan-to-Value (LTV)', 'Lobbying', 'Local Tax', 'Lock-up', 'Long Position', 'Long-term Debt', 'Loss Leader', 'Lottery', 'Low-income', 'Lump Sum', 'Luxury Tax'],
-            'M': ['M1 (Money)', 'M2 (Money)', 'Macroeconomics', 'Maintenance', 'Majority Interest', 'Management', 'Margin', 'Margin Call', 'Market Cap', 'Market Economy', 'Market Price', 'Market Share', 'Market Value', 'Marketing', 'Markup', 'Mass Production', 'Maturity', 'Mean', 'Median', 'Mediation', 'Medium of Exchange', 'Mega-cap', 'Member Bank', 'Memorandum', 'Menu Cost', 'Mercantilism', 'Merger', 'Microeconomics', 'Middleman', 'Minimum Wage', 'Minority Interest', 'Mint', 'Misery Index', 'Mixed Economy', 'Mobile Banking', 'Modern Portfolio Theory', 'Momentum', 'Monetary Policy', 'Money Laundering', 'Money Market', 'Money Supply', 'Monopoly', 'Monopsony', 'Moral Hazard', 'Mortgage', 'Most Favored Nation', 'Moving Average', 'Multiplier Effect', 'Mutual Fund', 'Municipal Bond'],
-            'N': ['NASDAQ', 'National Debt', 'National Income', 'Nationalization', 'Natural Monopoly', 'Negative Equity', 'Negative Interest', 'Negative Wealth Effect', 'Negotiable Instrument', 'Neoclassical', 'Net Asset', 'Net Income', 'Net Loss', 'Net Margin', 'Net Profit', 'Net Worth', 'New Deal', 'New Economy', 'New York Stock Exchange', 'Niche Market', 'Nikkei Index', 'Nil Paid', 'Nominal GDP', 'Nominal Interest', 'Nominal Value', 'Non-current Asset', 'Non-discretionary', 'Non-durable Goods', 'Non-governmental Organization (NGO)', 'Non-performing Loan (NPL)', 'Non-profit', 'Normal Good', 'Notary', 'Note', 'Notional Value', 'Novation', 'Numeraire', 'Net Present Value (NPV)', 'Near Money', 'Negligence', 'Negotiated Price', 'Net Exports', 'Net Investment', 'Net Yield', 'Neutrality', 'New Issues', 'Night Trading', 'No-load Fund', 'Nominal Wage', 'Non-tariff Barrier'],
-            'O': ['Obsolescence', 'Occupational Hazard', 'Odd Lot', 'OECD', 'Off-balance Sheet', 'Offer', 'Official Rate', 'Offshore', 'Oligopoly', 'Online Banking', 'On-the-job Training', 'OPEC', 'Open Economy', 'Open Market Operations', 'Open Outcry', 'Opening Price', 'Operating Cost', 'Operating Income', 'Operating Profit', 'Opportunity Cost', 'Optimum', 'Option', 'Ordinary Share', 'Organization Chart', 'Original Equipment Manufacturer (OEM)', 'Out-of-the-money', 'Outlay', 'Output', 'Outsourcing', 'Over-the-counter (OTC)', 'Overcapitalized', 'Overdraft', 'Overdue', 'Overheating', 'Overhead', 'Overlapping Debt', 'Overseas', 'Oversold', 'Overvalued', 'Owners\' Equity', 'Occupational Pension', 'Offer Price', 'Official Reserves', 'Offsetting', 'Oligopsony', 'Open Interest', 'Operating Leverage', 'Order', 'Ordinary Income', 'Outbound'],
-            'P': ['P/E Ratio', 'Pace', 'Paid-up Capital', 'Panic Selling', 'Paper Profit', 'Par Value', 'Paradox of Thrift', 'Pareto Principle', 'Pari Passu', 'Parity', 'Partnership', 'Passive Income', 'Passive Strategy', 'Patent', 'Payables', 'Payback Period', 'Paycheck', 'Payout', 'Payroll', 'Peak', 'Penny Stock', 'Pension', 'Per Capita', 'Performance', 'Periphery', 'Permanent Income', 'Personal Income', 'Petty Cash', 'Phillips Curve', 'Physical Asset', 'Picket Line', 'Piggyback', 'Pit', 'Placement', 'Plastic Money', 'Pledge', 'Plunge', 'Point', 'Poison Pill', 'Policy', 'Ponzi Scheme', 'Portfolio', 'Poverty Line', 'Pre-tax', 'Preferred Stock', 'Premium', 'Present Value', 'Price Ceiling', 'Price Index', 'Privatization'],
+            'L': ['Labor Cost', 'Labor Force', 'Labor Union', 'Laissez-faire', 'Land Tax', 'Landmark', 'Large-cap', 'Last Price', 'Latent Demand', 'Launching', 'Law of Demand', 'Law of Supply', 'Layoff', 'Leading Indicator', 'Lease', 'Ledger', 'Legal Tender', 'Lender', 'Letter of Credit', 'Leverage', 'Liability', 'Liberalization', 'License', 'Lien', 'Life Cycle', 'Life Expectancy', 'Life Insurance', 'Lifestyle', 'LIFO', 'Limit Order', 'Limited Liability', 'Line of Credit', 'Liquid Asset', 'Liquidation', 'Liquidity', 'Listed Company', 'Litigation', 'Living Wage', 'Loan', 'Loan-to-Value (LTV)', 'Lobbying', 'Local Tax', 'Lock-up', 'Long Position', 'Long-term Debt', 'Loss Leader', 'Lottery', 'Low-income', 'Lump Sum', 'Luxury Tax', 'Landlord', 'Late Fee', 'Loan Forgiveness', 'Long-Term Care Insurance'],
+            'M': ['M1 (Money)', 'M2 (Money)', 'Macroeconomics', 'Maintenance', 'Majority Interest', 'Management', 'Margin', 'Margin Call', 'Market Cap', 'Market Economy', 'Market Price', 'Market Share', 'Market Value', 'Marketing', 'Markup', 'Mass Production', 'Maturity', 'Mean', 'Median', 'Mediation', 'Medium of Exchange', 'Mega-cap', 'Member Bank', 'Memorandum', 'Menu Cost', 'Mercantilism', 'Merger', 'Microeconomics', 'Middleman', 'Minimum Wage', 'Minority Interest', 'Mint', 'Misery Index', 'Mixed Economy', 'Mobile Banking', 'Modern Portfolio Theory', 'Momentum', 'Monetary Policy', 'Money Laundering', 'Money Market', 'Money Supply', 'Monopoly', 'Monopsony', 'Moral Hazard', 'Mortgage', 'Most Favored Nation', 'Moving Average', 'Multiplier Effect', 'Mutual Fund', 'Municipal Bond', 'Market Correction', 'Medicare', 'Medicaid', 'Mobile Payment', 'Money Market Account', 'Mortgage Points'],
+            'N': ['NASDAQ', 'National Debt', 'National Income', 'Nationalization', 'Natural Monopoly', 'Negative Equity', 'Negative Interest', 'Negative Wealth Effect', 'Negotiable Instrument', 'Neoclassical', 'Net Asset', 'Net Income', 'Net Loss', 'Net Margin', 'Net Profit', 'Net Worth', 'New Deal', 'New Economy', 'New York Stock Exchange', 'Niche Market', 'Nikkei Index', 'Nil Paid', 'Nominal GDP', 'Nominal Interest', 'Nominal Value', 'Non-current Asset', 'Non-discretionary', 'Non-durable Goods', 'Non-governmental Organization (NGO)', 'Non-performing Loan (NPL)', 'Non-profit', 'Normal Good', 'Notary', 'Note', 'Notional Value', 'Novation', 'Numeraire', 'Net Present Value (NPV)', 'Near Money', 'Negligence', 'Negotiated Price', 'Net Exports', 'Net Investment', 'Net Yield', 'Neutrality', 'New Issues', 'Night Trading', 'No-load Fund', 'Nominal Wage', 'Non-tariff Barrier', 'NFT', 'Neobank'],
+            'O': ['Obsolescence', 'Occupational Hazard', 'Odd Lot', 'OECD', 'Off-balance Sheet', 'Offer', 'Official Rate', 'Offshore', 'Oligopoly', 'Online Banking', 'On-the-job Training', 'OPEC', 'Open Economy', 'Open Market Operations', 'Open Outcry', 'Opening Price', 'Operating Cost', 'Operating Income', 'Operating Profit', 'Opportunity Cost', 'Optimum', 'Option', 'Ordinary Share', 'Organization Chart', 'Original Equipment Manufacturer (OEM)', 'Out-of-the-money', 'Outlay', 'Output', 'Outsourcing', 'Over-the-counter (OTC)', 'Overcapitalized', 'Overdraft', 'Overdue', 'Overheating', 'Overhead', 'Overlapping Debt', 'Overseas', 'Oversold', 'Overvalued', 'Owners\' Equity', 'Occupational Pension', 'Offer Price', 'Official Reserves', 'Offsetting', 'Oligopsony', 'Open Interest', 'Operating Leverage', 'Order', 'Ordinary Income', 'Outbound', 'Out-of-Network', 'Out-of-Pocket Maximum', 'Open Enrollment'],
+            'P': ['P/E Ratio', 'Pace', 'Paid-up Capital', 'Panic Selling', 'Paper Profit', 'Par Value', 'Paradox of Thrift', 'Pareto Principle', 'Pari Passu', 'Parity', 'Partnership', 'Passive Income', 'Passive Strategy', 'Patent', 'Payables', 'Payback Period', 'Paycheck', 'Payout', 'Payroll', 'Peak', 'Penny Stock', 'Pension', 'Per Capita', 'Performance', 'Periphery', 'Permanent Income', 'Personal Income', 'Petty Cash', 'Phillips Curve', 'Physical Asset', 'Picket Line', 'Piggyback', 'Pit', 'Placement', 'Plastic Money', 'Pledge', 'Plunge', 'Point', 'Poison Pill', 'Policy', 'Ponzi Scheme', 'Portfolio', 'Poverty Line', 'Pre-tax', 'Preferred Stock', 'Premium', 'Present Value', 'Price Ceiling', 'Price Index', 'Privatization', 'PMI', 'Power of Attorney', 'Pre-approval', 'Progressive Tax', 'Property Tax', 'Payroll Tax'],
             'Q': ['Quadrant', 'Qualification', 'Qualitative', 'Quality Control', 'Quality of Life', 'Quantitative Easing', 'Quantitative Tightening', 'Quantity', 'Quantum', 'Quartile', 'Quasi-money', 'Quick Ratio', 'Quid Pro Quo', 'Quit', 'Quorum', 'Quota', 'Quotation', 'Q-ratio', 'Qualified Auditor', 'Qualified Opinion', 'Qualitative Analysis', 'Quality Circle', 'Quality Management', 'Quantitative Analysis', 'Quantitative Research', 'Quantity Discount', 'Quantity Equation', 'Quantity Theory of Money', 'Quarter', 'Quarterly Report', 'Quasi-contract', 'Quasi-rent', 'Questionnaire', 'Queue', 'Quick Asset', 'Quitclaim', 'Quoted Price', 'Q1 (Quarter)', 'Q2 (Quarter)', 'Q3 (Quarter)', 'Q4 (Quarter)', 'Quant', 'Quantity Demanded', 'Quantity Supplied', 'Quantum Leap', 'Quasi-fiscal', 'Quasi-judicial', 'Quasi-public', 'Quick Pay', 'Quiet Period'],
-            'R': ['Rally', 'Range', 'Rate', 'Rate of Return', 'Rating', 'Ratio', 'Rational Expectations', 'Raw Material', 'Real Estate', 'Real GDP', 'Real Interest Rate', 'Real Value', 'Real Wage', 'Rebate', 'Recapitalization', 'Receipt', 'Receivables', 'Receiver', 'Recession', 'Reciprocity', 'Record Date', 'Recovery', 'Redemption', 'Rediscount', 'Refinancing', 'Reflation', 'Refund', 'Regionalism', 'Regression', 'Regulation', 'Rehabilitation', 'Reinsurance', 'REIT', 'Relative Value', 'Remittance', 'Rent', 'Replacement Cost', 'Repo', 'Reserve', 'Reserve Requirement', 'Residence', 'Residual', 'Resistance', 'Retail', 'Retained Earnings', 'Retirement', 'Return on Equity (ROE)', 'Revenue', 'Revaluation', 'Risk Management'],
-            'S': ['Safe Haven', 'Salary', 'Sales', 'Sample', 'Sanction', 'Saturation', 'Savings', 'Savings Account', 'Scarcity', 'Schedule', 'Scrap Value', 'SDR', 'Seasonal Adjustment', 'Secondary Market', 'Sector', 'Secular', 'Secured Loan', 'Securities', 'Securitization', 'Seigniorage', 'Seller\'s Market', 'Selling Short', 'Sensitivity', 'Sentiment', 'Settlement', 'Severance Pay', 'Shadow Banking', 'Share', 'Shareholder', 'Shark', 'Shock', 'Short Position', 'Shortage', 'Sideways', 'Silver Tsunami', 'Simple Interest', 'Sinking Fund', 'Skimming', 'Slack', 'Slowdown', 'Slump', 'Small-cap', 'Smart Money', 'Social Capital', 'Social Security', 'Soft Landing', 'Solvency', 'Sovereign Wealth Fund', 'Speculation', 'Stagflation'],
-            'T': ['T-bill', 'T-bond', 'Takeover', 'Tangible Asset', 'Tapering', 'Target Price', 'Tariff', 'Tax', 'Tax Avoidance', 'Tax Base', 'Tax Bracket', 'Tax Credit', 'Tax Deduction', 'Tax Evasion', 'Tax Haven', 'Tax Holiday', 'Tax Return', 'Technical Analysis', 'Technology', 'Tenancy', 'Tender', 'Tenure', 'Term', 'Term Deposit', 'Term Loan', 'Terms of Trade', 'Tertiary Industry', 'Theory', 'Third Party', 'Thrifty', 'Ticker', 'Tier 1 Capital', 'Tight Money', 'Time Deposit', 'Time Value of Money', 'Tobin Tax', 'Token', 'Toll', 'Top-down', 'Total Return', 'Trade', 'Trade Barrier', 'Trade Deficit', 'Trade Surplus', 'Trademark', 'Tranche', 'Transaction', 'Transfer', 'Treasury', 'Trust'],
-            'U': ['Uncollected', 'Under-the-table', 'Undercapitalized', 'Underlying', 'Underpricing', 'Underwriting', 'Undistributed Profit', 'Unearned Income', 'Unemployment', 'Unemployment Rate', 'Unfair Trade', 'Unfunded', 'Uniform', 'Union', 'Unit Cost', 'Unit Trust', 'Universal Banking', 'Unlisted', 'Unpaid', 'Unsecured', 'Upstream', 'Uptick', 'Urbanization', 'Usury', 'Utility', 'Underemployment', 'Under Valued', 'Unearned Revenue', 'Unilateral', 'Unit of Account', 'Unlimited Liability', 'Unproductive', 'Unskilled Labor', 'Unsystematic Risk', 'Upgrade', 'Upside', 'Urban Renewal', 'User Fee', 'Utilitarianism', 'Utilization', 'Unamortized', 'Unappropriated', 'Unbalanced', 'Unbundling', 'Uncertainty', 'Unclaimed', 'Unconditional', 'Underperform', 'Unit Labor Cost', 'U-shape Recovery'],
-            'V': ['Valuation', 'Value', 'Value Added', 'Value Added Tax (VAT)', 'Value Chain', 'Value Investing', 'Value Stock', 'Variable', 'Variable Cost', 'Variable Rate', 'Variance', 'Veblen Good', 'Velocity', 'Vendor', 'Venture Capital', 'Vertical Integration', 'Vesting', 'Veto', 'Viability', 'VIX Index', 'Volatility', 'Volume', 'Voluntary', 'Voucher', 'Vulnerability', 'Vacation Pay', 'Vacancy Rate', 'Valid', 'Valorization', 'Value Date', 'Value for Money', 'Value-at-Risk (VaR)', 'Vanishing', 'Variable Interest', 'Variable Life Insurance', 'Vehicle', 'Velocity of Money', 'Venture', 'Vertical Merger', 'Virtual Currency', 'Visible Trade', 'Vital Statistics', 'Vocational', 'Volatile', 'Volume Discount', 'Voluntary Liquidation', 'Voting Right', 'V-shape Recovery', 'Vulnerable', 'Vulture Fund'],
-            'W': ['Wage', 'Wage Gap', 'Wage Push', 'Wall Street', 'Warrant', 'Warranty', 'Wealth', 'Wealth Effect', 'Wealth Management', 'Wealth Tax', 'Welfare', 'Welfare State', 'White-collar', 'Wholesale', 'Windfall Profit', 'Windfall Tax', 'Withdrawal', 'Withholding Tax', 'Working Capital', 'Working Class', 'Working Poor', 'World Bank', 'World Trade Organization (WTO)', 'Write-off', 'Wage Ceiling', 'Wage Control', 'Wage Earners', 'Wage Floor', 'Wage Freeze', 'Wage Indexation', 'Wage Policy', 'Wage Scale', 'Wage Spiral', 'Wait-and-see', 'Waiting Period', 'Waiver', 'Walkout', 'Warehouse', 'Wasting Asset', 'Watered Stock', 'Weak Currency', 'Wealth Distribution', 'Weighted Average', 'Well-being', 'White Knight', 'Wholesale Price Index', 'Widow-and-orphan Stock', 'Will', 'Win-win', 'Working Conditions'],
+            'R': ['Rally', 'Range', 'Rate', 'Rate of Return', 'Rating', 'Ratio', 'Rational Expectations', 'Raw Material', 'Real Estate', 'Real GDP', 'Real Interest Rate', 'Real Value', 'Real Wage', 'Rebate', 'Recapitalization', 'Receipt', 'Receivables', 'Receiver', 'Recession', 'Reciprocity', 'Record Date', 'Recovery', 'Redemption', 'Rediscount', 'Refinancing', 'Reflation', 'Refund', 'Regionalism', 'Regression', 'Regulation', 'Rehabilitation', 'Reinsurance', 'REIT', 'Relative Value', 'Remittance', 'Rent', 'Replacement Cost', 'Repo', 'Reserve', 'Reserve Requirement', 'Residence', 'Residual', 'Resistance', 'Retail', 'Retained Earnings', 'Retirement', 'Return on Equity (ROE)', 'Revenue', 'Revaluation', 'Risk Management', 'Regressive Tax', 'Required Minimum Distribution (RMD)', 'Reverse Mortgage', 'Rollover', 'Roth IRA', 'Robo-Advisor'],
+            'S': ['Safe Haven', 'Salary', 'Sales', 'Sample', 'Sanction', 'Saturation', 'Savings', 'Savings Account', 'Scarcity', 'Schedule', 'Scrap Value', 'SDR', 'Seasonal Adjustment', 'Secondary Market', 'Sector', 'Secular', 'Secured Loan', 'Securities', 'Securitization', 'Seigniorage', 'Seller\'s Market', 'Selling Short', 'Sensitivity', 'Sentiment', 'Settlement', 'Severance Pay', 'Shadow Banking', 'Share', 'Shareholder', 'Shark', 'Shock', 'Short Position', 'Shortage', 'Sideways', 'Silver Tsunami', 'Simple Interest', 'Sinking Fund', 'Skimming', 'Slack', 'Slowdown', 'Slump', 'Small-cap', 'Smart Money', 'Social Capital', 'Social Security', 'Soft Landing', 'Solvency', 'Sovereign Wealth Fund', 'Speculation', 'Stagflation', 'Sales Tax', 'Security Deposit', 'Self-Employment Tax', 'Side Hustle', 'Smart Contract', 'Stablecoin', 'Student Loan', 'Subscription'],
+            'T': ['T-bill', 'T-bond', 'Takeover', 'Tangible Asset', 'Tapering', 'Target Price', 'Tariff', 'Tax', 'Tax Avoidance', 'Tax Base', 'Tax Bracket', 'Tax Credit', 'Tax Deduction', 'Tax Evasion', 'Tax Haven', 'Tax Holiday', 'Tax Return', 'Technical Analysis', 'Technology', 'Tenancy', 'Tender', 'Tenure', 'Term', 'Term Deposit', 'Term Loan', 'Terms of Trade', 'Tertiary Industry', 'Theory', 'Third Party', 'Thrifty', 'Ticker', 'Tier 1 Capital', 'Tight Money', 'Time Deposit', 'Time Value of Money', 'Tobin Tax', 'Token', 'Toll', 'Top-down', 'Total Return', 'Trade', 'Trade Barrier', 'Trade Deficit', 'Trade Surplus', 'Trademark', 'Tranche', 'Transaction', 'Transfer', 'Treasury', 'Trust', 'Tax Refund', 'Tax Shelter', 'Tenant', 'Term Life Insurance', 'Title Insurance', 'Traditional IRA', 'Target-Date Fund'],
+            'U': ['Uncollected', 'Under-the-table', 'Undercapitalized', 'Underlying', 'Underpricing', 'Underwriting', 'Undistributed Profit', 'Unearned Income', 'Unemployment', 'Unemployment Rate', 'Unfair Trade', 'Unfunded', 'Uniform', 'Union', 'Unit Cost', 'Unit Trust', 'Universal Banking', 'Unlisted', 'Unpaid', 'Unsecured', 'Upstream', 'Uptick', 'Urbanization', 'Usury', 'Utility', 'Underemployment', 'Under Valued', 'Unearned Revenue', 'Unilateral', 'Unit of Account', 'Unlimited Liability', 'Unproductive', 'Unskilled Labor', 'Unsystematic Risk', 'Upgrade', 'Upside', 'Urban Renewal', 'User Fee', 'Utilitarianism', 'Utilization', 'Unamortized', 'Unappropriated', 'Unbalanced', 'Unbundling', 'Uncertainty', 'Unclaimed', 'Unconditional', 'Underperform', 'Unit Labor Cost', 'U-shape Recovery', 'Underwater Mortgage', 'Umbrella Insurance'],
+            'V': ['Valuation', 'Value', 'Value Added', 'Value Added Tax (VAT)', 'Value Chain', 'Value Investing', 'Value Stock', 'Variable', 'Variable Cost', 'Variable Rate', 'Variance', 'Veblen Good', 'Velocity', 'Vendor', 'Venture Capital', 'Vertical Integration', 'Vesting', 'Veto', 'Viability', 'VIX Index', 'Volatility', 'Volume', 'Voluntary', 'Voucher', 'Vulnerability', 'Vacation Pay', 'Vacancy Rate', 'Valid', 'Valorization', 'Value Date', 'Value for Money', 'Value-at-Risk (VaR)', 'Vanishing', 'Variable Interest', 'Variable Life Insurance', 'Vehicle', 'Velocity of Money', 'Venture', 'Vertical Merger', 'Virtual Currency', 'Visible Trade', 'Vital Statistics', 'Vocational', 'Volatile', 'Volume Discount', 'Voluntary Liquidation', 'Voting Right', 'V-shape Recovery', 'Vulnerable', 'Vulture Fund', 'VA Loan', 'Vesting Period'],
+            'W': ['Wage', 'Wage Gap', 'Wage Push', 'Wall Street', 'Warrant', 'Warranty', 'Wealth', 'Wealth Effect', 'Wealth Management', 'Wealth Tax', 'Welfare', 'Welfare State', 'White-collar', 'Wholesale', 'Windfall Profit', 'Windfall Tax', 'Withdrawal', 'Withholding Tax', 'Working Capital', 'Working Class', 'Working Poor', 'World Bank', 'World Trade Organization (WTO)', 'Write-off', 'Wage Ceiling', 'Wage Control', 'Wage Earners', 'Wage Floor', 'Wage Freeze', 'Wage Indexation', 'Wage Policy', 'Wage Scale', 'Wage Spiral', 'Wait-and-see', 'Waiting Period', 'Waiver', 'Walkout', 'Warehouse', 'Wasting Asset', 'Watered Stock', 'Weak Currency', 'Wealth Distribution', 'Weighted Average', 'Well-being', 'White Knight', 'Wholesale Price Index', 'Widow-and-orphan Stock', 'Will', 'Win-win', 'Working Conditions', 'Wallet (Crypto)', 'Web3', 'Whole Life Insurance', 'Wire Transfer', 'W-2 Form'],
             'X': ['X-efficiency', 'X-inefficiency', 'XBRL', 'Xenocurrency', 'X-axis', 'X-dividend', 'X-rate', 'X-theory', 'XML', 'X-value', 'X-audit', 'X-bonus', 'X-check', 'X-cost', 'X-debt', 'X-factor', 'X-gain', 'X-hedge', 'X-index', 'X-joint', 'X-key', 'X-labor', 'X-margin', 'X-net', 'X-order', 'X-price', 'X-quota', 'X-risk', 'X-share', 'X-tax', 'X-unit', 'X-view', 'X-wage', 'X-yield', 'X-zero', 'X-account', 'X-bond', 'X-cash', 'X-data', 'X-entry', 'X-flow', 'X-growth', 'X-high', 'X-input', 'X-loss', 'X-market', 'X-note', 'X-output', 'X-profit', 'X-sale'],
             'Y': ['Yield', 'Yield Curve', 'Yield to Maturity', 'Yen', 'Yuan', 'Year-end', 'Year-to-date (YTD)', 'Yellow Knight', 'Yankee Bond', 'Yardstick', 'Yearly', 'Yellow-dog Contract', 'Yield Gap', 'Yield Management', 'Yield Spread', 'Young Tiger', 'Youth Unemployment', 'Y-axis', 'Y-theory', 'Year-on-year (YoY)', 'Yellow Goods', 'Yield Percentage', 'Yield Ratio', 'Y-share', 'Y-value', 'Yankee Market', 'Yard', 'Year', 'Year-end Adjustment', 'Year-end Bonus', 'Year-end Dividend', 'Yearly Interest', 'Yellow Card', 'Yellow Chip', 'Yield Analysis', 'Yield Basis', 'Yield Cap', 'Yield Equivalence', 'Yield Floor', 'Yield Goal', 'Yield Improvement', 'Yield Index', 'Yield Level', 'Yield Optimization', 'Yield Performance', 'Yield Recovery', 'Yield Risk', 'Yield Target', 'Yield Variance', 'Yield Volatility'],
             'Z': ['Zero-bound', 'Zero-coupon Bond', 'Zero-sum Game', 'Zero Interest Rate', 'Z-score', 'Zero Inflation', 'Zoning', 'Zero-base Budgeting', 'Zombie Company', 'Zombie Bank', 'Zero Growth', 'Zero Lower Bound', 'Zero Tax', 'Z-share', 'Z-value', 'Zero Balance', 'Zero Capital', 'Zero Cost', 'Zero Debt', 'Zero Dividend', 'Zero Equity', 'Zero Floor', 'Zero Gain', 'Zero Hedge', 'Zero Income', 'Zero Joint', 'Zero Key', 'Zero Labor', 'Zero Loss', 'Zero Margin', 'Zero Net', 'Zero Order', 'Zero Price', 'Zero Profit', 'Zero Quota', 'Zero Rate', 'Zero Risk', 'Zero Sale', 'Zero Unit', 'Zero View', 'Zero Wage', 'Zero Yield', 'Zero Zone', 'Zigzag', 'Zip Code', 'Zone', 'Z-axis', 'Zeal', 'Zenith', 'Z-test']
@@ -439,7 +452,92 @@
 
             // Z
             'Zero-sum Game': { definition: 'A situation where one person\'s gain equals another\'s loss.', example: 'Poker is a zero-sum game - winners take money from losers.' },
-            'Zombie Company': { definition: 'A company that earns just enough to pay interest on debt but cannot grow.', example: 'Zombie companies survive on low interest rates but fail when rates rise.' }
+            'Zombie Company': { definition: 'A company that earns just enough to pay interest on debt but cannot grow.', example: 'Zombie companies survive on low interest rates but fail when rates rise.' },
+
+            // New Essential Terms
+            // Cryptocurrency & Fintech
+            'Bitcoin': { definition: 'The first and most well-known cryptocurrency, a decentralized digital currency.', example: 'Bitcoin reached an all-time high of $69,000 in 2021 before correcting.' },
+            'Blockchain': { definition: 'A decentralized digital ledger that records transactions across many computers.', example: 'Blockchain technology ensures that Bitcoin transactions cannot be altered once confirmed.' },
+            'Ethereum': { definition: 'A blockchain platform that enables smart contracts and decentralized applications.', example: 'Ethereum powers most NFTs and DeFi applications in the crypto space.' },
+            'NFT': { definition: 'Non-Fungible Token - a unique digital asset that represents ownership of items like art or collectibles.', example: 'An artist sold their digital artwork as an NFT for $69 million.' },
+            'DeFi': { definition: 'Decentralized Finance - financial services built on blockchain without traditional intermediaries.', example: 'DeFi platforms let you earn interest on crypto without using a bank.' },
+            'Stablecoin': { definition: 'A cryptocurrency designed to maintain a stable value by pegging to a reserve asset like USD.', example: 'USDC and Tether are stablecoins worth approximately $1 each.' },
+            'Smart Contract': { definition: 'Self-executing contracts with terms directly written into code on a blockchain.', example: 'A smart contract automatically releases payment when delivery is confirmed.' },
+            'Cryptocurrency': { definition: 'Digital or virtual currency that uses cryptography for security and operates on blockchain.', example: 'Bitcoin, Ethereum, and Dogecoin are all cryptocurrencies.' },
+            'Digital Wallet': { definition: 'An electronic device or app that stores payment information and passwords.', example: 'Apple Pay and Google Pay are popular digital wallets for contactless payments.' },
+            'Web3': { definition: 'The next generation of the internet built on decentralized blockchain technology.', example: 'Web3 applications give users ownership of their data and digital assets.' },
+            'Buy Now Pay Later (BNPL)': { definition: 'A payment method allowing purchases to be paid in installments, often interest-free.', example: 'Services like Klarna and Afterpay let you split a $100 purchase into 4 payments of $25.' },
+
+            // Retirement & Investing
+            '401(k)': { definition: 'An employer-sponsored retirement savings plan with tax advantages.', example: 'Your employer matches 50% of your 401(k) contributions up to 6% of your salary.' },
+            'Roth IRA': { definition: 'A retirement account where contributions are taxed but withdrawals in retirement are tax-free.', example: 'Contributing to a Roth IRA now means tax-free income in retirement.' },
+            'Traditional IRA': { definition: 'A retirement account where contributions may be tax-deductible and growth is tax-deferred.', example: 'A Traditional IRA reduces your taxable income now but you pay taxes when you withdraw.' },
+            'ETF': { definition: 'Exchange-Traded Fund - an investment fund traded on stock exchanges like individual stocks.', example: 'An S&P 500 ETF lets you invest in 500 companies with a single purchase.' },
+            'Required Minimum Distribution (RMD)': { definition: 'The minimum amount you must withdraw from retirement accounts after age 72.', example: 'At 73, you must start taking RMDs from your 401(k) or face a 25% penalty.' },
+            'Rollover': { definition: 'Moving retirement funds from one account to another without tax penalties.', example: 'When changing jobs, you can roll over your 401(k) to an IRA.' },
+            'Vesting Period': { definition: 'The time you must work before gaining full ownership of employer contributions.', example: 'After 4 years of vesting, you own 100% of your employer\'s 401(k) match.' },
+            'Target-Date Fund': { definition: 'A mutual fund that automatically adjusts its asset mix as you approach retirement.', example: 'A 2050 Target-Date Fund starts aggressive and becomes conservative as 2050 nears.' },
+            'Dollar Cost Averaging': { definition: 'Investing a fixed amount regularly regardless of market conditions.', example: 'Investing $500 monthly means you buy more shares when prices are low.' },
+            'Expense Ratio': { definition: 'The annual fee charged by a fund to cover operating expenses.', example: 'A 0.03% expense ratio means you pay $3 yearly on a $10,000 investment.' },
+            'Robo-Advisor': { definition: 'An automated investment service that creates and manages portfolios using algorithms.', example: 'Robo-advisors like Betterment charge low fees and automatically rebalance your portfolio.' },
+
+            // Insurance & Healthcare
+            'Deductible': { definition: 'The amount you pay out-of-pocket before insurance coverage kicks in.', example: 'With a $1,000 deductible, you pay the first $1,000 of medical bills yourself.' },
+            'Co-pay': { definition: 'A fixed amount you pay for a covered healthcare service.', example: 'Your insurance has a $30 co-pay for doctor visits and $15 for prescriptions.' },
+            'Out-of-Pocket Maximum': { definition: 'The most you have to pay for covered services in a plan year.', example: 'Once you hit the $8,000 out-of-pocket max, insurance pays 100% of covered costs.' },
+            'PMI': { definition: 'Private Mortgage Insurance - required when your down payment is less than 20%.', example: 'PMI adds $150 monthly to your mortgage until you reach 20% equity.' },
+            'COBRA': { definition: 'A law allowing you to continue employer health insurance after leaving a job.', example: 'COBRA lets you keep your health plan for 18 months, but you pay the full premium.' },
+            'Medicare': { definition: 'Federal health insurance program for people 65+ and those with disabilities.', example: 'Medicare Part A covers hospital stays while Part B covers doctor visits.' },
+            'Medicaid': { definition: 'Joint federal-state program providing health coverage for low-income individuals.', example: 'Medicaid covers medical costs for families below certain income thresholds.' },
+            'Term Life Insurance': { definition: 'Life insurance that provides coverage for a specific period at lower premiums.', example: 'A 20-year term life policy costs $30/month for $500,000 coverage.' },
+            'Whole Life Insurance': { definition: 'Permanent life insurance that includes a savings component and lasts your entire life.', example: 'Whole life costs more but builds cash value you can borrow against.' },
+            'Flexible Spending Account (FSA)': { definition: 'An employer benefit that lets you pay for eligible expenses with pre-tax dollars.', example: 'Contributing $2,850 to your FSA saves about $700 in taxes.' },
+
+            // Taxes
+            'Progressive Tax': { definition: 'A tax system where higher incomes are taxed at higher rates.', example: 'In a progressive system, someone earning $500,000 pays a higher rate than someone earning $50,000.' },
+            'Regressive Tax': { definition: 'A tax that takes a larger percentage from low-income earners.', example: 'Sales tax is regressive because it affects low-income families more heavily.' },
+            'Capital Gains Tax': { definition: 'Tax on profits from selling assets like stocks, real estate, or investments.', example: 'Long-term capital gains (held over 1 year) are taxed at lower rates than ordinary income.' },
+            'Property Tax': { definition: 'Annual tax paid on real estate based on the property\'s assessed value.', example: 'A 1.5% property tax rate means paying $4,500 yearly on a $300,000 home.' },
+            'Sales Tax': { definition: 'A consumption tax imposed on the sale of goods and services.', example: 'With 8% sales tax, a $100 item costs $108 at checkout.' },
+            'FICA': { definition: 'Federal Insurance Contributions Act - taxes funding Social Security and Medicare.', example: 'FICA takes 7.65% from your paycheck (6.2% Social Security, 1.45% Medicare).' },
+            'Self-Employment Tax': { definition: 'Social Security and Medicare taxes for self-employed individuals.', example: 'Self-employed people pay 15.3% self-employment tax on their net earnings.' },
+            'Tax Refund': { definition: 'Money returned when you paid more taxes than you owed.', example: 'Overpaying through payroll withholding resulted in a $2,500 tax refund.' },
+
+            // Credit & Debt
+            'Credit Report': { definition: 'A detailed record of your credit history used by lenders to evaluate you.', example: 'Your credit report shows all your loans, credit cards, and payment history.' },
+            'Credit Bureau': { definition: 'An agency that collects and maintains credit information on consumers.', example: 'Equifax, Experian, and TransUnion are the three major credit bureaus.' },
+            'Credit Utilization': { definition: 'The percentage of available credit you are using.', example: 'Using $3,000 of your $10,000 credit limit gives you 30% utilization.' },
+            'Credit Freeze': { definition: 'A security measure that restricts access to your credit report.', example: 'After identity theft, placing a credit freeze prevents new accounts from being opened.' },
+            'Credit History': { definition: 'A record of your borrowing and repayment behavior over time.', example: 'A 10-year credit history with no late payments helps your credit score.' },
+            'Debt Snowball': { definition: 'A debt repayment strategy paying off smallest balances first for motivation.', example: 'The debt snowball helped her eliminate 5 credit cards by focusing on the smallest first.' },
+            'Debt Avalanche': { definition: 'A debt repayment strategy paying off highest interest debts first to save money.', example: 'Using debt avalanche, paying the 24% APR card first saves more interest.' },
+            'Student Loan': { definition: 'A loan specifically designed to help pay for education expenses.', example: 'Federal student loans offer income-driven repayment plans.' },
+
+            // Real Estate
+            'HELOC': { definition: 'Home Equity Line of Credit - a revolving credit line secured by your home.', example: 'A HELOC lets you borrow up to $50,000 against your home equity for renovations.' },
+            'FHA Loan': { definition: 'A government-backed mortgage with lower down payment requirements.', example: 'An FHA loan allows first-time buyers to purchase with just 3.5% down.' },
+            'VA Loan': { definition: 'A mortgage program for veterans with no down payment required.', example: 'VA loans offer military families 0% down payment and no PMI.' },
+            'Earnest Money': { definition: 'A deposit showing serious intent to buy a property.', example: 'The buyer put down $5,000 earnest money that was applied to the down payment.' },
+            'Title Insurance': { definition: 'Insurance protecting against losses from defects in property title.', example: 'Title insurance protected the buyer when a previous lien was discovered.' },
+            'Cash-Out Refinance': { definition: 'Refinancing a mortgage for more than owed and taking the difference in cash.', example: 'A cash-out refinance turned $50,000 in home equity into renovation funds.' },
+            'Reverse Mortgage': { definition: 'A loan allowing homeowners 62+ to convert home equity into cash.', example: 'A reverse mortgage provided $1,500 monthly income for retirement expenses.' },
+            'HOA Fees': { definition: 'Monthly or annual fees paid to a homeowners association for community maintenance.', example: 'HOA fees of $300/month cover pool maintenance, landscaping, and security.' },
+            'Underwater Mortgage': { definition: 'When a home is worth less than the remaining mortgage balance.', example: 'After the 2008 crash, many homeowners were underwater on their mortgages.' },
+
+            // Personal Finance
+            'Side Hustle': { definition: 'A secondary job or business pursued in addition to full-time employment.', example: 'Her side hustle driving for Uber adds $500 monthly to her income.' },
+            'Financial Independence': { definition: 'Having enough income from investments to cover living expenses without working.', example: 'Reaching financial independence at 45 allowed him to retire early.' },
+            'FIRE Movement': { definition: 'Financial Independence, Retire Early - a lifestyle focused on extreme saving to retire young.', example: 'FIRE followers often save 50-70% of their income to retire in their 40s.' },
+            'Direct Deposit': { definition: 'Electronic transfer of payment directly into a bank account.', example: 'Direct deposit means your paycheck appears in your account every Friday.' },
+            'Wire Transfer': { definition: 'An electronic transfer of funds between banks, often for large amounts.', example: 'The house closing required a $60,000 wire transfer to the title company.' },
+            'Identity Theft': { definition: 'When someone steals personal information to commit fraud.', example: 'Identity theft resulted in $10,000 of fraudulent charges on stolen credit cards.' },
+            'Estate Planning': { definition: 'Preparing for the transfer of assets after death.', example: 'Estate planning includes writing a will, setting up trusts, and naming beneficiaries.' },
+            'Power of Attorney': { definition: 'Legal authorization for someone to act on your behalf.', example: 'A power of attorney lets your spouse manage finances if you become incapacitated.' },
+            'Security Deposit': { definition: 'Money paid upfront to a landlord as protection against damages.', example: 'The apartment required a $1,500 security deposit equal to one month\'s rent.' },
+            'Landlord': { definition: 'A person or entity that owns and rents out property.', example: 'The landlord is responsible for major repairs like fixing the heating system.' },
+            'Tenant': { definition: 'A person who rents and occupies property owned by another.', example: 'As a tenant, you must give 30 days notice before moving out.' },
+            'High-Yield Savings Account': { definition: 'A savings account offering significantly higher interest rates than traditional accounts.', example: 'A high-yield savings account pays 4.5% APY compared to 0.01% at traditional banks.' },
+            'Money Market Account': { definition: 'A savings account that typically offers higher interest and limited check-writing.', example: 'Money market accounts often require $2,500 minimum balance for the best rates.' }
         };
 
         function searchDictionary(query) {
@@ -490,14 +588,14 @@
             modal.showModal();
         }
 
-        function displayResults(results, title) {
+        function displayResults(results, title, hideCount = false) {
             const resultsContainer = document.getElementById('search-results');
             const resultsTitle = document.getElementById('results-title');
             const resultsCount = document.getElementById('results-count');
             const resultsList = document.getElementById('results-list');
 
             resultsTitle.textContent = title;
-            resultsCount.textContent = `${results.length} terms found`;
+            resultsCount.textContent = hideCount ? '' : `${results.length} terms found`;
 
             resultsList.innerHTML = results.map(({ letter, term }) => `
                 <div class="term-card bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 rounded-xl p-3 sm:p-4 cursor-pointer flex items-center gap-3" onclick="showTermModal('${term.replace(/'/g, "\\'")}')">
@@ -510,6 +608,46 @@
             `).join('');
 
             resultsContainer.classList.remove('hidden');
+        }
+
+        // Today's Terms - date-based seeded random for consistent daily terms
+        function seededRandom(seed) {
+            const x = Math.sin(seed) * 10000;
+            return x - Math.floor(x);
+        }
+
+        function getTodaysTerms(count = 10) {
+            const termsWithDefinitions = Object.keys(termDefinitions);
+            const today = new Date();
+            const dateSeed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+
+            const selectedTerms = [];
+            const usedIndices = new Set();
+
+            for (let i = 0; i < count && i < termsWithDefinitions.length; i++) {
+                let index;
+                let attempts = 0;
+                do {
+                    index = Math.floor(seededRandom(dateSeed + i + attempts * 100) * termsWithDefinitions.length);
+                    attempts++;
+                } while (usedIndices.has(index) && attempts < 100);
+
+                usedIndices.add(index);
+                selectedTerms.push(termsWithDefinitions[index]);
+            }
+
+            return selectedTerms;
+        }
+
+        function initTodaysTerms() {
+            const terms = getTodaysTerms(10);
+            const container = document.getElementById('todays-terms-list');
+
+            container.innerHTML = terms.map(term => `
+                <button onclick="showTermModal('${term.replace(/'/g, "\\'")}')" class="px-3 py-1.5 bg-white hover:bg-blue-100 border border-blue-200 hover:border-blue-400 rounded-lg text-sm font-medium text-slate-700 hover:text-blue-700 transition-all cursor-pointer">
+                    ${term}
+                </button>
+            `).join('');
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -563,7 +701,7 @@
                     const letter = btn.dataset.letter;
                     const results = filterByLetter(letter);
                     const title = letter === 'ALL' ? 'All Financial Terms' : `Terms starting with "${letter}"`;
-                    displayResults(results, title);
+                    displayResults(results, title, true);
 
                     searchInput.value = '';
                 });
@@ -573,9 +711,16 @@
             const allBtn = document.querySelector('.alphabet-btn[data-letter="ALL"]');
             allBtn.classList.remove('bg-slate-100', 'text-slate-600');
             allBtn.classList.add('bg-blue-600', 'text-white');
-            displayResults(filterByLetter('ALL'), 'All Financial Terms');
+            displayResults(filterByLetter('ALL'), 'All Financial Terms', true);
+
+            // Initialize Today's Terms
+            initTodaysTerms();
+
+            // Initialize Header & Footer
+            initComponents('dictionary');
         });
     </script>
+    <script src="components.js"></script>
 
 </body>
 </html>
