@@ -1,5 +1,97 @@
 // Economy Helper - Shared Components
 
+// Google AdSense Configuration
+const ADSENSE_CONFIG = {
+    clientId: 'ca-pub-1927828313220344',
+    adsbygoogleScript: 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js',
+    ampAutoAdsScript: 'https://cdn.ampproject.org/v0/amp-auto-ads-0.1.js'
+};
+
+// Inject Google AdSense Scripts into head
+function injectAdSenseScripts() {
+    // Check if scripts already exist
+    if (document.querySelector('script[src*="pagead2.googlesyndication.com"]')) {
+        return;
+    }
+
+    // Create and inject adsbygoogle script
+    const adsbyGoogleScript = document.createElement('script');
+    adsbyGoogleScript.async = true;
+    adsbyGoogleScript.src = `${ADSENSE_CONFIG.adsbygoogleScript}?client=${ADSENSE_CONFIG.clientId}`;
+    adsbyGoogleScript.crossOrigin = 'anonymous';
+    document.head.appendChild(adsbyGoogleScript);
+
+    // Create and inject amp-auto-ads script
+    const ampAutoAdsScript = document.createElement('script');
+    ampAutoAdsScript.async = true;
+    ampAutoAdsScript.setAttribute('custom-element', 'amp-auto-ads');
+    ampAutoAdsScript.src = ADSENSE_CONFIG.ampAutoAdsScript;
+    document.head.appendChild(ampAutoAdsScript);
+}
+
+// Inject amp-auto-ads tag into body (after header)
+function injectAmpAutoAds() {
+    // Check if amp-auto-ads already exists
+    if (document.querySelector('amp-auto-ads')) {
+        return;
+    }
+
+    const ampAutoAds = document.createElement('amp-auto-ads');
+    ampAutoAds.setAttribute('type', 'adsense');
+    ampAutoAds.setAttribute('data-ad-client', ADSENSE_CONFIG.clientId);
+
+    // Insert after header or at the beginning of body
+    const header = document.getElementById('header');
+    if (header && header.nextSibling) {
+        header.parentNode.insertBefore(ampAutoAds, header.nextSibling);
+    } else {
+        document.body.insertBefore(ampAutoAds, document.body.firstChild);
+    }
+}
+
+// Inject common stylesheets
+function injectCommonStyles(basePath = '') {
+    const stylesheets = [
+        { href: 'https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css', rel: 'stylesheet' },
+        { href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap', rel: 'stylesheet' },
+        { href: `${basePath}styles.css`, rel: 'stylesheet' }
+    ];
+
+    const preconnects = [
+        { href: 'https://fonts.googleapis.com', rel: 'preconnect' },
+        { href: 'https://fonts.gstatic.com', rel: 'preconnect', crossorigin: true }
+    ];
+
+    // Add preconnects
+    preconnects.forEach(item => {
+        if (!document.querySelector(`link[href="${item.href}"][rel="preconnect"]`)) {
+            const link = document.createElement('link');
+            link.rel = item.rel;
+            link.href = item.href;
+            if (item.crossorigin) link.crossOrigin = '';
+            document.head.appendChild(link);
+        }
+    });
+
+    // Add stylesheets
+    stylesheets.forEach(item => {
+        if (!document.querySelector(`link[href="${item.href}"]`)) {
+            const link = document.createElement('link');
+            link.rel = item.rel;
+            link.href = item.href;
+            link.type = 'text/css';
+            document.head.appendChild(link);
+        }
+    });
+
+    // Add Tailwind CSS script if not exists
+    if (!document.querySelector('script[src*="tailwindcss.com"]')) {
+        const tailwindScript = document.createElement('script');
+        tailwindScript.src = 'https://cdn.tailwindcss.com';
+        document.head.appendChild(tailwindScript);
+    }
+}
+
 const NAV_ITEMS = [
     { id: 'dictionary', label: 'Dictionary', href: 'index.html' },
     { id: 'personality', label: 'Personality Test', href: 'personality-test.html' },
@@ -7,7 +99,7 @@ const NAV_ITEMS = [
 ];
 
 // Render Header Component
-function renderHeader(activePageId) {
+function renderHeader(activePageId, basePath = '') {
     const header = document.getElementById('header');
     if (!header) return;
 
@@ -16,20 +108,20 @@ function renderHeader(activePageId) {
         const activeClass = isActive
             ? 'text-blue-600 bg-blue-50'
             : 'text-slate-600 hover:text-blue-600 hover:bg-blue-50';
-        return `<li><a href="${item.href}" class="font-medium ${activeClass} rounded-lg">${item.label}</a></li>`;
+        return `<li><a href="${basePath}${item.href}" class="font-medium ${activeClass} rounded-lg">${item.label}</a></li>`;
     }).join('');
 
     const navItemsMobile = NAV_ITEMS.map(item => {
         const isActive = item.id === activePageId;
         const activeClass = isActive ? 'text-blue-600' : 'text-slate-600';
-        return `<li><a href="${item.href}" class="font-medium ${activeClass}">${item.label}</a></li>`;
+        return `<li><a href="${basePath}${item.href}" class="font-medium ${activeClass}">${item.label}</a></li>`;
     }).join('');
 
     header.innerHTML = `
         <div class="container mx-auto px-4">
             <div class="navbar min-h-16 p-0">
                 <div class="navbar-start">
-                    <a href="index.html" class="flex items-center gap-2 text-xl font-bold text-slate-800 hover:text-blue-600 transition-colors">
+                    <a href="${basePath}index.html" class="flex items-center gap-2 text-xl font-bold text-slate-800 hover:text-blue-600 transition-colors">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                         </svg>
@@ -73,7 +165,26 @@ function renderFooter() {
 }
 
 // Initialize Components
-function initComponents(activePageId) {
-    renderHeader(activePageId);
+function initComponents(activePageId, options = {}) {
+    const basePath = options.basePath || '';
+
+    // Inject common styles
+    injectCommonStyles(basePath);
+
+    // Inject AdSense scripts
+    injectAdSenseScripts();
+
+    // Inject amp-auto-ads tag
+    injectAmpAutoAds();
+
+    // Render header and footer
+    renderHeader(activePageId, basePath);
     renderFooter();
+}
+
+// Initialize only ads (for pages that don't use header/footer)
+function initAds(basePath = '') {
+    injectCommonStyles(basePath);
+    injectAdSenseScripts();
+    injectAmpAutoAds();
 }

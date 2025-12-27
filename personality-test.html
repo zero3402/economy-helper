@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
     <!-- Primary Meta Tags -->
-    <title>Economic Personality Test - Discover Your Financial Type | Economy Helper</title>
-    <meta name="title" content="Economic Personality Test - Discover Your Financial Type | Economy Helper">
+    <title>Economy Helper - Making economics simple for everyone</title>
+    <meta name="title" content="Economy Helper - Making economics simple for everyone">
     <meta name="description" content="Take our free 100-question economic personality test to discover your financial type. Are you a Safe Guard, Aggressive Bull, Strategic Planner, Value Seeker, or Trend Follower?">
     <meta name="keywords" content="economic personality test, financial personality quiz, investment style test, money personality, investor type quiz, financial behavior test, wealth mindset assessment, personal finance quiz">
     <meta name="author" content="Economy Helper">
@@ -17,7 +17,7 @@
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://economyhelper.com/personality-test.html">
-    <meta property="og:title" content="Economic Personality Test - Discover Your Financial Type">
+    <meta property="og:title" content="Economy Helper - Making economics simple for everyone">
     <meta property="og:description" content="Take our free 100-question test to discover your financial personality type. Learn your strengths, weaknesses, and ideal investment strategies.">
     <meta property="og:image" content="https://economyhelper.com/images/og.png">
     <meta property="og:image:width" content="1200">
@@ -28,7 +28,7 @@
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:url" content="https://economyhelper.com/personality-test.html">
-    <meta name="twitter:title" content="Economic Personality Test - Discover Your Financial Type">
+    <meta name="twitter:title" content="Economy Helper - Making economics simple for everyone">
     <meta name="twitter:description" content="Take our free 100-question test to discover your financial personality type. Learn your strengths and ideal strategies.">
     <meta name="twitter:image" content="https://economyhelper.com/images/og.png">
 
@@ -80,20 +80,13 @@
     }
     </script>
 
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet" type="text/css" />
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css">
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1927828313220344"
-     crossorigin="anonymous"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet" type="text/css" />
 </head>
 <body class="bg-slate-50 min-h-screen">
 
     <!-- Header -->
     <header id="header" class="bg-white border-b border-slate-200 sticky top-0 z-50"></header>
-
     <main class="container mx-auto px-4 py-6 sm:py-10">
         <!-- Start Screen -->
         <div id="start-screen" class="max-w-2xl mx-auto text-center">
@@ -976,12 +969,28 @@
         }
 
         function shareResults() {
-            const { personality } = window.currentResult;
+            const { topType, personality } = window.currentResult;
 
-            const text = `I took the Economic Personality Test and I'm "${personality.name}"! ${personality.slogan}\n\nTake the test: ${window.location.href}`;
+            // Map topType to result page URL
+            const resultPages = {
+                safeGuard: 'safe-guard',
+                aggressiveBull: 'aggressive-bull',
+                strategicPlanner: 'strategic-planner',
+                valueSeeker: 'value-seeker',
+                trendFollower: 'trend-follower'
+            };
+
+            const baseUrl = window.location.origin;
+            const resultUrl = `${baseUrl}/results/${resultPages[topType]}.html`;
+
+            const text = `I took the Economic Personality Test and I'm "${personality.name}"! ${personality.slogan}\n\nSee my result: ${resultUrl}`;
 
             if (navigator.share) {
-                navigator.share({ title: 'My Economic Personality', text: text });
+                navigator.share({
+                    title: `I'm ${personality.name}!`,
+                    text: text,
+                    url: resultUrl
+                });
             } else {
                 navigator.clipboard.writeText(text).then(() => {
                     alert('Results copied to clipboard!');
