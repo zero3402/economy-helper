@@ -2034,7 +2034,43 @@
             `).join('');
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
+        // Apply translations for dictionary page
+        function applyDictionaryTranslations() {
+            if (!window.i18n) return;
+
+            const t = window.i18n.t;
+            const lang = window.i18n.getCurrentLanguage();
+
+            // Update HTML lang attribute
+            document.documentElement.lang = lang === 'ko' ? 'ko' : 'en';
+
+            // Update page title
+            document.querySelector('h1').textContent = t('dictionary.title');
+
+            // Update subtitle
+            document.querySelector('h1 + p').textContent = t('dictionary.subtitle');
+
+            // Update Today's Terms title
+            document.querySelector('#todays-terms-list')?.previousElementSibling?.querySelector('span')?.textContent &&
+                (document.querySelector('#todays-terms-list').previousElementSibling.querySelector('span').textContent = t('dictionary.todaysTerms'));
+
+            // Update search placeholder
+            document.getElementById('search-input').placeholder = t('dictionary.searchPlaceholder');
+
+            // Update search button
+            document.getElementById('search-btn').textContent = t('common.search');
+
+            // Update All button
+            document.querySelector('.alphabet-btn[data-letter="ALL"]').textContent = t('common.all');
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Initialize i18n first
+            if (window.i18n) {
+                await window.i18n.initI18n();
+                applyDictionaryTranslations();
+            }
+
             const searchInput = document.getElementById('search-input');
             const searchBtn = document.getElementById('search-btn');
             const alphabetBtns = document.querySelectorAll('.alphabet-btn');

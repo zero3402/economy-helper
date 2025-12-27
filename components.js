@@ -112,6 +112,22 @@ function getNavLabel(labelKey) {
     return fallbacks[labelKey] || labelKey;
 }
 
+// Get current language
+function getCurrentLang() {
+    if (window.i18n && window.i18n.getCurrentLanguage) {
+        return window.i18n.getCurrentLanguage();
+    }
+    return localStorage.getItem('eh_language') || 'en';
+}
+
+// Toggle language
+function toggleLanguage() {
+    const currentLang = getCurrentLang();
+    const newLang = currentLang === 'ko' ? 'en' : 'ko';
+    localStorage.setItem('eh_language', newLang);
+    location.reload();
+}
+
 // Render Header Component
 function renderHeader(activePageId, basePath = '') {
     const header = document.getElementById('header');
@@ -133,6 +149,10 @@ function renderHeader(activePageId, basePath = '') {
         return `<li><a href="${basePath}${item.href}" class="font-medium ${activeClass}">${label}</a></li>`;
     }).join('');
 
+    const currentLang = getCurrentLang();
+    const langBtnText = currentLang === 'ko' ? 'EN' : '한국어';
+    const langBtnTitle = currentLang === 'ko' ? 'Switch to English' : '한국어로 전환';
+
     header.innerHTML = `
         <div class="container mx-auto px-4">
             <div class="navbar min-h-16 p-0">
@@ -147,6 +167,10 @@ function renderHeader(activePageId, basePath = '') {
                     <ul class="menu menu-horizontal px-1 hidden md:flex gap-1">
                         ${navItemsDesktop}
                     </ul>
+                    <!-- Language Toggle Button -->
+                    <button onclick="toggleLanguage()" title="${langBtnTitle}" class="btn btn-ghost btn-sm ml-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 font-medium">
+                        🌐 ${langBtnText}
+                    </button>
                     <!-- Mobile Menu -->
                     <div class="dropdown dropdown-end md:hidden">
                         <label tabindex="0" class="btn btn-ghost btn-circle">
