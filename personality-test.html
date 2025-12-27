@@ -7,7 +7,7 @@
     <!-- Primary Meta Tags -->
     <title>Economy Helper - Making economics simple for everyone</title>
     <meta name="title" content="Economy Helper - Making economics simple for everyone">
-    <meta name="description" content="Take our free 100-question economic personality test to discover your financial type. Are you a Safe Guard, Aggressive Bull, Strategic Planner, Value Seeker, or Trend Follower?">
+    <meta name="description" content="Take our free 50-question economic personality test to discover your financial type. Are you a Safe Guard, Aggressive Bull, Strategic Planner, Value Seeker, or Trend Follower?">
     <meta name="keywords" content="economic personality test, financial personality quiz, investment style test, money personality, investor type quiz, financial behavior test, wealth mindset assessment, personal finance quiz">
     <meta name="author" content="Economy Helper">
     <meta name="robots" content="index, follow">
@@ -18,7 +18,7 @@
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://economyhelper.com/personality-test.html">
     <meta property="og:title" content="Economy Helper - Making economics simple for everyone">
-    <meta property="og:description" content="Take our free 100-question test to discover your financial personality type. Learn your strengths, weaknesses, and ideal investment strategies.">
+    <meta property="og:description" content="Take our free 50-question test to discover your financial personality type. Learn your strengths, weaknesses, and ideal investment strategies.">
     <meta property="og:image" content="https://economyhelper.com/images/og.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
@@ -29,7 +29,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:url" content="https://economyhelper.com/personality-test.html">
     <meta name="twitter:title" content="Economy Helper - Making economics simple for everyone">
-    <meta name="twitter:description" content="Take our free 100-question test to discover your financial personality type. Learn your strengths and ideal strategies.">
+    <meta name="twitter:description" content="Take our free 50-question test to discover your financial personality type. Learn your strengths and ideal strategies.">
     <meta name="twitter:image" content="https://economyhelper.com/images/og.png">
 
     <!-- Additional SEO -->
@@ -43,7 +43,7 @@
         "@context": "https://schema.org",
         "@type": "Quiz",
         "name": "Economic Personality Test",
-        "description": "A comprehensive 100-question personality test to discover your financial type and investment style.",
+        "description": "A comprehensive 50-question personality test to discover your financial type and investment style.",
         "url": "https://economyhelper.com/personality-test.html",
         "provider": {
             "@type": "Organization",
@@ -55,8 +55,8 @@
             "name": "Financial Personality Types"
         },
         "educationalLevel": "beginner",
-        "numberOfQuestions": 100,
-        "timeRequired": "PT20M"
+        "numberOfQuestions": 50,
+        "timeRequired": "PT10M"
     }
     </script>
     <script type="application/ld+json">
@@ -100,7 +100,7 @@
                     Economic Personality Test
                 </h1>
                 <p class="text-slate-500 text-sm sm:text-base max-w-lg mx-auto mb-6">
-                    Discover your financial personality type through 100 carefully crafted questions across 5 sections. Learn about your strengths, weaknesses, and ideal investment strategies.
+                    Discover your financial personality type through 50 carefully crafted questions across 5 sections. Learn about your strengths, weaknesses, and ideal investment strategies.
                 </p>
             </div>
 
@@ -113,7 +113,7 @@
                             </svg>
                         </div>
                         <div>
-                            <div class="font-semibold text-slate-800">15-20 Minutes</div>
+                            <div class="font-semibold text-slate-800">8-10 Minutes</div>
                             <div class="text-xs text-slate-500">Comprehensive analysis</div>
                         </div>
                     </div>
@@ -126,8 +126,8 @@
                             </svg>
                         </div>
                         <div>
-                            <div class="font-semibold text-slate-800">100 Questions</div>
-                            <div class="text-xs text-slate-500">5 sections, 20 each</div>
+                            <div class="font-semibold text-slate-800">50 Questions</div>
+                            <div class="text-xs text-slate-500">5 sections, 10 each</div>
                         </div>
                     </div>
                 </div>
@@ -182,7 +182,7 @@
             <!-- Progress -->
             <div class="mb-6">
                 <div class="flex items-center justify-between mb-2">
-                    <span class="text-sm font-medium text-slate-600">Question <span id="current-q">1</span> of 100</span>
+                    <span class="text-sm font-medium text-slate-600">Question <span id="current-q">1</span> of <span id="total-q">50</span></span>
                     <span id="progress-percent" class="text-sm font-medium text-blue-600">0%</span>
                 </div>
                 <div class="w-full bg-slate-200 rounded-full h-2">
@@ -344,6 +344,35 @@
 
     <!-- Footer -->
     <footer id="footer" class="bg-white border-t border-slate-200 mt-auto"></footer>
+
+    <!-- Share Modal -->
+    <dialog id="share-modal" class="modal">
+        <div class="modal-box max-w-sm">
+            <h3 class="font-bold text-lg mb-4">Share Your Result</h3>
+            <div class="flex flex-col gap-3">
+                <button onclick="shareToTwitter()" class="btn btn-outline gap-2 justify-start">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                    Share on X (Twitter)
+                </button>
+                <button onclick="shareToFacebook()" class="btn btn-outline gap-2 justify-start">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                    Share on Facebook
+                </button>
+                <button onclick="copyShareLink()" class="btn btn-outline gap-2 justify-start">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                    <span id="copy-link-text">Copy Link</span>
+                </button>
+            </div>
+            <div class="modal-action">
+                <form method="dialog">
+                    <button class="btn">Close</button>
+                </form>
+            </div>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button>close</button>
+        </form>
+    </dialog>
 
     <script>
         // Personality Types Data
@@ -639,115 +668,65 @@
         // Weight format: [safeGuard, aggressiveBull, strategicPlanner, valueSeeker, trendFollower]
         // Positive weight = Agree increases score, Negative weight = Disagree increases score
         const questions = [
-            // Section 1: Investment Attitude & Risk (Q1-20)
+            // Section 1: Investment Attitude & Risk (10 questions)
             { section: 'Section 1: Investment Attitude & Risk', text: 'I would avoid an investment even if there is a 1% chance of losing the principal.', weights: [3, -2, 0, 1, -1] },
             { section: 'Section 1: Investment Attitude & Risk', text: '"High Risk, High Return" is my life motto.', weights: [-2, 3, 0, -1, 2] },
-            { section: 'Section 1: Investment Attitude & Risk', text: 'I can sleep soundly even if the stock market crashes by 20%.', weights: [-1, 3, 1, 0, 1] },
-            { section: 'Section 1: Investment Attitude & Risk', text: 'I am satisfied with returns slightly higher than savings interest rather than hitting a jackpot.', weights: [3, -2, 1, 1, -1] },
             { section: 'Section 1: Investment Attitude & Risk', text: 'I believe using leverage (loans) is an essential strategy to become wealthy.', weights: [-2, 3, 0, -1, 1] },
-            { section: 'Section 1: Investment Attitude & Risk', text: 'I feel more comfortable investing in blue-chip stocks like Samsung or Apple than in unknown sectors.', weights: [2, -1, 1, 0, -1] },
             { section: 'Section 1: Investment Attitude & Risk', text: 'The first thing I check when investing is the "maximum potential loss."', weights: [3, -1, 2, 1, 0] },
             { section: 'Section 1: Investment Attitude & Risk', text: 'I am constantly drawn to skyrocketing stocks or hot topics in the news.', weights: [-1, 2, -1, 0, 3] },
-            { section: 'Section 1: Investment Attitude & Risk', text: '"Cutting losses" (Loss Cut) is emotionally too painful for me to execute.', weights: [1, -2, -1, 0, 0] },
-            { section: 'Section 1: Investment Attitude & Risk', text: 'When I make a profit, I hold on for bigger gains rather than selling immediately.', weights: [-1, 3, 0, -1, 1] },
-            { section: 'Section 1: Investment Attitude & Risk', text: 'I trust charts and technical indicators more than intuition when making decisions.', weights: [0, 2, 2, 0, 1] },
             { section: 'Section 1: Investment Attitude & Risk', text: 'I believe cryptocurrency will become a core asset of the future.', weights: [-1, 1, 0, 0, 3] },
             { section: 'Section 1: Investment Attitude & Risk', text: 'I prefer concentrated investment in one or two stocks I trust over diversification.', weights: [-1, 3, -2, 0, 1] },
             { section: 'Section 1: Investment Attitude & Risk', text: 'I think a market filled with panic is the greatest buying opportunity.', weights: [-1, 3, 1, 0, 1] },
-            { section: 'Section 1: Investment Attitude & Risk', text: 'I tend to enjoy investing like a game or a competitive sport.', weights: [-1, 3, 0, 0, 2] },
             { section: 'Section 1: Investment Attitude & Risk', text: 'I believe in the power of compounding and am ready to invest for over 10 years.', weights: [1, -1, 3, 1, 0] },
-            { section: 'Section 1: Investment Attitude & Risk', text: 'I trust my own analysis more than the advice of financial experts.', weights: [0, 2, 1, 0, 1] },
             { section: 'Section 1: Investment Attitude & Risk', text: 'I feel at peace only when more than 50% of my assets are in cash.', weights: [3, -2, -1, 1, -1] },
-            { section: 'Section 1: Investment Attitude & Risk', text: 'I am very interested in international stocks or emerging market investments.', weights: [-1, 2, 1, 0, 2] },
-            { section: 'Section 1: Investment Attitude & Risk', text: 'I look for opportunities to make a fortune at once, like auctions or lotteries.', weights: [-2, 3, -1, -1, 1] },
 
-            // Section 2: Spending Habits & Value Seeking (Q21-40)
+            // Section 2: Spending Habits & Value Seeking (10 questions)
             { section: 'Section 2: Spending Habits & Value Seeking', text: 'I compare prices on at least three different websites before making a purchase.', weights: [1, -1, 1, 3, 0] },
-            { section: 'Section 2: Spending Habits & Value Seeking', text: 'I hesitate to pay if there are no discount coupons or reward points available.', weights: [1, -1, 0, 3, 0] },
             { section: 'Section 2: Spending Habits & Value Seeking', text: '"Brand image" is more important to me than "value for money."', weights: [0, 1, -1, -3, 1] },
-            { section: 'Section 2: Spending Habits & Value Seeking', text: 'I tend to go shopping as a "reward" to myself when I am stressed.', weights: [-1, 0, -1, -2, 0] },
-            { section: 'Section 2: Spending Habits & Value Seeking', text: 'I prefer bulk online orders or big-box retailers over convenience stores.', weights: [1, 0, 1, 3, 0] },
             { section: 'Section 2: Spending Habits & Value Seeking', text: 'I maximize credit card benefits like airline miles or cash-back rewards.', weights: [0, 0, 2, 3, 1] },
-            { section: 'Section 2: Spending Habits & Value Seeking', text: 'Psychological satisfaction (joy) is more important than the actual price tag.', weights: [-1, 1, -1, -2, 1] },
             { section: 'Section 2: Spending Habits & Value Seeking', text: 'I track my spending down to the last penny using a household ledger or app.', weights: [1, 0, 2, 3, 0] },
-            { section: 'Section 2: Spending Habits & Value Seeking', text: 'I am willing to wait in line to buy a limited-edition trendy product.', weights: [-1, 0, -1, -1, 2] },
-            { section: 'Section 2: Spending Habits & Value Seeking', text: 'I find joy in buying and selling items on second-hand marketplaces.', weights: [0, 0, 0, 3, 1] },
             { section: 'Section 2: Spending Habits & Value Seeking', text: 'My friends have called me "frugal" or "stingy" before.', weights: [2, -1, 0, 3, -1] },
-            { section: 'Section 2: Spending Habits & Value Seeking', text: 'I buy things just because they are "on sale," even if I don\'t strictly need them.', weights: [-1, 0, -1, -2, 0] },
             { section: 'Section 2: Spending Habits & Value Seeking', text: 'I regularly review and cancel subscription services I no longer use.', weights: [1, 0, 2, 3, 0] },
-            { section: 'Section 2: Spending Habits & Value Seeking', text: 'I prefer cooking at home with fresh ingredients over dining out.', weights: [1, 0, 1, 3, 0] },
             { section: 'Section 2: Spending Habits & Value Seeking', text: 'I don\'t hold back when spending on "luxury gifts" for myself.', weights: [-1, 1, -1, -3, 1] },
-            { section: 'Section 2: Spending Habits & Value Seeking', text: 'I consider the "resale value" of an item before I buy it.', weights: [0, 0, 2, 3, 0] },
             { section: 'Section 2: Spending Habits & Value Seeking', text: 'I make a conscious effort to save on utility bills like electricity and water.', weights: [1, -1, 1, 3, 0] },
-            { section: 'Section 2: Spending Habits & Value Seeking', text: 'I prefer several cheap outfits over one expensive high-quality piece.', weights: [0, 0, 0, 2, 0] },
             { section: 'Section 2: Spending Habits & Value Seeking', text: 'To avoid impulse buying, I leave items in the cart for a few days before paying.', weights: [2, -1, 2, 3, 0] },
             { section: 'Section 2: Spending Habits & Value Seeking', text: 'The joy of seeing my bank balance grow is greater than the joy of spending.', weights: [2, 0, 1, 3, 0] },
 
-            // Section 3: Information & Technology Trends (Q41-60)
-            { section: 'Section 3: Information & Technology Trends', text: 'I check economic news or stock market reports every single morning.', weights: [0, 2, 2, 0, 2] },
+            // Section 3: Information & Technology Trends (10 questions)
             { section: 'Section 3: Information & Technology Trends', text: 'I install new financial apps (Neo-banks, Fintech) as soon as they are released.', weights: [-1, 1, 0, 0, 3] },
-            { section: 'Section 3: Information & Technology Trends', text: 'My investment choices are influenced by YouTubers or social media influencers.', weights: [-1, 1, -1, 0, 2] },
-            { section: 'Section 3: Information & Technology Trends', text: 'Investing in ESG (Environmental, Social, Governance) companies is important to me.', weights: [0, 0, 2, 0, 1] },
             { section: 'Section 3: Information & Technology Trends', text: 'I am very interested in future industries like Fintech, AI, and Robotics.', weights: [0, 1, 1, 0, 3] },
-            { section: 'Section 3: Information & Technology Trends', text: 'I feel smartphone banking is much more convenient and safer than paper passbooks.', weights: [0, 0, 1, 1, 2] },
             { section: 'Section 3: Information & Technology Trends', text: 'I recognize the value of digital assets like NFTs or Metaverse land.', weights: [-1, 1, 0, 0, 3] },
             { section: 'Section 3: Information & Technology Trends', text: 'I am usually the first to tell my friends about new ways to make money.', weights: [-1, 2, 0, 0, 3] },
             { section: 'Section 3: Information & Technology Trends', text: 'I don\'t mind reading through complex terms and conditions or public disclosures.', weights: [1, 0, 3, 1, 0] },
-            { section: 'Section 3: Information & Technology Trends', text: 'I almost never visit a physical bank branch anymore.', weights: [0, 0, 1, 1, 2] },
             { section: 'Section 3: Information & Technology Trends', text: 'I want to utilize tools like ChatGPT for professional investment analysis.', weights: [0, 1, 2, 0, 3] },
             { section: 'Section 3: Information & Technology Trends', text: 'I am obsessed with finding "hidden gems" or information others don\'t know yet.', weights: [-1, 2, 0, 0, 3] },
             { section: 'Section 3: Information & Technology Trends', text: 'I always connect news about interest rates or exchange rates to my own life.', weights: [1, 1, 3, 1, 1] },
-            { section: 'Section 3: Information & Technology Trends', text: 'I gather investment info from online communities (Reddit, Telegram, Discord).', weights: [-1, 1, 0, 0, 3] },
-            { section: 'Section 3: Information & Technology Trends', text: 'I have participated in fractional investing (Art, Real Estate, etc.).', weights: [0, 1, 1, 0, 3] },
             { section: 'Section 3: Information & Technology Trends', text: 'I believe innovative companies are worth investing in even if they are currently in debt.', weights: [-1, 2, 0, -1, 3] },
-            { section: 'Section 3: Information & Technology Trends', text: 'I try to read at least one book on economics or finance every month.', weights: [0, 1, 3, 1, 1] },
-            { section: 'Section 3: Information & Technology Trends', text: 'I calculate how changes in government policy will affect my personal assets.', weights: [1, 1, 3, 1, 1] },
-            { section: 'Section 3: Information & Technology Trends', text: 'I feel uncomfortable visiting places that do not accept mobile payments.', weights: [0, 0, 0, 0, 2] },
             { section: 'Section 3: Information & Technology Trends', text: 'I believe the faster the world changes, the more opportunities there are to make money.', weights: [-1, 2, 0, 0, 3] },
 
-            // Section 4: Planning & Asset Management (Q61-80)
+            // Section 4: Planning & Asset Management (10 questions)
             { section: 'Section 4: Planning & Asset Management', text: 'I have a specific target amount of assets I want to reach in 10 or 20 years.', weights: [1, 0, 3, 1, 0] },
             { section: 'Section 4: Planning & Asset Management', text: 'I save/invest first when I get paid, then spend what is left.', weights: [2, 0, 3, 2, 0] },
             { section: 'Section 4: Planning & Asset Management', text: 'I maintain a set ratio between stocks, real estate, and cash (Portfolio).', weights: [0, -1, 3, 0, 0] },
-            { section: 'Section 4: Planning & Asset Management', text: 'I find great joy in managing year-end tax settlements or tax refunds.', weights: [1, 0, 3, 2, 0] },
             { section: 'Section 4: Planning & Asset Management', text: 'I always keep an emergency fund separate for unexpected expenses.', weights: [3, -1, 2, 1, 0] },
-            { section: 'Section 4: Planning & Asset Management', text: 'I am willing to pay for professional financial consulting.', weights: [1, 0, 3, -1, 0] },
             { section: 'Section 4: Planning & Asset Management', text: 'I know my exact "Net Worth" (Assets minus Liabilities) in numbers today.', weights: [1, 0, 3, 2, 0] },
             { section: 'Section 4: Planning & Asset Management', text: 'I view taking out a loan as a strategic tool rather than something "bad."', weights: [-1, 3, 1, -1, 1] },
-            { section: 'Section 4: Planning & Asset Management', text: 'I meticulously compare coverage details when choosing insurance products.', weights: [2, 0, 3, 2, 0] },
             { section: 'Section 4: Planning & Asset Management', text: 'I believe retirement planning should start as early as possible, and I\'ve already started.', weights: [2, 0, 3, 1, 0] },
-            { section: 'Section 4: Planning & Asset Management', text: 'I review and adjust my asset portfolio on a fixed date every month.', weights: [0, 0, 3, 1, 0] },
-            { section: 'Section 4: Planning & Asset Management', text: 'I reinvest my profits to maximize the power of compounding.', weights: [1, 1, 3, 1, 0] },
             { section: 'Section 4: Planning & Asset Management', text: 'I live by a budget that categorizes my monthly spending.', weights: [1, -1, 3, 3, 0] },
-            { section: 'Section 4: Planning & Asset Management', text: 'I believe real estate is a "must-have" item in my asset list.', weights: [1, 0, 2, 0, 0] },
-            { section: 'Section 4: Planning & Asset Management', text: 'I have studied inheritance or gift taxes in advance.', weights: [1, 0, 3, 1, 0] },
-            { section: 'Section 4: Planning & Asset Management', text: 'I think increasing my "human capital" (labor income) is more important than investment returns.', weights: [1, -1, 1, 1, 0] },
-            { section: 'Section 4: Planning & Asset Management', text: 'I regularly check and manage my credit score.', weights: [1, 0, 3, 2, 0] },
+            { section: 'Section 4: Planning & Asset Management', text: 'I reinvest my profits to maximize the power of compounding.', weights: [1, 1, 3, 1, 0] },
             { section: 'Section 4: Planning & Asset Management', text: 'I believe "patience" is the most important virtue to become wealthy.', weights: [2, -1, 3, 1, 0] },
-            { section: 'Section 4: Planning & Asset Management', text: 'I sell my assets without regret once they reach my target return rate.', weights: [1, 1, 3, 1, 0] },
-            { section: 'Section 4: Planning & Asset Management', text: 'I frequently compare my financial status with the people around me.', weights: [0, 1, 0, 0, 1] },
 
-            // Section 5: Lifestyle & Philosophy (Q81-100)
+            // Section 5: Lifestyle & Philosophy (10 questions)
             { section: 'Section 5: Lifestyle & Philosophy', text: 'I feel happier during the process of saving money than spending it.', weights: [2, -1, 1, 3, 0] },
-            { section: 'Section 5: Lifestyle & Philosophy', text: 'I feel a lack of confidence in social relationships if I don\'t have enough money.', weights: [0, 1, 0, 0, 0] },
-            { section: 'Section 5: Lifestyle & Philosophy', text: 'I believe it is natural to be financially independent rather than getting help from parents.', weights: [1, 1, 1, 1, 0] },
             { section: 'Section 5: Lifestyle & Philosophy', text: 'I am willing to sacrifice my time and health to a certain extent to make money.', weights: [0, 2, 0, 0, 1] },
             { section: 'Section 5: Lifestyle & Philosophy', text: 'Achieving "Financial Freedom" is the ultimate goal of my life.', weights: [1, 1, 2, 2, 1] },
             { section: 'Section 5: Lifestyle & Philosophy', text: 'Being "actually wealthy" is more important to me than "looking wealthy" to others.', weights: [2, 0, 2, 3, 0] },
-            { section: 'Section 5: Lifestyle & Philosophy', text: 'Donating to charity is something I will consider only after I become rich.', weights: [0, 1, 0, 1, 0] },
             { section: 'Section 5: Lifestyle & Philosophy', text: 'I am prouder of owning good stocks than driving an expensive car.', weights: [1, 1, 2, 2, 1] },
-            { section: 'Section 5: Lifestyle & Philosophy', text: 'I believe learning about money is more important than any school subject.', weights: [0, 1, 2, 1, 1] },
             { section: 'Section 5: Lifestyle & Philosophy', text: 'I want to build wealth through skill rather than relying on luck like the lottery.', weights: [1, 1, 3, 1, 0] },
-            { section: 'Section 5: Lifestyle & Philosophy', text: 'Money is not the purpose of life, but a tool to live the life I want.', weights: [1, 0, 2, 0, 0] },
-            { section: 'Section 5: Lifestyle & Philosophy', text: 'I feel anxious when I hear that my friends made a lot of money in the stock market.', weights: [-1, 1, 0, 0, 1] },
-            { section: 'Section 5: Lifestyle & Philosophy', text: 'I tend to think that poverty is often a result of a lack of personal effort.', weights: [0, 1, 0, 0, 0] },
-            { section: 'Section 5: Lifestyle & Philosophy', text: 'I want to stay economically active even after retirement, even if it\'s a small job.', weights: [1, 0, 1, 1, 0] },
             { section: 'Section 5: Lifestyle & Philosophy', text: 'Minimalism (owning less) fits well with my economic worldview.', weights: [1, -1, 1, 2, 0] },
             { section: 'Section 5: Lifestyle & Philosophy', text: 'I think I could give up love or friendship for a massive amount of money.', weights: [-1, 2, 0, 0, 0] },
-            { section: 'Section 5: Lifestyle & Philosophy', text: 'I feel that as my assets grow, my sense of responsibility and anxiety might grow too.', weights: [1, 0, 1, 0, 0] },
             { section: 'Section 5: Lifestyle & Philosophy', text: 'I enjoy reading biographies of people who have achieved great economic success.', weights: [0, 2, 2, 0, 1] },
-            { section: 'Section 5: Lifestyle & Philosophy', text: 'I believe spending money for current happiness (YOLO) is also valuable.', weights: [-2, 1, -1, -2, 1] },
-            { section: 'Section 5: Lifestyle & Philosophy', text: 'I have a firm personal "Philosophy of Wealth."', weights: [1, 1, 2, 1, 1] }
+            { section: 'Section 5: Lifestyle & Philosophy', text: 'I believe spending money for current happiness (YOLO) is also valuable.', weights: [-2, 1, -1, -2, 1] }
         ];
 
         // State
@@ -758,6 +737,7 @@
         function startTest() {
             document.getElementById('start-screen').classList.add('hidden');
             document.getElementById('question-screen').classList.remove('hidden');
+            document.getElementById('total-q').textContent = questions.length;
             showQuestion(0);
         }
 
@@ -930,30 +910,30 @@
             // Compatibility
             const compat = personality.compatibility;
             const compatibilityHTML = `
-                <div class="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200">
+                <a href="results/${resultPages[compat.best.type]}.html" class="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200 hover:shadow-md hover:scale-[1.02] transition-all cursor-pointer block">
                     <div class="flex items-center gap-2 mb-2">
                         <span class="text-lg">💚</span>
                         <span class="text-xs font-semibold text-green-700 uppercase">Best Match</span>
                     </div>
                     <h4 class="font-semibold text-slate-800 mb-1">${personalityTypes[compat.best.type].emoji} ${personalityTypes[compat.best.type].name}</h4>
                     <p class="text-xs text-slate-600">${compat.best.reason}</p>
-                </div>
-                <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-200">
+                </a>
+                <a href="results/${resultPages[compat.good.type]}.html" class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-200 hover:shadow-md hover:scale-[1.02] transition-all cursor-pointer block">
                     <div class="flex items-center gap-2 mb-2">
                         <span class="text-lg">💙</span>
                         <span class="text-xs font-semibold text-blue-700 uppercase">Good Match</span>
                     </div>
                     <h4 class="font-semibold text-slate-800 mb-1">${personalityTypes[compat.good.type].emoji} ${personalityTypes[compat.good.type].name}</h4>
                     <p class="text-xs text-slate-600">${compat.good.reason}</p>
-                </div>
-                <div class="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-4 border border-orange-200">
+                </a>
+                <a href="results/${resultPages[compat.challenging.type]}.html" class="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-4 border border-orange-200 hover:shadow-md hover:scale-[1.02] transition-all cursor-pointer block">
                     <div class="flex items-center gap-2 mb-2">
                         <span class="text-lg">🧡</span>
                         <span class="text-xs font-semibold text-orange-700 uppercase">Challenging</span>
                     </div>
                     <h4 class="font-semibold text-slate-800 mb-1">${personalityTypes[compat.challenging.type].emoji} ${personalityTypes[compat.challenging.type].name}</h4>
                     <p class="text-xs text-slate-600">${compat.challenging.reason}</p>
-                </div>
+                </a>
             `;
             document.getElementById('compatibility-list').innerHTML = compatibilityHTML;
 
@@ -968,22 +948,25 @@
             document.getElementById('start-screen').classList.remove('hidden');
         }
 
-        function shareResults() {
+        // Map topType to result page URL
+        const resultPages = {
+            safeGuard: 'safe-guard',
+            aggressiveBull: 'aggressive-bull',
+            strategicPlanner: 'strategic-planner',
+            valueSeeker: 'value-seeker',
+            trendFollower: 'trend-follower'
+        };
+
+        function getShareData() {
             const { topType, personality } = window.currentResult;
-
-            // Map topType to result page URL
-            const resultPages = {
-                safeGuard: 'safe-guard',
-                aggressiveBull: 'aggressive-bull',
-                strategicPlanner: 'strategic-planner',
-                valueSeeker: 'value-seeker',
-                trendFollower: 'trend-follower'
-            };
-
             const baseUrl = window.location.origin;
             const resultUrl = `${baseUrl}/results/${resultPages[topType]}.html`;
+            const text = `I took the Economic Personality Test and I'm "${personality.name}"! ${personality.slogan}`;
+            return { topType, personality, resultUrl, text };
+        }
 
-            const text = `I took the Economic Personality Test and I'm "${personality.name}"! ${personality.slogan}\n\nSee my result: ${resultUrl}`;
+        function shareResults() {
+            const { personality, resultUrl, text } = getShareData();
 
             if (navigator.share) {
                 navigator.share({
@@ -992,10 +975,32 @@
                     url: resultUrl
                 });
             } else {
-                navigator.clipboard.writeText(text).then(() => {
-                    alert('Results copied to clipboard!');
-                });
+                document.getElementById('copy-link-text').textContent = 'Copy Link';
+                document.getElementById('share-modal').showModal();
             }
+        }
+
+        function shareToTwitter() {
+            const { resultUrl, text } = getShareData();
+            const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(resultUrl)}`;
+            window.open(twitterUrl, '_blank', 'width=550,height=420');
+        }
+
+        function shareToFacebook() {
+            const { resultUrl } = getShareData();
+            const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(resultUrl)}`;
+            window.open(facebookUrl, '_blank', 'width=550,height=420');
+        }
+
+        function copyShareLink() {
+            const { resultUrl, text } = getShareData();
+            const fullText = `${text}\n\nSee my result: ${resultUrl}`;
+            navigator.clipboard.writeText(fullText).then(() => {
+                document.getElementById('copy-link-text').textContent = 'Copied!';
+                setTimeout(() => {
+                    document.getElementById('copy-link-text').textContent = 'Copy Link';
+                }, 2000);
+            });
         }
 
         // Initialize Header & Footer
