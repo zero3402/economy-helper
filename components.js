@@ -93,10 +93,24 @@ function injectCommonStyles(basePath = '') {
 }
 
 const NAV_ITEMS = [
-    { id: 'dictionary', label: 'Dictionary', href: 'index.html' },
-    { id: 'personality', label: 'Personality Test', href: 'personality-test.html' },
-    { id: 'salary', label: 'Salary Calculator', href: 'salary-calculator.html' }
+    { id: 'dictionary', labelKey: 'nav.dictionary', href: 'index.html' },
+    { id: 'personality', labelKey: 'nav.personalityTest', href: 'personality-test.html' },
+    { id: 'salary', labelKey: 'nav.salaryCalculator', href: 'salary-calculator.html' }
 ];
+
+// Get label with i18n support
+function getNavLabel(labelKey) {
+    if (window.i18n && window.i18n.t) {
+        return window.i18n.t(labelKey);
+    }
+    // Fallback labels
+    const fallbacks = {
+        'nav.dictionary': 'Dictionary',
+        'nav.personalityTest': 'Personality Test',
+        'nav.salaryCalculator': 'Salary Calculator'
+    };
+    return fallbacks[labelKey] || labelKey;
+}
 
 // Render Header Component
 function renderHeader(activePageId, basePath = '') {
@@ -108,13 +122,15 @@ function renderHeader(activePageId, basePath = '') {
         const activeClass = isActive
             ? 'text-blue-600 bg-blue-50'
             : 'text-slate-600 hover:text-blue-600 hover:bg-blue-50';
-        return `<li><a href="${basePath}${item.href}" class="font-medium ${activeClass} rounded-lg">${item.label}</a></li>`;
+        const label = getNavLabel(item.labelKey);
+        return `<li><a href="${basePath}${item.href}" class="font-medium ${activeClass} rounded-lg">${label}</a></li>`;
     }).join('');
 
     const navItemsMobile = NAV_ITEMS.map(item => {
         const isActive = item.id === activePageId;
         const activeClass = isActive ? 'text-blue-600' : 'text-slate-600';
-        return `<li><a href="${basePath}${item.href}" class="font-medium ${activeClass}">${item.label}</a></li>`;
+        const label = getNavLabel(item.labelKey);
+        return `<li><a href="${basePath}${item.href}" class="font-medium ${activeClass}">${label}</a></li>`;
     }).join('');
 
     header.innerHTML = `

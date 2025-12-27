@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="corporate">
+<html lang="en" data-theme="corporate" id="html-root">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
@@ -536,7 +536,145 @@
 
     <footer id="footer" class="bg-white border-t border-slate-200 mt-auto"></footer>
 
+    <script src="i18n.js"></script>
     <script>
+        // ============================================
+        // KOREAN SALARY CALCULATOR (2026)
+        // ============================================
+
+        // 2026 Korean Social Insurance Rates (estimated)
+        const KOREA_NATIONAL_PENSION_RATE = 0.045; // 국민연금 4.5%
+        const KOREA_NATIONAL_PENSION_MAX = 6170000; // 기준소득월액 상한 617만원
+        const KOREA_HEALTH_INSURANCE_RATE = 0.03545; // 건강보험 3.545%
+        const KOREA_LONG_TERM_CARE_RATE = 0.1295; // 장기요양보험 건강보험료의 12.95%
+        const KOREA_EMPLOYMENT_INSURANCE_RATE = 0.009; // 고용보험 0.9%
+
+        // Korean income tax brackets (2026, monthly)
+        const koreanTaxBrackets = [
+            { min: 0, max: 14000000, rate: 0.06, deduction: 0 },
+            { min: 14000000, max: 50000000, rate: 0.15, deduction: 1260000 },
+            { min: 50000000, max: 88000000, rate: 0.24, deduction: 5760000 },
+            { min: 88000000, max: 150000000, rate: 0.35, deduction: 15440000 },
+            { min: 150000000, max: 300000000, rate: 0.38, deduction: 19940000 },
+            { min: 300000000, max: 500000000, rate: 0.40, deduction: 25940000 },
+            { min: 500000000, max: 1000000000, rate: 0.42, deduction: 35940000 },
+            { min: 1000000000, max: Infinity, rate: 0.45, deduction: 65940000 }
+        ];
+
+        // Calculate Korean income tax (simplified - actual uses 간이세액표)
+        function calculateKoreanIncomeTax(annualSalary) {
+            // 근로소득공제
+            let deduction = 0;
+            if (annualSalary <= 5000000) {
+                deduction = annualSalary * 0.7;
+            } else if (annualSalary <= 15000000) {
+                deduction = 3500000 + (annualSalary - 5000000) * 0.4;
+            } else if (annualSalary <= 45000000) {
+                deduction = 7500000 + (annualSalary - 15000000) * 0.15;
+            } else if (annualSalary <= 100000000) {
+                deduction = 12000000 + (annualSalary - 45000000) * 0.05;
+            } else {
+                deduction = 14750000 + (annualSalary - 100000000) * 0.02;
+            }
+            deduction = Math.min(deduction, 20000000);
+
+            // 기본공제 (본인 150만원)
+            const basicDeduction = 1500000;
+            // 표준세액공제
+            const standardTaxCredit = 130000;
+
+            const taxableIncome = Math.max(0, annualSalary - deduction - basicDeduction);
+
+            let tax = 0;
+            for (const bracket of koreanTaxBrackets) {
+                if (taxableIncome > bracket.min) {
+                    const incomeInBracket = Math.min(taxableIncome, bracket.max) - bracket.min;
+                    tax += incomeInBracket * bracket.rate;
+                }
+            }
+
+            // 세액공제 적용
+            tax = Math.max(0, tax - standardTaxCredit);
+
+            return tax;
+        }
+
+        // Calculate Korean 4대보험 (monthly)
+        function calculateKorean4Insurance(monthlySalary) {
+            // 국민연금 (상한 617만원)
+            const pensionBase = Math.min(monthlySalary, KOREA_NATIONAL_PENSION_MAX);
+            const nationalPension = pensionBase * KOREA_NATIONAL_PENSION_RATE;
+
+            // 건강보험
+            const healthInsurance = monthlySalary * KOREA_HEALTH_INSURANCE_RATE;
+
+            // 장기요양보험
+            const longTermCare = healthInsurance * KOREA_LONG_TERM_CARE_RATE;
+
+            // 고용보험
+            const employmentInsurance = monthlySalary * KOREA_EMPLOYMENT_INSURANCE_RATE;
+
+            return {
+                nationalPension: Math.round(nationalPension),
+                healthInsurance: Math.round(healthInsurance),
+                longTermCare: Math.round(longTermCare),
+                employmentInsurance: Math.round(employmentInsurance),
+                total: Math.round(nationalPension + healthInsurance + longTermCare + employmentInsurance)
+            };
+        }
+
+        // Calculate Korean total taxes
+        function calculateKoreanTaxes(annualSalary) {
+            const monthlySalary = annualSalary / 12;
+
+            // 4대보험 (월별)
+            const insurance = calculateKorean4Insurance(monthlySalary);
+            const annualInsurance = insurance.total * 12;
+
+            // 소득세
+            const incomeTax = calculateKoreanIncomeTax(annualSalary);
+
+            // 지방소득세 (소득세의 10%)
+            const localTax = Math.round(incomeTax * 0.1);
+
+            const totalTax = annualInsurance + incomeTax + localTax;
+            const netIncome = annualSalary - totalTax;
+
+            return {
+                nationalPension: insurance.nationalPension * 12,
+                healthInsurance: insurance.healthInsurance * 12,
+                longTermCare: insurance.longTermCare * 12,
+                employmentInsurance: insurance.employmentInsurance * 12,
+                totalInsurance: annualInsurance,
+                incomeTax: Math.round(incomeTax),
+                localTax: localTax,
+                totalTax: Math.round(totalTax),
+                netIncome: Math.round(netIncome),
+                monthlyNet: Math.round(netIncome / 12),
+                effectiveRate: (totalTax / annualSalary) * 100,
+                monthlyInsurance: insurance
+            };
+        }
+
+        // Format Korean currency
+        function formatKoreanCurrency(amount) {
+            return amount.toLocaleString('ko-KR') + '원';
+        }
+
+        // Format Korean currency (short)
+        function formatKoreanShort(amount) {
+            if (amount >= 100000000) {
+                return (amount / 100000000).toFixed(1) + '억';
+            } else if (amount >= 10000) {
+                return Math.round(amount / 10000) + '만';
+            }
+            return amount.toLocaleString('ko-KR');
+        }
+
+        // ============================================
+        // US SALARY CALCULATOR (2025)
+        // ============================================
+
         // 2025 Federal Tax Brackets by Filing Status
         const taxBracketsByStatus = {
             single: [
@@ -833,8 +971,310 @@
             resultDiv.classList.remove('hidden');
         }
 
+        // ============================================
+        // KOREAN VERSION UI
+        // ============================================
+
+        function switchToKoreanVersion() {
+            document.getElementById('html-root').lang = 'ko';
+            document.querySelector('main').innerHTML = `
+                <section class="max-w-6xl mx-auto">
+                    <!-- Hero Section -->
+                    <div class="text-center mb-8">
+                        <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-800 mb-3">
+                            2026년 연봉 실수령액 계산기
+                        </h1>
+                        <p class="text-slate-500 text-sm sm:text-base">
+                            4대보험, 소득세, 지방소득세를 제외한 실제 수령액을 확인하세요
+                        </p>
+                    </div>
+
+                    <!-- Tax Info Card -->
+                    <div class="bg-gradient-to-r from-emerald-50 to-blue-50 border border-emerald-200 rounded-2xl p-4 sm:p-5 mb-6">
+                        <div class="flex items-start gap-3">
+                            <div class="w-10 h-10 bg-gradient-to-br from-emerald-500 to-blue-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold text-slate-800 mb-2">2026년 공제 항목</h3>
+                                <ul class="text-slate-600 text-sm space-y-1">
+                                    <li><span class="font-medium text-slate-700">국민연금:</span> 4.5% (월 상한 617만원)</li>
+                                    <li><span class="font-medium text-slate-700">건강보험:</span> 3.545%</li>
+                                    <li><span class="font-medium text-slate-700">장기요양:</span> 건강보험료의 12.95%</li>
+                                    <li><span class="font-medium text-slate-700">고용보험:</span> 0.9%</li>
+                                    <li><span class="font-medium text-emerald-700">소득세/지방세:</span> 간이세액표 기준</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Custom Calculator -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6">
+                        <div class="p-4 sm:p-6 border-b border-slate-100 bg-slate-50">
+                            <h2 class="text-lg sm:text-xl font-semibold text-slate-800">연봉 실수령액 계산</h2>
+                        </div>
+                        <div class="p-4 sm:p-6">
+                            <div class="flex flex-col sm:flex-row gap-4 mb-6">
+                                <div class="flex-1">
+                                    <label class="label">
+                                        <span class="label-text font-medium text-slate-700">연봉 (원)</span>
+                                    </label>
+                                    <input type="number" id="ko-salary" placeholder="예: 50000000"
+                                        class="input input-bordered w-full bg-slate-50 focus:bg-white" />
+                                </div>
+                                <div class="flex items-end">
+                                    <button id="ko-calculate-btn" class="btn px-6 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white border-0 shadow-md shadow-emerald-500/25 hover:shadow-lg hover:shadow-emerald-500/40 transition-all duration-200">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                        </svg>
+                                        계산하기
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div id="ko-result" class="hidden">
+                                <!-- 4대보험 -->
+                                <div class="mb-4">
+                                    <p class="text-xs text-slate-500 mb-2 font-medium">4대보험</p>
+                                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                        <div class="bg-blue-50 rounded-xl p-3 text-center border border-blue-100">
+                                            <p class="text-xs text-blue-600 mb-1">국민연금</p>
+                                            <p id="ko-pension" class="text-base font-bold text-blue-700">-</p>
+                                        </div>
+                                        <div class="bg-emerald-50 rounded-xl p-3 text-center border border-emerald-100">
+                                            <p class="text-xs text-emerald-600 mb-1">건강보험</p>
+                                            <p id="ko-health" class="text-base font-bold text-emerald-700">-</p>
+                                        </div>
+                                        <div class="bg-purple-50 rounded-xl p-3 text-center border border-purple-100">
+                                            <p class="text-xs text-purple-600 mb-1">장기요양</p>
+                                            <p id="ko-longterm" class="text-base font-bold text-purple-700">-</p>
+                                        </div>
+                                        <div class="bg-amber-50 rounded-xl p-3 text-center border border-amber-100">
+                                            <p class="text-xs text-amber-600 mb-1">고용보험</p>
+                                            <p id="ko-employment" class="text-base font-bold text-amber-700">-</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- 세금 -->
+                                <div class="mb-4">
+                                    <p class="text-xs text-slate-500 mb-2 font-medium">세금</p>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div class="bg-red-50 rounded-xl p-3 text-center border border-red-100">
+                                            <p class="text-xs text-red-600 mb-1">소득세</p>
+                                            <p id="ko-income-tax" class="text-base font-bold text-red-700">-</p>
+                                        </div>
+                                        <div class="bg-orange-50 rounded-xl p-3 text-center border border-orange-100">
+                                            <p class="text-xs text-orange-600 mb-1">지방소득세</p>
+                                            <p id="ko-local-tax" class="text-base font-bold text-orange-700">-</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- 결과 -->
+                                <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                    <div class="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
+                                        <p class="text-sm text-red-700 mb-1">총 공제액</p>
+                                        <p id="ko-total-deduction" class="text-xl font-bold text-red-700">-</p>
+                                    </div>
+                                    <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-center">
+                                        <p class="text-sm text-emerald-700 mb-1">연 실수령액</p>
+                                        <p id="ko-annual-net" class="text-xl font-bold text-emerald-700">-</p>
+                                    </div>
+                                    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center sm:col-span-1 col-span-2">
+                                        <p class="text-sm text-blue-700 mb-1">월 실수령액</p>
+                                        <p id="ko-monthly-net" class="text-2xl font-bold text-blue-700">-</p>
+                                    </div>
+                                </div>
+                                <div class="mt-4 text-center">
+                                    <p class="text-sm text-slate-500">실효세율: <span id="ko-effective-rate" class="font-semibold text-slate-700">-</span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Salary Table -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6">
+                        <div class="p-4 sm:p-6 border-b border-slate-100 bg-slate-50">
+                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                <h2 class="text-lg sm:text-xl font-semibold text-slate-800">2026년 연봉별 실수령액표</h2>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-sm text-slate-500">연봉 범위:</span>
+                                    <select id="ko-salary-range" class="select select-sm select-bordered bg-white text-sm">
+                                        <option value="30000000-50000000">3천만 - 5천만</option>
+                                        <option value="50000000-70000000" selected>5천만 - 7천만</option>
+                                        <option value="70000000-100000000">7천만 - 1억</option>
+                                        <option value="100000000-150000000">1억 - 1.5억</option>
+                                        <option value="150000000-200000000">1.5억 - 2억</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto max-h-[500px] overflow-y-auto">
+                            <table class="table w-full text-sm">
+                                <thead class="sticky top-0 z-10">
+                                    <tr class="bg-slate-100 border-b border-slate-200">
+                                        <th class="text-slate-700 font-semibold text-xs py-3 bg-slate-100">연봉</th>
+                                        <th class="text-slate-700 font-semibold text-xs py-3 text-right bg-blue-50">국민연금</th>
+                                        <th class="text-slate-700 font-semibold text-xs py-3 text-right bg-emerald-50">건강보험</th>
+                                        <th class="text-slate-700 font-semibold text-xs py-3 text-right bg-purple-50">장기요양</th>
+                                        <th class="text-slate-700 font-semibold text-xs py-3 text-right bg-amber-50">고용보험</th>
+                                        <th class="text-slate-700 font-semibold text-xs py-3 text-right bg-red-50">소득세</th>
+                                        <th class="text-slate-700 font-semibold text-xs py-3 text-right bg-orange-50">지방세</th>
+                                        <th class="text-slate-700 font-semibold text-xs py-3 text-right bg-slate-200">총 공제</th>
+                                        <th class="text-slate-700 font-semibold text-xs py-3 text-right bg-emerald-100">월 실수령</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ko-salary-table-body">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Info Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+                            <h3 class="font-semibold text-slate-800 mb-3 flex items-center gap-2">
+                                <div class="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                    </svg>
+                                </div>
+                                4대보험 요율
+                            </h3>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between"><span class="text-slate-600">국민연금</span><span class="font-medium">4.5%</span></div>
+                                <div class="flex justify-between"><span class="text-slate-600">건강보험</span><span class="font-medium">3.545%</span></div>
+                                <div class="flex justify-between"><span class="text-slate-600">장기요양보험</span><span class="font-medium">건보료의 12.95%</span></div>
+                                <div class="flex justify-between"><span class="text-slate-600">고용보험</span><span class="font-medium">0.9%</span></div>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+                            <h3 class="font-semibold text-slate-800 mb-3 flex items-center gap-2">
+                                <div class="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                    </svg>
+                                </div>
+                                소득세율
+                            </h3>
+                            <div class="flex flex-wrap gap-1 text-sm">
+                                <span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded font-medium">6%</span>
+                                <span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded font-medium">15%</span>
+                                <span class="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded font-medium">24%</span>
+                                <span class="px-2 py-0.5 bg-orange-100 text-orange-700 rounded font-medium">35%</span>
+                                <span class="px-2 py-0.5 bg-red-100 text-red-700 rounded font-medium">38%</span>
+                                <span class="px-2 py-0.5 bg-red-100 text-red-700 rounded font-medium">40%</span>
+                                <span class="px-2 py-0.5 bg-red-200 text-red-800 rounded font-medium">42%</span>
+                                <span class="px-2 py-0.5 bg-red-300 text-red-900 rounded font-medium">45%</span>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-2">* 지방소득세는 소득세의 10%</p>
+                        </div>
+                    </div>
+                </section>
+            `;
+
+            // Re-attach event listeners
+            initKoreanCalculator();
+        }
+
+        function initKoreanCalculator() {
+            const calculateBtn = document.getElementById('ko-calculate-btn');
+            const salaryInput = document.getElementById('ko-salary');
+            const rangeSelect = document.getElementById('ko-salary-range');
+
+            // Calculate button
+            calculateBtn.addEventListener('click', calculateKorean);
+            salaryInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') calculateKorean();
+            });
+
+            // Range change
+            rangeSelect.addEventListener('change', renderKoreanTable);
+
+            // Initial table render
+            renderKoreanTable();
+        }
+
+        function calculateKorean() {
+            const salary = parseFloat(document.getElementById('ko-salary').value);
+            if (isNaN(salary) || salary <= 0) {
+                alert('올바른 연봉을 입력해주세요.');
+                return;
+            }
+
+            const result = calculateKoreanTaxes(salary);
+
+            // 4대보험
+            document.getElementById('ko-pension').textContent = formatKoreanCurrency(result.nationalPension);
+            document.getElementById('ko-health').textContent = formatKoreanCurrency(result.healthInsurance);
+            document.getElementById('ko-longterm').textContent = formatKoreanCurrency(result.longTermCare);
+            document.getElementById('ko-employment').textContent = formatKoreanCurrency(result.employmentInsurance);
+
+            // 세금
+            document.getElementById('ko-income-tax').textContent = formatKoreanCurrency(result.incomeTax);
+            document.getElementById('ko-local-tax').textContent = formatKoreanCurrency(result.localTax);
+
+            // 결과
+            document.getElementById('ko-total-deduction').textContent = formatKoreanCurrency(result.totalTax);
+            document.getElementById('ko-annual-net').textContent = formatKoreanCurrency(result.netIncome);
+            document.getElementById('ko-monthly-net').textContent = formatKoreanCurrency(result.monthlyNet);
+            document.getElementById('ko-effective-rate').textContent = result.effectiveRate.toFixed(1) + '%';
+
+            document.getElementById('ko-result').classList.remove('hidden');
+        }
+
+        function renderKoreanTable() {
+            const rangeSelect = document.getElementById('ko-salary-range');
+            const [minStr, maxStr] = rangeSelect.value.split('-');
+            const min = parseInt(minStr);
+            const max = parseInt(maxStr);
+            const step = 1000000; // 100만원 단위
+
+            const tbody = document.getElementById('ko-salary-table-body');
+            tbody.innerHTML = '';
+
+            for (let salary = min; salary <= max; salary += step) {
+                const result = calculateKoreanTaxes(salary);
+                const row = document.createElement('tr');
+                row.className = 'border-b border-slate-100 hover:bg-slate-50 text-xs';
+
+                row.innerHTML = `
+                    <td class="font-semibold text-slate-800 whitespace-nowrap">${formatKoreanShort(salary)}원</td>
+                    <td class="text-right text-blue-600 bg-blue-50/50">${formatKoreanShort(result.nationalPension)}</td>
+                    <td class="text-right text-emerald-600 bg-emerald-50/50">${formatKoreanShort(result.healthInsurance)}</td>
+                    <td class="text-right text-purple-600 bg-purple-50/50">${formatKoreanShort(result.longTermCare)}</td>
+                    <td class="text-right text-amber-600 bg-amber-50/50">${formatKoreanShort(result.employmentInsurance)}</td>
+                    <td class="text-right text-red-600 bg-red-50/50">${formatKoreanShort(result.incomeTax)}</td>
+                    <td class="text-right text-orange-600 bg-orange-50/50">${formatKoreanShort(result.localTax)}</td>
+                    <td class="text-right text-slate-700 font-medium bg-slate-100">${formatKoreanShort(result.totalTax)}</td>
+                    <td class="text-right text-emerald-700 font-bold bg-emerald-100">${formatKoreanShort(result.monthlyNet)}원</td>
+                `;
+
+                tbody.appendChild(row);
+            }
+        }
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+
         // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Initialize i18n first
+            if (window.i18n) {
+                await window.i18n.initI18n();
+                const lang = window.i18n.getCurrentLanguage();
+
+                if (lang === 'ko') {
+                    // Switch to Korean version
+                    switchToKoreanVersion();
+                    initComponents('salary');
+                    return;
+                }
+            }
+
+            // US Version (default)
             const calculateBtn = document.getElementById('calculate-btn');
             const salaryInput = document.getElementById('custom-salary');
 

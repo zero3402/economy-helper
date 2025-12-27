@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="corporate">
+<html lang="en" data-theme="corporate" id="html-root">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -279,46 +279,120 @@
         </form>
     </dialog>
 
+    <script src="../i18n.js"></script>
     <script src="../components.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        const typeKey = 'valueSeeker';
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            if (window.i18n) {
+                await window.i18n.initI18n();
+                applyResultTranslations();
+            }
             initComponents(null, { basePath: '../' });
         });
 
-        const personalityName = "The Value Seeker";
-        const personalitySlogan = "A penny saved is a penny earned; smart spending is investing.";
-        const shareText = `I took the Economic Personality Test and I'm "${personalityName}"! "${personalitySlogan}"`;
+        function applyResultTranslations() {
+            const t = window.i18n.t;
+            const lang = window.i18n.getCurrentLanguage();
+            document.getElementById('html-root').lang = lang === 'ko' ? 'ko' : 'en';
+
+            document.querySelector('h1').textContent = t('personalityTest.yourEconomicPersonality');
+            document.querySelector('h1 + p').textContent = t('personalityTest.basedOnResponses');
+            document.querySelector('.text-white\\/80').textContent = t('personalityTest.youAre');
+            document.querySelector('main h2').textContent = t(`types.${typeKey}`);
+            document.querySelector('main .italic').textContent = t(`slogans.${typeKey}`);
+
+            document.querySelector('.bg-white h3').textContent = t('personalityTest.keyTraits');
+            const traits = t(`traits.${typeKey}`);
+            if (Array.isArray(traits)) {
+                document.querySelectorAll('.bg-white .grid span.text-sm').forEach((item, i) => { if (traits[i]) item.textContent = traits[i]; });
+            }
+
+            document.querySelector('.bg-emerald-50 h3').textContent = t('personalityTest.strengths');
+            const strengths = t(`strengths.${typeKey}`);
+            if (Array.isArray(strengths)) {
+                document.querySelectorAll('.bg-emerald-50 li span:last-child').forEach((item, i) => { if (strengths[i]) item.textContent = strengths[i]; });
+            }
+
+            document.querySelector('.bg-amber-50 h3').textContent = t('personalityTest.areasToImprove');
+            const weaknesses = t(`weaknesses.${typeKey}`);
+            if (Array.isArray(weaknesses)) {
+                document.querySelectorAll('.bg-amber-50 li span:last-child').forEach((item, i) => { if (weaknesses[i]) item.textContent = weaknesses[i]; });
+            }
+
+            const investors = t(`famousInvestors.${typeKey}`);
+            if (Array.isArray(investors)) {
+                document.querySelectorAll('.bg-gradient-to-br.from-slate-50').forEach((card, i) => {
+                    if (investors[i]) {
+                        card.querySelector('h4').textContent = investors[i].name;
+                        card.querySelector('p.text-xs').textContent = investors[i].title;
+                        card.querySelector('p.italic').textContent = `"${investors[i].quote}"`;
+                    }
+                });
+            }
+
+            const compat = t(`compatibility.${typeKey}`);
+            if (compat) {
+                const compatCards = document.querySelectorAll('.grid.grid-cols-1.md\\:grid-cols-3 > a');
+                if (compatCards.length >= 3) {
+                    const emojis = { safeGuard: '🛡️', aggressiveBull: '🐂', strategicPlanner: '📊', valueSeeker: '💰', trendFollower: '🚀' };
+                    compatCards[0].querySelector('.uppercase').textContent = t('personalityTest.bestMatch');
+                    compatCards[0].querySelector('h4').innerHTML = `${emojis[compat.best.type]} ${t(`types.${compat.best.type}`)}`;
+                    compatCards[0].querySelector('p.text-xs:last-child').textContent = compat.best.reason;
+                    compatCards[1].querySelector('.uppercase').textContent = t('personalityTest.goodMatch');
+                    compatCards[1].querySelector('h4').innerHTML = `${emojis[compat.good.type]} ${t(`types.${compat.good.type}`)}`;
+                    compatCards[1].querySelector('p.text-xs:last-child').textContent = compat.good.reason;
+                    compatCards[2].querySelector('.uppercase').textContent = t('personalityTest.challenging');
+                    compatCards[2].querySelector('h4').innerHTML = `${emojis[compat.challenging.type]} ${t(`types.${compat.challenging.type}`)}`;
+                    compatCards[2].querySelector('p.text-xs:last-child').textContent = compat.challenging.reason;
+                }
+            }
+
+            document.querySelector('a[href*="personality-test"]').innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>${t('common.retakeTest')}`;
+            document.querySelector('button[onclick="shareResults()"]').innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>${t('common.shareResults')}`;
+
+            document.querySelector('#share-modal h3').textContent = t('common.shareYourResult');
+            const shareButtons = document.querySelectorAll('#share-modal button');
+            shareButtons[0].innerHTML = `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>${t('common.shareOnTwitter')}`;
+            shareButtons[1].innerHTML = `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>${t('common.shareOnFacebook')}`;
+            shareButtons[2].innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span id="copy-link-text">${t('common.copyLink')}</span>`;
+            document.querySelector('#share-modal .modal-action button').textContent = t('common.close');
+        }
+
+        function getShareText() {
+            const t = window.i18n ? window.i18n.t : (k) => k;
+            const lang = window.i18n ? window.i18n.getCurrentLanguage() : 'en';
+            const name = t(`types.${typeKey}`);
+            const slogan = t(`slogans.${typeKey}`);
+            if (lang === 'ko') return `경제 성향 테스트 결과, 나는 "${name}"입니다! ${slogan}`;
+            return `I took the Economic Personality Test and I'm "${name}"! ${slogan}`;
+        }
 
         function shareResults() {
+            const shareText = getShareText();
             if (navigator.share) {
-                navigator.share({
-                    title: `I'm ${personalityName}!`,
-                    text: shareText,
-                    url: window.location.href
-                });
+                navigator.share({ title: window.i18n.t(`types.${typeKey}`), text: shareText, url: window.location.href });
             } else {
-                document.getElementById('copy-link-text').textContent = 'Copy Link';
+                document.getElementById('copy-link-text').textContent = window.i18n.t('common.copyLink');
                 document.getElementById('share-modal').showModal();
             }
         }
 
         function shareToTwitter() {
-            const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(window.location.href)}`;
+            const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(getShareText())}&url=${encodeURIComponent(window.location.href)}`;
             window.open(twitterUrl, '_blank', 'width=550,height=420');
         }
 
         function shareToFacebook() {
-            const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`;
-            window.open(facebookUrl, '_blank', 'width=550,height=420');
+            window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`, '_blank', 'width=550,height=420');
         }
 
         function copyShareLink() {
-            const fullText = `${shareText}\n\nSee my result: ${window.location.href}`;
-            navigator.clipboard.writeText(fullText).then(() => {
-                document.getElementById('copy-link-text').textContent = 'Copied!';
-                setTimeout(() => {
-                    document.getElementById('copy-link-text').textContent = 'Copy Link';
-                }, 2000);
+            const t = window.i18n ? window.i18n.t : (k) => k;
+            navigator.clipboard.writeText(`${getShareText()}\n\n${window.location.href}`).then(() => {
+                document.getElementById('copy-link-text').textContent = t('common.copied');
+                setTimeout(() => { document.getElementById('copy-link-text').textContent = t('common.copyLink'); }, 2000);
             });
         }
     </script>

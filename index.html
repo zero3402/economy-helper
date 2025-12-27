@@ -70,6 +70,7 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="i18n.js"></script>
 </head>
 
 <body class="bg-slate-50 min-h-screen">
@@ -1438,6 +1439,490 @@
             'High-Yield Savings Account': { definition: 'A savings account offering significantly higher interest rates than traditional accounts.', example: 'A high-yield savings account pays 4.5% APY compared to 0.01% at traditional banks.' },
             'Money Market Account': { definition: 'A savings account that typically offers higher interest and limited check-writing.', example: 'Money market accounts often require $2,500 minimum balance for the best rates.' }
         };
+
+        // Korean Dictionary (ㄱㄴㄷ순)
+        const koreanEconomyDictionary = {
+            'ㄱ': ['가격', '가계부채', '가산금리', '가상화폐', '가처분소득', '가치투자', '간접세', '간접투자', '감가상각', '감세', '강세장', '개인연금', '거래량', '거래소', '건전재정', '결산', '결제', '경기', '경기과열', '경기부양책', '경기순환', '경기침체', '경기회복', '경상수지', '경제성장', '경제성장률', '경제지표', '고금리', '고수익', '고용', '고용률', '고용보험', '고정금리', '고정비', '고정자산', '공개매수', '공급', '공급과잉', '공급망', '공매도', '공시', '공시가격', '공시지가', '공채', '과세', '과세표준', '과열', '관세', '교역', '구매력', '국가채무', '국내총생산', '국민연금', '국민소득', '국민총소득', '국부펀드', '국세', '국채', '권리금', '그린본드', '그린플레이션', '금리', '금리동결', '금리인상', '금리인하', '금본위제', '금융', '금융기관', '금융상품', '금융시장', '금융위기', '금융자산', '금융투자', '급등', '급락', '기관투자자', '기본금리', '기업공개', '기업가치', '기업어음', '기준금리', '기축통화'],
+            'ㄴ': ['나스닥', '납세', '납입금', '내수', '내수경제', '내수시장', '노동', '노동력', '노동비용', '노동생산성', '노동시장', '노후대비', '노후자금', '누적수익률', '누진세', '뉴딜정책'],
+            'ㄷ': ['다우지수', '단기금리', '단기금융', '단기대출', '단기투자', '단기채권', '단리', '담보', '담보대출', '당좌예금', '당좌자산', '대공황', '대기업', '대손상각', '대손충당금', '대외채무', '대출', '대출금리', '대출이자', '대차대조표', '더블딥', '도매', '도매가격', '도매물가', '동결', '디레버리징', '디스인플레이션', '디지털화폐', '디플레이션'],
+            'ㄹ': ['레버리지', '롤오버', '리밸런싱', '리스', '리스크', '리스크관리', '리츠', '리파이낸싱'],
+            'ㅁ': ['마이너스통장', '마진', '마진콜', '만기', '만기수익률', '매도', '매매', '매수', '매입', '매출', '매출원가', '매출이익', '명목가격', '명목금리', '명목소득', '명목임금', '모기지', '무역', '무역수지', '무역적자', '무역흑자', '물가', '물가상승', '물가상승률', '물가안정', '물가지수', '물적자산', '뮤추얼펀드'],
+            'ㅂ': ['발행', '발행시장', '배당', '배당금', '배당률', '배당소득', '배당수익률', '백화점', '밸류에이션', '벤처기업', '벤처캐피탈', '변동금리', '변동비', '보유세', '보증금', '보통예금', '복리', '복지', '복합위기', '본원통화', '부가가치', '부가가치세', '부동산', '부동산시장', '부동산투자', '부실채권', '부양책', '부의', '부채', '부채비율', '분기', '분기보고서', '분리과세', '분산투자', '불경기', '불황', '비과세', '비용', '빅맥지수'],
+            'ㅅ': ['사모펀드', '사업소득', '사채', '산업', '산업구조', '상각', '상속', '상속세', '상승장', '상여금', '상장', '상장기업', '상장폐지', '상환', '생산', '생산성', '생산원가', '생산자물가', '생산자물가지수', '생필품', '서비스업', '선물', '선물거래', '선물시장', '선행지수', '세금', '세수', '세액공제', '세율', '세전이익', '세후이익', '소득', '소득공제', '소득분배', '소득세', '소득수준', '소득불평등', '소매', '소매가격', '소매물가', '소비', '소비세', '소비심리', '소비자', '소비자물가', '소비자물가지수', '소비지출', '손실', '손익', '손익계산서', '손익분기점', '수수료', '수요', '수요공급', '수익', '수익률', '수익성', '수입', '수입관세', '수입물가', '수출', '수출입', '순손실', '순이익', '순자산', '순자산가치', '스태그플레이션', '스톡옵션', '슬럼프', '승수효과', '시가', '시가총액', '시세', '시장', '시장가격', '시장경제', '시장금리', '시중금리', '시중은행', '신용', '신용등급', '신용대출', '신용불량', '신용점수', '신용카드', '신용평가', '신흥시장', '실물경제', '실물자산', '실수령액', '실업', '실업급여', '실업률', '실질GDP', '실질금리', '실질소득', '실질임금'],
+            'ㅇ': ['아파트', '안전자산', '안정성', '압류', '액면가', '양도', '양도세', '양도소득세', '양적긴축', '양적완화', '어음', '업종', '에너지가격', '엔저', '엔화', '연간', '연금', '연금보험', '연금저축', '연대보증', '연말정산', '연봉', '연수익', '연체', '연체금리', '연체이자', '연평균', '영업이익', '예금', '예금금리', '예금보험', '예금자보호', '예산', '예산안', '예치금', '오피스텔', '옵션', '외국인투자', '외상', '외채', '외환', '외환보유고', '외환시장', '외환위기', '원가', '원금', '원금상환', '원금손실', '원리금', '원리금균등상환', '원유가격', '원자재', '원자재가격', '원화', '원화가치', '월급', '월세', '위안화', '위험', '위험관리', '위험자산', '유가', '유가증권', '유동성', '유동성위기', '유동자산', '유럽연합', '유로', '유로화', '유통', '은행', '은행대출', '은행예금', '은행이자', '음의금리', '이득', '이사비', '이연법인세', '이월결손금', '이익', '이익률', '이자', '이자비용', '이자소득', '이자율', '이전가격', '이중과세', '이직', '인상', '인센티브', '인수합병', '인출', '인플레이션', '인플레이션율', '일시납', '일자리', '임금', '임금인상', '임금피크제', '임대', '임대료', '임대수익', '임대차', '입찰'],
+            'ㅈ': ['자금', '자금조달', '자녀장려금', '자본', '자본금', '자본시장', '자본유출', '자본유입', '자본이득', '자본잠식', '자산', '자산가치', '자산관리', '자산배분', '자산운용', '자영업', '자영업자', '자유무역', '자유무역협정', '잔액', '잠재성장률', '장기', '장기금리', '장기대출', '장기투자', '장기채권', '장내거래', '장외거래', '재고', '재무', '재무상태표', '재무제표', '재벌', '재산', '재산세', '재정', '재정건전성', '재정적자', '재정정책', '재정지출', '재투자', '재테크', '저금리', '저물가', '저성장', '저소득층', '저축', '저축률', '저축은행', '적금', '적립금', '적자', '적정가격', '전세', '전세금', '전세보증금', '전월세', '전월세전환율', '전자화폐', '절세', '점유율', '정기예금', '정기적금', '정부부채', '정부지출', '정산', '정책금리', '정크본드', '제조업', '제조원가', '조세', '조세부담률', '조세정책', '종가', '종합과세', '종합소득세', '종합주가지수', '주가', '주가수익비율', '주가지수', '주당순이익', '주식', '주식배당', '주식분할', '주식시장', '주식투자', '주주', '주주총회', '주택', '주택가격', '주택담보대출', '주택담보비율', '주택연금', '주택자금', '주택청약', '중간배당', '중개수수료', '중산층', '중소기업', '중앙은행', '증권', '증권거래세', '증권사', '증권시장', '증시', '증여', '증여세', '증자', '지급보증', '지방세', '지수', '지출', '지표', '직접세', '직접투자', '질적완화', '집값', '집합투자'],
+            'ㅊ': ['차익', '차익거래', '차입', '차입금', '차입비용', '채권', '채권가격', '채권금리', '채권발행', '채권시장', '채권투자', '채무', '채무불이행', '채무상환', '채무조정', '처분손익', '청년실업', '청약', '청약저축', '체납', '초고금리', '초저금리', '초인플레이션', '총량규제', '총수익', '총자산', '총자본', '추가경정예산', '추가예산', '추세', '출자', '취득세', '취업', '취업률'],
+            'ㅋ': ['캐피탈', '코로나경제', '코스닥', '코스닥지수', '코스피', '코스피지수', '콜금리', '쿠폰', '크라우드펀딩'],
+            'ㅌ': ['타이트머니', '탈세', '탕감', '통계', '통상', '통화', '통화량', '통화스와프', '통화정책', '통화팽창', '투기', '투매', '투자', '투자수익', '투자수익률', '투자신탁', '투자위험', '투자은행', '투자자', '투자전략', '투자회사', '퇴직금', '퇴직연금', '트레이딩'],
+            'ㅍ': ['파산', '판매가', '판매비', '펀드', '펀드매니저', '펀드수익률', '평가손', '평가손익', '평가익', '평균임금', '포트폴리오', '표면금리', '풍선효과', '프라임레이트', '프리랜서', '피고용인', '피벗'],
+            'ㅎ': ['하락장', '한계기업', '한국거래소', '한국은행', '할부', '할부금', '할부금융', '할인', '할인율', '함정', '합병', '해고', '해외송금', '해외주식', '해외투자', '해지', '햇살론', '헤지', '헤지펀드', '현금', '현금성자산', '현금자산', '현금흐름', '현물', '현물거래', '현물시장', '현재가치', '협동조합', '호가', '호경기', '호황', '확대재정', '환경세', '환매', '환율', '환율변동', '환위험', '환차손', '환차익', '환전', '환헤지', '회계', '회계기준', '회계연도', '회복', '회사채', '회수', '회전율', '효율성', '후순위채권', '흑자', '희석']
+        };
+
+        // Korean Term Definitions
+        const koreanTermDefinitions = {
+            // ㄱ
+            '가격': { definition: '상품이나 서비스의 시장에서 거래되는 금액입니다.', example: '원유 가격이 배럴당 80달러로 상승하면서 휘발유 가격도 함께 올랐습니다.' },
+            '가계부채': { definition: '가정에서 진 빚의 총액으로, 주택담보대출, 신용카드 빚 등을 포함합니다.', example: '한국의 가계부채가 GDP의 100%를 넘어서면서 경제 위험 요소로 지목되고 있습니다.' },
+            '가산금리': { definition: '기준금리에 추가로 부과되는 이자율로, 위험도에 따라 결정됩니다.', example: '신용등급이 낮으면 기준금리에 2%의 가산금리가 붙어 대출이자가 높아집니다.' },
+            '가상화폐': { definition: '블록체인 기술을 기반으로 한 디지털 화폐입니다.', example: '비트코인과 이더리움은 대표적인 가상화폐입니다.' },
+            '가처분소득': { definition: '세금과 필수 지출을 제외하고 자유롭게 쓸 수 있는 소득입니다.', example: '월급 400만원에서 세금과 고정비를 빼면 가처분소득은 약 200만원입니다.' },
+            '가치투자': { definition: '기업의 내재가치보다 낮은 가격에 주식을 매수하는 투자 전략입니다.', example: '워렌 버핏은 가치투자의 대가로, 저평가된 우량주를 장기 보유합니다.' },
+            '간접세': { definition: '물건이나 서비스 가격에 포함되어 간접적으로 내는 세금입니다.', example: '부가가치세(VAT)는 대표적인 간접세로, 물건값의 10%가 세금입니다.' },
+            '감가상각': { definition: '시간이 지나면서 자산의 가치가 줄어드는 것을 비용으로 처리하는 것입니다.', example: '5,000만원짜리 차량을 10년간 감가상각하면 연간 500만원씩 비용 처리됩니다.' },
+            '강세장': { definition: '주가가 지속적으로 상승하는 시장 상황입니다.', example: '2020-2021년 코로나 이후 주식시장은 강세장을 보였습니다.' },
+            '개인연금': { definition: '개인이 노후 대비를 위해 자발적으로 가입하는 연금 상품입니다.', example: '세액공제 혜택을 받기 위해 연간 400만원까지 개인연금에 납입합니다.' },
+            '거래량': { definition: '일정 기간 동안 거래된 주식이나 상품의 수량입니다.', example: '삼성전자의 일평균 거래량은 수백만 주에 달합니다.' },
+            '경기': { definition: '경제 활동의 전반적인 상태를 나타내는 말입니다.', example: '경기가 좋으면 기업 실적이 좋아지고 일자리도 늘어납니다.' },
+            '경기침체': { definition: '경제 활동이 둔화되어 생산과 소비가 줄어드는 상태입니다.', example: '2분기 연속 GDP가 감소하면 공식적으로 경기침체로 선언됩니다.' },
+            '경기회복': { definition: '침체되었던 경제가 다시 성장세로 돌아서는 것입니다.', example: '정부의 부양책 덕분에 경기회복 조짐이 나타나고 있습니다.' },
+            '경상수지': { definition: '상품과 서비스 수출입, 소득 등을 합한 국제거래 수지입니다.', example: '한국의 경상수지는 수출 호조로 흑자를 유지하고 있습니다.' },
+            '경제성장': { definition: '한 나라의 재화와 서비스 생산량이 증가하는 것입니다.', example: '한국 경제는 연간 2-3%의 경제성장을 목표로 하고 있습니다.' },
+            '경제성장률': { definition: 'GDP가 전년 대비 얼마나 증가했는지를 나타내는 비율입니다.', example: '올해 경제성장률이 2.5%로 예상되어 작년보다 소폭 낮아졌습니다.' },
+            '고금리': { definition: '이자율이 높은 상태로, 대출 비용이 증가합니다.', example: '고금리 시대에는 예금 이자는 높지만 대출 부담도 커집니다.' },
+            '고용': { definition: '일할 능력이 있는 사람이 일자리를 가지고 있는 상태입니다.', example: '고용 시장이 개선되면서 실업률이 3%대로 낮아졌습니다.' },
+            '고용률': { definition: '15세 이상 인구 중 취업자의 비율입니다.', example: '한국의 고용률은 약 62%로 OECD 평균과 비슷합니다.' },
+            '고용보험': { definition: '실업에 대비한 사회보험으로, 실업급여를 지급합니다.', example: '고용보험료는 월급의 0.9%를 근로자와 사업주가 절반씩 부담합니다.' },
+            '고정금리': { definition: '대출 기간 동안 이자율이 변하지 않는 금리입니다.', example: '고정금리 주담대는 금리 상승기에 유리합니다.' },
+            '공급': { definition: '판매자가 시장에 제공하려는 상품이나 서비스의 양입니다.', example: '반도체 공급이 부족해지면서 자동차 생산에 차질이 생겼습니다.' },
+            '공매도': { definition: '주식을 빌려서 먼저 팔고, 나중에 싸게 사서 갚는 투자 기법입니다.', example: '주가 하락이 예상될 때 공매도로 수익을 낼 수 있습니다.' },
+            '공시가격': { definition: '정부가 발표하는 부동산의 공식 가격입니다.', example: '재산세와 종합부동산세는 공시가격을 기준으로 계산됩니다.' },
+            '과세': { definition: '세금을 부과하는 것입니다.', example: '연소득 5,000만원 초과분에 대해 24%의 소득세가 과세됩니다.' },
+            '관세': { definition: '수입품에 부과되는 세금입니다.', example: '미국산 자동차에 8%의 관세가 부과됩니다.' },
+            '국내총생산': { definition: '한 나라에서 일정 기간 동안 생산된 모든 재화와 서비스의 총 가치입니다.', example: '한국의 GDP는 약 1.7조 달러로 세계 10위권입니다.' },
+            '국민연금': { definition: '국가가 운영하는 공적 노후 보장 제도입니다.', example: '국민연금은 월급의 9%를 납부하며, 65세부터 수령할 수 있습니다.' },
+            '국채': { definition: '정부가 재정 자금을 조달하기 위해 발행하는 채권입니다.', example: '10년 만기 국채 금리가 연 3.5%를 기록했습니다.' },
+            '금리': { definition: '돈을 빌리거나 맡길 때 적용되는 이자율입니다.', example: '한국은행이 기준금리를 0.25%p 인상해 연 3.5%가 되었습니다.' },
+            '금리인상': { definition: '중앙은행이 기준금리를 높이는 것입니다.', example: '인플레이션 억제를 위해 한국은행이 금리인상을 단행했습니다.' },
+            '금리인하': { definition: '중앙은행이 기준금리를 낮추는 것입니다.', example: '경기 부양을 위해 금리인하가 필요하다는 목소리가 높아지고 있습니다.' },
+            '금융': { definition: '돈의 융통, 즉 자금의 조달과 운용에 관한 경제 활동입니다.', example: '금융 산업에는 은행, 증권사, 보험사 등이 포함됩니다.' },
+            '금융위기': { definition: '금융 시스템이 제대로 작동하지 않는 심각한 경제 상황입니다.', example: '2008년 글로벌 금융위기는 미국 서브프라임 모기지 부실에서 시작되었습니다.' },
+            '기관투자자': { definition: '연기금, 보험사 등 대규모 자금을 운용하는 법인 투자자입니다.', example: '기관투자자들의 매수세에 주가가 상승했습니다.' },
+            '기업공개': { definition: '비상장 기업이 주식시장에 상장하는 것입니다.', example: '카카오뱅크는 기업공개(IPO)를 통해 코스피에 상장했습니다.' },
+            '기준금리': { definition: '중앙은행이 금융기관과 거래할 때 적용하는 기본 금리입니다.', example: '한국은행 기준금리가 연 3.5%로, 대출금리에 영향을 미칩니다.' },
+            '기축통화': { definition: '국제 거래에서 널리 사용되는 주요 통화입니다.', example: '미국 달러는 세계 기축통화로, 국제 무역의 주요 결제 수단입니다.' },
+
+            // ㄴ
+            '나스닥': { definition: '미국의 기술주 중심 주식시장입니다.', example: '애플, 마이크로소프트, 아마존 등 IT 기업들이 나스닥에 상장되어 있습니다.' },
+            '납세': { definition: '세금을 내는 것입니다.', example: '종합소득세 납세 기한은 매년 5월 31일입니다.' },
+            '내수': { definition: '국내에서의 소비와 투자 수요입니다.', example: '내수 경기가 살아나면서 소매업 매출이 증가했습니다.' },
+            '내수경제': { definition: '수출보다 국내 소비가 중심이 되는 경제 구조입니다.', example: '중국은 내수경제 확대를 통해 경제 성장을 도모하고 있습니다.' },
+            '노동': { definition: '재화나 서비스를 만들어내는 인간의 활동입니다.', example: '노동 생산성 향상을 위해 자동화 설비 투자가 늘어나고 있습니다.' },
+            '노동시장': { definition: '일자리를 구하는 사람과 일꾼을 필요로 하는 기업이 만나는 시장입니다.', example: '노동시장이 과열되면서 인력 구하기가 어려워졌습니다.' },
+            '노후대비': { definition: '은퇴 후 생활을 위한 재정적 준비입니다.', example: '국민연금과 개인연금으로 노후대비를 하고 있습니다.' },
+            '누진세': { definition: '소득이 높을수록 더 높은 세율이 적용되는 세금 체계입니다.', example: '소득세는 누진세 구조로, 연봉 1억원 초과분에는 35%가 적용됩니다.' },
+
+            // ㄷ
+            '다우지수': { definition: '미국 주요 30개 기업의 주가를 평균한 지수입니다.', example: '다우지수가 35,000포인트를 돌파하며 사상 최고치를 경신했습니다.' },
+            '단기금리': { definition: '1년 이하의 짧은 기간에 적용되는 금리입니다.', example: '단기금리가 상승하면서 MMF 수익률도 높아졌습니다.' },
+            '단리': { definition: '원금에 대해서만 이자를 계산하는 방식입니다.', example: '1,000만원을 연 5% 단리로 3년 맡기면 이자는 150만원입니다.' },
+            '담보': { definition: '대출을 받을 때 상환을 보증하기 위해 제공하는 자산입니다.', example: '주택을 담보로 대출받으면 금리가 더 낮습니다.' },
+            '담보대출': { definition: '부동산이나 자산을 담보로 받는 대출입니다.', example: '아파트를 담보로 3억원을 연 4%에 대출받았습니다.' },
+            '대공황': { definition: '1929년에 시작된 역사상 가장 심각한 경제 위기입니다.', example: '대공황 시절 미국의 실업률은 25%까지 치솟았습니다.' },
+            '대출': { definition: '은행 등 금융기관에서 돈을 빌리는 것입니다.', example: '주택담보대출로 5억원을 빌려 아파트를 구입했습니다.' },
+            '대출금리': { definition: '돈을 빌릴 때 적용되는 이자율입니다.', example: '주담대 대출금리가 연 5%로 올라 이자 부담이 커졌습니다.' },
+            '대차대조표': { definition: '특정 시점의 자산, 부채, 자본을 보여주는 재무제표입니다.', example: '대차대조표를 보면 회사의 재무 상태를 한눈에 파악할 수 있습니다.' },
+            '디플레이션': { definition: '물가가 지속적으로 하락하는 현상입니다.', example: '일본은 20년간 디플레이션으로 경제 성장이 정체되었습니다.' },
+
+            // ㄹ
+            '레버리지': { definition: '차입금을 활용해 투자 수익을 극대화하는 전략입니다.', example: '레버리지 ETF는 지수 상승의 2배 수익을 추구합니다.' },
+            '롤오버': { definition: '만기가 된 금융상품을 연장하거나 재투자하는 것입니다.', example: '정기예금을 롤오버해서 1년 더 예치하기로 했습니다.' },
+            '리밸런싱': { definition: '투자 포트폴리오의 자산 비중을 재조정하는 것입니다.', example: '연 1회 리밸런싱을 통해 주식과 채권 비율을 6:4로 유지합니다.' },
+            '리스크': { definition: '투자에서 손실이 발생할 수 있는 가능성입니다.', example: '고수익 투자에는 높은 리스크가 따릅니다.' },
+            '리츠': { definition: '부동산에 투자하고 수익을 배당하는 펀드입니다.', example: '리츠(REITs)에 투자하면 부동산 임대 수익을 나눠받을 수 있습니다.' },
+
+            // ㅁ
+            '마이너스통장': { definition: '마이너스 잔고까지 사용할 수 있는 예금 계좌입니다.', example: '마이너스통장 한도 2,000만원을 급전이 필요할 때 사용합니다.' },
+            '마진': { definition: '수익과 비용의 차이, 또는 증거금입니다.', example: '매출 마진이 20%라면 100원에 팔 때 20원이 이익입니다.' },
+            '만기': { definition: '금융상품의 계약 기간이 끝나는 시점입니다.', example: '정기예금 만기가 되어 원금과 이자를 수령했습니다.' },
+            '매도': { definition: '주식이나 자산을 파는 것입니다.', example: '주가가 목표가에 도달해 보유 주식을 매도했습니다.' },
+            '매수': { definition: '주식이나 자산을 사는 것입니다.', example: '삼성전자 주식 100주를 6만원에 매수했습니다.' },
+            '매출': { definition: '상품이나 서비스를 팔아서 얻은 총 수입입니다.', example: '올해 회사 매출이 1조원을 돌파했습니다.' },
+            '물가': { definition: '시장에서 거래되는 상품과 서비스의 평균 가격 수준입니다.', example: '물가가 오르면 같은 돈으로 살 수 있는 물건이 줄어듭니다.' },
+            '물가상승률': { definition: '물가가 일정 기간 동안 얼마나 올랐는지 나타내는 비율입니다.', example: '올해 물가상승률이 5%라면 작년보다 물가가 5% 올랐습니다.' },
+            '뮤추얼펀드': { definition: '여러 투자자의 자금을 모아 운용하는 집합투자 상품입니다.', example: '글로벌 주식형 뮤추얼펀드에 월 50만원씩 투자하고 있습니다.' },
+
+            // ㅂ
+            '발행': { definition: '주식, 채권 등 증권을 새로 만들어 내는 것입니다.', example: '회사가 신주를 발행해서 1,000억원의 자금을 조달했습니다.' },
+            '배당': { definition: '회사가 이익의 일부를 주주에게 나눠주는 것입니다.', example: '삼성전자는 분기별로 주당 361원의 배당을 지급합니다.' },
+            '배당금': { definition: '주주가 회사로부터 받는 이익 분배금입니다.', example: '보유 주식에서 연간 50만원의 배당금을 받았습니다.' },
+            '배당수익률': { definition: '주가 대비 배당금의 비율입니다.', example: '배당수익률 4%는 100만원 투자 시 연 4만원의 배당을 받는다는 뜻입니다.' },
+            '벤처기업': { definition: '혁신적인 기술이나 아이디어로 창업한 신생 기업입니다.', example: '정부는 벤처기업에 세제 혜택을 제공합니다.' },
+            '벤처캐피탈': { definition: '성장 가능성이 높은 스타트업에 투자하는 자금입니다.', example: '벤처캐피탈로부터 50억원의 투자를 유치했습니다.' },
+            '변동금리': { definition: '시장 상황에 따라 이자율이 바뀌는 금리입니다.', example: '변동금리 대출은 기준금리가 오르면 이자 부담도 늘어납니다.' },
+            '복리': { definition: '이자에 이자가 붙는 방식으로, 눈덩이처럼 자산이 불어납니다.', example: '연 5% 복리로 10년간 투자하면 원금의 1.63배가 됩니다.' },
+            '부가가치세': { definition: '상품이나 서비스에 붙는 소비세로, 한국은 10%입니다.', example: '물건값 10,000원에 부가가치세 1,000원이 포함되어 있습니다.' },
+            '부동산': { definition: '토지와 그 위에 있는 건물 등 움직일 수 없는 재산입니다.', example: '부동산 투자로 아파트를 구입해 월세 수입을 얻고 있습니다.' },
+            '부채': { definition: '개인이나 기업이 갚아야 할 빚입니다.', example: '회사의 부채비율이 200%를 넘어 재무 건전성이 우려됩니다.' },
+            '부채비율': { definition: '자기자본 대비 부채의 비율입니다.', example: '부채비율 100%는 자본과 부채가 같다는 의미입니다.' },
+            '분산투자': { definition: '위험을 줄이기 위해 여러 자산에 나눠 투자하는 것입니다.', example: '주식, 채권, 부동산에 분산투자하여 리스크를 관리합니다.' },
+            '불경기': { definition: '경제 활동이 위축되어 생산과 소비가 줄어드는 상태입니다.', example: '불경기에는 기업 실적 악화와 실업률 상승이 나타납니다.' },
+            '비과세': { definition: '세금이 부과되지 않는 것입니다.', example: '비과세 저축 상품으로 이자에 대한 세금을 아낄 수 있습니다.' },
+
+            // ㅅ
+            '사모펀드': { definition: '소수의 투자자로부터 자금을 모아 운용하는 펀드입니다.', example: '사모펀드는 최소 투자금이 1억원 이상으로 높습니다.' },
+            '상속세': { definition: '재산을 상속받을 때 내는 세금입니다.', example: '10억원 이상의 상속재산에는 최고 50%의 상속세가 부과됩니다.' },
+            '상장': { definition: '기업의 주식이 증권거래소에서 거래될 수 있게 되는 것입니다.', example: '카카오가 코스피에 상장하면서 시가총액 상위권에 진입했습니다.' },
+            '상환': { definition: '빌린 돈을 갚는 것입니다.', example: '대출금을 월 100만원씩 원리금균등상환하고 있습니다.' },
+            '선물': { definition: '미래의 특정 시점에 정해진 가격으로 거래하기로 한 계약입니다.', example: '원유 선물 가격이 상승하면서 휘발유 가격 인상이 예상됩니다.' },
+            '세금': { definition: '국가나 지방자치단체에 내는 공적 부담금입니다.', example: '근로소득세, 부가가치세, 재산세 등 다양한 세금을 납부합니다.' },
+            '세액공제': { definition: '내야 할 세금에서 일정 금액을 빼주는 것입니다.', example: '연금저축 납입액의 15%를 세액공제 받을 수 있습니다.' },
+            '소득': { definition: '일정 기간 동안 벌어들인 금전적 수입입니다.', example: '월 소득이 400만원이면 연 소득은 4,800만원입니다.' },
+            '소득공제': { definition: '과세 대상 소득에서 일정 금액을 빼주는 것입니다.', example: '신용카드 사용액의 일부를 소득공제 받을 수 있습니다.' },
+            '소득세': { definition: '개인이 벌어들인 소득에 부과되는 세금입니다.', example: '연봉 5,000만원의 근로자는 약 15%의 소득세를 납부합니다.' },
+            '소비': { definition: '재화와 서비스를 구입하고 사용하는 경제 활동입니다.', example: '가계 소비가 증가하면 경제 성장에 긍정적입니다.' },
+            '소비자물가': { definition: '일반 소비자가 구입하는 상품과 서비스의 가격입니다.', example: '소비자물가가 전년 대비 3.5% 상승했습니다.' },
+            '소비자물가지수': { definition: '소비자물가의 변동을 측정하는 지표입니다.', example: 'CPI가 100에서 103으로 오르면 물가가 3% 상승한 것입니다.' },
+            '손익계산서': { definition: '일정 기간의 수익과 비용, 순이익을 보여주는 재무제표입니다.', example: '손익계산서를 보면 회사가 얼마를 벌고 썼는지 알 수 있습니다.' },
+            '손익분기점': { definition: '수익과 비용이 같아져 이익도 손실도 없는 지점입니다.', example: '월 매출 1,000만원을 달성해야 손익분기점에 도달합니다.' },
+            '수수료': { definition: '서비스나 거래에 대해 지불하는 비용입니다.', example: '주식 매매 수수료는 거래금액의 0.015%입니다.' },
+            '수요': { definition: '소비자가 구매하려는 상품이나 서비스의 양입니다.', example: '전기차 수요가 급증하면서 배터리 가격이 상승했습니다.' },
+            '수익률': { definition: '투자 금액 대비 수익의 비율입니다.', example: '연 10% 수익률은 1,000만원 투자 시 100만원의 이익을 의미합니다.' },
+            '수출': { definition: '국내에서 생산한 상품을 외국에 판매하는 것입니다.', example: '한국의 반도체 수출이 월 100억 달러를 돌파했습니다.' },
+            '순이익': { definition: '총 수익에서 모든 비용과 세금을 뺀 최종 이익입니다.', example: '회사의 순이익이 전년 대비 20% 증가했습니다.' },
+            '스태그플레이션': { definition: '경기침체와 물가상승이 동시에 발생하는 현상입니다.', example: '1970년대 오일쇼크로 스태그플레이션이 발생했습니다.' },
+            '시가총액': { definition: '상장 기업 주식의 총 시장 가치입니다.', example: '삼성전자의 시가총액은 약 400조원으로 국내 1위입니다.' },
+            '시장금리': { definition: '금융시장에서 자금 수요와 공급에 의해 결정되는 금리입니다.', example: '시장금리가 상승하면 채권 가격은 하락합니다.' },
+            '신용': { definition: '돈을 빌리고 갚을 수 있는 능력과 신뢰도입니다.', example: '신용이 좋으면 낮은 금리로 대출받을 수 있습니다.' },
+            '신용등급': { definition: '개인이나 기업의 채무 상환 능력을 등급으로 나타낸 것입니다.', example: '신용등급이 AAA인 기업은 가장 안전한 투자처로 평가됩니다.' },
+            '신용대출': { definition: '담보 없이 신용만으로 받는 대출입니다.', example: '신용대출은 담보대출보다 금리가 2-3%p 높습니다.' },
+            '신용점수': { definition: '개인의 신용도를 숫자로 나타낸 것입니다.', example: '신용점수 900점 이상이면 1등급으로 분류됩니다.' },
+            '실수령액': { definition: '세금과 공제금을 제외하고 실제로 받는 금액입니다.', example: '연봉 5,000만원의 실수령액은 약 360만원입니다.' },
+            '실업': { definition: '일할 의사와 능력이 있는 사람이 일자리를 구하지 못한 상태입니다.', example: '코로나19로 실업률이 크게 상승했습니다.' },
+            '실업률': { definition: '경제활동인구 중 실업자의 비율입니다.', example: '한국의 실업률은 약 3%로 완전고용에 가깝습니다.' },
+            '실질금리': { definition: '명목금리에서 물가상승률을 뺀 금리입니다.', example: '금리가 5%이고 물가상승률이 3%면 실질금리는 2%입니다.' },
+
+            // ㅇ
+            '안전자산': { definition: '위험이 낮고 가치가 안정적인 투자 자산입니다.', example: '금과 국채는 대표적인 안전자산입니다.' },
+            '액면가': { definition: '주식이나 채권에 표시된 명목상의 가격입니다.', example: '대부분의 주식 액면가는 500원 또는 5,000원입니다.' },
+            '양도소득세': { definition: '자산을 팔아서 생긴 이익에 부과되는 세금입니다.', example: '주식 양도소득세는 대주주에게만 적용됩니다.' },
+            '양적완화': { definition: '중앙은행이 시장에 돈을 풀어 경기를 부양하는 정책입니다.', example: '미국 연준의 양적완화로 금융시장에 유동성이 넘쳤습니다.' },
+            '연금': { definition: '일정 기간 동안 정기적으로 받는 금액입니다.', example: '국민연금으로 월 100만원씩 노후 생활비를 받습니다.' },
+            '연말정산': { definition: '1년간 납부한 세금을 정산해 환급받거나 추가 납부하는 것입니다.', example: '연말정산으로 50만원을 환급받았습니다.' },
+            '연봉': { definition: '1년 동안 받는 총 급여입니다.', example: '연봉 5,000만원은 월 평균 약 416만원입니다.' },
+            '예금': { definition: '은행에 돈을 맡기는 것입니다.', example: '정기예금에 1,000만원을 1년간 맡기면 연 4%의 이자를 받습니다.' },
+            '예산': { definition: '일정 기간 동안의 수입과 지출 계획입니다.', example: '정부 예산이 600조원으로 편성되었습니다.' },
+            '외환': { definition: '외국 통화 또는 외국 통화로 이루어지는 거래입니다.', example: '외환시장에서 원달러 환율이 1,300원을 돌파했습니다.' },
+            '외환위기': { definition: '외화 부족으로 대외 지급 능력이 떨어지는 위기 상황입니다.', example: '1997년 외환위기로 한국은 IMF 구제금융을 받았습니다.' },
+            '원금': { definition: '투자하거나 대출받은 최초의 금액입니다.', example: '원금 1억원에 이자 500만원을 더해 총 1억 500만원을 상환합니다.' },
+            '원리금': { definition: '원금과 이자를 합한 금액입니다.', example: '매월 원리금 균등상환 방식으로 100만원씩 갚고 있습니다.' },
+            '이자': { definition: '돈을 빌리거나 맡길 때 원금에 추가되는 금액입니다.', example: '1,000만원을 연 5%로 1년 맡기면 이자는 50만원입니다.' },
+            '이자율': { definition: '원금 대비 이자의 비율입니다.', example: '대출 이자율이 연 5%에서 6%로 올랐습니다.' },
+            '인플레이션': { definition: '물가가 지속적으로 오르는 현상입니다.', example: '인플레이션이 심해지면 화폐 가치가 하락합니다.' },
+            '임대료': { definition: '부동산을 빌려 쓰는 대가로 지불하는 금액입니다.', example: '서울 강남 아파트 월 임대료가 200만원입니다.' },
+
+            // ㅈ
+            '자본': { definition: '사업이나 투자에 사용되는 돈이나 자산입니다.', example: '회사 설립을 위해 자본금 5,000만원을 출자했습니다.' },
+            '자산': { definition: '개인이나 기업이 소유한 경제적 가치가 있는 것입니다.', example: '부동산, 주식, 현금 등 총 자산이 10억원입니다.' },
+            '자산배분': { definition: '투자 자금을 여러 자산군에 나누는 것입니다.', example: '자산배분을 주식 60%, 채권 30%, 현금 10%로 설정했습니다.' },
+            '자유무역': { definition: '관세 등 무역 장벽 없이 이루어지는 국가 간 거래입니다.', example: '한미 FTA로 양국 간 자유무역이 확대되었습니다.' },
+            '재무제표': { definition: '기업의 재무 상태를 보여주는 공식 문서입니다.', example: '재무제표 분석을 통해 기업의 건전성을 평가합니다.' },
+            '재산세': { definition: '부동산 등 재산에 부과되는 세금입니다.', example: '공시가격 9억원 아파트의 재산세는 연 약 200만원입니다.' },
+            '재정': { definition: '정부의 수입과 지출에 관한 경제 활동입니다.', example: '재정 적자가 커지면서 국가 채무가 늘어나고 있습니다.' },
+            '재정정책': { definition: '정부가 세금과 지출을 조절해 경제에 영향을 주는 정책입니다.', example: '경기 부양을 위해 확장적 재정정책을 펴고 있습니다.' },
+            '저금리': { definition: '이자율이 낮은 상태입니다.', example: '저금리 시대에는 예금 이자가 낮지만 대출 부담도 적습니다.' },
+            '저축': { definition: '소비하지 않고 돈을 모아두는 것입니다.', example: '월급의 30%를 저축하고 있습니다.' },
+            '적금': { definition: '매월 일정 금액을 넣고 만기에 원리금을 받는 저축 상품입니다.', example: '월 50만원씩 2년 적금에 가입해서 만기에 1,260만원을 받았습니다.' },
+            '적자': { definition: '지출이 수입보다 많은 상태입니다.', example: '올해 회사가 100억원의 적자를 기록했습니다.' },
+            '전세': { definition: '목돈을 맡기고 월세 없이 집을 빌리는 한국 특유의 임대 방식입니다.', example: '전세금 5억원으로 아파트에 2년간 거주합니다.' },
+            '절세': { definition: '합법적인 방법으로 세금을 줄이는 것입니다.', example: '연금저축과 IRP를 활용한 절세 전략을 세웠습니다.' },
+            '정기예금': { definition: '일정 기간 돈을 맡기고 만기에 이자와 함께 돌려받는 예금입니다.', example: '1년 만기 정기예금 금리가 연 4%입니다.' },
+            '조세': { definition: '국가나 지방자치단체에 의무적으로 내는 금전입니다.', example: '조세 부담률이 GDP의 25%를 넘었습니다.' },
+            '종합소득세': { definition: '1년간 모든 소득을 합산해 부과하는 세금입니다.', example: '프리랜서는 5월에 종합소득세를 신고해야 합니다.' },
+            '주가': { definition: '주식시장에서 거래되는 주식의 가격입니다.', example: '삼성전자 주가가 7만원을 돌파했습니다.' },
+            '주가지수': { definition: '주식시장의 전반적인 가격 수준을 나타내는 지표입니다.', example: '코스피 주가지수가 2,500포인트를 넘어섰습니다.' },
+            '주식': { definition: '기업의 소유권 일부를 나타내는 증권입니다.', example: '삼성전자 주식 100주를 보유하고 있습니다.' },
+            '주식시장': { definition: '주식이 거래되는 시장입니다.', example: '오늘 주식시장이 2% 상승 마감했습니다.' },
+            '주택담보대출': { definition: '주택을 담보로 받는 대출입니다.', example: '주택담보대출로 아파트 구입 자금의 70%를 마련했습니다.' },
+            '증권': { definition: '주식, 채권 등 재산적 가치가 있는 권리를 표시한 증서입니다.', example: '증권사를 통해 주식과 채권을 매매합니다.' },
+            '증여세': { definition: '재산을 무상으로 받을 때 내는 세금입니다.', example: '부모에게 1억원을 증여받으면 약 1,000만원의 증여세가 발생합니다.' },
+            '지방세': { definition: '지방자치단체에 내는 세금입니다.', example: '취득세와 재산세는 대표적인 지방세입니다.' },
+            '직접세': { definition: '납세자가 직접 부담하는 세금입니다.', example: '소득세와 법인세는 대표적인 직접세입니다.' },
+            '집값': { definition: '주택의 시장 가격입니다.', example: '서울 아파트 집값이 최근 10년간 2배로 올랐습니다.' },
+
+            // ㅊ
+            '차익': { definition: '매매나 거래에서 발생한 이익입니다.', example: '주식 매매 차익으로 500만원의 수익을 얻었습니다.' },
+            '차입': { definition: '돈을 빌리는 것입니다.', example: '시설 투자를 위해 100억원을 차입했습니다.' },
+            '채권': { definition: '정부나 기업이 자금을 빌리면서 발행하는 증서입니다.', example: '국채에 투자하면 안정적인 이자 수익을 얻을 수 있습니다.' },
+            '채무': { definition: '갚아야 할 빚입니다.', example: '주택담보대출 채무가 3억원 남았습니다.' },
+            '청약': { definition: '주식이나 부동산 분양에 미리 신청하는 것입니다.', example: '아파트 청약에 당첨되어 새 아파트를 분양받았습니다.' },
+            '청약저축': { definition: '주택 청약 자격을 얻기 위한 저축 상품입니다.', example: '매월 10만원씩 청약저축에 납입하고 있습니다.' },
+            '초인플레이션': { definition: '물가가 극심하게 상승하는 현상입니다.', example: '베네수엘라는 초인플레이션으로 화폐 가치가 폭락했습니다.' },
+            '총자산': { definition: '개인이나 기업이 보유한 모든 자산의 합계입니다.', example: '회사의 총자산이 1조원을 돌파했습니다.' },
+            '취득세': { definition: '부동산 등 자산을 취득할 때 내는 세금입니다.', example: '9억원 아파트 취득세는 약 2,700만원입니다.' },
+
+            // ㅋ
+            '코스닥': { definition: '한국의 중소기업과 벤처기업이 상장된 주식시장입니다.', example: '코스닥 지수가 900포인트를 돌파했습니다.' },
+            '코스피': { definition: '한국의 대기업이 상장된 대표 주식시장입니다.', example: '코스피 지수가 2,800포인트로 마감했습니다.' },
+            '콜금리': { definition: '금융기관끼리 단기 자금을 빌릴 때 적용되는 금리입니다.', example: '콜금리가 기준금리에 연동되어 움직입니다.' },
+            '크라우드펀딩': { definition: '대중으로부터 소액 자금을 모아 투자하는 방식입니다.', example: '스타트업이 크라우드펀딩으로 5억원의 초기 자금을 확보했습니다.' },
+
+            // ㅌ
+            '탈세': { definition: '불법적인 방법으로 세금을 내지 않는 것입니다.', example: '탈세가 적발되면 원래 세금에 가산세까지 물어야 합니다.' },
+            '통화': { definition: '한 나라에서 사용되는 돈입니다.', example: '원화, 달러, 엔화는 각각 한국, 미국, 일본의 통화입니다.' },
+            '통화정책': { definition: '중앙은행이 금리와 통화량을 조절하는 정책입니다.', example: '한국은행은 통화정책을 통해 물가 안정을 추구합니다.' },
+            '투기': { definition: '단기 가격 변동을 이용해 이익을 노리는 행위입니다.', example: '부동산 투기가 집값 상승의 원인으로 지목되고 있습니다.' },
+            '투자': { definition: '수익을 얻기 위해 자금을 운용하는 것입니다.', example: '주식과 부동산에 분산 투자하고 있습니다.' },
+            '투자수익률': { definition: '투자금 대비 얻은 수익의 비율입니다.', example: '연간 투자수익률 15%를 달성했습니다.' },
+            '퇴직금': { definition: '근로자가 퇴직할 때 받는 금액입니다.', example: '10년 근무 후 퇴직금으로 5,000만원을 받았습니다.' },
+            '퇴직연금': { definition: '퇴직 후 연금 형태로 받는 퇴직급여 제도입니다.', example: '퇴직연금 DC형에 매월 급여의 8.3%가 적립됩니다.' },
+
+            // ㅍ
+            '파산': { definition: '채무를 갚을 능력이 없어 법적으로 선언하는 것입니다.', example: '회사가 파산해서 채권자들은 투자금을 회수하지 못했습니다.' },
+            '펀드': { definition: '여러 투자자의 돈을 모아 전문가가 운용하는 금융상품입니다.', example: '월 50만원씩 적립식 펀드에 투자하고 있습니다.' },
+            '평가손익': { definition: '아직 실현되지 않은 장부상의 이익 또는 손실입니다.', example: '주식 평가이익이 500만원이지만 아직 팔지 않았습니다.' },
+            '포트폴리오': { definition: '보유하고 있는 투자 자산의 구성입니다.', example: '포트폴리오를 주식 60%, 채권 30%, 현금 10%로 구성했습니다.' },
+            '표면금리': { definition: '채권에 표시된 이자율입니다.', example: '표면금리 3%의 국채는 액면가 100만원당 연 3만원의 이자를 지급합니다.' },
+
+            // ㅎ
+            '하락장': { definition: '주가가 지속적으로 떨어지는 시장 상황입니다.', example: '2022년은 금리 인상으로 하락장이 이어졌습니다.' },
+            '한국은행': { definition: '한국의 중앙은행으로 통화정책을 담당합니다.', example: '한국은행이 기준금리를 3.5%로 동결했습니다.' },
+            '할부': { definition: '대금을 여러 번에 나눠 갚는 방식입니다.', example: '가전제품을 12개월 무이자 할부로 구입했습니다.' },
+            '할인율': { definition: '미래 가치를 현재 가치로 환산할 때 적용하는 비율입니다.', example: '할인율 5%를 적용하면 1년 후 100만원의 현재 가치는 약 95만원입니다.' },
+            '해외투자': { definition: '외국의 자산에 투자하는 것입니다.', example: '미국 주식에 해외투자로 애플 주식을 매수했습니다.' },
+            '헤지': { definition: '투자 위험을 줄이기 위해 취하는 방어적 전략입니다.', example: '달러 투자의 환위험을 헤지하기 위해 선물 계약을 했습니다.' },
+            '헤지펀드': { definition: '다양한 전략으로 시장 상황과 무관하게 수익을 추구하는 펀드입니다.', example: '헤지펀드는 공매도와 레버리지를 적극 활용합니다.' },
+            '현금': { definition: '실제로 사용할 수 있는 화폐입니다.', example: '비상금으로 현금 500만원을 보유하고 있습니다.' },
+            '현금흐름': { definition: '일정 기간 동안 들어오고 나가는 현금의 흐름입니다.', example: '긍정적인 현금흐름은 기업의 재무 건전성을 보여줍니다.' },
+            '호황': { definition: '경제 활동이 활발하고 경기가 좋은 상태입니다.', example: '부동산 호황으로 아파트 가격이 급등했습니다.' },
+            '환율': { definition: '두 나라 통화 간의 교환 비율입니다.', example: '원달러 환율이 1,300원이면 1달러에 1,300원입니다.' },
+            '환차익': { definition: '환율 변동으로 얻는 이익입니다.', example: '달러를 1,200원에 사서 1,400원에 팔아 환차익을 얻었습니다.' },
+            '환차손': { definition: '환율 변동으로 발생하는 손실입니다.', example: '원화 강세로 해외 투자에서 환차손이 발생했습니다.' },
+            '회사채': { definition: '기업이 자금 조달을 위해 발행하는 채권입니다.', example: 'A등급 회사채 금리가 연 4.5%입니다.' },
+            '흑자': { definition: '수입이 지출보다 많은 상태입니다.', example: '올해 무역 흑자가 500억 달러를 기록했습니다.' }
+        };
+
+        // Current dictionary mode
+        let isKoreanMode = false;
+
+        function getKoreanInitialConsonant(char) {
+            const code = char.charCodeAt(0);
+            if (code >= 0xAC00 && code <= 0xD7A3) {
+                const initial = Math.floor((code - 0xAC00) / 588);
+                const consonants = ['ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'];
+                return consonants[initial];
+            }
+            return char;
+        }
+
+        function searchKoreanDictionary(query) {
+            const results = [];
+            const lowerQuery = query.toLowerCase();
+
+            for (const [letter, terms] of Object.entries(koreanEconomyDictionary)) {
+                for (const term of terms) {
+                    if (term.includes(query) || term.toLowerCase().includes(lowerQuery)) {
+                        results.push({ letter, term });
+                    }
+                }
+            }
+            return results;
+        }
+
+        function filterKoreanByLetter(letter) {
+            if (letter === 'ALL') {
+                const results = [];
+                for (const [l, terms] of Object.entries(koreanEconomyDictionary)) {
+                    for (const term of terms) {
+                        results.push({ letter: l, term });
+                    }
+                }
+                return results;
+            }
+            return koreanEconomyDictionary[letter]?.map(term => ({ letter, term })) || [];
+        }
+
+        function showKoreanTermModal(term) {
+            const modal = document.getElementById('term-modal');
+            const modalTerm = document.getElementById('modal-term');
+            const modalDefinition = document.getElementById('modal-definition');
+            const modalExample = document.getElementById('modal-example');
+
+            const termData = koreanTermDefinitions[term];
+
+            modalTerm.textContent = term;
+
+            if (termData) {
+                modalDefinition.textContent = termData.definition;
+                modalExample.textContent = termData.example;
+            } else {
+                modalDefinition.textContent = '정의가 곧 추가될 예정입니다. 이 용어는 경제/금융 관련 개념입니다.';
+                modalExample.textContent = '실생활 예시가 곧 추가될 예정입니다.';
+            }
+
+            modal.showModal();
+        }
+
+        function displayKoreanResults(results, title, hideCount = false) {
+            const resultsContainer = document.getElementById('search-results');
+            const resultsTitle = document.getElementById('results-title');
+            const resultsCount = document.getElementById('results-count');
+            const resultsList = document.getElementById('results-list');
+
+            resultsTitle.textContent = title;
+            resultsCount.textContent = hideCount ? '' : `${results.length}개 용어`;
+
+            resultsList.innerHTML = results.map(({ letter, term }) => `
+                <div class="term-card bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 rounded-xl p-3 sm:p-4 cursor-pointer flex items-center gap-3" onclick="showKoreanTermModal('${term.replace(/'/g, "\\'")}')">
+                    <span class="w-8 h-8 rounded-lg bg-blue-600 text-white font-bold text-sm flex items-center justify-center flex-shrink-0">${letter}</span>
+                    <span class="text-slate-700 font-medium text-sm sm:text-base truncate">${term}</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-400 ml-auto flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                </div>
+            `).join('');
+
+            resultsContainer.classList.remove('hidden');
+        }
+
+        function getKoreanTodaysTerms(count = 10) {
+            const termsWithDefinitions = Object.keys(koreanTermDefinitions);
+            const today = new Date();
+            const dateSeed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+
+            const selectedTerms = [];
+            const usedIndices = new Set();
+
+            for (let i = 0; i < count && i < termsWithDefinitions.length; i++) {
+                let index;
+                let attempts = 0;
+                do {
+                    index = Math.floor(seededRandom(dateSeed + i + attempts * 100) * termsWithDefinitions.length);
+                    attempts++;
+                } while (usedIndices.has(index) && attempts < 100);
+
+                usedIndices.add(index);
+                selectedTerms.push(termsWithDefinitions[index]);
+            }
+
+            return selectedTerms;
+        }
+
+        function switchToKoreanVersion() {
+            isKoreanMode = true;
+            document.documentElement.lang = 'ko';
+
+            // Update page title and meta
+            document.title = 'Economy Helper - 모든 사람을 위한 경제 용어 사전';
+
+            // Update hero section
+            const h1 = document.querySelector('h1');
+            if (h1) h1.textContent = '경제 금융 용어 사전';
+
+            const subtitle = document.querySelector('h1 + p');
+            if (subtitle) subtitle.textContent = '600개 이상의 경제·금융 용어를 쉬운 설명과 실생활 예시로 배워보세요';
+
+            // Update today's terms label
+            const todayLabel = document.querySelector('.flex.items-center.gap-2.mb-3 span');
+            if (todayLabel) todayLabel.textContent = '오늘의 용어';
+
+            // Update search placeholder
+            const searchInput = document.getElementById('search-input');
+            if (searchInput) searchInput.placeholder = '용어 검색... (예: 금리, 인플레이션, 주식)';
+
+            // Update search button
+            const searchBtn = document.getElementById('search-btn');
+            if (searchBtn) searchBtn.textContent = '검색';
+
+            // Update alphabet buttons to Korean consonants
+            const alphabetContainer = document.querySelector('.flex.flex-wrap.justify-center.gap-1');
+            if (alphabetContainer) {
+                const koreanConsonants = ['ㄱ', 'ㄴ', 'ㄷ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅅ', 'ㅇ', 'ㅈ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'];
+
+                alphabetContainer.innerHTML = `
+                    <button class="btn btn-sm h-9 min-h-9 px-3 sm:px-4 rounded-lg font-medium alphabet-btn bg-blue-600 text-white border-0" data-letter="ALL">전체</button>
+                    ${koreanConsonants.map(c => `
+                        <button class="btn btn-sm h-9 min-h-9 w-9 sm:w-10 rounded-lg font-medium alphabet-btn bg-slate-100 hover:bg-blue-600 hover:text-white border-0 text-slate-600" data-letter="${c}">${c}</button>
+                    `).join('')}
+                `;
+
+                // Re-attach event listeners
+                const newAlphabetBtns = document.querySelectorAll('.alphabet-btn');
+                newAlphabetBtns.forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        newAlphabetBtns.forEach(b => {
+                            b.classList.remove('bg-blue-600', 'text-white');
+                            b.classList.add('bg-slate-100', 'text-slate-600');
+                        });
+                        btn.classList.remove('bg-slate-100', 'text-slate-600');
+                        btn.classList.add('bg-blue-600', 'text-white');
+
+                        const letter = btn.dataset.letter;
+                        const results = filterKoreanByLetter(letter);
+                        const title = letter === 'ALL' ? '전체 경제 금융 용어' : `"${letter}"로 시작하는 용어`;
+                        displayKoreanResults(results, title, true);
+
+                        searchInput.value = '';
+                    });
+                });
+            }
+
+            // Update modal labels
+            const definitionLabel = document.querySelector('.font-semibold.text-blue-900');
+            if (definitionLabel) definitionLabel.textContent = '정의';
+
+            const exampleLabel = document.querySelector('.font-semibold.text-emerald-900');
+            if (exampleLabel) exampleLabel.textContent = '실생활 예시';
+
+            const closeBtn = document.querySelector('.modal-box .btn-block');
+            if (closeBtn) closeBtn.textContent = '닫기';
+
+            // Initialize Korean today's terms
+            const terms = getKoreanTodaysTerms(10);
+            const container = document.getElementById('todays-terms-list');
+            if (container) {
+                container.innerHTML = terms.map(term => `
+                    <button onclick="showKoreanTermModal('${term.replace(/'/g, "\\'")}')" class="px-3 py-1.5 bg-white hover:bg-blue-100 border border-blue-200 hover:border-blue-400 rounded-lg text-sm font-medium text-slate-700 hover:text-blue-700 transition-all cursor-pointer">
+                        ${term}
+                    </button>
+                `).join('');
+            }
+
+            // Update search functionality
+            const searchBtnEl = document.getElementById('search-btn');
+            const searchInputEl = document.getElementById('search-input');
+
+            // Remove old listeners and add new ones
+            const newSearchBtn = searchBtnEl.cloneNode(true);
+            searchBtnEl.parentNode.replaceChild(newSearchBtn, searchBtnEl);
+
+            const newSearchInput = searchInputEl.cloneNode(true);
+            searchInputEl.parentNode.replaceChild(newSearchInput, searchInputEl);
+
+            newSearchBtn.addEventListener('click', () => {
+                const query = newSearchInput.value.trim();
+                if (query) {
+                    const results = searchKoreanDictionary(query);
+                    displayKoreanResults(results, `"${query}" 검색 결과`);
+                }
+            });
+
+            newSearchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    const query = newSearchInput.value.trim();
+                    if (query) {
+                        const results = searchKoreanDictionary(query);
+                        displayKoreanResults(results, `"${query}" 검색 결과`);
+                    }
+                }
+            });
+
+            let debounceTimer;
+            newSearchInput.addEventListener('input', () => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    const query = newSearchInput.value.trim();
+                    if (query.length >= 1) {
+                        const results = searchKoreanDictionary(query);
+                        displayKoreanResults(results, `"${query}" 검색 결과`);
+                    } else if (query.length === 0) {
+                        document.getElementById('search-results').classList.add('hidden');
+                    }
+                }, 300);
+            });
+
+            // Display all Korean terms initially
+            displayKoreanResults(filterKoreanByLetter('ALL'), '전체 경제 금융 용어', true);
+        }
 
         function searchDictionary(query) {
             const results = [];
