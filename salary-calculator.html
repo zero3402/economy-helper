@@ -148,13 +148,13 @@
 
     <header id="header" class="bg-white border-b border-slate-200 sticky top-0 z-50"></header>
     <main class="container mx-auto px-4 py-6 sm:py-10">
-        <section class="max-w-5xl mx-auto">
+        <section class="max-w-6xl mx-auto">
             <!-- Hero Section -->
             <div class="text-center mb-8">
                 <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-800 mb-3">
                     2025 US Salary Take-Home Pay
                 </h1>
-                <p class="text-slate-500 text-sm sm:text-base max-w-xl mx-auto">
+                <p class="text-slate-500 text-sm sm:text-base whitespace-nowrap">
                     See how much you actually take home after federal taxes, Social Security, and Medicare
                 </p>
             </div>
@@ -182,10 +182,10 @@
             <!-- Custom Calculator -->
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6">
                 <div class="p-4 sm:p-6 border-b border-slate-100 bg-slate-50">
-                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                        <h2 class="text-lg sm:text-xl font-semibold text-slate-800">Custom Salary Calculator</h2>
-                        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
-                            <div class="flex items-center gap-2">
+                    <div class="flex items-center justify-between gap-4">
+                        <h2 id="custom-title" class="text-lg sm:text-xl font-semibold text-slate-800 whitespace-nowrap">Custom Salary Calculator (Single Filer)</h2>
+                        <div class="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+                            <div class="flex items-center gap-2 whitespace-nowrap">
                                 <span class="text-sm text-slate-500">Filing Status:</span>
                                 <select id="custom-filing-status" class="select select-sm select-bordered bg-white text-sm filing-status-sync">
                                     <option value="single" selected>Single</option>
@@ -194,7 +194,7 @@
                                     <option value="head_of_household">Head of Household</option>
                                 </select>
                             </div>
-                            <div class="flex items-center gap-2">
+                            <div class="flex items-center gap-2 whitespace-nowrap">
                                 <span class="text-sm text-slate-500">State Tax:</span>
                                 <select id="custom-state-tax" class="select select-sm select-bordered bg-white text-sm state-tax-sync">
                                     <option value="0">No State Tax</option>
@@ -264,7 +264,7 @@
                 <div class="p-4 sm:p-6 border-b border-slate-100 bg-slate-50">
                     <div class="flex flex-col gap-3">
                         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                            <h2 class="text-lg sm:text-xl font-semibold text-slate-800">2025 Take-Home Pay Table</h2>
+                            <h2 id="table-title" class="text-lg sm:text-xl font-semibold text-slate-800">2025 Take-Home Pay Table (Single Filer)</h2>
                             <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
                                 <div class="flex items-center gap-2">
                                     <span class="text-sm text-slate-500">Filing Status:</span>
@@ -785,14 +785,21 @@
 
         // Update all views
         function updateAllViews() {
-            // Update custom calculator result if visible
+            // Update custom calculator title and result
+            const customFilingStatus = document.getElementById('custom-filing-status').value;
+            const customStatusLabel = filingStatusLabels[customFilingStatus];
+            document.getElementById('custom-title').textContent = `Custom Salary Calculator (${customStatusLabel})`;
+
             const resultDiv = document.getElementById('custom-result');
             if (!resultDiv.classList.contains('hidden')) {
                 calculateCustom();
             }
 
-            // Update salary table
+            // Update salary table title and data
             const tableFilingStatus = document.getElementById('table-filing-status').value;
+            const tableStatusLabel = filingStatusLabels[tableFilingStatus];
+            document.getElementById('table-title').textContent = `2025 Take-Home Pay Table (${tableStatusLabel})`;
+
             const tableStateRate = parseFloat(document.getElementById('table-state-tax').value);
             renderSalaryTable(tableStateRate, tableFilingStatus);
 
