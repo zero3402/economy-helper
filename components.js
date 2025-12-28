@@ -10,23 +10,15 @@ const LANG_PATH = ROOT_PATH + CURRENT_LANG + '/';
 const I18N = {
     kr: {
         nav: {
-            dictionary: '금융사전',
+            dictionary: '금융 사전',
             personality: '성향 테스트'
-        },
-        langOptions: [
-            { value: 'kr', label: '한국어', selected: true },
-            { value: 'us', label: 'English', selected: false }
-        ]
+        }
     },
     us: {
         nav: {
             dictionary: 'Dictionary',
             personality: 'Personality Test'
-        },
-        langOptions: [
-            { value: 'us', label: 'English', selected: true },
-            { value: 'kr', label: '한국어', selected: false }
-        ]
+        }
     }
 };
 
