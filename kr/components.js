@@ -72,7 +72,7 @@ function injectCommonStyles(basePath) {
 
 var NAV_ITEMS = [
     { id: 'dictionary', label: '금융사전', href: 'index.html' },
-    { id: 'personality', label: '성향테스트', href: 'personality-test.html' }
+    { id: 'personality', label: '성향 테스트', href: 'personality-test.html' }
 ];
 
 function renderHeader(activePageId, basePath) {
@@ -81,8 +81,6 @@ function renderHeader(activePageId, basePath) {
     if (!header) return;
 
     var imgBasePath = '../';
-    var langSwitchUrl = '../us/index.html';
-    if (activePageId === 'personality') langSwitchUrl = '../us/personality-test.html';
 
     var navItemsDesktop = NAV_ITEMS.map(function(item) {
         var isActive = item.id === activePageId;
@@ -96,7 +94,24 @@ function renderHeader(activePageId, basePath) {
         return '<li><a href="' + basePath + item.href + '" class="font-medium ' + activeClass + '">' + item.label + '</a></li>';
     }).join('');
 
-    header.innerHTML = '<div class="container mx-auto px-4"><div class="navbar min-h-16 p-0"><div class="navbar-start"><a href="' + basePath + 'index.html" class="flex items-center gap-3 text-xl font-bold text-slate-800 hover:text-blue-600 transition-colors"><img src="' + imgBasePath + 'images/logo.png" alt="Economy Helper" class="h-8 w-8 object-contain scale-150"><span class="hidden sm:inline">Economy Helper</span></a></div><div class="navbar-end"><ul class="menu menu-horizontal px-1 hidden md:flex gap-1">' + navItemsDesktop + '<li><a href="javascript:void(0)" onclick="switchLanguage(\'' + LANG_CONFIG.switchTo + '\', \'' + langSwitchUrl + '\')" class="font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg">' + LANG_CONFIG.switchLabel + '</a></li></ul><div class="dropdown dropdown-end md:hidden"><label tabindex="0" class="btn btn-ghost btn-circle"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg></label><ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow-lg bg-white rounded-xl w-52 border border-slate-100">' + navItemsMobile + '<li><a href="javascript:void(0)" onclick="switchLanguage(\'' + LANG_CONFIG.switchTo + '\', \'' + langSwitchUrl + '\')" class="font-medium text-slate-600">' + LANG_CONFIG.switchLabel + '</a></li></ul></div></div></div></div>';
+    // 언어 선택 Select (현재 페이지에 맞는 URL 생성)
+    var langSelectDesktop = '<li class="flex items-center"><select id="lang-select-desktop" onchange="handleLanguageChange(this.value, \'' + activePageId + '\')" class="select select-sm select-bordered bg-slate-50 border-slate-200 rounded-lg text-sm font-medium text-slate-600 h-9 min-h-0 pr-8"><option value="kr" selected>한국어</option><option value="us">English</option></select></li>';
+    var langSelectMobile = '<li class="mt-2 pt-2 border-t border-slate-100"><select id="lang-select-mobile" onchange="handleLanguageChange(this.value, \'' + activePageId + '\')" class="select select-sm select-bordered w-full bg-slate-50 border-slate-200 rounded-lg text-sm font-medium text-slate-600"><option value="kr" selected>한국어</option><option value="us">English</option></select></li>';
+
+    header.innerHTML = '<div class="container mx-auto px-4"><div class="navbar min-h-16 p-0"><div class="navbar-start"><a href="' + basePath + 'index.html" class="flex items-center gap-3 text-xl font-bold text-slate-800 hover:text-blue-600 transition-colors"><img src="' + imgBasePath + 'images/logo.png" alt="Economy Helper" class="h-8 w-8 object-contain scale-150"><span class="hidden sm:inline">Economy Helper</span></a></div><div class="navbar-end"><ul class="menu menu-horizontal px-1 hidden md:flex gap-1 items-center">' + navItemsDesktop + langSelectDesktop + '</ul><div class="dropdown dropdown-end md:hidden"><label tabindex="0" class="btn btn-ghost btn-circle"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg></label><ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow-lg bg-white rounded-xl w-52 border border-slate-100">' + navItemsMobile + langSelectMobile + '</ul></div></div></div></div>';
+}
+
+// 언어 변경 핸들러
+function handleLanguageChange(lang, activePageId) {
+    var targetUrl = '../us/index.html';
+    if (lang === 'kr') {
+        targetUrl = '../kr/index.html';
+        if (activePageId === 'personality') targetUrl = '../kr/personality-test.html';
+    } else {
+        targetUrl = '../us/index.html';
+        if (activePageId === 'personality') targetUrl = '../us/personality-test.html';
+    }
+    switchLanguage(lang, targetUrl);
 }
 
 function renderFooter() {
