@@ -101,8 +101,8 @@
                     Economic Personality Test
                 </h1>
                 <p class="text-slate-500 text-sm sm:text-base mb-6">
-                    <span class="whitespace-nowrap">Discover your financial personality type through 50 carefully crafted questions across 5 sections.</span><br>
-                    <span class="whitespace-nowrap">Learn about your strengths, weaknesses, and ideal investment strategies.</span>
+                    Discover your financial personality type through 50 carefully crafted questions across 5 sections.<br class="hidden sm:inline">
+                    Learn about your strengths, weaknesses.
                 </p>
             </div>
 
@@ -207,14 +207,14 @@
                         <span>Strongly Disagree</span>
                         <span>Strongly Agree</span>
                     </div>
-                    <div class="flex justify-between gap-2 sm:gap-3" id="answer-buttons">
-                        <button onclick="selectAnswer(1)" class="answer-btn flex-1 h-12 sm:h-14 rounded-xl bg-red-100 hover:bg-red-200 text-red-700 font-bold text-sm sm:text-base" data-value="1">1</button>
-                        <button onclick="selectAnswer(2)" class="answer-btn flex-1 h-12 sm:h-14 rounded-xl bg-orange-100 hover:bg-orange-200 text-orange-700 font-bold text-sm sm:text-base" data-value="2">2</button>
-                        <button onclick="selectAnswer(3)" class="answer-btn flex-1 h-12 sm:h-14 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-700 font-bold text-sm sm:text-base" data-value="3">3</button>
-                        <button onclick="selectAnswer(4)" class="answer-btn flex-1 h-12 sm:h-14 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm sm:text-base" data-value="4">4</button>
-                        <button onclick="selectAnswer(5)" class="answer-btn flex-1 h-12 sm:h-14 rounded-xl bg-lime-100 hover:bg-lime-200 text-lime-700 font-bold text-sm sm:text-base" data-value="5">5</button>
-                        <button onclick="selectAnswer(6)" class="answer-btn flex-1 h-12 sm:h-14 rounded-xl bg-green-100 hover:bg-green-200 text-green-700 font-bold text-sm sm:text-base" data-value="6">6</button>
-                        <button onclick="selectAnswer(7)" class="answer-btn flex-1 h-12 sm:h-14 rounded-xl bg-emerald-100 hover:bg-emerald-200 text-emerald-700 font-bold text-sm sm:text-base" data-value="7">7</button>
+                    <div class="grid grid-cols-7 gap-1.5 sm:gap-3" id="answer-buttons">
+                        <button onclick="selectAnswer(1)" class="answer-btn aspect-square sm:aspect-auto sm:h-14 rounded-lg sm:rounded-xl bg-red-100 hover:bg-red-200 text-red-700 font-bold text-sm sm:text-base" data-value="1">1</button>
+                        <button onclick="selectAnswer(2)" class="answer-btn aspect-square sm:aspect-auto sm:h-14 rounded-lg sm:rounded-xl bg-orange-100 hover:bg-orange-200 text-orange-700 font-bold text-sm sm:text-base" data-value="2">2</button>
+                        <button onclick="selectAnswer(3)" class="answer-btn aspect-square sm:aspect-auto sm:h-14 rounded-lg sm:rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-700 font-bold text-sm sm:text-base" data-value="3">3</button>
+                        <button onclick="selectAnswer(4)" class="answer-btn aspect-square sm:aspect-auto sm:h-14 rounded-lg sm:rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm sm:text-base" data-value="4">4</button>
+                        <button onclick="selectAnswer(5)" class="answer-btn aspect-square sm:aspect-auto sm:h-14 rounded-lg sm:rounded-xl bg-lime-100 hover:bg-lime-200 text-lime-700 font-bold text-sm sm:text-base" data-value="5">5</button>
+                        <button onclick="selectAnswer(6)" class="answer-btn aspect-square sm:aspect-auto sm:h-14 rounded-lg sm:rounded-xl bg-green-100 hover:bg-green-200 text-green-700 font-bold text-sm sm:text-base" data-value="6">6</button>
+                        <button onclick="selectAnswer(7)" class="answer-btn aspect-square sm:aspect-auto sm:h-14 rounded-lg sm:rounded-xl bg-emerald-100 hover:bg-emerald-200 text-emerald-700 font-bold text-sm sm:text-base" data-value="7">7</button>
                     </div>
                 </div>
             </div>
@@ -1007,12 +1007,11 @@
 
         // Initialize Header & Footer
         document.addEventListener('DOMContentLoaded', function() {
-
-            // Always initialize components
             if (typeof initComponents === 'function') {
                 initComponents('personality');
             }
         });
+    </script>
 
 </body>
 </html>
