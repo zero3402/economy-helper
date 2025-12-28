@@ -56,6 +56,7 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.jsdelivr.net/npm/decimal.js@10.4.3/decimal.min.js"></script>
     <script src="../components.js"></script>
 </head>
 <body class="bg-slate-50 min-h-screen">
@@ -83,12 +84,12 @@
                     <div class="space-y-5">
                         <div>
                             <label class="block text-sm font-medium text-slate-700 mb-2">초기 투자금 (원)</label>
-                            <input type="number" id="principal" value="10000000" min="0" step="100000" class="input input-bordered w-full" placeholder="금액을 입력하세요">
+                            <input type="text" id="principal" value="10,000,000" class="input input-bordered w-full" placeholder="금액을 입력하세요">
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-slate-700 mb-2">월 적립금 (원)</label>
-                            <input type="number" id="monthly" value="500000" min="0" step="50000" class="input input-bordered w-full" placeholder="금액을 입력하세요">
+                            <input type="text" id="monthly" value="500,000" class="input input-bordered w-full" placeholder="금액을 입력하세요">
                         </div>
 
                         <div>
@@ -127,17 +128,17 @@
                     <div class="space-y-4">
                         <div class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200">
                             <div class="text-sm text-green-600 font-medium mb-1">최종 금액</div>
-                            <div id="futureValue" class="text-3xl font-bold text-green-700">0원</div>
+                            <div id="futureValue" class="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-green-700 break-all">0원</div>
                         </div>
 
-                        <div class="grid grid-cols-2 gap-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div class="bg-slate-50 rounded-xl p-4">
                                 <div class="text-sm text-slate-500 mb-1">총 투자 원금</div>
-                                <div id="totalContributions" class="text-xl font-semibold text-slate-700">0원</div>
+                                <div id="totalContributions" class="text-base sm:text-lg md:text-xl font-semibold text-slate-700 break-all">0원</div>
                             </div>
                             <div class="bg-blue-50 rounded-xl p-4">
                                 <div class="text-sm text-blue-500 mb-1">총 이자 수익</div>
-                                <div id="totalInterest" class="text-xl font-semibold text-blue-700">0원</div>
+                                <div id="totalInterest" class="text-base sm:text-lg md:text-xl font-semibold text-blue-700 break-all">0원</div>
                             </div>
                         </div>
 
@@ -185,62 +186,102 @@
     <footer id="footer" class="bg-white border-t border-slate-200 mt-auto"></footer>
 
     <script>
+        // Decimal.js 설정: 높은 정밀도
+        Decimal.set({ precision: 50, rounding: Decimal.ROUND_HALF_UP });
+
         function formatCurrency(num) {
-            return num.toLocaleString('ko-KR') + '원';
+            // Decimal 객체인 경우 숫자로 변환
+            const value = num instanceof Decimal ? num.toFixed(0) : Math.round(num);
+            return Number(value).toLocaleString('ko-KR') + '원';
+        }
+
+        function formatInputNumber(num) {
+            return num.toLocaleString('ko-KR');
+        }
+
+        function parseInputNumber(str) {
+            const cleaned = str.replace(/,/g, '');
+            return cleaned === '' ? new Decimal(0) : new Decimal(cleaned);
+        }
+
+        function handleCurrencyInput(e) {
+            const input = e.target;
+            const cursorPos = input.selectionStart;
+            const oldLength = input.value.length;
+
+            let value = input.value.replace(/[^0-9]/g, '');
+            if (value === '') {
+                input.value = '';
+                return;
+            }
+
+            const num = parseInt(value);
+            if (!isNaN(num)) {
+                input.value = formatInputNumber(num);
+            }
+
+            const newLength = input.value.length;
+            const diff = newLength - oldLength;
+            input.setSelectionRange(cursorPos + diff, cursorPos + diff);
         }
 
         function calculate() {
-            const principal = parseFloat(document.getElementById('principal').value) || 0;
-            const monthly = parseFloat(document.getElementById('monthly').value) || 0;
-            const rate = parseFloat(document.getElementById('rate').value) / 100 || 0;
+            const principal = parseInputNumber(document.getElementById('principal').value);
+            const monthly = parseInputNumber(document.getElementById('monthly').value);
+            const rateInput = parseFloat(document.getElementById('rate').value) || 0;
             const years = parseInt(document.getElementById('years').value) || 0;
             const frequency = parseInt(document.getElementById('frequency').value) || 12;
 
-            const r = rate / frequency;
+            const rate = new Decimal(rateInput).div(100);
+            const r = rate.div(frequency);
             const n = frequency * years;
 
-            // Future value of principal
-            let fvPrincipal = principal * Math.pow(1 + r, n);
+            // Future value of principal: P * (1 + r)^n
+            let fvPrincipal = principal.mul(Decimal.pow(new Decimal(1).plus(r), n));
 
             // Future value of monthly contributions (annuity)
-            let fvContributions = 0;
-            if (rate > 0) {
-                const monthlyRate = rate / 12;
+            let fvContributions = new Decimal(0);
+            if (rate.gt(0)) {
+                const monthlyRate = rate.div(12);
                 const totalMonths = years * 12;
-                fvContributions = monthly * ((Math.pow(1 + monthlyRate, totalMonths) - 1) / monthlyRate);
+                // FV = PMT * ((1 + r)^n - 1) / r
+                const growthFactor = Decimal.pow(new Decimal(1).plus(monthlyRate), totalMonths).minus(1);
+                fvContributions = monthly.mul(growthFactor.div(monthlyRate));
             } else {
-                fvContributions = monthly * years * 12;
+                fvContributions = monthly.mul(years * 12);
             }
 
-            const futureValue = fvPrincipal + fvContributions;
-            const totalContributions = principal + (monthly * 12 * years);
-            const totalInterest = futureValue - totalContributions;
-            const interestPercent = totalContributions > 0 ? (totalInterest / futureValue) * 100 : 0;
+            const futureValue = fvPrincipal.plus(fvContributions);
+            const totalContributions = principal.plus(monthly.mul(12 * years));
+            const totalInterest = futureValue.minus(totalContributions);
+            const interestPercent = totalContributions.gt(0)
+                ? totalInterest.div(futureValue).mul(100).toNumber()
+                : 0;
 
             // Update display
-            document.getElementById('futureValue').textContent = formatCurrency(Math.round(futureValue));
-            document.getElementById('totalContributions').textContent = formatCurrency(Math.round(totalContributions));
-            document.getElementById('totalInterest').textContent = formatCurrency(Math.round(totalInterest));
+            document.getElementById('futureValue').textContent = formatCurrency(futureValue);
+            document.getElementById('totalContributions').textContent = formatCurrency(totalContributions);
+            document.getElementById('totalInterest').textContent = formatCurrency(totalInterest);
             document.getElementById('interestProgress').value = interestPercent;
             document.getElementById('interestPercent').textContent = interestPercent.toFixed(1) + '%';
 
             // Yearly breakdown
             let breakdown = '';
             let balance = principal;
-            const monthlyRate = rate / 12;
+            const monthlyRate = rate.div(12);
 
-            for (let year = 1; year <= years; year++) {
+            for (let year = 1; year <= Math.min(years, 100); year++) {
                 for (let month = 0; month < 12; month++) {
-                    balance = balance * (1 + monthlyRate) + monthly;
+                    balance = balance.mul(new Decimal(1).plus(monthlyRate)).plus(monthly);
                 }
-                const yearContributions = principal + (monthly * 12 * year);
+                const yearContributions = principal.plus(monthly.mul(12 * year));
 
                 breakdown += `
-                    <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg text-sm">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 bg-slate-50 rounded-lg text-sm gap-1 sm:gap-4">
                         <span class="font-medium text-slate-700">${year}년차</span>
-                        <div class="flex gap-4">
-                            <span class="text-slate-500">${formatCurrency(Math.round(yearContributions))} 투자</span>
-                            <span class="text-green-600 font-medium">${formatCurrency(Math.round(balance))}</span>
+                        <div class="flex flex-col sm:flex-row gap-1 sm:gap-4 text-right w-full sm:w-auto">
+                            <span class="text-slate-500 text-xs sm:text-sm">${formatCurrency(yearContributions)} 투자</span>
+                            <span class="text-green-600 font-medium">${formatCurrency(balance)}</span>
                         </div>
                     </div>
                 `;
@@ -254,13 +295,11 @@
             if (typeof initComponents === 'function') {
                 initComponents('compoundInterest');
             }
-            calculate();
-        });
 
-        // Auto-calculate on input change
-        document.querySelectorAll('input, select').forEach(el => {
-            el.addEventListener('change', calculate);
-            el.addEventListener('input', calculate);
+            // Currency formatting for money inputs
+            ['principal', 'monthly'].forEach(id => {
+                document.getElementById(id).addEventListener('input', handleCurrencyInput);
+            });
         });
     </script>
 </body>
