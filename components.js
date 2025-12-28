@@ -93,40 +93,9 @@ function injectCommonStyles(basePath = '') {
 }
 
 const NAV_ITEMS = [
-    { id: 'dictionary', labelKey: 'nav.dictionary', href: 'index.html' },
-    { id: 'personality', labelKey: 'nav.personalityTest', href: 'personality-test.html' },
-    { id: 'salary', labelKey: 'nav.salaryCalculator', href: 'salary-calculator.html' }
+    { id: 'dictionary', label: 'Dictionary', href: 'index.html' },
+    { id: 'personality', label: 'Personality Test', href: 'personality-test.html' }
 ];
-
-// Get label with i18n support
-function getNavLabel(labelKey) {
-    if (window.i18n && window.i18n.t) {
-        return window.i18n.t(labelKey);
-    }
-    // Fallback labels
-    const fallbacks = {
-        'nav.dictionary': 'Dictionary',
-        'nav.personalityTest': 'Personality Test',
-        'nav.salaryCalculator': 'Salary Calculator'
-    };
-    return fallbacks[labelKey] || labelKey;
-}
-
-// Get current language
-function getCurrentLang() {
-    if (window.i18n && window.i18n.getCurrentLanguage) {
-        return window.i18n.getCurrentLanguage();
-    }
-    return localStorage.getItem('eh_language') || 'en';
-}
-
-// Toggle language
-function toggleLanguage() {
-    const currentLang = getCurrentLang();
-    const newLang = currentLang === 'ko' ? 'en' : 'ko';
-    localStorage.setItem('eh_language', newLang);
-    location.reload();
-}
 
 // Render Header Component
 function renderHeader(activePageId, basePath = '') {
@@ -138,20 +107,14 @@ function renderHeader(activePageId, basePath = '') {
         const activeClass = isActive
             ? 'text-blue-600 bg-blue-50'
             : 'text-slate-600 hover:text-blue-600 hover:bg-blue-50';
-        const label = getNavLabel(item.labelKey);
-        return `<li><a href="${basePath}${item.href}" class="font-medium ${activeClass} rounded-lg">${label}</a></li>`;
+        return `<li><a href="${basePath}${item.href}" class="font-medium ${activeClass} rounded-lg">${item.label}</a></li>`;
     }).join('');
 
     const navItemsMobile = NAV_ITEMS.map(item => {
         const isActive = item.id === activePageId;
         const activeClass = isActive ? 'text-blue-600' : 'text-slate-600';
-        const label = getNavLabel(item.labelKey);
-        return `<li><a href="${basePath}${item.href}" class="font-medium ${activeClass}">${label}</a></li>`;
+        return `<li><a href="${basePath}${item.href}" class="font-medium ${activeClass}">${item.label}</a></li>`;
     }).join('');
-
-    const currentLang = getCurrentLang();
-    const langBtnText = currentLang === 'ko' ? 'EN' : '한국어';
-    const langBtnTitle = currentLang === 'ko' ? 'Switch to English' : '한국어로 전환';
 
     header.innerHTML = `
         <div class="container mx-auto px-4">
@@ -167,10 +130,6 @@ function renderHeader(activePageId, basePath = '') {
                     <ul class="menu menu-horizontal px-1 hidden md:flex gap-1">
                         ${navItemsDesktop}
                     </ul>
-                    <!-- Language Toggle Button -->
-                    <button onclick="toggleLanguage()" title="${langBtnTitle}" class="btn btn-ghost btn-sm ml-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 font-medium">
-                        🌐 ${langBtnText}
-                    </button>
                     <!-- Mobile Menu -->
                     <div class="dropdown dropdown-end md:hidden">
                         <label tabindex="0" class="btn btn-ghost btn-circle">

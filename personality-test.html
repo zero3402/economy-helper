@@ -82,7 +82,6 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet" type="text/css" />
-    <script src="i18n.js"></script>
     <script src="components.js"></script>
 </head>
 <body class="bg-slate-50 min-h-screen">
@@ -751,31 +750,8 @@
             document.getElementById('current-q').textContent = index + 1;
             document.getElementById('progress-percent').textContent = Math.round(((index + 1) / questions.length) * 100) + '%';
             document.getElementById('progress-bar').style.width = (((index + 1) / questions.length) * 100) + '%';
-
-            // Get translated section and question text
-            const sectionNum = Math.floor(index / 10) + 1;
-            let sectionText = q.section;
-            let questionText = q.text;
-
-            try {
-                if (window.i18n && window.i18n.translations) {
-                    const lang = window.i18n.getCurrentLanguage ? window.i18n.getCurrentLanguage() : 'en';
-                    const trans = window.i18n.translations[lang];
-                    if (trans) {
-                        if (trans.sections && trans.sections[`section${sectionNum}`]) {
-                            sectionText = trans.sections[`section${sectionNum}`];
-                        }
-                        if (trans.questions && Array.isArray(trans.questions) && trans.questions[index] !== undefined) {
-                            questionText = trans.questions[index];
-                        }
-                    }
-                }
-            } catch(e) {
-                console.error('Translation error:', e);
-            }
-
-            document.getElementById('section-badge').textContent = sectionText;
-            document.getElementById('question-text').textContent = questionText;
+            document.getElementById('section-badge').textContent = q.section;
+            document.getElementById('question-text').textContent = q.text;
 
             // Reset answer buttons
             document.querySelectorAll('.answer-btn').forEach(btn => {
@@ -882,37 +858,13 @@
             const topScore = sortedTypes[0][1];
             const personality = personalityTypes[topType];
 
-            // Get i18n translations with safe fallback
-            let lang = 'en';
-            let trans = null;
-            let t = (k) => k;
-
-            try {
-                if (window.i18n && window.i18n.getCurrentLanguage && window.i18n.translations) {
-                    lang = window.i18n.getCurrentLanguage();
-                    trans = window.i18n.translations[lang];
-                    t = window.i18n.t;
-                }
-            } catch(e) {
-                console.error('i18n error:', e);
-            }
-
-            // Get translated data with safe fallback
-            const typeName = (trans && trans.types && trans.types[topType]) ? trans.types[topType] : personality.name;
-            const slogan = (trans && trans.slogans && trans.slogans[topType]) ? trans.slogans[topType] : personality.slogan;
-            const traits = (trans && trans.traits && trans.traits[topType]) ? trans.traits[topType] : personality.traits;
-            const strengths = (trans && trans.strengths && trans.strengths[topType]) ? trans.strengths[topType] : personality.strengths;
-            const weaknesses = (trans && trans.weaknesses && trans.weaknesses[topType]) ? trans.weaknesses[topType] : personality.weaknesses;
-            const investors = (trans && trans.famousInvestors && trans.famousInvestors[topType]) ? trans.famousInvestors[topType] : personality.famousInvestors;
-            const compat = (trans && trans.compatibility && trans.compatibility[topType]) ? trans.compatibility[topType] : personality.compatibility;
-
             // Main result
             document.getElementById('result-emoji').textContent = personality.emoji;
-            document.getElementById('result-title').textContent = typeName;
-            document.getElementById('result-slogan').textContent = slogan;
+            document.getElementById('result-title').textContent = personality.name;
+            document.getElementById('result-slogan').textContent = personality.slogan;
 
             // Traits
-            const traitsHTML = traits.map(trait => `
+            const traitsHTML = personality.traits.map(trait => `
                 <div class="flex items-start gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -923,7 +875,7 @@
             document.getElementById('traits-list').innerHTML = traitsHTML;
 
             // Strengths
-            const strengthsHTML = strengths.map(s => `
+            const strengthsHTML = personality.strengths.map(s => `
                 <li class="flex items-start gap-2">
                     <span class="text-emerald-500">+</span>
                     <span>${s}</span>
@@ -932,7 +884,7 @@
             document.getElementById('strengths-list').innerHTML = strengthsHTML;
 
             // Weaknesses
-            const weaknessesHTML = weaknesses.map(w => `
+            const weaknessesHTML = personality.weaknesses.map(w => `
                 <li class="flex items-start gap-2">
                     <span class="text-amber-500">!</span>
                     <span>${w}</span>
@@ -941,7 +893,7 @@
             document.getElementById('weaknesses-list').innerHTML = weaknessesHTML;
 
             // Famous Investors
-            const investorsHTML = investors.map(inv => `
+            const investorsHTML = personality.famousInvestors.map(inv => `
                 <div class="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-4 border border-slate-200">
                     <div class="flex items-center gap-3 mb-3">
                         <div class="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center text-xl font-bold text-indigo-600">
@@ -957,39 +909,31 @@
             `).join('');
             document.getElementById('investors-list').innerHTML = investorsHTML;
 
-            // Compatibility labels
-            const bestLabel = (trans && trans.personalityTest && trans.personalityTest.bestMatch) ? trans.personalityTest.bestMatch : 'Best Match';
-            const goodLabel = (trans && trans.personalityTest && trans.personalityTest.goodMatch) ? trans.personalityTest.goodMatch : 'Good Match';
-            const challengingLabel = (trans && trans.personalityTest && trans.personalityTest.challenging) ? trans.personalityTest.challenging : 'Challenging';
-
-            // Get translated type names for compatibility
-            const bestTypeName = (trans && trans.types && trans.types[compat.best.type]) ? trans.types[compat.best.type] : personalityTypes[compat.best.type].name;
-            const goodTypeName = (trans && trans.types && trans.types[compat.good.type]) ? trans.types[compat.good.type] : personalityTypes[compat.good.type].name;
-            const challengingTypeName = (trans && trans.types && trans.types[compat.challenging.type]) ? trans.types[compat.challenging.type] : personalityTypes[compat.challenging.type].name;
+            const compat = personality.compatibility;
 
             const compatibilityHTML = `
                 <a href="results/${resultPages[compat.best.type]}.html" class="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200 hover:shadow-md hover:scale-[1.02] transition-all cursor-pointer block">
                     <div class="flex items-center gap-2 mb-2">
                         <span class="text-lg">💚</span>
-                        <span class="text-xs font-semibold text-green-700 uppercase">${bestLabel}</span>
+                        <span class="text-xs font-semibold text-green-700 uppercase">Best Match</span>
                     </div>
-                    <h4 class="font-semibold text-slate-800 mb-1">${personalityTypes[compat.best.type].emoji} ${bestTypeName}</h4>
+                    <h4 class="font-semibold text-slate-800 mb-1">${personalityTypes[compat.best.type].emoji} ${personalityTypes[compat.best.type].name}</h4>
                     <p class="text-xs text-slate-600">${compat.best.reason}</p>
                 </a>
                 <a href="results/${resultPages[compat.good.type]}.html" class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-200 hover:shadow-md hover:scale-[1.02] transition-all cursor-pointer block">
                     <div class="flex items-center gap-2 mb-2">
                         <span class="text-lg">💙</span>
-                        <span class="text-xs font-semibold text-blue-700 uppercase">${goodLabel}</span>
+                        <span class="text-xs font-semibold text-blue-700 uppercase">Good Match</span>
                     </div>
-                    <h4 class="font-semibold text-slate-800 mb-1">${personalityTypes[compat.good.type].emoji} ${goodTypeName}</h4>
+                    <h4 class="font-semibold text-slate-800 mb-1">${personalityTypes[compat.good.type].emoji} ${personalityTypes[compat.good.type].name}</h4>
                     <p class="text-xs text-slate-600">${compat.good.reason}</p>
                 </a>
                 <a href="results/${resultPages[compat.challenging.type]}.html" class="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-4 border border-orange-200 hover:shadow-md hover:scale-[1.02] transition-all cursor-pointer block">
                     <div class="flex items-center gap-2 mb-2">
                         <span class="text-lg">🧡</span>
-                        <span class="text-xs font-semibold text-orange-700 uppercase">${challengingLabel}</span>
+                        <span class="text-xs font-semibold text-orange-700 uppercase">Challenging</span>
                     </div>
-                    <h4 class="font-semibold text-slate-800 mb-1">${personalityTypes[compat.challenging.type].emoji} ${challengingTypeName}</h4>
+                    <h4 class="font-semibold text-slate-800 mb-1">${personalityTypes[compat.challenging.type].emoji} ${personalityTypes[compat.challenging.type].name}</h4>
                     <p class="text-xs text-slate-600">${compat.challenging.reason}</p>
                 </a>
             `;
@@ -1063,320 +1007,12 @@
 
         // Initialize Header & Footer
         document.addEventListener('DOMContentLoaded', function() {
-            try {
-                // Initialize i18n first
-                if (window.i18n && window.i18n.initI18n) {
-                    window.i18n.initI18n();
-                    applyTranslations();
-                }
-            } catch(e) {
-                console.error('i18n init error:', e);
-            }
 
             // Always initialize components
             if (typeof initComponents === 'function') {
                 initComponents('personality');
             }
         });
-
-        // Apply translations to the page
-        function applyTranslations() {
-            const lang = window.i18n.getCurrentLanguage();
-            const t = window.i18n.t;
-
-            // Update HTML lang attribute
-            document.getElementById('html-root').lang = lang === 'ko' ? 'ko' : 'en';
-
-            // Update meta tags for Korean
-            if (lang === 'ko') {
-                document.querySelector('meta[property="og:locale"]').content = 'ko_KR';
-            }
-
-            // Start Screen
-            document.querySelector('#start-screen h1').textContent = t('personalityTest.title');
-            const subtitleP = document.querySelector('#start-screen p.text-slate-500');
-            subtitleP.innerHTML = `<span class="whitespace-nowrap">${t('personalityTest.subtitle')}</span><br><span class="whitespace-nowrap">${t('personalityTest.subtitle2')}</span>`;
-
-            // Duration and questions info
-            const infoCards = document.querySelectorAll('#start-screen .grid > div');
-            infoCards[0].querySelector('.font-semibold').textContent = t('personalityTest.duration');
-            infoCards[0].querySelector('.text-xs').textContent = t('personalityTest.durationDesc');
-            infoCards[1].querySelector('.font-semibold').textContent = t('personalityTest.questions');
-            infoCards[1].querySelector('.text-xs').textContent = t('personalityTest.questionsDesc');
-
-            // Personality types header
-            document.querySelector('#start-screen .bg-white h3').textContent = t('personalityTest.personalityTypes');
-
-            // Type names in start screen
-            const typeLabels = document.querySelectorAll('#start-screen .grid.grid-cols-1.sm\\:grid-cols-5 .text-xs');
-            typeLabels[0].textContent = t('types.safeGuard');
-            typeLabels[1].textContent = t('types.aggressiveBull');
-            typeLabels[2].textContent = t('types.strategicPlanner');
-            typeLabels[3].textContent = t('types.valueSeeker');
-            typeLabels[4].textContent = t('types.trendFollower');
-
-            // Start button
-            document.querySelector('#start-screen button').innerHTML = `${t('common.startTest')} <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>`;
-
-            // Question screen
-            document.querySelector('#question-screen .flex.justify-between span:first-child').innerHTML = `${t('personalityTest.questionOf')} <span id="current-q">1</span> ${t('personalityTest.of')} <span id="total-q">50</span>`;
-
-            // Answer scale labels
-            const scaleLabels = document.querySelectorAll('#answer-buttons').item(0)?.previousElementSibling?.querySelectorAll('span');
-            if (scaleLabels && scaleLabels.length >= 2) {
-                scaleLabels[0].textContent = t('personalityTest.stronglyDisagree');
-                scaleLabels[1].textContent = t('personalityTest.stronglyAgree');
-            }
-
-            // Navigation buttons
-            document.getElementById('prev-btn').innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>${t('common.previous')}`;
-
-            // Results screen
-            document.querySelector('#results-screen h1').textContent = t('personalityTest.yourEconomicPersonality');
-            document.querySelector('#results-screen p.text-slate-500').textContent = t('personalityTest.basedOnResponses');
-            document.querySelector('#main-result .text-white\\/80').textContent = t('personalityTest.youAre');
-            document.querySelector('#results-screen .bg-white:first-of-type h3').textContent = t('personalityTest.keyTraits');
-
-            // Strengths and weaknesses headers
-            const swHeaders = document.querySelectorAll('#results-screen .grid.grid-cols-1.md\\:grid-cols-2 h3');
-            if (swHeaders.length >= 2) {
-                swHeaders[0].textContent = t('personalityTest.strengths');
-                swHeaders[1].textContent = t('personalityTest.areasToImprove');
-            }
-
-            // Famous investors header
-            document.querySelector('#investors-list')?.closest('.bg-white')?.querySelector('h3')?.textContent &&
-                (document.querySelector('#investors-list').closest('.bg-white').querySelector('h3').textContent = t('personalityTest.investorsShareStyle'));
-
-            // Compatibility header
-            document.querySelector('#compatibility-list')?.closest('.bg-white')?.querySelector('h3')?.textContent &&
-                (document.querySelector('#compatibility-list').closest('.bg-white').querySelector('h3').textContent = t('personalityTest.compatibilityWithOthers'));
-
-            // Action buttons
-            const actionBtns = document.querySelectorAll('#results-screen .flex.justify-center button');
-            if (actionBtns.length >= 2) {
-                actionBtns[0].innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>${t('common.retakeTest')}`;
-                actionBtns[1].innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>${t('common.shareResults')}`;
-            }
-
-            // Share modal
-            document.querySelector('#share-modal h3').textContent = t('common.shareYourResult');
-            const shareButtons = document.querySelectorAll('#share-modal .flex.flex-col button');
-            if (shareButtons.length >= 3) {
-                shareButtons[0].innerHTML = `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>${t('common.shareOnTwitter')}`;
-                shareButtons[1].innerHTML = `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>${t('common.shareOnFacebook')}`;
-                shareButtons[2].innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span id="copy-link-text">${t('common.copyLink')}</span>`;
-            }
-            document.querySelector('#share-modal .modal-action button').textContent = t('common.close');
-
-            // Update questions array for display
-            updateQuestionsData();
-        }
-
-        // Update questions data based on language
-        function updateQuestionsData() {
-            const lang = window.i18n.getCurrentLanguage();
-            const t = window.i18n.t;
-
-            // Update section names
-            const sectionNames = {
-                'Section 1: Investment Attitude & Risk': t('sections.section1'),
-                'Section 2: Spending Habits & Value Seeking': t('sections.section2'),
-                'Section 3: Information & Technology Trends': t('sections.section3'),
-                'Section 4: Planning & Asset Management': t('sections.section4'),
-                'Section 5: Lifestyle & Philosophy': t('sections.section5')
-            };
-
-            // Update questions with translations
-            const translatedQuestions = t('questions');
-            if (Array.isArray(translatedQuestions)) {
-                questions.forEach((q, i) => {
-                    if (translatedQuestions[i]) {
-                        q.translatedText = translatedQuestions[i];
-                        q.translatedSection = sectionNames[q.section] || q.section;
-                    }
-                });
-            }
-
-            // Update personality types with translations
-            Object.keys(personalityTypes).forEach(key => {
-                const type = personalityTypes[key];
-                type.translatedName = t(`types.${key}`);
-                type.translatedSlogan = t(`slogans.${key}`);
-                type.translatedTraits = t(`traits.${key}`);
-                type.translatedStrengths = t(`strengths.${key}`);
-                type.translatedWeaknesses = t(`weaknesses.${key}`);
-                type.translatedFamousInvestors = t(`famousInvestors.${key}`);
-                type.translatedCompatibility = t(`compatibility.${key}`);
-            });
-        }
-
-        // Override showQuestion to use translations
-        const originalShowQuestion = showQuestion;
-        showQuestion = function(index) {
-            currentQuestion = index;
-            const q = questions[index];
-            const lang = window.i18n ? window.i18n.getCurrentLanguage() : 'en';
-            const t = window.i18n ? window.i18n.t : (k) => k;
-
-            document.getElementById('current-q').textContent = index + 1;
-            document.getElementById('progress-percent').textContent = Math.round(((index + 1) / questions.length) * 100) + '%';
-            document.getElementById('progress-bar').style.width = (((index + 1) / questions.length) * 100) + '%';
-            document.getElementById('section-badge').textContent = q.translatedSection || q.section;
-            document.getElementById('question-text').textContent = q.translatedText || q.text;
-
-            // Reset answer buttons
-            document.querySelectorAll('.answer-btn').forEach(btn => {
-                btn.classList.remove('selected');
-            });
-
-            // Highlight previously selected answer
-            if (answers[index] !== null) {
-                document.querySelector(`.answer-btn[data-value="${answers[index]}"]`).classList.add('selected');
-            }
-
-            // Update navigation buttons
-            document.getElementById('prev-btn').disabled = index === 0;
-            updateNextButton();
-
-            // Animation
-            const card = document.getElementById('question-card');
-            card.classList.remove('fade-in');
-            void card.offsetWidth;
-            card.classList.add('fade-in');
-        };
-
-        // Override updateNextButton to use translations
-        const originalUpdateNextButton = updateNextButton;
-        updateNextButton = function() {
-            const nextBtn = document.getElementById('next-btn');
-            const isLastQuestion = currentQuestion === questions.length - 1;
-            const hasAnswer = answers[currentQuestion] !== null;
-            const t = window.i18n ? window.i18n.t : (k) => k;
-
-            nextBtn.disabled = !hasAnswer;
-            nextBtn.innerHTML = isLastQuestion
-                ? `${t('common.seeResults')} <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>`
-                : `${t('common.next')} <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>`;
-        };
-
-        // Override showResults to use translations
-        const originalShowResults = showResults;
-        showResults = function() {
-            document.getElementById('question-screen').classList.add('hidden');
-            document.getElementById('results-screen').classList.remove('hidden');
-
-            const scores = calculateScores();
-            const sortedTypes = Object.entries(scores).sort((a, b) => b[1] - a[1]);
-            const topType = sortedTypes[0][0];
-            const topScore = sortedTypes[0][1];
-            const personality = personalityTypes[topType];
-            const t = window.i18n ? window.i18n.t : (k) => k;
-            const lang = window.i18n ? window.i18n.getCurrentLanguage() : 'en';
-
-            // Main result
-            document.getElementById('result-emoji').textContent = personality.emoji;
-            document.getElementById('result-title').textContent = personality.translatedName || personality.name;
-            document.getElementById('result-slogan').textContent = personality.translatedSlogan || personality.slogan;
-
-            // Traits
-            const traits = personality.translatedTraits || personality.traits;
-            const traitsHTML = traits.map(trait => `
-                <div class="flex items-start gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span class="text-sm text-slate-600">${trait}</span>
-                </div>
-            `).join('');
-            document.getElementById('traits-list').innerHTML = traitsHTML;
-
-            // Strengths
-            const strengths = personality.translatedStrengths || personality.strengths;
-            const strengthsHTML = strengths.map(s => `
-                <li class="flex items-start gap-2">
-                    <span class="text-emerald-500">+</span>
-                    <span>${s}</span>
-                </li>
-            `).join('');
-            document.getElementById('strengths-list').innerHTML = strengthsHTML;
-
-            // Weaknesses
-            const weaknesses = personality.translatedWeaknesses || personality.weaknesses;
-            const weaknessesHTML = weaknesses.map(w => `
-                <li class="flex items-start gap-2">
-                    <span class="text-amber-500">!</span>
-                    <span>${w}</span>
-                </li>
-            `).join('');
-            document.getElementById('weaknesses-list').innerHTML = weaknessesHTML;
-
-            // Famous Investors
-            const investors = personality.translatedFamousInvestors || personality.famousInvestors;
-            const investorsHTML = investors.map(inv => `
-                <div class="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-4 border border-slate-200">
-                    <div class="flex items-center gap-3 mb-3">
-                        <div class="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center text-xl font-bold text-indigo-600">
-                            ${inv.name.charAt(0)}
-                        </div>
-                        <div>
-                            <h4 class="font-semibold text-slate-800">${inv.name}</h4>
-                            <p class="text-xs text-slate-500">${inv.title}</p>
-                        </div>
-                    </div>
-                    <p class="text-sm text-slate-600 italic">"${inv.quote}"</p>
-                </div>
-            `).join('');
-            document.getElementById('investors-list').innerHTML = investorsHTML;
-
-            // Compatibility
-            const compat = personality.translatedCompatibility || personality.compatibility;
-            const compatibilityHTML = `
-                <a href="results/${resultPages[compat.best.type]}.html" class="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200 hover:shadow-md hover:scale-[1.02] transition-all cursor-pointer block">
-                    <div class="flex items-center gap-2 mb-2">
-                        <span class="text-lg">💚</span>
-                        <span class="text-xs font-semibold text-green-700 uppercase">${t('personalityTest.bestMatch')}</span>
-                    </div>
-                    <h4 class="font-semibold text-slate-800 mb-1">${personalityTypes[compat.best.type].emoji} ${personalityTypes[compat.best.type].translatedName || personalityTypes[compat.best.type].name}</h4>
-                    <p class="text-xs text-slate-600">${compat.best.reason}</p>
-                </a>
-                <a href="results/${resultPages[compat.good.type]}.html" class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-200 hover:shadow-md hover:scale-[1.02] transition-all cursor-pointer block">
-                    <div class="flex items-center gap-2 mb-2">
-                        <span class="text-lg">💙</span>
-                        <span class="text-xs font-semibold text-blue-700 uppercase">${t('personalityTest.goodMatch')}</span>
-                    </div>
-                    <h4 class="font-semibold text-slate-800 mb-1">${personalityTypes[compat.good.type].emoji} ${personalityTypes[compat.good.type].translatedName || personalityTypes[compat.good.type].name}</h4>
-                    <p class="text-xs text-slate-600">${compat.good.reason}</p>
-                </a>
-                <a href="results/${resultPages[compat.challenging.type]}.html" class="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-4 border border-orange-200 hover:shadow-md hover:scale-[1.02] transition-all cursor-pointer block">
-                    <div class="flex items-center gap-2 mb-2">
-                        <span class="text-lg">🧡</span>
-                        <span class="text-xs font-semibold text-orange-700 uppercase">${t('personalityTest.challenging')}</span>
-                    </div>
-                    <h4 class="font-semibold text-slate-800 mb-1">${personalityTypes[compat.challenging.type].emoji} ${personalityTypes[compat.challenging.type].translatedName || personalityTypes[compat.challenging.type].name}</h4>
-                    <p class="text-xs text-slate-600">${compat.challenging.reason}</p>
-                </a>
-            `;
-            document.getElementById('compatibility-list').innerHTML = compatibilityHTML;
-
-            // Store current result for download/share
-            window.currentResult = { topType, personality };
-        };
-
-        // Update copy link text
-        const originalCopyShareLink = copyShareLink;
-        copyShareLink = function() {
-            const t = window.i18n ? window.i18n.t : (k) => k;
-            const { resultUrl, text } = getShareData();
-            const fullText = `${text}\n\nSee my result: ${resultUrl}`;
-            navigator.clipboard.writeText(fullText).then(() => {
-                document.getElementById('copy-link-text').textContent = t('common.copied');
-                setTimeout(() => {
-                    document.getElementById('copy-link-text').textContent = t('common.copyLink');
-                }, 2000);
-            });
-        };
-    </script>
 
 </body>
 </html>
