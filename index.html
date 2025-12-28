@@ -4,12 +4,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Economy Helper</title>
+    <title>Economy Helper - Making economics simple for everyone</title>
+     <meta name="description"
+        content="Master investing, trading, and personal finance knowledge.">
+    <meta name="keywords"
+        content="financial dictionary, economic terms, finance glossary, investment terms, trading vocabulary, banking terms, stock market terminology, personal finance, financial literacy">
+    <meta name="author" content="Economy Helper">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://economyhelper.com">
+    <link rel="icon" type="image/png" href="./images/favicon.png">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://economyhelper.com">
+    <meta property="og:title" content="Economy Helper - Making economics simple for everyone">
+    <meta property="og:description"
+        content="Master investing, trading, and personal finance knowledge.">
+    <meta property="og:image" content="https://economyhelper.com/images/og.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:site_name" content="Economy Helper">
+    <meta property="og:locale" content="en_US">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://economyhelper.com">
+    <meta name="twitter:title" content="Economy Helper - Making economics simple for everyone">
+    <meta name="twitter:description"
+        content="Master investing, trading, and personal finance knowledge.">
+    <meta name="twitter:image" content="https://economyhelper.com/images/og.png">
+
+    <!-- Additional SEO -->
+    <meta name="theme-color" content="#3B82F6">
+    <meta name="apple-mobile-web-app-title" content="Economy Helper">
+    <meta name="application-name" content="Economy Helper">
+
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1927828313220344"
         crossorigin="anonymous"></script>
     <script>
         (function () {
-            // 저장된 언어 설정 확인
             var savedLang = localStorage.getItem('preferredLanguage');
 
             if (savedLang) {
@@ -17,11 +50,9 @@
                 return;
             }
 
-            // 브라우저 언어 감지
             var userLang = navigator.language || navigator.userLanguage;
             var lang = userLang.toLowerCase();
 
-            // 한국어면 kr, 그 외에는 us로 리다이렉트
             if (lang.startsWith('ko')) {
                 window.location.replace('kr/index.html');
             } else {
