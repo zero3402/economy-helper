@@ -30,7 +30,7 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet" type="text/css" />
-    <script src="../components.js"></script>
+    <script src="../../components.js"></script>
 </head>
 <body class="bg-slate-50 min-h-screen">
 
@@ -281,25 +281,13 @@
     </dialog>
 
     <script>
-        const typeKey = 'trendFollower';
 
         document.addEventListener('DOMContentLoaded', function() {
 
             if (typeof initComponents === 'function') {
-                initComponents(null, { basePath: '../' });
+                initComponents(null);
             }
         });
-
-        function shareToFacebook() {
-            window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`, '_blank', 'width=550,height=420');
-        }
-
-        function copyShareLink() {
-            navigator.clipboard.writeText(`${getShareText()}\n\n${window.location.href}`).then(() => {
-                document.getElementById('copy-link-text').textContent = 'Copied!';
-                setTimeout(() => { document.getElementById('copy-link-text').textContent = 'Copy Link'; }, 2000);
-            });
-        }
     </script>
 </body>
 </html>

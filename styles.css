@@ -105,13 +105,11 @@
    ========================================================================== */
 
 @media (max-width: 640px) {
-    /* Alphabet buttons */
     .alphabet-btn {
         min-width: 36px;
         min-height: 36px;
     }
 
-    /* Answer buttons - larger touch targets */
     .answer-btn {
         min-width: 40px;
         min-height: 40px;
@@ -129,7 +127,6 @@
         transform: scale(1.05);
     }
 
-    /* Disable hover effects on mobile */
     .term-card:hover,
     .result-card:hover {
         transform: none;
@@ -139,12 +136,10 @@
         transform: scale(0.98);
     }
 
-    /* Text readability */
     body {
         -webkit-text-size-adjust: 100%;
     }
 
-    /* Prevent horizontal scroll */
     html, body {
         overflow-x: hidden;
     }

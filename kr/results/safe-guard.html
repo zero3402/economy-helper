@@ -27,7 +27,7 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet" type="text/css" />
-    <script src="../components.js"></script>
+    <script src="../../components.js"></script>
 </head>
 <body class="bg-slate-50 min-h-screen">
 
@@ -269,20 +269,13 @@
     </dialog>
 
     <script>
-        const typeKey = 'safeGuard';
 
         document.addEventListener('DOMContentLoaded', function() {
 
             if (typeof initComponents === 'function') {
-                initComponents(null, { basePath: '../' });
+                initComponents(null);
             }
         });
-
-        function getTypeEmoji(type) {
-            const emojis = { safeGuard: '🛡️', aggressiveBull: '🐂', strategicPlanner: '📊', valueSeeker: '💰', trendFollower: '🚀' };
-            return emojis[type] || '';
-        }
-
         function getPersonalityName() {
             return '안전 수호자';
         }
@@ -291,45 +284,6 @@
             return '자산을 지키는 것이 부를 쌓는 첫걸음이다.';
         }
 
-        function getShareText() {
-            return `금융 성향 테스트 결과, 나는 "${getPersonalityName()}"! ${getPersonalitySlogan()}`;
-        }
-
-        function shareResults() {
-            const shareText = getShareText();
-            if (navigator.share) {
-                navigator.share({
-                    title: getPersonalityName(),
-                    text: shareText,
-                    url: window.location.href
-                });
-            } else {
-                document.getElementById('copy-link-text').textContent = '링크 복사';
-                document.getElementById('share-modal').showModal();
-            }
-        }
-
-        function shareToTwitter() {
-            const shareText = getShareText();
-            const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(window.location.href)}`;
-            window.open(twitterUrl, '_blank', 'width=550,height=420');
-        }
-
-        function shareToFacebook() {
-            const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`;
-            window.open(facebookUrl, '_blank', 'width=550,height=420');
-        }
-
-        function copyShareLink() {
-            const shareText = getShareText();
-            const fullText = `${shareText}\n\n${window.location.href}`;
-            navigator.clipboard.writeText(fullText).then(() => {
-                document.getElementById('copy-link-text').textContent = '복사됨!';
-                setTimeout(() => {
-                    document.getElementById('copy-link-text').textContent = '링크 복사';
-                }, 2000);
-            });
-        }
     </script>
 </body>
 </html>

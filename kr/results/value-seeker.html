@@ -27,7 +27,7 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet" type="text/css" />
-    <script src="../components.js"></script>
+    <script src="../../components.js"></script>
 </head>
 <body class="bg-slate-50 min-h-screen">
 
@@ -269,37 +269,13 @@
     </dialog>
 
     <script>
-        const typeKey = 'valueSeeker';
 
         document.addEventListener('DOMContentLoaded', function() {
             if (typeof initComponents === 'function') {
-                initComponents(null, { basePath: '../' });
+                initComponents(null);
             }
         });
 
-        function getShareText() {
-            return "나는 '가치 추구자'! 아끼는 것이 버는 것, 현명한 지출이 곧 투자입니다. 당신의 금융 성향 유형은 무엇인가요?";
-        }
-
-        function shareResults() {
-            document.getElementById('share-modal').showModal();
-        }
-
-        function shareToTwitter() {
-            const text = getShareText();
-            window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(window.location.href)}`, '_blank');
-        }
-
-        function shareToFacebook() {
-            window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`, '_blank', 'width=550,height=420');
-        }
-
-        function copyShareLink() {
-            navigator.clipboard.writeText(`${getShareText()}\n\n${window.location.href}`).then(() => {
-                document.getElementById('copy-link-text').textContent = '복사됨!';
-                setTimeout(() => { document.getElementById('copy-link-text').textContent = '링크 복사'; }, 2000);
-            });
-        }
     </script>
 </body>
 </html>
