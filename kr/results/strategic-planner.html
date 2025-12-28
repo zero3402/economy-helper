@@ -283,6 +283,50 @@
             return '성공은 치밀한 계획과 분산 투자의 결과물이다.';
         }
 
+        function getShareData() {
+            const resultUrl = window.location.href;
+            const text = `금융 성향 테스트를 해봤어요! 저는 "${getPersonalityName()}"입니다! ${getPersonalitySlogan()}`;
+            return { resultUrl, text };
+        }
+
+        function shareResults() {
+            const { resultUrl, text } = getShareData();
+
+            if (navigator.share) {
+                navigator.share({
+                    title: `저는 ${getPersonalityName()}!`,
+                    text: text,
+                    url: resultUrl
+                });
+            } else {
+                document.getElementById('copy-link-text').textContent = '링크 복사';
+                document.getElementById('share-modal').showModal();
+            }
+        }
+
+        function shareToTwitter() {
+            const { resultUrl, text } = getShareData();
+            const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(resultUrl)}`;
+            window.open(twitterUrl, '_blank', 'width=550,height=420');
+        }
+
+        function shareToFacebook() {
+            const { resultUrl } = getShareData();
+            const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(resultUrl)}`;
+            window.open(facebookUrl, '_blank', 'width=550,height=420');
+        }
+
+        function copyShareLink() {
+            const { resultUrl, text } = getShareData();
+            const fullText = `${text}\n\n내 결과 보기: ${resultUrl}`;
+            navigator.clipboard.writeText(fullText).then(() => {
+                document.getElementById('copy-link-text').textContent = '복사됨!';
+                setTimeout(() => {
+                    document.getElementById('copy-link-text').textContent = '링크 복사';
+                }, 2000);
+            });
+        }
+
     </script>
 </body>
 </html>

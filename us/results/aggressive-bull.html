@@ -288,6 +288,59 @@
                 initComponents(null);
             }
         });
+
+        function getPersonalityName() {
+            return 'The Aggressive Bull';
+        }
+
+        function getPersonalitySlogan() {
+            return 'High risk, high return; I ride the waves of the market.';
+        }
+
+        function getShareData() {
+            const resultUrl = window.location.href;
+            const text = `I took the Economic Personality Test and I'm "${getPersonalityName()}"! ${getPersonalitySlogan()}`;
+            return { resultUrl, text };
+        }
+
+        function shareResults() {
+            const { resultUrl, text } = getShareData();
+
+            if (navigator.share) {
+                navigator.share({
+                    title: `I'm ${getPersonalityName()}!`,
+                    text: text,
+                    url: resultUrl
+                });
+            } else {
+                document.getElementById('copy-link-text').textContent = 'Copy Link';
+                document.getElementById('share-modal').showModal();
+            }
+        }
+
+        function shareToTwitter() {
+            const { resultUrl, text } = getShareData();
+            const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(resultUrl)}`;
+            window.open(twitterUrl, '_blank', 'width=550,height=420');
+        }
+
+        function shareToFacebook() {
+            const { resultUrl } = getShareData();
+            const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(resultUrl)}`;
+            window.open(facebookUrl, '_blank', 'width=550,height=420');
+        }
+
+        function copyShareLink() {
+            const { resultUrl, text } = getShareData();
+            const fullText = `${text}\n\nSee my result: ${resultUrl}`;
+            navigator.clipboard.writeText(fullText).then(() => {
+                document.getElementById('copy-link-text').textContent = 'Copied!';
+                setTimeout(() => {
+                    document.getElementById('copy-link-text').textContent = 'Copy Link';
+                }, 2000);
+            });
+        }
+
     </script>
 </body>
 </html>
