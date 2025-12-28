@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="corporate" id="html-root">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <!-- Primary Meta Tags -->
+    <title>복리 계산기 - Economy Helper</title>
+    <meta name="title" content="복리 계산기 - Economy Helper">
+    <meta name="description" content="투자 수익의 복리를 계산해보세요. 시간에 따른 자산 성장을 확인하세요.">
+    <meta name="keywords" content="복리 계산기, 투자 계산기, 이자 계산기, 자산 성장 계산기, 저축 계산기">
+    <meta name="author" content="Economy Helper">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://economyhelper.com/kr/compound-interest-calculator.html">
+    <link rel="icon" type="image/png" href="../images/favicon.png">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://economyhelper.com/kr/compound-interest-calculator.html">
+    <meta property="og:title" content="복리 계산기 - Economy Helper">
+    <meta property="og:description" content="투자 수익의 복리를 계산해보세요. 시간에 따른 자산 성장을 확인하세요.">
+    <meta property="og:image" content="https://economyhelper.com/images/og.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:site_name" content="Economy Helper">
+    <meta property="og:locale" content="ko_KR">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://economyhelper.com/kr/compound-interest-calculator.html">
+    <meta name="twitter:title" content="복리 계산기 - Economy Helper">
+    <meta name="twitter:description" content="투자 수익의 복리를 계산해보세요. 시간에 따른 자산 성장을 확인하세요.">
+    <meta name="twitter:image" content="https://economyhelper.com/images/og.png">
+
+    <!-- Additional SEO -->
+    <meta name="theme-color" content="#3B82F6">
+    <meta name="apple-mobile-web-app-title" content="Economy Helper">
+    <meta name="application-name" content="Economy Helper">
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "복리 계산기",
+        "description": "투자 수익의 복리를 계산하고 시간에 따른 자산 성장을 확인하세요.",
+        "url": "https://economyhelper.com/kr/compound-interest-calculator.html",
+        "applicationCategory": "FinanceApplication",
+        "provider": {
+            "@type": "Organization",
+            "name": "Economy Helper",
+            "url": "https://economyhelper.com/"
+        }
+    }
+    </script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="../components.js"></script>
+</head>
+<body class="bg-slate-50 min-h-screen">
+    <!-- Header -->
+    <header id="header" class="bg-white border-b border-slate-200 sticky top-0 z-50"></header>
+
+    <main class="container mx-auto px-4 py-6 sm:py-10">
+        <div class="max-w-4xl mx-auto">
+            <!-- Title -->
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <h1 class="text-2xl sm:text-3xl font-bold text-slate-800 mb-2">복리 계산기</h1>
+                <p class="text-slate-500">복리의 힘으로 자산이 어떻게 성장하는지 확인하세요</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Calculator Form -->
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                    <h2 class="text-lg font-semibold text-slate-800 mb-6">정보 입력</h2>
+
+                    <div class="space-y-5">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">초기 투자금 (원)</label>
+                            <input type="number" id="principal" value="10000000" min="0" step="100000" class="input input-bordered w-full" placeholder="금액을 입력하세요">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">월 적립금 (원)</label>
+                            <input type="number" id="monthly" value="500000" min="0" step="50000" class="input input-bordered w-full" placeholder="금액을 입력하세요">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">연 이자율 (%)</label>
+                            <input type="number" id="rate" value="7" min="0" max="100" step="0.1" class="input input-bordered w-full" placeholder="이자율을 입력하세요">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">투자 기간 (년)</label>
+                            <input type="number" id="years" value="20" min="1" max="100" step="1" class="input input-bordered w-full" placeholder="기간을 입력하세요">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">복리 주기</label>
+                            <select id="frequency" class="select select-bordered w-full">
+                                <option value="1">연 복리</option>
+                                <option value="4">분기 복리</option>
+                                <option value="12" selected>월 복리</option>
+                                <option value="365">일 복리</option>
+                            </select>
+                        </div>
+
+                        <button onclick="calculate()" class="btn btn-primary w-full rounded-xl">
+                            계산하기
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Results -->
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                    <h2 class="text-lg font-semibold text-slate-800 mb-6">계산 결과</h2>
+
+                    <div class="space-y-4">
+                        <div class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200">
+                            <div class="text-sm text-green-600 font-medium mb-1">최종 금액</div>
+                            <div id="futureValue" class="text-3xl font-bold text-green-700">0원</div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-slate-50 rounded-xl p-4">
+                                <div class="text-sm text-slate-500 mb-1">총 투자 원금</div>
+                                <div id="totalContributions" class="text-xl font-semibold text-slate-700">0원</div>
+                            </div>
+                            <div class="bg-blue-50 rounded-xl p-4">
+                                <div class="text-sm text-blue-500 mb-1">총 이자 수익</div>
+                                <div id="totalInterest" class="text-xl font-semibold text-blue-700">0원</div>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-50 rounded-xl p-4">
+                            <div class="text-sm text-slate-500 mb-1">이자 비율</div>
+                            <div class="flex items-center gap-3">
+                                <progress id="interestProgress" class="progress progress-primary w-full" value="0" max="100"></progress>
+                                <span id="interestPercent" class="text-sm font-medium text-slate-700 w-12">0%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Yearly Breakdown -->
+                    <div class="mt-6">
+                        <h3 class="text-md font-semibold text-slate-800 mb-3">연도별 내역</h3>
+                        <div id="yearlyBreakdown" class="max-h-64 overflow-y-auto space-y-2">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Info Section -->
+            <div class="mt-8 bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <h2 class="text-lg font-semibold text-slate-800 mb-4">복리의 이해</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="p-4 bg-blue-50 rounded-xl">
+                        <div class="font-medium text-blue-800 mb-2">복리 공식</div>
+                        <p class="text-sm text-blue-600">A = P(1 + r/n)^(nt), P는 원금, r은 이자율, n은 복리 주기, t는 기간입니다.</p>
+                    </div>
+                    <div class="p-4 bg-green-50 rounded-xl">
+                        <div class="font-medium text-green-800 mb-2">왜 중요한가?</div>
+                        <p class="text-sm text-green-600">복리는 이자에 이자가 붙어 시간이 지날수록 자산이 기하급수적으로 성장합니다.</p>
+                    </div>
+                    <div class="p-4 bg-purple-50 rounded-xl">
+                        <div class="font-medium text-purple-800 mb-2">투자 팁</div>
+                        <p class="text-sm text-purple-600">일찍 시작하세요! 시간은 복리 성장에서 가장 강력한 요소입니다. 작은 금액도 쌓입니다.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer id="footer" class="bg-white border-t border-slate-200 mt-auto"></footer>
+
+    <script>
+        function formatCurrency(num) {
+            return num.toLocaleString('ko-KR') + '원';
+        }
+
+        function calculate() {
+            const principal = parseFloat(document.getElementById('principal').value) || 0;
+            const monthly = parseFloat(document.getElementById('monthly').value) || 0;
+            const rate = parseFloat(document.getElementById('rate').value) / 100 || 0;
+            const years = parseInt(document.getElementById('years').value) || 0;
+            const frequency = parseInt(document.getElementById('frequency').value) || 12;
+
+            const r = rate / frequency;
+            const n = frequency * years;
+
+            // Future value of principal
+            let fvPrincipal = principal * Math.pow(1 + r, n);
+
+            // Future value of monthly contributions (annuity)
+            let fvContributions = 0;
+            if (rate > 0) {
+                const monthlyRate = rate / 12;
+                const totalMonths = years * 12;
+                fvContributions = monthly * ((Math.pow(1 + monthlyRate, totalMonths) - 1) / monthlyRate);
+            } else {
+                fvContributions = monthly * years * 12;
+            }
+
+            const futureValue = fvPrincipal + fvContributions;
+            const totalContributions = principal + (monthly * 12 * years);
+            const totalInterest = futureValue - totalContributions;
+            const interestPercent = totalContributions > 0 ? (totalInterest / futureValue) * 100 : 0;
+
+            // Update display
+            document.getElementById('futureValue').textContent = formatCurrency(Math.round(futureValue));
+            document.getElementById('totalContributions').textContent = formatCurrency(Math.round(totalContributions));
+            document.getElementById('totalInterest').textContent = formatCurrency(Math.round(totalInterest));
+            document.getElementById('interestProgress').value = interestPercent;
+            document.getElementById('interestPercent').textContent = interestPercent.toFixed(1) + '%';
+
+            // Yearly breakdown
+            let breakdown = '';
+            let balance = principal;
+            const monthlyRate = rate / 12;
+
+            for (let year = 1; year <= years; year++) {
+                for (let month = 0; month < 12; month++) {
+                    balance = balance * (1 + monthlyRate) + monthly;
+                }
+                const yearContributions = principal + (monthly * 12 * year);
+
+                breakdown += `
+                    <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg text-sm">
+                        <span class="font-medium text-slate-700">${year}년차</span>
+                        <div class="flex gap-4">
+                            <span class="text-slate-500">${formatCurrency(Math.round(yearContributions))} 투자</span>
+                            <span class="text-green-600 font-medium">${formatCurrency(Math.round(balance))}</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            document.getElementById('yearlyBreakdown').innerHTML = breakdown;
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof initComponents === 'function') {
+                initComponents('compoundInterest');
+            }
+            calculate();
+        });
+
+        // Auto-calculate on input change
+        document.querySelectorAll('input, select').forEach(el => {
+            el.addEventListener('change', calculate);
+            el.addEventListener('input', calculate);
+        });
+    </script>
+</body>
+</html>
