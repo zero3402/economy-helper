@@ -176,53 +176,57 @@
             </button>
         </div>
 
-        <!-- Test Screen -->
-        <div id="test-screen" class="max-w-3xl mx-auto hidden">
-            <!-- Progress Bar -->
+        <!-- Question Screen -->
+        <div id="question-screen" class="max-w-2xl mx-auto hidden">
+            <!-- Progress -->
             <div class="mb-6">
-                <div class="flex justify-between text-sm text-slate-600 mb-2">
-                    <span>진행률</span>
-                    <span id="progress-text">0/50</span>
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-medium text-slate-600">질문 <span id="current-q">1</span> / <span id="total-q">50</span></span>
+                    <span id="progress-percent" class="text-sm font-medium text-blue-600">0%</span>
                 </div>
-                <div class="w-full bg-slate-200 rounded-full h-3">
-                    <div id="progress-bar" class="bg-gradient-to-r from-blue-500 to-purple-600 h-3 rounded-full transition-all duration-300" style="width: 0%"></div>
-                </div>
-            </div>
-
-            <!-- Section Header -->
-            <div id="section-header" class="bg-white rounded-2xl p-6 border border-slate-200 mb-6">
-                <div class="flex items-center gap-3">
-                    <div id="section-icon" class="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-xl"></div>
-                    <div>
-                        <h2 id="section-title" class="text-xl font-bold text-slate-800"></h2>
-                        <p id="section-desc" class="text-sm text-slate-500"></p>
-                    </div>
+                <div class="w-full bg-slate-200 rounded-full h-2">
+                    <div id="progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
                 </div>
             </div>
 
             <!-- Question Card -->
-            <div class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 mb-6">
-                <div class="mb-6">
-                    <span class="text-sm text-slate-500">질문 <span id="question-number"></span></span>
-                    <h3 id="question-text" class="text-lg sm:text-xl font-semibold text-slate-800 mt-2"></h3>
+            <div class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 mb-6 fade-in" id="question-card">
+                <div id="section-badge" class="inline-block px-3 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full mb-4">
+                    섹션 1: 투자 태도 및 위험
                 </div>
+                <h2 id="question-text" class="text-lg sm:text-xl font-semibold text-slate-800 leading-relaxed mb-8">
+                    질문 텍스트
+                </h2>
 
-                <div id="answers-container" class="space-y-3">
-                    <!-- Answer buttons will be inserted here -->
+                <!-- Answer Scale -->
+                <div class="space-y-4">
+                    <div class="flex justify-between text-xs sm:text-sm text-slate-500 px-2">
+                        <span>매우 동의하지 않음</span>
+                        <span>매우 동의함</span>
+                    </div>
+                    <div class="grid grid-cols-7 gap-1.5 sm:gap-3" id="answer-buttons">
+                        <button onclick="selectAnswer(1)" class="answer-btn aspect-square sm:aspect-auto sm:h-14 rounded-lg sm:rounded-xl bg-red-100 hover:bg-red-200 text-red-700 font-bold text-sm sm:text-base" data-value="1">1</button>
+                        <button onclick="selectAnswer(2)" class="answer-btn aspect-square sm:aspect-auto sm:h-14 rounded-lg sm:rounded-xl bg-orange-100 hover:bg-orange-200 text-orange-700 font-bold text-sm sm:text-base" data-value="2">2</button>
+                        <button onclick="selectAnswer(3)" class="answer-btn aspect-square sm:aspect-auto sm:h-14 rounded-lg sm:rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-700 font-bold text-sm sm:text-base" data-value="3">3</button>
+                        <button onclick="selectAnswer(4)" class="answer-btn aspect-square sm:aspect-auto sm:h-14 rounded-lg sm:rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm sm:text-base" data-value="4">4</button>
+                        <button onclick="selectAnswer(5)" class="answer-btn aspect-square sm:aspect-auto sm:h-14 rounded-lg sm:rounded-xl bg-lime-100 hover:bg-lime-200 text-lime-700 font-bold text-sm sm:text-base" data-value="5">5</button>
+                        <button onclick="selectAnswer(6)" class="answer-btn aspect-square sm:aspect-auto sm:h-14 rounded-lg sm:rounded-xl bg-green-100 hover:bg-green-200 text-green-700 font-bold text-sm sm:text-base" data-value="6">6</button>
+                        <button onclick="selectAnswer(7)" class="answer-btn aspect-square sm:aspect-auto sm:h-14 rounded-lg sm:rounded-xl bg-emerald-100 hover:bg-emerald-200 text-emerald-700 font-bold text-sm sm:text-base" data-value="7">7</button>
+                    </div>
                 </div>
             </div>
 
-            <!-- Navigation Buttons -->
-            <div class="flex gap-3 justify-between">
-                <button onclick="previousQuestion()" id="prev-btn" class="btn btn-outline h-12 px-6 rounded-xl" disabled>
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <!-- Navigation -->
+            <div class="flex justify-between">
+                <button onclick="prevQuestion()" id="prev-btn" class="btn btn-ghost rounded-xl text-slate-600" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                     </svg>
                     이전
                 </button>
-                <button onclick="nextQuestion()" id="next-btn" class="btn btn-primary h-12 px-6 rounded-xl ml-auto" disabled>
+                <button onclick="nextQuestion()" id="next-btn" class="btn btn-primary rounded-xl" disabled>
                     다음
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                     </svg>
                 </button>
@@ -235,96 +239,6 @@
     <footer id="footer" class="bg-white border-t border-slate-200 mt-12"></footer>
 
     <script>
-        const sections = [
-            {
-                title: "위험 감수성",
-                icon: "⚡",
-                description: "투자 리스크에 대한 태도를 평가합니다"
-            },
-            {
-                title: "의사결정 스타일",
-                icon: "🎯",
-                description: "금융 결정을 내리는 방식을 분석합니다"
-            },
-            {
-                title: "시간 선호도",
-                icon: "⏰",
-                description: "단기 vs 장기 투자 성향을 측정합니다"
-            },
-            {
-                title: "시장 태도",
-                icon: "📊",
-                description: "시장 동향에 대한 반응을 파악합니다"
-            },
-            {
-                title: "재무 목표",
-                icon: "🎁",
-                description: "재무 목표와 우선순위를 식별합니다"
-            }
-        ];
-
-        const questions = [
-            // 섹션 1: 위험 감수성 (10개)
-            { text: "주식 시장이 10% 하락했을 때, 당신의 첫 반응은?", section: 0, type: "safeGuard", options: ["패닉 매도 - 더 큰 손실을 막아야 한다", "관망 - 시장이 회복될 때까지 기다린다", "저가 매수 기회로 본다", "아무것도 하지 않는다 - 장기 투자자니까"] },
-            { text: "투자 포트폴리오에서 얼마나 많은 변동성을 견딜 수 있나요?", section: 0, type: "safeGuard", options: ["변동성은 최소한으로 - 안정성이 중요하다", "약간의 변동성은 괜찮다", "상당한 변동성도 감수할 수 있다", "높은 변동성도 문제없다 - 높은 수익을 위해서라면"] },
-            { text: "새로운 투자 기회가 생겼을 때, 어떻게 하시나요?", section: 0, type: "aggressiveBull", options: ["철저히 조사한 후 결정한다", "신뢰할 수 있는 사람의 조언을 구한다", "직감을 믿고 빠르게 행동한다", "일단 소액으로 시험해본다"] },
-            { text: "투자 손실에 대해 어떻게 생각하시나요?", section: 0, type: "safeGuard", options: ["절대 피해야 할 것이다", "불가피하지만 최소화해야 한다", "학습 기회로 본다", "큰 수익을 위한 필요악이다"] },
-            { text: "갑작스러운 시장 급등 시 어떻게 반응하시나요?", section: 0, type: "trendFollower", options: ["의심스럽다 - 곧 조정이 올 것이다", "신중하게 관찰한다", "기회를 잡으려고 한다", "적극적으로 투자를 늘린다"] },
-            { text: "투자 자금 중 얼마를 고위험 자산에 배분하시겠어요?", section: 0, type: "aggressiveBull", options: ["0-10% - 안전이 최우선이다", "10-30% - 균형이 중요하다", "30-60% - 성장을 추구한다", "60%+ - 공격적으로 투자한다"] },
-            { text: "시장 변동성이 클 때 어떤 기분이 드나요?", section: 0, type: "safeGuard", options: ["매우 불안하다", "약간 걱정된다", "흥미롭게 느껴진다", "신난다 - 기회가 많아지니까"] },
-            { text: "투자 원금의 20%를 잃을 수 있다면, 얼마의 수익을 기대하시나요?", section: 0, type: "aggressiveBull", options: ["0-5% - 안전이 최고다", "5-15% - 적당한 수익이면 된다", "15-30% - 위험을 감수할 만하다", "30%+ - 큰 위험, 큰 보상"] },
-            { text: "레버리지(빚을 내서 투자)에 대한 생각은?", section: 0, type: "aggressiveBull", options: ["절대 안 한다 - 너무 위험하다", "아주 신중하게 고려한다", "적절히 사용하면 좋다", "수익 극대화의 좋은 도구다"] },
-            { text: "투자 계좌를 얼마나 자주 확인하시나요?", section: 0, type: "trendFollower", options: ["거의 안 본다 - 장기 투자니까", "월 1-2회 정도", "주 2-3회 정도", "매일 여러 번 확인한다"] },
-            
-            // 섹션 2: 의사결정 스타일 (10개)
-            { text: "투자 결정을 내릴 때 주로 무엇에 의존하시나요?", section: 1, type: "strategicPlanner", options: ["철저한 데이터 분석", "전문가 의견과 조언", "직감과 경험", "시장 동향과 뉴스"] },
-            { text: "새로운 투자 아이디어를 접했을 때, 얼마나 빨리 결정하시나요?", section: 1, type: "aggressiveBull", options: ["몇 주에서 몇 달 걸린다", "며칠 정도 고민한다", "하루 이틀이면 결정한다", "거의 즉시 결정한다"] },
-            { text: "투자 전략을 세울 때 어떤 방식을 선호하시나요?", section: 1, type: "strategicPlanner", options: ["상세한 계획과 분석", "기본 틀만 정하고 유연하게", "상황에 따라 즉흥적으로", "다른 사람들을 따라간다"] },
-            { text: "투자에 실패했을 때, 어떻게 하시나요?", section: 1, type: "valueSeeker", options: ["원인을 철저히 분석한다", "전문가에게 조언을 구한다", "빨리 잊고 다음으로 넘어간다", "전략을 완전히 바꾼다"] },
-            { text: "복잡한 금융 상품에 대해 어떻게 생각하시나요?", section: 1, type: "strategicPlanner", options: ["완전히 이해할 때까지 공부한다", "전문가에게 설명을 듣고 결정한다", "간단한 상품만 선호한다", "복잡해도 수익이 좋으면 한다"] },
-            { text: "투자 정보는 주로 어디서 얻으시나요?", section: 1, type: "valueSeeker", options: ["재무제표와 공식 보고서", "금융 뉴스와 전문가 분석", "소셜미디어와 커뮤니티", "주변 사람들의 추천"] },
-            { text: "포트폴리오 리밸런싱을 얼마나 자주 하시나요?", section: 1, type: "strategicPlanner", options: ["정해진 일정에 따라 규칙적으로", "필요할 때만 한다", "거의 안 한다", "시장 상황에 따라 수시로"] },
-            { text: "투자 결정 후 의심이 들 때 어떻게 하시나요?", section: 1, type: "safeGuard", options: ["추가 조사를 한다", "그대로 유지한다 - 계획을 믿는다", "빠르게 청산한다", "다른 사람에게 물어본다"] },
-            { text: "여러 투자 기회가 있을 때, 어떻게 선택하시나요?", section: 1, type: "valueSeeker", options: ["가장 안전한 것", "가장 잘 분석한 것", "가장 수익성이 높아 보이는 것", "가장 트렌디한 것"] },
-            { text: "투자 실수를 했을 때의 반응은?", section: 1, type: "strategicPlanner", options: ["철저히 반성하고 기록한다", "배운 교훈을 적용한다", "빨리 잊으려고 한다", "더 큰 투자로 만회하려 한다"] },
-            
-            // 섹션 3: 시간 선호도 (10개)
-            { text: "이상적인 투자 기간은 얼마나 되나요?", section: 2, type: "valueSeeker", options: ["10년 이상 - 장기 성장 추구", "3-10년 - 중장기 목표", "1-3년 - 중단기 수익", "1년 미만 - 단기 수익"] },
-            { text: "투자 수익을 언제 실현하고 싶으신가요?", section: 2, type: "trendFollower", options: ["은퇴 후에", "몇 년 내에 큰 목표를 위해", "1-2년 내에", "가능한 빨리"] },
-            { text: "배당주와 성장주 중 어느 것을 선호하시나요?", section: 2, type: "valueSeeker", options: ["배당주 - 꾸준한 수입이 좋다", "둘 다 균형있게", "성장주 - 장기 성장을 기대한다", "성장주만 - 빠른 수익이 목표다"] },
-            { text: "단기 수익 기회 vs 장기 가치 투자, 어느 것이 더 매력적인가요?", section: 2, type: "aggressiveBull", options: ["확실히 장기 가치 투자", "주로 장기, 가끔 단기", "주로 단기, 가끔 장기", "확실히 단기 수익 기회"] },
-            { text: "시장 타이밍에 대한 생각은?", section: 2, type: "trendFollower", options: ["불가능하다", "큰 흐름만 파악한다", "적극적으로 시도한다", "핵심 전략이다"] },
-            { text: "경제 뉴스가 당신의 투자에 얼마나 영향을 미치나요?", section: 2, type: "valueSeeker", options: ["거의 영향 없다 - 장기 관점이니까", "참고만 한다", "꽤 영향을 받는다", "매우 중요하다 - 즉시 반응한다"] },
-            { text: "투자 원금을 얼마나 빨리 회수하고 싶으신가요?", section: 2, type: "aggressiveBull", options: ["상관없다 - 장기 투자니까", "5년 정도면 괜찮다", "2-3년 내에", "1년 내에 회수하고 싶다"] },
-            { text: "복리 효과에 대해 어떻게 생각하시나요?", section: 2, type: "valueSeeker", options: ["가장 중요한 투자 원칙이다", "알고 있지만 인내심이 필요하다", "이론적으로만 안다", "너무 느리다 - 빠른 수익이 좋다"] },
-            { text: "분기별 실적 발표를 얼마나 중요하게 생각하시나요?", section: 2, type: "trendFollower", options: ["거의 신경 안 쓴다", "참고만 한다", "꽤 중요하게 본다", "매우 중요하다 - 즉시 대응한다"] },
-            { text: "인내심을 시험하는 상황에서 어떻게 하시나요?", section: 2, type: "safeGuard", options: ["끝까지 기다린다", "대부분 참지만 한계가 있다", "빨리 포기하는 편이다", "즉시 다른 기회를 찾는다"] },
-            
-            // 섹션 4: 시장 태도 (10개)
-            { text: "시장의 효율성에 대해 어떻게 생각하시나요?", section: 3, type: "valueSeeker", options: ["완전히 효율적이다", "대체로 효율적이다", "비효율적이다", "매우 비효율적이다"] },
-            { text: "시장 하락기를 어떻게 보시나요?", section: 3, type: "valueSeeker", options: ["매수 기회로 본다", "관망하며 지켜본다", "일부 현금화를 고려한다", "대부분 청산한다"] },
-            { text: "군중 심리를 얼마나 따르시나요?", section: 3, type: "trendFollower", options: ["절대 안 따른다 - 역발상 투자자다", "가끔 참고한다", "자주 따른다", "항상 따른다 - 대세를 따르는 게 안전하다"] },
-            { text: "기술적 분석 vs 기본적 분석, 어느 것을 선호하시나요?", section: 3, type: "strategicPlanner", options: ["기본적 분석만", "주로 기본적, 일부 기술적", "주로 기술적, 일부 기본적", "기술적 분석만"] },
-            { text: "시장 예측에 대한 생각은?", section: 3, type: "aggressiveBull", options: ["불가능하다", "장기 트렌드만 가능하다", "어느 정도 가능하다", "충분히 가능하다"] },
-            { text: "다른 사람의 투자 성공담을 들었을 때?", section: 3, type: "trendFollower", options: ["나만의 전략을 고수한다", "참고만 한다", "비슷하게 따라 해볼까 고려한다", "즉시 따라 한다"] },
-            { text: "시장 붕괴 가능성에 대해 얼마나 걱정하시나요?", section: 3, type: "safeGuard", options: ["항상 대비하고 있다", "가끔 생각한다", "별로 걱정 안 한다", "전혀 걱정 안 한다"] },
-            { text: "새로운 투자 트렌드(가상화폐, AI 등)에 대한 태도는?", section: 3, type: "trendFollower", options: ["회의적이다 - 검증된 것만 투자한다", "조심스럽게 관찰한다", "관심 있다 - 소액 투자 고려 중이다", "적극적으로 투자한다"] },
-            { text: "시장이 비합리적으로 보일 때?", section: 3, type: "valueSeeker", options: ["기회로 본다", "조심스럽게 접근한다", "관망한다", "시장을 따라간다"] },
-            { text: "금융 위기 시 당신의 전략은?", section: 3, type: "safeGuard", options: ["현금 비중을 높인다", "포트폴리오를 유지한다", "선별적으로 매수한다", "공격적으로 매수한다"] },
-            
-            // 섹션 5: 재무 목표 (10개)
-            { text: "가장 중요한 재무 목표는 무엇인가요?", section: 4, type: "safeGuard", options: ["자산 보존", "안정적인 수입", "자산 증식", "빠른 부의 축적"] },
-            { text: "은퇴 후 생활에 대한 계획은?", section: 4, type: "valueSeeker", options: ["매우 구체적인 계획이 있다", "대략적인 목표가 있다", "막연하게 생각만 한다", "아직 생각 안 해봤다"] },
-            { text: "자녀 교육비 vs 은퇴 준비, 어느 것이 더 중요한가요?", section: 4, type: "safeGuard", options: ["둘 다 동등하게 중요하다", "은퇴 준비가 우선이다", "자녀 교육비가 우선이다", "상황에 따라 달라진다"] },
-            { text: "재정적 자유에 대한 정의는?", section: 4, type: "valueSeeker", options: ["기본 생활이 보장되는 것", "현재 생활 수준 유지", "원하는 것을 할 수 있는 것", "완전한 경제적 독립"] },
-            { text: "투자 목표 수익률은 얼마인가요?", section: 4, type: "aggressiveBull", options: ["연 3-5% - 안정성 중시", "연 5-10% - 균형 추구", "연 10-20% - 성장 추구", "연 20%+ - 공격적 성장"] },
-            { text: "부채에 대한 당신의 철학은?", section: 4, type: "safeGuard", options: ["절대 빚지지 않는다", "필요할 때만 최소한으로", "좋은 빚은 활용한다", "레버리지로 적극 활용한다"] },
-            { text: "비상 자금은 얼마나 준비하시나요?", section: 4, type: "safeGuard", options: ["생활비 6개월 이상", "생활비 3-6개월", "생활비 1-3개월", "거의 없다"] },
-            { text: "수입이 늘었을 때, 무엇을 하시겠어요?", section: 4, type: "aggressiveBull", options: ["저축과 투자를 늘린다", "일부는 저축, 일부는 소비한다", "대부분 투자에 사용한다", "소비 수준을 높인다"] },
-            { text: "재무 계획에서 가장 중요한 것은?", section: 4, type: "strategicPlanner", options: ["안전성과 확실성", "균형과 다양성", "성장과 기회", "유연성과 적응력"] },
-            { text: "목표 달성을 위해 얼마나 희생할 수 있나요?", section: 4, type: "valueSeeker", options: ["현재 삶의 질을 크게 희생할 수 있다", "적당한 수준의 희생은 괜찮다", "큰 희생은 어렵다", "현재를 즐기는 게 더 중요하다"] }
-        ];
-
         // Map topType to result page URL
         const resultPages = {
             safeGuard: 'safe-guard',
@@ -334,76 +248,158 @@
             trendFollower: 'trend-follower'
         };
 
+        // Questions with weights for each personality type
+        // Weight format: [safeGuard, aggressiveBull, strategicPlanner, valueSeeker, trendFollower]
+        // Positive weight = Agree increases score, Negative weight = Disagree increases score
+        const questions = [
+            // 섹션 1: 투자 태도 및 위험 (10문항)
+            { section: '섹션 1: 투자 태도 및 위험', text: '원금 손실 가능성이 1%만 있어도 그 투자는 피할 것이다.', weights: [3, -2, 0, 1, -1] },
+            { section: '섹션 1: 투자 태도 및 위험', text: '"고위험 고수익"이 내 인생의 좌우명이다.', weights: [-2, 3, 0, -1, 2] },
+            { section: '섹션 1: 투자 태도 및 위험', text: '레버리지(대출)를 활용하는 것은 부자가 되기 위한 필수 전략이라고 생각한다.', weights: [-2, 3, 0, -1, 1] },
+            { section: '섹션 1: 투자 태도 및 위험', text: '투자할 때 가장 먼저 확인하는 것은 "최대 손실 가능 금액"이다.', weights: [3, -1, 2, 1, 0] },
+            { section: '섹션 1: 투자 태도 및 위험', text: '급등하는 주식이나 뉴스에 나오는 핫한 종목에 끌린다.', weights: [-1, 2, -1, 0, 3] },
+            { section: '섹션 1: 투자 태도 및 위험', text: '암호화폐가 미래의 핵심 자산이 될 것이라고 믿는다.', weights: [-1, 1, 0, 0, 3] },
+            { section: '섹션 1: 투자 태도 및 위험', text: '분산투자보다 내가 믿는 한두 종목에 집중 투자하는 것을 선호한다.', weights: [-1, 3, -2, 0, 1] },
+            { section: '섹션 1: 투자 태도 및 위험', text: '공포에 가득 찬 시장이야말로 최고의 매수 기회라고 생각한다.', weights: [-1, 3, 1, 0, 1] },
+            { section: '섹션 1: 투자 태도 및 위험', text: '복리의 힘을 믿으며, 10년 이상 장기 투자할 준비가 되어 있다.', weights: [1, -1, 3, 1, 0] },
+            { section: '섹션 1: 투자 태도 및 위험', text: '자산의 50% 이상이 현금일 때만 마음이 편하다.', weights: [3, -2, -1, 1, -1] },
+
+            // 섹션 2: 소비 습관 및 가치 추구 (10문항)
+            { section: '섹션 2: 소비 습관 및 가치 추구', text: '물건을 살 때 최소 3개 이상의 사이트에서 가격을 비교한다.', weights: [1, -1, 1, 3, 0] },
+            { section: '섹션 2: 소비 습관 및 가치 추구', text: '"가성비"보다 "브랜드 이미지"가 더 중요하다.', weights: [0, 1, -1, -3, 1] },
+            { section: '섹션 2: 소비 습관 및 가치 추구', text: '항공 마일리지나 캐시백 등 신용카드 혜택을 최대한 활용한다.', weights: [0, 0, 2, 3, 1] },
+            { section: '섹션 2: 소비 습관 및 가치 추구', text: '가계부나 앱을 통해 지출 내역을 1원 단위까지 기록한다.', weights: [1, 0, 2, 3, 0] },
+            { section: '섹션 2: 소비 습관 및 가치 추구', text: '친구들에게 "알뜰하다" 또는 "짠돌이/짠순이"라는 말을 들어봤다.', weights: [2, -1, 0, 3, -1] },
+            { section: '섹션 2: 소비 습관 및 가치 추구', text: '정기적으로 사용하지 않는 구독 서비스를 검토하고 해지한다.', weights: [1, 0, 2, 3, 0] },
+            { section: '섹션 2: 소비 습관 및 가치 추구', text: '나를 위한 "사치품 선물"에는 아끼지 않는다.', weights: [-1, 1, -1, -3, 1] },
+            { section: '섹션 2: 소비 습관 및 가치 추구', text: '전기세, 수도세 등 공과금 절약을 위해 의식적으로 노력한다.', weights: [1, -1, 1, 3, 0] },
+            { section: '섹션 2: 소비 습관 및 가치 추구', text: '충동구매를 막기 위해 장바구니에 담아두고 며칠 후 결제한다.', weights: [2, -1, 2, 3, 0] },
+            { section: '섹션 2: 소비 습관 및 가치 추구', text: '통장 잔고가 늘어나는 것을 볼 때 소비하는 것보다 더 큰 기쁨을 느낀다.', weights: [2, 0, 1, 3, 0] },
+
+            // 섹션 3: 정보 및 기술 트렌드 (10문항)
+            { section: '섹션 3: 정보 및 기술 트렌드', text: '새로운 금융 앱(네오뱅크, 핀테크)이 출시되면 바로 설치해본다.', weights: [-1, 1, 0, 0, 3] },
+            { section: '섹션 3: 정보 및 기술 트렌드', text: '핀테크, AI, 로봇 등 미래 산업에 관심이 많다.', weights: [0, 1, 1, 0, 3] },
+            { section: '섹션 3: 정보 및 기술 트렌드', text: 'NFT나 메타버스 부동산 같은 디지털 자산의 가치를 인정한다.', weights: [-1, 1, 0, 0, 3] },
+            { section: '섹션 3: 정보 및 기술 트렌드', text: '새로운 재테크 방법을 친구들에게 먼저 알려주는 편이다.', weights: [-1, 2, 0, 0, 3] },
+            { section: '섹션 3: 정보 및 기술 트렌드', text: '복잡한 약관이나 공시자료도 꼼꼼히 읽는 편이다.', weights: [1, 0, 3, 1, 0] },
+            { section: '섹션 3: 정보 및 기술 트렌드', text: 'ChatGPT 같은 도구를 전문적인 투자 분석에 활용하고 싶다.', weights: [0, 1, 2, 0, 3] },
+            { section: '섹션 3: 정보 및 기술 트렌드', text: '남들이 모르는 "숨은 알짜 정보"를 찾는 데 집착하는 편이다.', weights: [-1, 2, 0, 0, 3] },
+            { section: '섹션 3: 정보 및 기술 트렌드', text: '금리나 환율 뉴스를 보면 항상 내 생활과 연결 지어 생각한다.', weights: [1, 1, 3, 1, 1] },
+            { section: '섹션 3: 정보 및 기술 트렌드', text: '혁신적인 기업이라면 현재 적자라도 투자할 가치가 있다고 생각한다.', weights: [-1, 2, 0, -1, 3] },
+            { section: '섹션 3: 정보 및 기술 트렌드', text: '세상이 빨리 변할수록 돈 벌 기회도 많아진다고 믿는다.', weights: [-1, 2, 0, 0, 3] },
+
+            // 섹션 4: 계획 및 자산 관리 (10문항)
+            { section: '섹션 4: 계획 및 자산 관리', text: '10년 또는 20년 후 달성하고 싶은 구체적인 목표 자산이 있다.', weights: [1, 0, 3, 1, 0] },
+            { section: '섹션 4: 계획 및 자산 관리', text: '월급이 들어오면 먼저 저축/투자하고 남는 돈으로 생활한다.', weights: [2, 0, 3, 2, 0] },
+            { section: '섹션 4: 계획 및 자산 관리', text: '주식, 부동산, 현금 비율(포트폴리오)을 일정하게 유지한다.', weights: [0, -1, 3, 0, 0] },
+            { section: '섹션 4: 계획 및 자산 관리', text: '예상치 못한 지출을 위한 비상금을 항상 따로 보관한다.', weights: [3, -1, 2, 1, 0] },
+            { section: '섹션 4: 계획 및 자산 관리', text: '현재 내 "순자산(자산-부채)"을 정확한 숫자로 알고 있다.', weights: [1, 0, 3, 2, 0] },
+            { section: '섹션 4: 계획 및 자산 관리', text: '대출은 "나쁜 것"이 아니라 전략적 도구라고 생각한다.', weights: [-1, 3, 1, -1, 1] },
+            { section: '섹션 4: 계획 및 자산 관리', text: '은퇴 준비는 빨리 시작할수록 좋고, 이미 시작했다.', weights: [2, 0, 3, 1, 0] },
+            { section: '섹션 4: 계획 및 자산 관리', text: '월별 지출을 항목별로 나눈 예산에 맞춰 생활한다.', weights: [1, -1, 3, 3, 0] },
+            { section: '섹션 4: 계획 및 자산 관리', text: '수익이 나면 복리 효과를 극대화하기 위해 재투자한다.', weights: [1, 1, 3, 1, 0] },
+            { section: '섹션 4: 계획 및 자산 관리', text: '부자가 되기 위한 가장 중요한 덕목은 "인내심"이라고 생각한다.', weights: [2, -1, 3, 1, 0] },
+
+            // 섹션 5: 라이프스타일 및 철학 (10문항)
+            { section: '섹션 5: 라이프스타일 및 철학', text: '돈을 쓸 때보다 모을 때 더 행복함을 느낀다.', weights: [2, -1, 1, 3, 0] },
+            { section: '섹션 5: 라이프스타일 및 철학', text: '돈을 벌기 위해 시간과 건강을 어느 정도 희생할 용의가 있다.', weights: [0, 2, 0, 0, 1] },
+            { section: '섹션 5: 라이프스타일 및 철학', text: '"경제적 자유" 달성이 내 인생의 최종 목표다.', weights: [1, 1, 2, 2, 1] },
+            { section: '섹션 5: 라이프스타일 및 철학', text: '남에게 "부자로 보이는 것"보다 "실제로 부자인 것"이 더 중요하다.', weights: [2, 0, 2, 3, 0] },
+            { section: '섹션 5: 라이프스타일 및 철학', text: '비싼 차를 모는 것보다 좋은 주식을 보유한 것이 더 자랑스럽다.', weights: [1, 1, 2, 2, 1] },
+            { section: '섹션 5: 라이프스타일 및 철학', text: '로또 같은 행운보다 실력으로 부를 쌓고 싶다.', weights: [1, 1, 3, 1, 0] },
+            { section: '섹션 5: 라이프스타일 및 철학', text: '미니멀리즘(적게 소유하기)이 내 경제관과 잘 맞는다.', weights: [1, -1, 1, 2, 0] },
+            { section: '섹션 5: 라이프스타일 및 철학', text: '엄청난 돈을 위해서라면 사랑이나 우정을 포기할 수도 있다고 생각한다.', weights: [-1, 2, 0, 0, 0] },
+            { section: '섹션 5: 라이프스타일 및 철학', text: '경제적 성공을 이룬 사람들의 전기나 자서전 읽기를 좋아한다.', weights: [0, 2, 2, 0, 1] },
+            { section: '섹션 5: 라이프스타일 및 철학', text: '현재의 행복을 위해 돈을 쓰는 것(YOLO)도 가치 있다고 생각한다.', weights: [-2, 1, -1, -2, 1] }
+        ];
+
+        // State
         let currentQuestion = 0;
         let answers = new Array(questions.length).fill(null);
 
+        // Functions
         function startTest() {
             document.getElementById('start-screen').classList.add('hidden');
-            document.getElementById('test-screen').classList.remove('hidden');
-            showQuestion();
+            document.getElementById('question-screen').classList.remove('hidden');
+            document.getElementById('total-q').textContent = questions.length;
+            showQuestion(0);
         }
 
-        function showQuestion() {
-            const question = questions[currentQuestion];
-            const section = sections[question.section];
+        function showQuestion(index) {
+            currentQuestion = index;
+            const q = questions[index];
 
-            // Update section info
-            document.getElementById('section-icon').textContent = section.icon;
-            document.getElementById('section-title').textContent = section.title;
-            document.getElementById('section-desc').textContent = section.description;
+            document.getElementById('current-q').textContent = index + 1;
+            document.getElementById('progress-percent').textContent = Math.round(((index + 1) / questions.length) * 100) + '%';
+            document.getElementById('progress-bar').style.width = (((index + 1) / questions.length) * 100) + '%';
+            document.getElementById('section-badge').textContent = q.section;
+            document.getElementById('question-text').textContent = q.text;
 
-            // Update question
-            document.getElementById('question-number').textContent = `${currentQuestion + 1}/${questions.length}`;
-            document.getElementById('question-text').textContent = question.text;
+            // Reset answer buttons
+            document.querySelectorAll('.answer-btn').forEach(btn => {
+                btn.classList.remove('selected');
+            });
 
-            // Create answer buttons
-            const answersContainer = document.getElementById('answers-container');
-            answersContainer.innerHTML = question.options.map((option, index) => `
-                <button onclick="selectAnswer(${index})" class="answer-btn w-full text-left p-4 rounded-xl border-2 transition-all ${answers[currentQuestion] === index ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-blue-300 hover:bg-slate-50'}">
-                    <div class="flex items-center gap-3">
-                        <div class="w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${answers[currentQuestion] === index ? 'border-blue-500 bg-blue-500' : 'border-slate-300'}">
-                            ${answers[currentQuestion] === index ? '<svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>' : ''}
-                        </div>
-                        <span class="text-sm sm:text-base">${option}</span>
-                    </div>
-                </button>
-            `).join('');
-
-            // Update progress
-            const progress = ((currentQuestion + 1) / questions.length) * 100;
-            document.getElementById('progress-bar').style.width = `${progress}%`;
-            document.getElementById('progress-text').textContent = `${currentQuestion + 1}/50`;
+            // Highlight previously selected answer
+            if (answers[index] !== null) {
+                document.querySelector(`.answer-btn[data-value="${answers[index]}"]`).classList.add('selected');
+            }
 
             // Update navigation buttons
-            document.getElementById('prev-btn').disabled = currentQuestion === 0;
-            document.getElementById('next-btn').disabled = answers[currentQuestion] === null;
-            document.getElementById('next-btn').textContent = currentQuestion === questions.length - 1 ? '결과 보기' : '다음';
+            document.getElementById('prev-btn').disabled = index === 0;
+            updateNextButton();
+
+            // Animation
+            const card = document.getElementById('question-card');
+            card.classList.remove('fade-in');
+            void card.offsetWidth;
+            card.classList.add('fade-in');
         }
 
-        function selectAnswer(answerIndex) {
-            answers[currentQuestion] = answerIndex;
-            showQuestion();
+        function selectAnswer(value) {
+            answers[currentQuestion] = value;
+
+            document.querySelectorAll('.answer-btn').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            document.querySelector(`.answer-btn[data-value="${value}"]`).classList.add('selected');
+
+            updateNextButton();
+
+            // Auto advance after short delay
+            setTimeout(() => {
+                if (currentQuestion < questions.length - 1) {
+                    nextQuestion();
+                }
+            }, 300);
         }
 
-        function previousQuestion() {
+        function updateNextButton() {
+            const nextBtn = document.getElementById('next-btn');
+            const isLastQuestion = currentQuestion === questions.length - 1;
+            const hasAnswer = answers[currentQuestion] !== null;
+
+            nextBtn.disabled = !hasAnswer;
+            nextBtn.innerHTML = isLastQuestion
+                ? '결과 보기 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>'
+                : '다음 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>';
+        }
+
+        function prevQuestion() {
             if (currentQuestion > 0) {
-                currentQuestion--;
-                showQuestion();
+                showQuestion(currentQuestion - 1);
             }
         }
 
         function nextQuestion() {
-            if (answers[currentQuestion] !== null) {
-                if (currentQuestion < questions.length - 1) {
-                    currentQuestion++;
-                    showQuestion();
-                } else {
-                    showResults();
-                }
+            if (currentQuestion < questions.length - 1) {
+                showQuestion(currentQuestion + 1);
+            } else {
+                showResults();
             }
         }
 
-        function calculateResults() {
+        function calculateScores() {
             const scores = {
                 safeGuard: 0,
                 aggressiveBull: 0,
@@ -412,38 +408,32 @@
                 trendFollower: 0
             };
 
-            // Scoring logic based on question types and answers
-            questions.forEach((q, index) => {
-                const answerValue = answers[index];
-                if (answerValue !== null) {
-                    // Different weight based on answer position (0-3 maps to different personality scores)
-                    switch(answerValue) {
-                        case 0:
-                            scores.safeGuard += q.type === 'safeGuard' ? 3 : 1;
-                            scores.strategicPlanner += 1;
-                            break;
-                        case 1:
-                            scores.valueSeeker += q.type === 'valueSeeker' ? 3 : 1;
-                            scores.strategicPlanner += q.type === 'strategicPlanner' ? 2 : 1;
-                            break;
-                        case 2:
-                            scores.aggressiveBull += q.type === 'aggressiveBull' ? 2 : 1;
-                            scores.trendFollower += 1;
-                            break;
-                        case 3:
-                            scores.aggressiveBull += q.type === 'aggressiveBull' ? 3 : 1;
-                            scores.trendFollower += q.type === 'trendFollower' ? 3 : 1;
-                            break;
-                    }
-                }
+            const typeKeys = Object.keys(scores);
+
+            questions.forEach((q, i) => {
+                const answer = answers[i]; // 1-7
+                const normalizedAnswer = (answer - 4) / 3; // -1 to 1
+
+                typeKeys.forEach((type, j) => {
+                    const weight = q.weights[j];
+                    scores[type] += normalizedAnswer * weight;
+                });
             });
 
-            const topType = Object.keys(scores).reduce((a, b) => scores[a] > scores[b] ? a : b);
-            return { scores, topType };
+            // Normalize scores to 0-100
+            const maxPossible = questions.length * 3; // Max weight * max normalized answer
+            typeKeys.forEach(type => {
+                scores[type] = Math.round(((scores[type] + maxPossible) / (maxPossible * 2)) * 100);
+                scores[type] = Math.max(0, Math.min(100, scores[type]));
+            });
+
+            return scores;
         }
 
         function showResults() {
-            const { topType } = calculateResults();
+            const scores = calculateScores();
+            const sortedTypes = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+            const topType = sortedTypes[0][0];
             // Redirect to result page
             window.location.href = `results/${resultPages[topType]}.html`;
         }
