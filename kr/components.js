@@ -3,8 +3,15 @@
 // 언어 설정
 const LANG_CONFIG = {
     current: 'ko',
-    switchLabel: 'English'
+    switchLabel: 'English',
+    switchTo: 'us'
 };
+
+// 언어 변경 시 localStorage에 저장
+function switchLanguage(targetLang, targetUrl) {
+    localStorage.setItem('preferredLanguage', targetLang);
+    window.location.href = targetUrl;
+}
 
 // Google AdSense 설정
 const ADSENSE_CONFIG = {
@@ -65,7 +72,7 @@ function injectCommonStyles(basePath) {
 
 var NAV_ITEMS = [
     { id: 'dictionary', label: '금융사전', href: 'index.html' },
-    { id: 'personality', label: '성격테스트', href: 'personality-test.html' }
+    { id: 'personality', label: '성향테스트', href: 'personality-test.html' }
 ];
 
 function renderHeader(activePageId, basePath) {
@@ -89,7 +96,7 @@ function renderHeader(activePageId, basePath) {
         return '<li><a href="' + basePath + item.href + '" class="font-medium ' + activeClass + '">' + item.label + '</a></li>';
     }).join('');
 
-    header.innerHTML = '<div class="container mx-auto px-4"><div class="navbar min-h-16 p-0"><div class="navbar-start"><a href="' + basePath + 'index.html" class="flex items-center gap-3 text-xl font-bold text-slate-800 hover:text-blue-600 transition-colors"><img src="' + imgBasePath + 'images/logo.png" alt="Economy Helper" class="h-8 w-8 object-contain scale-150"><span class="hidden sm:inline">Economy Helper</span></a></div><div class="navbar-end"><ul class="menu menu-horizontal px-1 hidden md:flex gap-1">' + navItemsDesktop + '<li><a href="' + langSwitchUrl + '" class="font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg">' + LANG_CONFIG.switchLabel + '</a></li></ul><div class="dropdown dropdown-end md:hidden"><label tabindex="0" class="btn btn-ghost btn-circle"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg></label><ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow-lg bg-white rounded-xl w-52 border border-slate-100">' + navItemsMobile + '<li><a href="' + langSwitchUrl + '" class="font-medium text-slate-600">' + LANG_CONFIG.switchLabel + '</a></li></ul></div></div></div></div>';
+    header.innerHTML = '<div class="container mx-auto px-4"><div class="navbar min-h-16 p-0"><div class="navbar-start"><a href="' + basePath + 'index.html" class="flex items-center gap-3 text-xl font-bold text-slate-800 hover:text-blue-600 transition-colors"><img src="' + imgBasePath + 'images/logo.png" alt="Economy Helper" class="h-8 w-8 object-contain scale-150"><span class="hidden sm:inline">Economy Helper</span></a></div><div class="navbar-end"><ul class="menu menu-horizontal px-1 hidden md:flex gap-1">' + navItemsDesktop + '<li><a href="javascript:void(0)" onclick="switchLanguage(\'' + LANG_CONFIG.switchTo + '\', \'' + langSwitchUrl + '\')" class="font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg">' + LANG_CONFIG.switchLabel + '</a></li></ul><div class="dropdown dropdown-end md:hidden"><label tabindex="0" class="btn btn-ghost btn-circle"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg></label><ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow-lg bg-white rounded-xl w-52 border border-slate-100">' + navItemsMobile + '<li><a href="javascript:void(0)" onclick="switchLanguage(\'' + LANG_CONFIG.switchTo + '\', \'' + langSwitchUrl + '\')" class="font-medium text-slate-600">' + LANG_CONFIG.switchLabel + '</a></li></ul></div></div></div></div>';
 }
 
 function renderFooter() {
