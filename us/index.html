@@ -84,7 +84,7 @@
                     Economic Dictionary
                 </h1>
                 <p class="text-slate-500 text-sm sm:text-base  mb-6">
-                    Learn financial terms with easy-to-understand definitions and real-world examples
+                    Learn economic terms with easy-to-understand definitions and real-world examples
                 </p>
 
                 <!-- Today's Terms -->
@@ -1603,7 +1603,7 @@
 
                     const letter = btn.dataset.letter;
                     const results = filterByLetter(letter);
-                    const title = letter === 'ALL' ? 'All Financial Terms' : `Terms starting with "${letter}"`;
+                    const title = letter === 'ALL' ? 'All Economic Terms' : `Terms starting with "${letter}"`;
                     displayResults(results, title, true);
 
                     searchInput.value = '';
@@ -1614,7 +1614,7 @@
             const allBtn = document.querySelector('.alphabet-btn[data-letter="ALL"]');
             allBtn.classList.remove('bg-slate-100', 'text-slate-600');
             allBtn.classList.add('bg-blue-600', 'text-white');
-            displayResults(filterByLetter('ALL'), 'All Financial Terms', true);
+            displayResults(filterByLetter('ALL'), 'All Economic Terms', true);
 
             // Initialize Today's Terms
             initTodaysTerms();
