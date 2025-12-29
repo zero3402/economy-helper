@@ -7,8 +7,8 @@
     <!-- Primary Meta Tags -->
     <title>경제 도우미 - 경제를 쉽게 이해하세요</title>
     <meta name="title" content="경제 도우미 - 경제를 쉽게 이해하세요">
-    <meta name="description" content="무료 50문항 금융 성향 테스트로 당신의 금융 유형을 알아보세요. 안전 수호자, 공격형 황소, 전략적 계획가, 가치 추구자, 트렌드 추종자 중 당신은 어떤 유형일까요?">
-    <meta name="keywords" content="금융 성향 테스트, 투자 스타일 테스트, 돈 성격, 투자자 유형 퀴즈, 금융 행동 테스트, 부의 마인드셋 평가, 개인 금융 퀴즈">
+    <meta name="description" content="무료 50문항 투자 성향 테스트로 당신의 금융 유형을 알아보세요. 안전 수호자, 공격형 황소, 전략적 계획가, 가치 추구자, 트렌드 추종자 중 당신은 어떤 유형일까요?">
+    <meta name="keywords" content="투자 성향 테스트, 투자 스타일 테스트, 돈 성격, 투자자 유형 퀴즈, 금융 행동 테스트, 부의 마인드셋 평가, 개인 금융 퀴즈">
     <meta name="author" content="경제 도우미">
     <meta name="robots" content="index, follow">
     <link rel="canonical" href="https://economyhelper.com/kr/personality-test.html">
@@ -18,7 +18,7 @@
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://economyhelper.com/kr/personality-test.html">
     <meta property="og:title" content="경제 도우미 - 경제를 쉽게 이해하세요">
-    <meta property="og:description" content="무료 50문항 테스트로 당신의 금융 성향 유형을 알아보세요. 당신의 강점, 약점을 배워보세요.">
+    <meta property="og:description" content="무료 50문항 테스트로 당신의 투자 성향 유형을 알아보세요. 당신의 강점, 약점을 배워보세요.">
     <meta property="og:image" content="https://economyhelper.com/images/og.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
@@ -29,7 +29,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:url" content="https://economyhelper.com/kr/personality-test.html">
     <meta name="twitter:title" content="경제 도우미 - 경제를 쉽게 이해하세요">
-    <meta name="twitter:description" content="무료 50문항 테스트로 당신의 금융 성향 유형을 알아보세요. 당신의 강점, 약점을 배워보세요.">
+    <meta name="twitter:description" content="무료 50문항 테스트로 당신의 투자 성향 유형을 알아보세요. 당신의 강점, 약점을 배워보세요.">
     <meta name="twitter:image" content="https://economyhelper.com/images/og.png">
 
     <!-- Additional SEO -->
@@ -42,7 +42,7 @@
     {
         "@context": "https://schema.org",
         "@type": "Quiz",
-        "name": "금융 성향 테스트",
+        "name": "투자 성향 테스트",
         "description": "50개 질문으로 구성된 종합 성향 테스트로 당신의 금융 유형과 투자 스타일을 알아보세요.",
         "url": "https://economyhelper.com/personality-test.html",
         "provider": {
@@ -52,7 +52,7 @@
         },
         "about": {
             "@type": "Thing",
-            "name": "금융 성향 유형"
+            "name": "투자 성향 유형"
         },
         "educationalLevel": "beginner",
         "numberOfQuestions": 50,
@@ -98,10 +98,10 @@
                     </svg>
                 </div>
                 <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-800 mb-4">
-                    금융 성향 테스트
+                    투자 성향 테스트
                 </h1>
                 <p class="text-slate-500 text-sm sm:text-base mb-6">
-                    5개 섹션, 50개의 질문으로 당신의 금융 성향 유형을 알아보세요.<br class="hidden sm:inline">
+                    5개 섹션, 50개의 질문으로 당신의 투자 성향 유형을 알아보세요.<br class="hidden sm:inline">
                     당신의 강점과 약점을 알아보세요.
                 </p>
             </div>
@@ -318,16 +318,32 @@
         let answers = new Array(questions.length).fill(null);
 
         // Functions
-        function startTest() {
+        function startTest(resumeFromSaved = false) {
+            const savedState = loadTestState();
+
+            if (savedState && !resumeFromSaved) {
+                // 저장된 상태가 있으면 이어서 할지 물어봄
+                const answeredCount = savedState.answers.filter(a => a !== null).length;
+                if (answeredCount > 0 && confirm('이전에 진행하던 테스트가 있습니다 (' + answeredCount + '/' + questions.length + '문항 완료). 이어서 하시겠습니까?\n\n"취소"를 누르면 처음부터 시작합니다.')) {
+                    answers = savedState.answers;
+                    currentQuestion = savedState.currentQuestion;
+                } else {
+                    clearTestState();
+                }
+            }
+
             document.getElementById('start-screen').classList.add('hidden');
             document.getElementById('question-screen').classList.remove('hidden');
             document.getElementById('total-q').textContent = questions.length;
-            showQuestion(0);
+            showQuestion(currentQuestion);
         }
 
         function showQuestion(index) {
             currentQuestion = index;
             const q = questions[index];
+
+            // 현재 상태를 localStorage에 저장
+            saveTestState(currentQuestion, answers);
 
             document.getElementById('current-q').textContent = index + 1;
             document.getElementById('progress-percent').textContent = Math.round(((index + 1) / questions.length) * 100) + '%';
@@ -434,6 +450,8 @@
             const scores = calculateScores();
             const sortedTypes = Object.entries(scores).sort((a, b) => b[1] - a[1]);
             const topType = sortedTypes[0][0];
+            // 테스트 완료 - 저장된 상태 삭제
+            clearTestState();
             // Redirect to result page
             window.location.href = `results/${resultPages[topType]}.html`;
         }
@@ -442,6 +460,20 @@
         document.addEventListener('DOMContentLoaded', function() {
             if (typeof initComponents === 'function') {
                 initComponents('personality');
+            }
+
+            // 저장된 상태가 있으면 자동으로 테스트 화면으로 전환
+            const savedState = loadTestState();
+            if (savedState) {
+                const answeredCount = savedState.answers.filter(a => a !== null).length;
+                if (answeredCount > 0) {
+                    answers = savedState.answers;
+                    currentQuestion = savedState.currentQuestion;
+                    document.getElementById('start-screen').classList.add('hidden');
+                    document.getElementById('question-screen').classList.remove('hidden');
+                    document.getElementById('total-q').textContent = questions.length;
+                    showQuestion(currentQuestion);
+                }
             }
         });
     </script>

@@ -320,16 +320,32 @@
         let answers = new Array(questions.length).fill(null);
 
         // Functions
-        function startTest() {
+        function startTest(resumeFromSaved = false) {
+            const savedState = loadTestState();
+
+            if (savedState && !resumeFromSaved) {
+                // Check if there's a saved state and ask to resume
+                const answeredCount = savedState.answers.filter(a => a !== null).length;
+                if (answeredCount > 0 && confirm('You have a test in progress (' + answeredCount + '/' + questions.length + ' questions completed). Would you like to continue?\n\nClick "Cancel" to start over.')) {
+                    answers = savedState.answers;
+                    currentQuestion = savedState.currentQuestion;
+                } else {
+                    clearTestState();
+                }
+            }
+
             document.getElementById('start-screen').classList.add('hidden');
             document.getElementById('question-screen').classList.remove('hidden');
             document.getElementById('total-q').textContent = questions.length;
-            showQuestion(0);
+            showQuestion(currentQuestion);
         }
 
         function showQuestion(index) {
             currentQuestion = index;
             const q = questions[index];
+
+            // Save current state to localStorage
+            saveTestState(currentQuestion, answers);
 
             document.getElementById('current-q').textContent = index + 1;
             document.getElementById('progress-percent').textContent = Math.round(((index + 1) / questions.length) * 100) + '%';
@@ -436,6 +452,8 @@
             const scores = calculateScores();
             const sortedTypes = Object.entries(scores).sort((a, b) => b[1] - a[1]);
             const topType = sortedTypes[0][0];
+            // Clear saved state on test completion
+            clearTestState();
             // Redirect to result page
             window.location.href = `results/${resultPages[topType]}.html`;
         }
@@ -444,6 +462,20 @@
         document.addEventListener('DOMContentLoaded', function() {
             if (typeof initComponents === 'function') {
                 initComponents('personality');
+            }
+
+            // Auto-resume if there's a saved state
+            const savedState = loadTestState();
+            if (savedState) {
+                const answeredCount = savedState.answers.filter(a => a !== null).length;
+                if (answeredCount > 0) {
+                    answers = savedState.answers;
+                    currentQuestion = savedState.currentQuestion;
+                    document.getElementById('start-screen').classList.add('hidden');
+                    document.getElementById('question-screen').classList.remove('hidden');
+                    document.getElementById('total-q').textContent = questions.length;
+                    showQuestion(currentQuestion);
+                }
             }
         });
     </script>
