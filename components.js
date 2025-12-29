@@ -221,7 +221,7 @@ function initComponents(activePageId) {
 function getShareText() {
     const name = typeof getPersonalityName === 'function' ? getPersonalityName() : '';
     const slogan = typeof getPersonalitySlogan === 'function' ? getPersonalitySlogan() : '';
-    const prefix = CURRENT_LANG === 'kr' ? '투자 성향 테스트 결과, 나는' : 'My Financial Personality Test Result:';
+    const prefix = CURRENT_LANG === 'kr' ? '투자 성향 테스트 결과, 나는' : 'My Investment Personality Test Result:';
     return `${prefix} "${name}"! ${slogan}`;
 }
 
