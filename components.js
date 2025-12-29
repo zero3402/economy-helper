@@ -14,7 +14,8 @@ const I18N = {
             personality: '성향 테스트',
             calculator: '계산기',
             compoundInterest: '복리 계산기',
-            savingsGoal: '저축 목표 계산기'
+            savingsGoal: '저축 목표 계산기',
+            salaryCalculator: '연봉 계산기'
         }
     },
     us: {
@@ -90,6 +91,9 @@ function handleLanguageChange(lang, activePageId) {
         targetUrl = langPath + 'compound-interest-calculator.html';
     } else if (activePageId === 'savingsGoal') {
         targetUrl = langPath + 'savings-goal-calculator.html';
+    } else if (activePageId === 'salaryCalculator') {
+        // 연봉 계산기는 한국어만 있으므로 영어로 전환시 index로 이동
+        targetUrl = langPath + 'index.html';
     } else {
         targetUrl = langPath + 'index.html';
     }
@@ -166,7 +170,7 @@ function renderHeader(activePageId) {
     const otherLangLabel = CURRENT_LANG === 'kr' ? 'English' : '한국어';
 
     // 계산기 드롭다운 활성화 여부
-    const isCalculatorActive = activePageId === 'compoundInterest' || activePageId === 'savingsGoal';
+    const isCalculatorActive = activePageId === 'compoundInterest' || activePageId === 'savingsGoal' || activePageId === 'salaryCalculator';
 
     // 네비게이션 아이템 생성 (Desktop)
     const navItemsDesktop = NAV_ITEMS.map(item => {
@@ -176,8 +180,9 @@ function renderHeader(activePageId) {
         return '<li><a href="' + LANG_PATH + item.href + '" class="font-medium ' + activeClass + ' rounded-lg">' + label + '</a></li>';
     }).join('');
 
-    // 계산기 드롭다운 (Desktop)
-    const calculatorDropdownDesktop = '<li class="dropdown dropdown-hover dropdown-end"><label tabindex="0" class="font-medium ' + (isCalculatorActive ? 'text-blue-600 bg-blue-50' : 'text-slate-600 hover:text-blue-600 hover:bg-blue-50') + ' rounded-lg cursor-pointer flex items-center gap-1">' + lang.nav.calculator + '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg></label><ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow-lg bg-white rounded-xl w-52 border border-slate-100"><li><a href="' + LANG_PATH + 'compound-interest-calculator.html" class="' + (activePageId === 'compoundInterest' ? 'text-blue-600' : 'text-slate-600') + '">' + lang.nav.compoundInterest + '</a></li><li><a href="' + LANG_PATH + 'savings-goal-calculator.html" class="' + (activePageId === 'savingsGoal' ? 'text-blue-600' : 'text-slate-600') + '">' + lang.nav.savingsGoal + '</a></li></ul></li>';
+    // 계산기 드롭다운 (Desktop) - 한국어일 때 연봉 계산기 추가
+    const salaryCalcItemDesktop = CURRENT_LANG === 'kr' ? '<li><a href="' + LANG_PATH + 'salary-calculator.html" class="' + (activePageId === 'salaryCalculator' ? 'text-blue-600' : 'text-slate-600') + '">' + lang.nav.salaryCalculator + '</a></li>' : '';
+    const calculatorDropdownDesktop = '<li class="dropdown dropdown-hover dropdown-end"><label tabindex="0" class="font-medium ' + (isCalculatorActive ? 'text-blue-600 bg-blue-50' : 'text-slate-600 hover:text-blue-600 hover:bg-blue-50') + ' rounded-lg cursor-pointer flex items-center gap-1">' + lang.nav.calculator + '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg></label><ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow-lg bg-white rounded-xl w-52 border border-slate-100">' + salaryCalcItemDesktop + '<li><a href="' + LANG_PATH + 'compound-interest-calculator.html" class="' + (activePageId === 'compoundInterest' ? 'text-blue-600' : 'text-slate-600') + '">' + lang.nav.compoundInterest + '</a></li><li><a href="' + LANG_PATH + 'savings-goal-calculator.html" class="' + (activePageId === 'savingsGoal' ? 'text-blue-600' : 'text-slate-600') + '">' + lang.nav.savingsGoal + '</a></li></ul></li>';
 
     // 언어 스위치 (Desktop)
     const langSwitchDesktop = '<li class="dropdown dropdown-hover dropdown-end ml-2"><label tabindex="0" class="btn btn-ghost btn-sm gap-1 font-medium text-slate-600 hover:text-blue-600"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>' + langLabel + '</label><ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow-lg bg-white rounded-xl w-32 border border-slate-100"><li><a onclick="handleLanguageChange(\'' + otherLang + '\', \'' + activePageId + '\')" class="text-slate-600 cursor-pointer">' + otherLangLabel + '</a></li></ul></li>';
@@ -190,8 +195,9 @@ function renderHeader(activePageId) {
         return '<li><a href="' + LANG_PATH + item.href + '" class="font-medium ' + activeClass + '">' + label + '</a></li>';
     }).join('');
 
-    // 계산기 서브메뉴 (Mobile)
-    const calculatorMobile = '<li><details><summary class="font-medium ' + (isCalculatorActive ? 'text-blue-600' : 'text-slate-600') + '">' + lang.nav.calculator + '</summary><ul class="p-2 bg-slate-50 rounded-lg"><li><a href="' + LANG_PATH + 'compound-interest-calculator.html" class="' + (activePageId === 'compoundInterest' ? 'text-blue-600' : 'text-slate-600') + '">' + lang.nav.compoundInterest + '</a></li><li><a href="' + LANG_PATH + 'savings-goal-calculator.html" class="' + (activePageId === 'savingsGoal' ? 'text-blue-600' : 'text-slate-600') + '">' + lang.nav.savingsGoal + '</a></li></ul></details></li>';
+    // 계산기 서브메뉴 (Mobile) - 한국어일 때 연봉 계산기 추가
+    const salaryCalcItemMobile = CURRENT_LANG === 'kr' ? '<li><a href="' + LANG_PATH + 'salary-calculator.html" class="' + (activePageId === 'salaryCalculator' ? 'text-blue-600' : 'text-slate-600') + '">' + lang.nav.salaryCalculator + '</a></li>' : '';
+    const calculatorMobile = '<li><details><summary class="font-medium ' + (isCalculatorActive ? 'text-blue-600' : 'text-slate-600') + '">' + lang.nav.calculator + '</summary><ul class="p-2 bg-slate-50 rounded-lg">' + salaryCalcItemMobile + '<li><a href="' + LANG_PATH + 'compound-interest-calculator.html" class="' + (activePageId === 'compoundInterest' ? 'text-blue-600' : 'text-slate-600') + '">' + lang.nav.compoundInterest + '</a></li><li><a href="' + LANG_PATH + 'savings-goal-calculator.html" class="' + (activePageId === 'savingsGoal' ? 'text-blue-600' : 'text-slate-600') + '">' + lang.nav.savingsGoal + '</a></li></ul></details></li>';
 
     // 언어 스위치 (Mobile)
     const langSwitchMobile = '<li class="border-t border-slate-100 mt-2 pt-2"><a onclick="handleLanguageChange(\'' + otherLang + '\', \'' + activePageId + '\')" class="text-slate-600 cursor-pointer flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>' + otherLangLabel + '</a></li>';
