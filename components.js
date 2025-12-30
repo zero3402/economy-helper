@@ -1,7 +1,7 @@
 // Economy Helper - Shared Components
 
 // URL 경로에서 현재 언어 및 깊이 감지
-const CURRENT_LANG = window.location.pathname.includes('/kr/') ? 'kr' : 'us';
+const CURRENT_LANG = window.location.pathname.includes('/kr/') ? 'kr' : window.location.pathname.includes('/jp/') ? 'jp' : 'us';
 const IS_RESULTS_PAGE = window.location.pathname.includes('/results/');
 const ROOT_PATH = IS_RESULTS_PAGE ? '../../' : '../';
 const LANG_PATH = ROOT_PATH + CURRENT_LANG + '/';
@@ -24,6 +24,15 @@ const I18N = {
             calculator: 'Calculator',
             compoundInterest: 'Compound Interest',
             savingsGoal: 'Savings Goal'
+        }
+    },
+    jp: {
+        nav: {
+            dictionary: '経済辞典',
+            personality: '性向テスト',
+            calculator: '計算機',
+            compoundInterest: '複利計算機',
+            savingsGoal: '貯蓄目標計算機'
         }
     }
 };
@@ -161,9 +170,13 @@ function renderHeader(activePageId) {
     if (!header) return;
 
     const lang = I18N[CURRENT_LANG];
-    const otherLang = CURRENT_LANG === 'kr' ? 'us' : 'kr';
-    const langLabel = CURRENT_LANG === 'kr' ? '한국어' : 'English';
-    const otherLangLabel = CURRENT_LANG === 'kr' ? 'English' : '한국어';
+    const langLabels = {
+        kr: '한국어',
+        us: 'English',
+        jp: '日本語'
+    };
+    const langLabel = langLabels[CURRENT_LANG];
+    const otherLangs = Object.keys(langLabels).filter(l => l !== CURRENT_LANG);
 
     // 계산기 드롭다운 활성화 여부
     const isCalculatorActive = activePageId === 'compoundInterest' || activePageId === 'savingsGoal';
@@ -180,7 +193,10 @@ function renderHeader(activePageId) {
     const calculatorDropdownDesktop = '<li class="dropdown dropdown-hover dropdown-end"><label tabindex="0" class="font-medium ' + (isCalculatorActive ? 'text-blue-600 bg-blue-50' : 'text-slate-600 hover:text-blue-600 hover:bg-blue-50') + ' rounded-lg cursor-pointer flex items-center gap-1">' + lang.nav.calculator + '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg></label><ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow-lg bg-white rounded-xl w-52 border border-slate-100"><li><a href="' + LANG_PATH + 'compound-interest-calculator.html" class="' + (activePageId === 'compoundInterest' ? 'text-blue-600' : 'text-slate-600') + '">' + lang.nav.compoundInterest + '</a></li><li><a href="' + LANG_PATH + 'savings-goal-calculator.html" class="' + (activePageId === 'savingsGoal' ? 'text-blue-600' : 'text-slate-600') + '">' + lang.nav.savingsGoal + '</a></li></ul></li>';
 
     // 언어 스위치 (Desktop)
-    const langSwitchDesktop = '<li class="dropdown dropdown-hover dropdown-end ml-2"><label tabindex="0" class="btn btn-ghost btn-sm gap-1 font-medium text-slate-600 hover:text-blue-600"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>' + langLabel + '</label><ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow-lg bg-white rounded-xl w-32 border border-slate-100"><li><a onclick="handleLanguageChange(\'' + otherLang + '\', \'' + activePageId + '\')" class="text-slate-600 cursor-pointer">' + otherLangLabel + '</a></li></ul></li>';
+    const langOptionsDesktop = otherLangs.map(l =>
+        '<li><a onclick="handleLanguageChange(\'' + l + '\', \'' + activePageId + '\')" class="text-slate-600 cursor-pointer">' + langLabels[l] + '</a></li>'
+    ).join('');
+    const langSwitchDesktop = '<li class="dropdown dropdown-hover dropdown-end ml-2"><label tabindex="0" class="btn btn-ghost btn-sm gap-1 font-medium text-slate-600 hover:text-blue-600"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>' + langLabel + '</label><ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow-lg bg-white rounded-xl w-32 border border-slate-100">' + langOptionsDesktop + '</ul></li>';
 
     // 네비게이션 아이템 생성 (Mobile)
     const navItemsMobile = NAV_ITEMS.map(item => {
@@ -194,7 +210,10 @@ function renderHeader(activePageId) {
     const calculatorMobile = '<li><details><summary class="font-medium ' + (isCalculatorActive ? 'text-blue-600' : 'text-slate-600') + '">' + lang.nav.calculator + '</summary><ul class="p-2 bg-slate-50 rounded-lg"><li><a href="' + LANG_PATH + 'compound-interest-calculator.html" class="' + (activePageId === 'compoundInterest' ? 'text-blue-600' : 'text-slate-600') + '">' + lang.nav.compoundInterest + '</a></li><li><a href="' + LANG_PATH + 'savings-goal-calculator.html" class="' + (activePageId === 'savingsGoal' ? 'text-blue-600' : 'text-slate-600') + '">' + lang.nav.savingsGoal + '</a></li></ul></details></li>';
 
     // 언어 스위치 (Mobile)
-    const langSwitchMobile = '<li class="border-t border-slate-100 mt-2 pt-2"><a onclick="handleLanguageChange(\'' + otherLang + '\', \'' + activePageId + '\')" class="text-slate-600 cursor-pointer flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>' + otherLangLabel + '</a></li>';
+    const langOptionsMobile = otherLangs.map(l =>
+        '<li><a onclick="handleLanguageChange(\'' + l + '\', \'' + activePageId + '\')" class="text-slate-600 cursor-pointer flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>' + langLabels[l] + '</a></li>'
+    ).join('');
+    const langSwitchMobile = '<li class="border-t border-slate-100 mt-2 pt-2">' + langOptionsMobile + '</li>';
 
     header.innerHTML = '<div class="container mx-auto px-4"><div class="navbar min-h-16 p-0"><div class="navbar-start"><a href="' + LANG_PATH + 'index.html" class="flex items-center gap-3 text-xl font-bold text-slate-800 hover:text-blue-600 transition-colors"><img src="' + ROOT_PATH + 'images/logo.png" alt="Economy Helper" class="h-8 w-8 object-contain scale-150"><span class="hidden sm:inline">Economy Helper</span></a></div><div class="navbar-end"><ul class="menu menu-horizontal px-1 hidden md:flex gap-1 items-center">' + navItemsDesktop + calculatorDropdownDesktop + langSwitchDesktop + '</ul><div class="dropdown dropdown-end md:hidden"><label tabindex="0" class="btn btn-ghost btn-circle"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg></label><ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow-lg bg-white rounded-xl w-52 border border-slate-100">' + navItemsMobile + calculatorMobile + langSwitchMobile + '</ul></div></div></div></div>';
 }
@@ -221,7 +240,12 @@ function initComponents(activePageId) {
 function getShareText() {
     const name = typeof getPersonalityName === 'function' ? getPersonalityName() : '';
     const slogan = typeof getPersonalitySlogan === 'function' ? getPersonalitySlogan() : '';
-    const prefix = CURRENT_LANG === 'kr' ? '투자 성향 테스트 결과, 나는' : 'My Investment Personality Test Result:';
+    const prefixes = {
+        kr: '투자 성향 테스트 결과, 나는',
+        us: 'My Investment Personality Test Result:',
+        jp: '投資性向テスト結果、私は'
+    };
+    const prefix = prefixes[CURRENT_LANG] || prefixes.us;
     return `${prefix} "${name}"! ${slogan}`;
 }
 
@@ -236,7 +260,12 @@ function shareResults() {
         });
     } else {
         const copyText = document.getElementById('copy-link-text');
-        if (copyText) copyText.textContent = CURRENT_LANG === 'kr' ? '링크 복사' : 'Copy Link';
+        const copyLinkTexts = {
+            kr: '링크 복사',
+            us: 'Copy Link',
+            jp: 'リンクをコピー'
+        };
+        if (copyText) copyText.textContent = copyLinkTexts[CURRENT_LANG] || copyLinkTexts.us;
         const modal = document.getElementById('share-modal');
         if (modal) modal.showModal();
     }
@@ -260,8 +289,18 @@ function copyShareLink() {
     const shareText = getShareText();
     const fullText = `${shareText}\n\n${window.location.href}`;
     const copyTextEl = document.getElementById('copy-link-text');
-    const copiedText = CURRENT_LANG === 'kr' ? '복사됨!' : 'Copied!';
-    const defaultText = CURRENT_LANG === 'kr' ? '링크 복사' : 'Copy Link';
+    const copiedTexts = {
+        kr: '복사됨!',
+        us: 'Copied!',
+        jp: 'コピーしました！'
+    };
+    const defaultTexts = {
+        kr: '링크 복사',
+        us: 'Copy Link',
+        jp: 'リンクをコピー'
+    };
+    const copiedText = copiedTexts[CURRENT_LANG] || copiedTexts.us;
+    const defaultText = defaultTexts[CURRENT_LANG] || defaultTexts.us;
 
     navigator.clipboard.writeText(fullText).then(() => {
         if (copyTextEl) {
