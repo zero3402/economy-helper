@@ -184,7 +184,7 @@
             <!-- Progress -->
             <div class="mb-6">
                 <div class="flex items-center justify-between mb-2">
-                    <span class="text-sm font-medium text-slate-600">Question <span id="current-q">1</span> of <span id="total-q">50</span></span>
+                    <span class="text-sm font-medium text-slate-600">質問 <span id="current-q">1</span> / <span id="total-q">50</span></span>
                     <span id="progress-percent" class="text-sm font-medium text-blue-600">0%</span>
                 </div>
                 <div class="w-full bg-slate-200 rounded-full h-2">
@@ -195,7 +195,7 @@
             <!-- Question Card -->
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8 mb-6 fade-in" id="question-card">
                 <div id="section-badge" class="inline-block px-3 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full mb-4">
-                    Section 1: Risk Attitude
+                    セクション1: 投資態度とリスク
                 </div>
                 <h2 id="question-text" class="text-lg sm:text-xl font-semibold text-slate-800 leading-relaxed mb-8">
                     Question text here
@@ -255,65 +255,65 @@
         // Weight format: [safeGuard, aggressiveBull, strategicPlanner, valueSeeker, trendFollower]
         // Positive weight = Agree increases score, Negative weight = Disagree increases score
         const questions = [
-            // Section 1: Investment Attitude & Risk (10 questions)
-            { section: 'Section 1: Investment Attitude & Risk', text: 'I would avoid an investment even if there is a 1% chance of losing the principal.', weights: [3, -2, 0, 1, -1] },
-            { section: 'Section 1: Investment Attitude & Risk', text: '"High Risk, High Return" is my life motto.', weights: [-2, 3, 0, -1, 2] },
-            { section: 'Section 1: Investment Attitude & Risk', text: 'I believe using leverage (loans) is an essential strategy to become wealthy.', weights: [-2, 3, 0, -1, 1] },
-            { section: 'Section 1: Investment Attitude & Risk', text: 'The first thing I check when investing is the "maximum potential loss."', weights: [3, -1, 2, 1, 0] },
-            { section: 'Section 1: Investment Attitude & Risk', text: 'I am constantly drawn to skyrocketing stocks or hot topics in the news.', weights: [-1, 2, -1, 0, 3] },
-            { section: 'Section 1: Investment Attitude & Risk', text: 'I believe cryptocurrency will become a core asset of the future.', weights: [-1, 1, 0, 0, 3] },
-            { section: 'Section 1: Investment Attitude & Risk', text: 'I prefer concentrated investment in one or two stocks I trust over diversification.', weights: [-1, 3, -2, 0, 1] },
-            { section: 'Section 1: Investment Attitude & Risk', text: 'I think a market filled with panic is the greatest buying opportunity.', weights: [-1, 3, 1, 0, 1] },
-            { section: 'Section 1: Investment Attitude & Risk', text: 'I believe in the power of compounding and am ready to invest for over 10 years.', weights: [1, -1, 3, 1, 0] },
-            { section: 'Section 1: Investment Attitude & Risk', text: 'I feel at peace only when more than 50% of my assets are in cash.', weights: [3, -2, -1, 1, -1] },
+            // セクション1: 投資態度とリスク (10問)
+            { section: 'セクション1: 投資態度とリスク', text: '元本を失う可能性が1%でもあれば、その投資は避けたい。', weights: [3, -2, 0, 1, -1] },
+            { section: 'セクション1: 投資態度とリスク', text: '「ハイリスク・ハイリターン」が私の人生のモットーだ。', weights: [-2, 3, 0, -1, 2] },
+            { section: 'セクション1: 投資態度とリスク', text: 'レバレッジ(借入)を活用することは、富を築くために不可欠な戦略だと信じている。', weights: [-2, 3, 0, -1, 1] },
+            { section: 'セクション1: 投資態度とリスク', text: '投資する際、最初に確認するのは「最大損失額」だ。', weights: [3, -1, 2, 1, 0] },
+            { section: 'セクション1: 投資態度とリスク', text: '急騰している株やニュースで話題になっているテーマに常に引き寄せられる。', weights: [-1, 2, -1, 0, 3] },
+            { section: 'セクション1: 投資態度とリスク', text: '暗号資産は将来の核心資産になると信じている。', weights: [-1, 1, 0, 0, 3] },
+            { section: 'セクション1: 投資態度とリスク', text: '分散投資より、信頼できる1〜2銘柄への集中投資を好む。', weights: [-1, 3, -2, 0, 1] },
+            { section: 'セクション1: 投資態度とリスク', text: 'パニックに満ちた市場は最高の買い場だと思う。', weights: [-1, 3, 1, 0, 1] },
+            { section: 'セクション1: 投資態度とリスク', text: '複利の力を信じており、10年以上の投資をする準備ができている。', weights: [1, -1, 3, 1, 0] },
+            { section: 'セクション1: 投資態度とリスク', text: '資産の50%以上が現金でないと安心できない。', weights: [3, -2, -1, 1, -1] },
 
-            // Section 2: Spending Habits & Value Seeking (10 questions)
-            { section: 'Section 2: Spending Habits & Value Seeking', text: 'I compare prices on at least three different websites before making a purchase.', weights: [1, -1, 1, 3, 0] },
-            { section: 'Section 2: Spending Habits & Value Seeking', text: '"Brand image" is more important to me than "value for money."', weights: [0, 1, -1, -3, 1] },
-            { section: 'Section 2: Spending Habits & Value Seeking', text: 'I maximize credit card benefits like airline miles or cash-back rewards.', weights: [0, 0, 2, 3, 1] },
-            { section: 'Section 2: Spending Habits & Value Seeking', text: 'I track my spending down to the last penny using a household ledger or app.', weights: [1, 0, 2, 3, 0] },
-            { section: 'Section 2: Spending Habits & Value Seeking', text: 'My friends have called me "frugal" or "stingy" before.', weights: [2, -1, 0, 3, -1] },
-            { section: 'Section 2: Spending Habits & Value Seeking', text: 'I regularly review and cancel subscription services I no longer use.', weights: [1, 0, 2, 3, 0] },
-            { section: 'Section 2: Spending Habits & Value Seeking', text: 'I don\'t hold back when spending on "luxury gifts" for myself.', weights: [-1, 1, -1, -3, 1] },
-            { section: 'Section 2: Spending Habits & Value Seeking', text: 'I make a conscious effort to save on utility bills like electricity and water.', weights: [1, -1, 1, 3, 0] },
-            { section: 'Section 2: Spending Habits & Value Seeking', text: 'To avoid impulse buying, I leave items in the cart for a few days before paying.', weights: [2, -1, 2, 3, 0] },
-            { section: 'Section 2: Spending Habits & Value Seeking', text: 'The joy of seeing my bank balance grow is greater than the joy of spending.', weights: [2, 0, 1, 3, 0] },
+            // セクション2: 支出習慣と価値追求 (10問)
+            { section: 'セクション2: 支出習慣と価値追求', text: '購入する前に、少なくとも3つのサイトで価格を比較する。', weights: [1, -1, 1, 3, 0] },
+            { section: 'セクション2: 支出習慣と価値追求', text: '「コストパフォーマンス」より「ブランドイメージ」が重要だ。', weights: [0, 1, -1, -3, 1] },
+            { section: 'セクション2: 支出習慣と価値追求', text: 'クレジットカードのマイレージやキャッシュバック特典を最大限活用する。', weights: [0, 0, 2, 3, 1] },
+            { section: 'セクション2: 支出習慣と価値追求', text: '家計簿アプリを使って、支出を1円単位まで記録している。', weights: [1, 0, 2, 3, 0] },
+            { section: 'セクション2: 支出習慣と価値追求', text: '友人から「倹約家」や「ケチ」と言われたことがある。', weights: [2, -1, 0, 3, -1] },
+            { section: 'セクション2: 支出習慣と価値追求', text: '使わなくなったサブスクリプションサービスを定期的に見直して解約する。', weights: [1, 0, 2, 3, 0] },
+            { section: 'セクション2: 支出習慣と価値追求', text: '自分への「贅沢なご褒美」には出費を惜しまない。', weights: [-1, 1, -1, -3, 1] },
+            { section: 'セクション2: 支出習慣と価値追求', text: '電気代や水道代などの光熱費を節約するよう意識的に努力している。', weights: [1, -1, 1, 3, 0] },
+            { section: 'セクション2: 支出習慣と価値追求', text: '衝動買いを避けるため、カートに入れてから数日待って決済する。', weights: [2, -1, 2, 3, 0] },
+            { section: 'セクション2: 支出習慣と価値追求', text: '銀行残高が増える喜びは、お金を使う喜びより大きい。', weights: [2, 0, 1, 3, 0] },
 
-            // Section 3: Information & Technology Trends (10 questions)
-            { section: 'Section 3: Information & Technology Trends', text: 'I install new financial apps (Neo-banks, Fintech) as soon as they are released.', weights: [-1, 1, 0, 0, 3] },
-            { section: 'Section 3: Information & Technology Trends', text: 'I am very interested in future industries like Fintech, AI, and Robotics.', weights: [0, 1, 1, 0, 3] },
-            { section: 'Section 3: Information & Technology Trends', text: 'I recognize the value of digital assets like NFTs or Metaverse land.', weights: [-1, 1, 0, 0, 3] },
-            { section: 'Section 3: Information & Technology Trends', text: 'I am usually the first to tell my friends about new ways to make money.', weights: [-1, 2, 0, 0, 3] },
-            { section: 'Section 3: Information & Technology Trends', text: 'I don\'t mind reading through complex terms and conditions or public disclosures.', weights: [1, 0, 3, 1, 0] },
-            { section: 'Section 3: Information & Technology Trends', text: 'I want to utilize tools like ChatGPT for professional investment analysis.', weights: [0, 1, 2, 0, 3] },
-            { section: 'Section 3: Information & Technology Trends', text: 'I am obsessed with finding "hidden gems" or information others don\'t know yet.', weights: [-1, 2, 0, 0, 3] },
-            { section: 'Section 3: Information & Technology Trends', text: 'I always connect news about interest rates or exchange rates to my own life.', weights: [1, 1, 3, 1, 1] },
-            { section: 'Section 3: Information & Technology Trends', text: 'I believe innovative companies are worth investing in even if they are currently in debt.', weights: [-1, 2, 0, -1, 3] },
-            { section: 'Section 3: Information & Technology Trends', text: 'I believe the faster the world changes, the more opportunities there are to make money.', weights: [-1, 2, 0, 0, 3] },
+            // セクション3: 情報とテクノロジートレンド (10問)
+            { section: 'セクション3: 情報とテクノロジートレンド', text: '新しい金融アプリ(ネオバンク、フィンテック)が出たらすぐにインストールする。', weights: [-1, 1, 0, 0, 3] },
+            { section: 'セクション3: 情報とテクノロジートレンド', text: 'フィンテック、AI、ロボティクスなどの未来産業に非常に興味がある。', weights: [0, 1, 1, 0, 3] },
+            { section: 'セクション3: 情報とテクノロジートレンド', text: 'NFTやメタバース上の土地などのデジタル資産の価値を認識している。', weights: [-1, 1, 0, 0, 3] },
+            { section: 'セクション3: 情報とテクノロジートレンド', text: '新しいお金の稼ぎ方を友人に最初に教えるのは大抵私だ。', weights: [-1, 2, 0, 0, 3] },
+            { section: 'セクション3: 情報とテクノロジートレンド', text: '複雑な利用規約や公示資料を読むことに抵抗がない。', weights: [1, 0, 3, 1, 0] },
+            { section: 'セクション3: 情報とテクノロジートレンド', text: 'ChatGPTのようなツールを専門的な投資分析に活用したい。', weights: [0, 1, 2, 0, 3] },
+            { section: 'セクション3: 情報とテクノロジートレンド', text: '他の人がまだ知らない「隠れた宝石」や情報を見つけることに夢中だ。', weights: [-1, 2, 0, 0, 3] },
+            { section: 'セクション3: 情報とテクノロジートレンド', text: '金利や為替のニュースを常に自分の生活と結びつけて考える。', weights: [1, 1, 3, 1, 1] },
+            { section: 'セクション3: 情報とテクノロジートレンド', text: '革新的な企業は、現在赤字でも投資する価値があると信じている。', weights: [-1, 2, 0, -1, 3] },
+            { section: 'セクション3: 情報とテクノロジートレンド', text: '世界が速く変化するほど、お金を稼ぐ機会が増えると信じている。', weights: [-1, 2, 0, 0, 3] },
 
-            // Section 4: Planning & Asset Management (10 questions)
-            { section: 'Section 4: Planning & Asset Management', text: 'I have a specific target amount of assets I want to reach in 10 or 20 years.', weights: [1, 0, 3, 1, 0] },
-            { section: 'Section 4: Planning & Asset Management', text: 'I save/invest first when I get paid, then spend what is left.', weights: [2, 0, 3, 2, 0] },
-            { section: 'Section 4: Planning & Asset Management', text: 'I maintain a set ratio between stocks, real estate, and cash (Portfolio).', weights: [0, -1, 3, 0, 0] },
-            { section: 'Section 4: Planning & Asset Management', text: 'I always keep an emergency fund separate for unexpected expenses.', weights: [3, -1, 2, 1, 0] },
-            { section: 'Section 4: Planning & Asset Management', text: 'I know my exact "Net Worth" (Assets minus Liabilities) in numbers today.', weights: [1, 0, 3, 2, 0] },
-            { section: 'Section 4: Planning & Asset Management', text: 'I view taking out a loan as a strategic tool rather than something "bad."', weights: [-1, 3, 1, -1, 1] },
-            { section: 'Section 4: Planning & Asset Management', text: 'I believe retirement planning should start as early as possible, and I\'ve already started.', weights: [2, 0, 3, 1, 0] },
-            { section: 'Section 4: Planning & Asset Management', text: 'I live by a budget that categorizes my monthly spending.', weights: [1, -1, 3, 3, 0] },
-            { section: 'Section 4: Planning & Asset Management', text: 'I reinvest my profits to maximize the power of compounding.', weights: [1, 1, 3, 1, 0] },
-            { section: 'Section 4: Planning & Asset Management', text: 'I believe "patience" is the most important virtue to become wealthy.', weights: [2, -1, 3, 1, 0] },
+            // セクション4: プランニングと資産管理 (10問)
+            { section: 'セクション4: プランニングと資産管理', text: '10年後や20年後に達成したい具体的な資産目標額がある。', weights: [1, 0, 3, 1, 0] },
+            { section: 'セクション4: プランニングと資産管理', text: '給料をもらったら、まず貯蓄・投資をして、残りで生活する。', weights: [2, 0, 3, 2, 0] },
+            { section: 'セクション4: プランニングと資産管理', text: '株式、不動産、現金の間で一定の比率を維持している(ポートフォリオ)。', weights: [0, -1, 3, 0, 0] },
+            { section: 'セクション4: プランニングと資産管理', text: '予期せぬ支出に備えて、常に緊急資金を別に確保している。', weights: [3, -1, 2, 1, 0] },
+            { section: 'セクション4: プランニングと資産管理', text: '今日現在の正確な「純資産額」(資産-負債)を数字で把握している。', weights: [1, 0, 3, 2, 0] },
+            { section: 'セクション4: プランニングと資産管理', text: 'ローンを組むことは「悪いこと」ではなく、戦略的なツールだと考えている。', weights: [-1, 3, 1, -1, 1] },
+            { section: 'セクション4: プランニングと資産管理', text: '退職計画はできるだけ早く始めるべきで、すでに始めている。', weights: [2, 0, 3, 1, 0] },
+            { section: 'セクション4: プランニングと資産管理', text: '毎月の支出を項目別に分類した予算に従って生活している。', weights: [1, -1, 3, 3, 0] },
+            { section: 'セクション4: プランニングと資産管理', text: '利益を再投資して、複利の力を最大化している。', weights: [1, 1, 3, 1, 0] },
+            { section: 'セクション4: プランニングと資産管理', text: '富を築くために最も重要な美徳は「忍耐」だと信じている。', weights: [2, -1, 3, 1, 0] },
 
-            // Section 5: Lifestyle & Philosophy (10 questions)
-            { section: 'Section 5: Lifestyle & Philosophy', text: 'I feel happier during the process of saving money than spending it.', weights: [2, -1, 1, 3, 0] },
-            { section: 'Section 5: Lifestyle & Philosophy', text: 'I am willing to sacrifice my time and health to a certain extent to make money.', weights: [0, 2, 0, 0, 1] },
-            { section: 'Section 5: Lifestyle & Philosophy', text: 'Achieving "Financial Freedom" is the ultimate goal of my life.', weights: [1, 1, 2, 2, 1] },
-            { section: 'Section 5: Lifestyle & Philosophy', text: 'Being "actually wealthy" is more important to me than "looking wealthy" to others.', weights: [2, 0, 2, 3, 0] },
-            { section: 'Section 5: Lifestyle & Philosophy', text: 'I am prouder of owning good stocks than driving an expensive car.', weights: [1, 1, 2, 2, 1] },
-            { section: 'Section 5: Lifestyle & Philosophy', text: 'I want to build wealth through skill rather than relying on luck like the lottery.', weights: [1, 1, 3, 1, 0] },
-            { section: 'Section 5: Lifestyle & Philosophy', text: 'Minimalism (owning less) fits well with my economic worldview.', weights: [1, -1, 1, 2, 0] },
-            { section: 'Section 5: Lifestyle & Philosophy', text: 'I think I could give up love or friendship for a massive amount of money.', weights: [-1, 2, 0, 0, 0] },
-            { section: 'Section 5: Lifestyle & Philosophy', text: 'I enjoy reading biographies of people who have achieved great economic success.', weights: [0, 2, 2, 0, 1] },
-            { section: 'Section 5: Lifestyle & Philosophy', text: 'I believe spending money for current happiness (YOLO) is also valuable.', weights: [-2, 1, -1, -2, 1] }
+            // セクション5: ライフスタイルと哲学 (10問)
+            { section: 'セクション5: ライフスタイルと哲学', text: 'お金を使うことより、貯める過程でより幸せを感じる。', weights: [2, -1, 1, 3, 0] },
+            { section: 'セクション5: ライフスタイルと哲学', text: 'お金を稼ぐために、時間や健康をある程度犠牲にしてもかまわない。', weights: [0, 2, 0, 0, 1] },
+            { section: 'セクション5: ライフスタイルと哲学', text: '「経済的自由」を達成することが人生の最終目標だ。', weights: [1, 1, 2, 2, 1] },
+            { section: 'セクション5: ライフスタイルと哲学', text: '他人に「裕福に見える」ことより、「実際に裕福である」ことが重要だ。', weights: [2, 0, 2, 3, 0] },
+            { section: 'セクション5: ライフスタイルと哲学', text: '高級車を運転することより、良い株を所有していることに誇りを感じる。', weights: [1, 1, 2, 2, 1] },
+            { section: 'セクション5: ライフスタイルと哲学', text: '宝くじのような運に頼るより、実力で富を築きたい。', weights: [1, 1, 3, 1, 0] },
+            { section: 'セクション5: ライフスタイルと哲学', text: 'ミニマリズム(少なく所有すること)は私の経済観とよく合っている。', weights: [1, -1, 1, 2, 0] },
+            { section: 'セクション5: ライフスタイルと哲学', text: '莫大なお金のために、愛や友情を諦めることができると思う。', weights: [-1, 2, 0, 0, 0] },
+            { section: 'セクション5: ライフスタイルと哲学', text: '大きな経済的成功を収めた人々の伝記を読むのが好きだ。', weights: [0, 2, 2, 0, 1] },
+            { section: 'セクション5: ライフスタイルと哲学', text: '現在の幸せのためにお金を使うこと(YOLO)も価値があると信じている。', weights: [-2, 1, -1, -2, 1] }
         ];
 
         // State
@@ -327,7 +327,7 @@
             if (savedState && !resumeFromSaved) {
                 // Check if there's a saved state and ask to resume
                 const answeredCount = savedState.answers.filter(a => a !== null).length;
-                if (answeredCount > 0 && confirm('You have a test in progress (' + answeredCount + '/' + questions.length + ' questions completed). Would you like to continue?\n\nClick "Cancel" to start over.')) {
+                if (answeredCount > 0 && confirm('進行中のテストがあります (' + answeredCount + '/' + questions.length + ' 問完了)。続けますか？\n\n「キャンセル」をクリックして最初からやり直します。')) {
                     answers = savedState.answers;
                     currentQuestion = savedState.currentQuestion;
                 } else {
@@ -399,9 +399,11 @@
             const hasAnswer = answers[currentQuestion] !== null;
 
             nextBtn.disabled = !hasAnswer;
-            nextBtn.innerHTML = isLastQuestion
-                ? 'See Results <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>'
-                : 'Next <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>';
+
+            // Preserve the onclick attribute by only updating text content
+            const buttonText = isLastQuestion ? '結果を見る' : '次へ';
+            const svg = '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>';
+            nextBtn.innerHTML = buttonText + ' ' + svg;
         }
 
         function prevQuestion() {

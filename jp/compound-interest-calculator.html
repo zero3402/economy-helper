@@ -134,17 +134,17 @@
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div class="bg-slate-50 rounded-xl p-4">
-                                <div class="text-sm text-slate-500 mb-1">Total Contributions</div>
-                                <div id="totalContributions" class="text-base sm:text-lg md:text-xl font-semibold text-slate-700 break-all">$0</div>
+                                <div class="text-sm text-slate-500 mb-1">総拠出額</div>
+                                <div id="totalContributions" class="text-base sm:text-lg md:text-xl font-semibold text-slate-700 break-all">¥0</div>
                             </div>
                             <div class="bg-blue-50 rounded-xl p-4">
-                                <div class="text-sm text-blue-500 mb-1">Total Interest</div>
-                                <div id="totalInterest" class="text-base sm:text-lg md:text-xl font-semibold text-blue-700 break-all">$0</div>
+                                <div class="text-sm text-blue-500 mb-1">総利息</div>
+                                <div id="totalInterest" class="text-base sm:text-lg md:text-xl font-semibold text-blue-700 break-all">¥0</div>
                             </div>
                         </div>
 
                         <div class="bg-slate-50 rounded-xl p-4">
-                            <div class="text-sm text-slate-500 mb-1">Interest Percentage of Total</div>
+                            <div class="text-sm text-slate-500 mb-1">総額に占める利息の割合</div>
                             <div class="flex items-center gap-3">
                                 <progress id="interestProgress" class="progress progress-primary w-full" value="0" max="100"></progress>
                                 <span id="interestPercent" class="text-sm font-medium text-slate-700 w-12">0%</span>
@@ -154,7 +154,7 @@
 
                     <!-- Yearly Breakdown -->
                     <div class="mt-6">
-                        <h3 class="text-md font-semibold text-slate-800 mb-3">Yearly Breakdown</h3>
+                        <h3 class="text-md font-semibold text-slate-800 mb-3">年次内訳</h3>
                         <div id="yearlyBreakdown" class="max-h-64 overflow-y-auto space-y-2">
                             <!-- Populated by JS -->
                         </div>
@@ -164,19 +164,19 @@
 
             <!-- Info Section -->
             <div class="mt-8 bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-                <h2 class="text-lg font-semibold text-slate-800 mb-4">Understanding Compound Interest</h2>
+                <h2 class="text-lg font-semibold text-slate-800 mb-4">複利の理解</h2>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div class="p-4 bg-blue-50 rounded-xl">
-                        <div class="font-medium text-blue-800 mb-2">The Formula</div>
-                        <p class="text-sm text-blue-600">A = P(1 + r/n)^(nt) where P is principal, r is rate, n is frequency, and t is time.</p>
+                        <div class="font-medium text-blue-800 mb-2">計算式</div>
+                        <p class="text-sm text-blue-600">A = P(1 + r/n)^(nt) ここでPは元本、rは利率、nは複利頻度、tは期間です。</p>
                     </div>
                     <div class="p-4 bg-green-50 rounded-xl">
-                        <div class="font-medium text-green-800 mb-2">Why It Matters</div>
-                        <p class="text-sm text-green-600">Compound interest earns interest on interest, causing your wealth to grow exponentially over time.</p>
+                        <div class="font-medium text-green-800 mb-2">重要性</div>
+                        <p class="text-sm text-green-600">複利は利息に利息がつき、時間の経過とともに資産が指数関数的に増加します。</p>
                     </div>
                     <div class="p-4 bg-purple-50 rounded-xl">
-                        <div class="font-medium text-purple-800 mb-2">Pro Tip</div>
-                        <p class="text-sm text-purple-600">Start early! Time is the most powerful factor in compound growth. Even small amounts add up.</p>
+                        <div class="font-medium text-purple-800 mb-2">プロのヒント</div>
+                        <p class="text-sm text-purple-600">早く始めましょう！時間は複利成長の最も強力な要因です。少額でも積み重なります。</p>
                     </div>
                 </div>
             </div>
@@ -191,12 +191,12 @@
         Decimal.set({ precision: 50, rounding: Decimal.ROUND_HALF_UP });
 
         function formatCurrency(num) {
-            const value = num instanceof Decimal ? num.toFixed(2) : num.toFixed(2);
-            return '$' + Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const value = num instanceof Decimal ? num.toFixed(0) : num.toFixed(0);
+            return '¥' + Number(value).toLocaleString('ja-JP');
         }
 
         function formatInputNumber(num) {
-            return num.toLocaleString('en-US');
+            return num.toLocaleString('ja-JP');
         }
 
         function parseInputNumber(str) {
@@ -277,9 +277,9 @@
 
                 breakdown += `
                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 bg-slate-50 rounded-lg text-sm gap-1 sm:gap-4">
-                        <span class="font-medium text-slate-700">Year ${year}</span>
+                        <span class="font-medium text-slate-700">${year}年目</span>
                         <div class="flex flex-col sm:flex-row gap-1 sm:gap-4 text-right w-full sm:w-auto">
-                            <span class="text-slate-500 text-xs sm:text-sm">${formatCurrency(yearContributions)} invested</span>
+                            <span class="text-slate-500 text-xs sm:text-sm">${formatCurrency(yearContributions)} 投資済</span>
                             <span class="text-green-600 font-medium">${formatCurrency(balance)}</span>
                         </div>
                     </div>
