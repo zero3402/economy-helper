@@ -1,7 +1,7 @@
 // Economy Helper - Shared Components
 
 // URL 경로에서 현재 언어 및 깊이 감지
-const CURRENT_LANG = window.location.pathname.includes('/kr/') ? 'kr' : window.location.pathname.includes('/jp/') ? 'jp' : 'us';
+const CURRENT_LANG = window.location.pathname.includes('/kr/') ? 'kr' : window.location.pathname.includes('/jp/') ? 'jp' : window.location.pathname.includes('/es/') ? 'es' : 'us';
 const IS_RESULTS_PAGE = window.location.pathname.includes('/results/');
 const ROOT_PATH = IS_RESULTS_PAGE ? '../../' : '../';
 const LANG_PATH = ROOT_PATH + CURRENT_LANG + '/';
@@ -44,6 +44,19 @@ const I18N = {
         SHARE_TITLE: '共有',
         COPY_LINK: 'リンクをコピー',
         LINK_COPIED: 'コピー完了!',
+        SHARE_TWITTER: 'X (Twitter)',
+        SHARE_FACEBOOK: 'Facebook'
+    },
+    es: {
+        DICTIONARY: 'Diccionario',
+        QUIZ: 'Quiz de Economía',
+        CALCULATORS: 'Calculadoras',
+        TEST: 'Test de Personalidad',
+        COMPOUND: 'Interés Compuesto',
+        SAVINGS: 'Meta de Ahorro',
+        SHARE_TITLE: 'Compartir',
+        COPY_LINK: 'Copiar enlace',
+        LINK_COPIED: '¡Copiado!',
         SHARE_TWITTER: 'X (Twitter)',
         SHARE_FACEBOOK: 'Facebook'
     }
@@ -191,7 +204,8 @@ function renderHeader(activePageId) {
     const langLabels = {
         kr: '한국어',
         us: 'English',
-        jp: '日本語'
+        jp: '日本語',
+        es: 'Español'
     };
     const langLabel = langLabels[CURRENT_LANG];
     const otherLangs = Object.keys(langLabels).filter(l => l !== CURRENT_LANG);
@@ -274,7 +288,8 @@ function getShareText() {
     const prefixes = {
         kr: '투자 성향 테스트 결과, 나는',
         us: 'My Investment Personality Test Result:',
-        jp: '投資性向テスト結果、私は'
+        jp: '投資性向テスト結果、私は',
+        es: 'Resultado del Test de Personalidad de Inversión:'
     };
     const prefix = prefixes[CURRENT_LANG] || prefixes.us;
     return `${prefix} "${name}"! ${slogan}`;
@@ -323,12 +338,14 @@ function copyShareLink() {
     const copiedTexts = {
         kr: '복사됨!',
         us: 'Copied!',
-        jp: 'コピーしました！'
+        jp: 'コピーしました！',
+        es: '¡Copiado!'
     };
     const defaultTexts = {
         kr: '링크 복사',
         us: 'Copy Link',
-        jp: 'リンクをコピー'
+        jp: 'リンクをコピー',
+        es: 'Copiar enlace'
     };
     const copiedText = copiedTexts[CURRENT_LANG] || copiedTexts.us;
     const defaultText = defaultTexts[CURRENT_LANG] || defaultTexts.us;

@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="corporate" id="html-root">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <!-- Primary Meta Tags -->
+    <title>Test de Personalidad de Inversión - Economy Helper</title>
+    <meta name="title" content="Test de Personalidad de Inversión - Economy Helper">
+    <meta name="description"
+        content="Realiza nuestro test gratuito de 50 preguntas para descubrir tu tipo financiero. ¿Eres Guardián Seguro, Toro Agresivo, Planificador Estratégico, Buscador de Valor o Seguidor de Tendencias?">
+    <meta name="keywords"
+        content="test personalidad inversión, quiz financiero, tipo inversor, finanzas personales, psicología dinero">
+    <meta name="author" content="Economy Helper">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://economyhelper.com/es/personality-test.html">
+    <link rel="icon" type="image/png" href="../images/favicon.png">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://economyhelper.com/es/personality-test.html">
+    <meta property="og:title" content="Test de Personalidad de Inversión - Economy Helper">
+    <meta property="og:description" content="Descubre tu perfil de inversor con nuestro test gratuito de 50 preguntas.">
+    <meta property="og:image" content="https://economyhelper.com/images/og.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:site_name" content="Economy Helper">
+    <meta property="og:locale" content="es_ES">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://economyhelper.com/es/personality-test.html">
+    <meta name="twitter:title" content="Test de Personalidad de Inversión - Economy Helper">
+    <meta name="twitter:description"
+        content="Descubre tu perfil de inversor con nuestro test gratuito de 50 preguntas.">
+    <meta name="twitter:image" content="https://economyhelper.com/images/og.png">
+
+    <!-- Additional SEO -->
+    <meta name="theme-color" content="#3B82F6">
+    <meta name="apple-mobile-web-app-title" content="Economy Helper">
+    <meta name="application-name" content="Economy Helper">
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "Quiz",
+        "name": "Test de Personalidad de Inversión",
+        "description": "Un test completo de 50 preguntas para descubrir tu tipo financiero y estilo de inversión.",
+        "url": "https://economyhelper.com/es/personality-test.html",
+        "provider": {
+            "@type": "Organization",
+            "name": "Economy Helper",
+            "url": "https://economyhelper.com/"
+        },
+        "about": {
+            "@type": "Thing",
+            "name": "Tipos de Personalidad de Inversión"
+        },
+        "educationalLevel": "beginner",
+        "numberOfQuestions": 50,
+        "timeRequired": "PT10M"
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Inicio",
+                "item": "https://economyhelper.com/es/"
+            },
+            {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Test de Personalidad",
+                "item": "https://economyhelper.com/es/personality-test.html"
+            }
+        ]
+    }
+    </script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="../components.js"></script>
+</head>
+
+<body class="bg-slate-50 min-h-screen">
+    <!-- Header -->
+    <header id="header" class="bg-white border-b border-slate-200 sticky top-0 z-50"></header>
+    <main class="container mx-auto px-4 py-6 sm:py-10">
+        <!-- Start Screen -->
+        <div id="start-screen" class="max-w-4xl mx-auto text-center">
+            <div class="mb-8">
+                <div
+                    class="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                </div>
+                <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-800 mb-4">
+                    Test de Personalidad de Inversión
+                </h1>
+                <p class="text-slate-500 text-sm sm:text-base mb-6">
+                    Descubre tu tipo de personalidad de inversión a través de 50 preguntas cuidadosamente diseñadas.<br
+                        class="hidden sm:inline">
+                    Conoce tus fortalezas y debilidades.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8 text-left">
+                <div class="bg-white rounded-xl p-4 border border-slate-200">
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-600" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="font-semibold text-slate-800">8-10 Minutos</div>
+                            <div class="text-xs text-slate-500">Análisis completo</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl p-4 border border-slate-200">
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-purple-600" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="font-semibold text-slate-800">50 Preguntas</div>
+                            <div class="text-xs text-slate-500">5 secciones, 10 cada una</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-6 border border-slate-200 mb-8">
+                <h3 class="font-semibold text-slate-800 mb-4">5 Tipos de Personalidad</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-5 gap-3 text-center">
+                    <div class="p-3">
+                        <div
+                            class="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-2">
+                            <span class="text-xl">🛡️</span>
+                        </div>
+                        <div class="text-xs font-medium text-slate-700">Guardián Seguro</div>
+                    </div>
+                    <div class="p-3">
+                        <div class="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-2">
+                            <span class="text-xl">🐂</span>
+                        </div>
+                        <div class="text-xs font-medium text-slate-700">Toro Agresivo</div>
+                    </div>
+                    <div class="p-3">
+                        <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-2">
+                            <span class="text-xl">📊</span>
+                        </div>
+                        <div class="text-xs font-medium text-slate-700">Planificador Estratégico</div>
+                    </div>
+                    <div class="p-3">
+                        <div class="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-2">
+                            <span class="text-xl">💰</span>
+                        </div>
+                        <div class="text-xs font-medium text-slate-700">Buscador de Valor</div>
+                    </div>
+                    <div class="p-3">
+                        <div class="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center mx-auto mb-2">
+                            <span class="text-xl">🚀</span>
+                        </div>
+                        <div class="text-xs font-medium text-slate-700">Seguidor de Tendencias</div>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="startTest()"
+                class="btn btn-primary btn-lg px-12 rounded-xl text-base font-semibold shadow-lg hover:shadow-xl transition-all">
+                Comenzar Test
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-2" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Question Screen -->
+        <div id="question-screen" class="hidden max-w-2xl mx-auto">
+            <!-- Progress -->
+            <div class="mb-6">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-medium text-slate-600">Pregunta <span id="current-q">1</span> de <span
+                            id="total-q">50</span></span>
+                    <span id="progress-percent" class="text-sm font-medium text-blue-600">0%</span>
+                </div>
+                <div class="w-full bg-slate-200 rounded-full h-2">
+                    <div id="progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Question Card -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8 mb-6 fade-in"
+                id="question-card">
+                <div id="section-badge"
+                    class="inline-block px-3 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full mb-4">
+                    Sección 1: Actitud ante el Riesgo
+                </div>
+                <h2 id="question-text" class="text-lg sm:text-xl font-semibold text-slate-800 leading-relaxed mb-8">
+                    Texto de la pregunta aquí
+                </h2>
+
+                <!-- Answer Scale -->
+                <div class="space-y-4">
+                    <div class="flex justify-between text-xs sm:text-sm text-slate-500 px-2">
+                        <span>Totalmente en Desacuerdo</span>
+                        <span>Totalmente de Acuerdo</span>
+                    </div>
+                    <div class="grid grid-cols-7 gap-1.5 sm:gap-3" id="answer-buttons">
+                        <button onclick="selectAnswer(1)"
+                            class="answer-btn aspect-square sm:aspect-auto sm:h-14 rounded-lg sm:rounded-xl bg-red-100 hover:bg-red-200 text-red-700 font-bold text-sm sm:text-base"
+                            data-value="1">1</button>
+                        <button onclick="selectAnswer(2)"
+                            class="answer-btn aspect-square sm:aspect-auto sm:h-14 rounded-lg sm:rounded-xl bg-orange-100 hover:bg-orange-200 text-orange-700 font-bold text-sm sm:text-base"
+                            data-value="2">2</button>
+                        <button onclick="selectAnswer(3)"
+                            class="answer-btn aspect-square sm:aspect-auto sm:h-14 rounded-lg sm:rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-700 font-bold text-sm sm:text-base"
+                            data-value="3">3</button>
+                        <button onclick="selectAnswer(4)"
+                            class="answer-btn aspect-square sm:aspect-auto sm:h-14 rounded-lg sm:rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm sm:text-base"
+                            data-value="4">4</button>
+                        <button onclick="selectAnswer(5)"
+                            class="answer-btn aspect-square sm:aspect-auto sm:h-14 rounded-lg sm:rounded-xl bg-lime-100 hover:bg-lime-200 text-lime-700 font-bold text-sm sm:text-base"
+                            data-value="5">5</button>
+                        <button onclick="selectAnswer(6)"
+                            class="answer-btn aspect-square sm:aspect-auto sm:h-14 rounded-lg sm:rounded-xl bg-green-100 hover:bg-green-200 text-green-700 font-bold text-sm sm:text-base"
+                            data-value="6">6</button>
+                        <button onclick="selectAnswer(7)"
+                            class="answer-btn aspect-square sm:aspect-auto sm:h-14 rounded-lg sm:rounded-xl bg-emerald-100 hover:bg-emerald-200 text-emerald-700 font-bold text-sm sm:text-base"
+                            data-value="7">7</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation -->
+            <div class="flex justify-between">
+                <button onclick="prevQuestion()" id="prev-btn" class="btn btn-ghost rounded-xl text-slate-600" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                    Anterior
+                </button>
+                <button onclick="nextQuestion()" id="next-btn" class="btn btn-primary rounded-xl" disabled>
+                    Siguiente
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-1" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer id="footer" class="bg-white border-t border-slate-200 mt-auto"></footer>
+
+    <script>
+        // Map topType to result page URL
+        const resultPages = {
+            safeGuard: 'safe-guard',
+            aggressiveBull: 'aggressive-bull',
+            strategicPlanner: 'strategic-planner',
+            valueSeeker: 'value-seeker',
+            trendFollower: 'trend-follower'
+        };
+
+        // Questions with weights for each personality type
+        // Weight format: [safeGuard, aggressiveBull, strategicPlanner, valueSeeker, trendFollower]
+        // Positive weight = Agree increases score, Negative weight = Disagree increases score
+        const questions = [
+            // Section 1: Investment Attitude & Risk (10 questions)
+            { section: 'Sección 1: Actitud de Inversión y Riesgo', text: 'Evitaría una inversión incluso si hay un 1% de probabilidad de perder el capital.', weights: [3, -2, 0, 1, -1] },
+            { section: 'Sección 1: Actitud de Inversión y Riesgo', text: '"Alto Riesgo, Alto Retorno" es mi lema de vida.', weights: [-2, 3, 0, -1, 2] },
+            { section: 'Sección 1: Actitud de Inversión y Riesgo', text: 'Creo que usar apalancamiento (préstamos) es una estrategia esencial para hacerse rico.', weights: [-2, 3, 0, -1, 1] },
+            { section: 'Sección 1: Actitud de Inversión y Riesgo', text: 'Lo primero que reviso al invertir es la "pérdida potencial máxima".', weights: [3, -1, 2, 1, 0] },
+            { section: 'Sección 1: Actitud de Inversión y Riesgo', text: 'Me atraen constantemente las acciones que se disparan o los temas candentes en las noticias.', weights: [-1, 2, -1, 0, 3] },
+            { section: 'Sección 1: Actitud de Inversión y Riesgo', text: 'Creo que las criptomonedas se convertirán en un activo central del futuro.', weights: [-1, 1, 0, 0, 3] },
+            { section: 'Sección 1: Actitud de Inversión y Riesgo', text: 'Prefiero la inversión concentrada en una o dos acciones en las que confío, en lugar de la diversificación.', weights: [-1, 3, -2, 0, 1] },
+            { section: 'Sección 1: Actitud de Inversión y Riesgo', text: 'Creo que un mercado lleno de pánico es la mayor oportunidad de compra.', weights: [-1, 3, 1, 0, 1] },
+            { section: 'Sección 1: Actitud de Inversión y Riesgo', text: 'Creo en el poder del interés compuesto y estoy listo para invertir por más de 10 años.', weights: [1, -1, 3, 1, 0] },
+            { section: 'Sección 1: Actitud de Inversión y Riesgo', text: 'Solo me siento en paz cuando más del 50% de mis activos están en efectivo.', weights: [3, -2, -1, 1, -1] },
+
+            // Section 2: Spending Habits & Value Seeking (10 questions)
+            { section: 'Sección 2: Hábitos de Gasto y Búsqueda de Valor', text: 'Comparo precios en al menos tres sitios web diferentes antes de hacer una compra.', weights: [1, -1, 1, 3, 0] },
+            { section: 'Sección 2: Hábitos de Gasto y Búsqueda de Valor', text: '"La imagen de marca" es más importante para mí que la "relación calidad-precio".', weights: [0, 1, -1, -3, 1] },
+            { section: 'Sección 2: Hábitos de Gasto y Búsqueda de Valor', text: 'Maximizo los beneficios de las tarjetas de crédito como millas aéreas o devoluciones de dinero.', weights: [0, 0, 2, 3, 1] },
+            { section: 'Sección 2: Hábitos de Gasto y Búsqueda de Valor', text: 'Registro mis gastos hasta el último centavo usando una libreta o app.', weights: [1, 0, 2, 3, 0] },
+            { section: 'Sección 2: Hábitos de Gasto y Búsqueda de Valor', text: 'Mis amigos me han llamado "frugal" o "tacaño" alguna vez.', weights: [2, -1, 0, 3, -1] },
+            { section: 'Sección 2: Hábitos de Gasto y Búsqueda de Valor', text: 'Reviso y cancelo regularmente los servicios de suscripción que ya no uso.', weights: [1, 0, 2, 3, 0] },
+            { section: 'Sección 2: Hábitos de Gasto y Búsqueda de Valor', text: 'No me reprimo al gastar en "regalos de lujo" para mí mismo.', weights: [-1, 1, -1, -3, 1] },
+            { section: 'Sección 2: Hábitos de Gasto y Búsqueda de Valor', text: 'Hago un esfuerzo consciente por ahorrar en facturas de servicios como electricidad y agua.', weights: [1, -1, 1, 3, 0] },
+            { section: 'Sección 2: Hábitos de Gasto y Búsqueda de Valor', text: 'Para evitar compras impulsivas, dejo los artículos en el carrito unos días antes de pagar.', weights: [2, -1, 2, 3, 0] },
+            { section: 'Sección 2: Hábitos de Gasto y Búsqueda de Valor', text: 'La alegría de ver crecer mi saldo bancario es mayor que la alegría de gastar.', weights: [2, 0, 1, 3, 0] },
+
+            // Section 3: Information & Technology Trends (10 questions)
+            { section: 'Sección 3: Información y Tendencias Tecnológicas', text: 'Instalo nuevas apps financieras (neobancos, fintech) tan pronto como se lanzan.', weights: [-1, 1, 0, 0, 3] },
+            { section: 'Sección 3: Información y Tendencias Tecnológicas', text: 'Me interesan mucho las industrias futuras como Fintech, IA y Robótica.', weights: [0, 1, 1, 0, 3] },
+            { section: 'Sección 3: Información y Tendencias Tecnológicas', text: 'Reconozco el valor de los activos digitales como NFTs o terrenos en el Metaverso.', weights: [-1, 1, 0, 0, 3] },
+            { section: 'Sección 3: Información y Tendencias Tecnológicas', text: 'Suelo ser el primero en contarle a mis amigos sobre nuevas formas de ganar dinero.', weights: [-1, 2, 0, 0, 3] },
+            { section: 'Sección 3: Información y Tendencias Tecnológicas', text: 'No me importa leer términos y condiciones complejos o divulgaciones públicas.', weights: [1, 0, 3, 1, 0] },
+            { section: 'Sección 3: Información y Tendencias Tecnológicas', text: 'Quiero utilizar herramientas como ChatGPT para análisis de inversiones profesionales.', weights: [0, 1, 2, 0, 3] },
+            { section: 'Sección 3: Información y Tendencias Tecnológicas', text: 'Me obsesiona encontrar "joyas ocultas" o información que otros aún no conocen.', weights: [-1, 2, 0, 0, 3] },
+            { section: 'Sección 3: Información y Tendencias Tecnológicas', text: 'Siempre relaciono las noticias sobre tasas de interés o tipos de cambio con mi propia vida.', weights: [1, 1, 3, 1, 1] },
+            { section: 'Sección 3: Información y Tendencias Tecnológicas', text: 'Creo que vale la pena invertir en empresas innovadoras incluso si actualmente están endeudadas.', weights: [-1, 2, 0, -1, 3] },
+            { section: 'Sección 3: Información y Tendencias Tecnológicas', text: 'Creo que cuanto más rápido cambia el mundo, más oportunidades hay para ganar dinero.', weights: [-1, 2, 0, 0, 3] },
+
+            // Section 4: Planning & Asset Management (10 questions)
+            { section: 'Sección 4: Planificación y Gestión de Activos', text: 'Tengo un objetivo específico de activos que quiero alcanzar en 10 o 20 años.', weights: [1, 0, 3, 1, 0] },
+            { section: 'Sección 4: Planificación y Gestión de Activos', text: 'Ahorro/invierto primero cuando recibo mi salario, luego gasto lo que sobra.', weights: [2, 0, 3, 2, 0] },
+            { section: 'Sección 4: Planificación y Gestión de Activos', text: 'Mantengo una proporción establecida entre acciones, bienes raíces y efectivo (Cartera).', weights: [0, -1, 3, 0, 0] },
+            { section: 'Sección 4: Planificación y Gestión de Activos', text: 'Siempre mantengo un fondo de emergencia separado para gastos inesperados.', weights: [3, -1, 2, 1, 0] },
+            { section: 'Sección 4: Planificación y Gestión de Activos', text: 'Conozco mi "Patrimonio Neto" exacto (Activos menos Pasivos) en números hoy.', weights: [1, 0, 3, 2, 0] },
+            { section: 'Sección 4: Planificación y Gestión de Activos', text: 'Veo pedir un préstamo como una herramienta estratégica en lugar de algo "malo".', weights: [-1, 3, 1, -1, 1] },
+            { section: 'Sección 4: Planificación y Gestión de Activos', text: 'Creo que la planificación de la jubilación debe comenzar lo antes posible, y ya he empezado.', weights: [2, 0, 3, 1, 0] },
+            { section: 'Sección 4: Planificación y Gestión de Activos', text: 'Vivo con un presupuesto que categoriza mis gastos mensuales.', weights: [1, -1, 3, 3, 0] },
+            { section: 'Sección 4: Planificación y Gestión de Activos', text: 'Reinvierto mis ganancias para maximizar el poder del interés compuesto.', weights: [1, 1, 3, 1, 0] },
+            { section: 'Sección 4: Planificación y Gestión de Activos', text: 'Creo que la "paciencia" es la virtud más importante para hacerse rico.', weights: [2, -1, 3, 1, 0] },
+
+            // Section 5: Lifestyle & Philosophy (10 questions)
+            { section: 'Sección 5: Estilo de Vida y Filosofía', text: 'Me siento más feliz durante el proceso de ahorrar dinero que gastándolo.', weights: [2, -1, 1, 3, 0] },
+            { section: 'Sección 5: Estilo de Vida y Filosofía', text: 'Estoy dispuesto a sacrificar mi tiempo y salud hasta cierto punto para ganar dinero.', weights: [0, 2, 0, 0, 1] },
+            { section: 'Sección 5: Estilo de Vida y Filosofía', text: 'Lograr la "Libertad Financiera" es el objetivo final de mi vida.', weights: [1, 1, 2, 2, 1] },
+            { section: 'Sección 5: Estilo de Vida y Filosofía', text: 'Ser "realmente rico" es más importante para mí que "parecer rico" ante los demás.', weights: [2, 0, 2, 3, 0] },
+            { section: 'Sección 5: Estilo de Vida y Filosofía', text: 'Estoy más orgulloso de poseer buenas acciones que de conducir un coche caro.', weights: [1, 1, 2, 2, 1] },
+            { section: 'Sección 5: Estilo de Vida y Filosofía', text: 'Quiero construir riqueza a través de habilidades en lugar de depender de la suerte como la lotería.', weights: [1, 1, 3, 1, 0] },
+            { section: 'Sección 5: Estilo de Vida y Filosofía', text: 'El minimalismo (poseer menos) encaja bien con mi visión económica del mundo.', weights: [1, -1, 1, 2, 0] },
+            { section: 'Sección 5: Estilo de Vida y Filosofía', text: 'Creo que podría renunciar al amor o la amistad por una gran cantidad de dinero.', weights: [-1, 2, 0, 0, 0] },
+            { section: 'Sección 5: Estilo de Vida y Filosofía', text: 'Disfruto leyendo biografías de personas que han logrado gran éxito económico.', weights: [0, 2, 2, 0, 1] },
+            { section: 'Sección 5: Estilo de Vida y Filosofía', text: 'Creo que gastar dinero para la felicidad actual (YOLO) también es valioso.', weights: [-2, 1, -1, -2, 1] }
+        ];
+
+        // State
+        let currentQuestion = 0;
+        let answers = new Array(questions.length).fill(null);
+
+        // Functions
+        function startTest(resumeFromSaved = false) {
+            const savedState = loadTestState();
+
+            if (savedState && !resumeFromSaved) {
+                // Check if there's a saved state and ask to resume
+                const answeredCount = savedState.answers.filter(a => a !== null).length;
+                if (answeredCount > 0 && confirm('Tienes un test en progreso (' + answeredCount + '/' + questions.length + ' preguntas completadas). ¿Te gustaría continuar?\n\nHaz clic en "Cancelar" para empezar de nuevo.')) {
+                    answers = savedState.answers;
+                    currentQuestion = savedState.currentQuestion;
+                } else {
+                    clearTestState();
+                }
+            }
+
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('question-screen').classList.remove('hidden');
+            document.getElementById('total-q').textContent = questions.length;
+            showQuestion(currentQuestion);
+        }
+
+        function showQuestion(index) {
+            currentQuestion = index;
+            const q = questions[index];
+
+            // Save current state to localStorage
+            saveTestState(currentQuestion, answers);
+
+            document.getElementById('current-q').textContent = index + 1;
+            document.getElementById('progress-percent').textContent = Math.round(((index + 1) / questions.length) * 100) + '%';
+            document.getElementById('progress-bar').style.width = (((index + 1) / questions.length) * 100) + '%';
+            document.getElementById('section-badge').textContent = q.section;
+            document.getElementById('question-text').textContent = q.text;
+
+            // Reset answer buttons
+            document.querySelectorAll('.answer-btn').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+
+            // Highlight previously selected answer
+            if (answers[index] !== null) {
+                document.querySelector(`.answer-btn[data-value="${answers[index]}"]`).classList.add('selected');
+            }
+
+            // Update navigation buttons
+            document.getElementById('prev-btn').disabled = index === 0;
+            updateNextButton();
+
+            // Animation
+            const card = document.getElementById('question-card');
+            card.classList.remove('fade-in');
+            void card.offsetWidth;
+            card.classList.add('fade-in');
+        }
+
+        function selectAnswer(value) {
+            answers[currentQuestion] = value;
+
+            document.querySelectorAll('.answer-btn').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            document.querySelector(`.answer-btn[data-value="${value}"]`).classList.add('selected');
+
+            updateNextButton();
+
+            // Auto advance after short delay
+            setTimeout(() => {
+                if (currentQuestion < questions.length - 1) {
+                    nextQuestion();
+                }
+            }, 300);
+        }
+
+        function updateNextButton() {
+            const nextBtn = document.getElementById('next-btn');
+            const isLastQuestion = currentQuestion === questions.length - 1;
+            const hasAnswer = answers[currentQuestion] !== null;
+
+            nextBtn.disabled = !hasAnswer;
+            nextBtn.innerHTML = isLastQuestion
+                ? 'Ver Resultados <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>'
+                : 'Siguiente <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>';
+        }
+
+        function prevQuestion() {
+            if (currentQuestion > 0) {
+                showQuestion(currentQuestion - 1);
+            }
+        }
+
+        function nextQuestion() {
+            if (currentQuestion < questions.length - 1) {
+                showQuestion(currentQuestion + 1);
+            } else {
+                showResults();
+            }
+        }
+
+        function calculateScores() {
+            const scores = {
+                safeGuard: 0,
+                aggressiveBull: 0,
+                strategicPlanner: 0,
+                valueSeeker: 0,
+                trendFollower: 0
+            };
+
+            const typeKeys = Object.keys(scores);
+
+            questions.forEach((q, i) => {
+                const answer = answers[i]; // 1-7
+                const normalizedAnswer = (answer - 4) / 3; // -1 to 1
+
+                typeKeys.forEach((type, j) => {
+                    const weight = q.weights[j];
+                    scores[type] += normalizedAnswer * weight;
+                });
+            });
+
+            // Normalize scores to 0-100
+            const maxPossible = questions.length * 3; // Max weight * max normalized answer
+            typeKeys.forEach(type => {
+                scores[type] = Math.round(((scores[type] + maxPossible) / (maxPossible * 2)) * 100);
+                scores[type] = Math.max(0, Math.min(100, scores[type]));
+            });
+
+            return scores;
+        }
+
+        function showResults() {
+            const scores = calculateScores();
+            const sortedTypes = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+            const topType = sortedTypes[0][0];
+            // Clear saved state on test completion
+            clearTestState();
+            // Redirect to result page
+            window.location.href = `results/${resultPages[topType]}.html`;
+        }
+
+        // Initialize Header & Footer
+        document.addEventListener('DOMContentLoaded', function () {
+            if (typeof initComponents === 'function') {
+                initComponents('personality');
+            }
+
+            // Auto-resume if there's a saved state
+            const savedState = loadTestState();
+            if (savedState) {
+                const answeredCount = savedState.answers.filter(a => a !== null).length;
+                if (answeredCount > 0) {
+                    answers = savedState.answers;
+                    currentQuestion = savedState.currentQuestion;
+                    document.getElementById('start-screen').classList.add('hidden');
+                    document.getElementById('question-screen').classList.remove('hidden');
+                    document.getElementById('total-q').textContent = questions.length;
+                    showQuestion(currentQuestion);
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>

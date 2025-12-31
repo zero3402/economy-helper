@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="corporate">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <title>Quiz de Economía - Economy Helper</title>
+    <meta name="description" content="Pon a prueba tus conocimientos económicos con nuestro quiz interactivo.">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <link rel="icon" type="image/png" href="../images/favicon.png">
+</head>
+
+<body class="bg-slate-50 min-h-screen flex flex-col">
+
+    <header id="header" class="bg-white border-b border-slate-200 sticky top-0 z-50"></header>
+
+    <main class="container mx-auto px-4 py-8 flex-grow">
+        <div class="max-w-2xl mx-auto">
+            <div class="text-center mb-8">
+                <h1 class="text-2xl sm:text-3xl font-bold text-slate-800 mb-2">Quiz de Economía</h1>
+                <p class="text-slate-500">¡Lee la definición y adivina el término correcto!</p>
+            </div>
+
+            <!-- Quiz Container -->
+            <div id="quiz-container"
+                class="bg-white rounded-2xl shadow-lg border border-slate-100 p-6 sm:p-8 relative overflow-hidden">
+                <!-- Progress & Score -->
+                <div class="flex justify-between items-center mb-6 text-sm font-medium text-slate-500">
+                    <span id="question-count">Pregunta 1</span>
+                    <span id="score-display" class="text-blue-600">Puntuación: 0</span>
+                </div>
+
+                <!-- Initial Loading / Error State -->
+                <div id="loading" class="text-center py-10">
+                    <span class="loading loading-spinner loading-lg text-blue-500"></span>
+                    <p class="mt-4 text-slate-500">Cargando quiz...</p>
+                </div>
+
+                <!-- Game Area -->
+                <div id="game-area" class="hidden">
+                    <!-- Question (Definition) -->
+                    <div class="bg-blue-50 rounded-xl p-6 mb-8 text-center">
+                        <p class="text-sm text-blue-600 font-bold mb-2">¿Qué término es este?</p>
+                        <p id="question-text" class="text-lg sm:text-xl text-slate-800 font-medium leading-relaxed"></p>
+                    </div>
+
+                    <!-- Options -->
+                    <div id="options-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+                        <!-- Options will be injected here -->
+                    </div>
+
+                    <!-- Example Hint (Hidden by default) -->
+                    <div id="hint-area"
+                        class="hidden mt-4 p-4 bg-yellow-50 rounded-lg border border-yellow-100 text-sm text-yellow-800">
+                        <span class="font-bold">💡 Pista (Ejemplo):</span> <span id="hint-text"></span>
+                    </div>
+                </div>
+
+                <!-- Result Area (Level Finished) -->
+                <div id="result-area" class="hidden text-center py-8">
+                    <div class="mb-6">
+                        <div class="text-6xl mb-4">🎉</div>
+                        <h2 class="text-2xl font-bold text-slate-800 mb-2">¡Quiz Completado!</h2>
+                        <p class="text-slate-600">Tu puntuación final es:</p>
+                    </div>
+
+                    <div class="text-4xl font-black text-blue-600 mb-8" id="final-score">0</div>
+
+                    <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                        <button onclick="location.reload()" class="btn btn-primary px-8">Intentar de nuevo</button>
+                        <a href="index.html" class="btn btn-outline">Volver al Diccionario</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer id="footer" class="bg-white border-t border-slate-200 mt-12"></footer>
+
+    <!-- Logic -->
+    <script src="dictionary-data.js"></script>
+    <script src="../components.js"></script>
+    <script>
+        // Quiz State
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let questions = [];
+        const TOTAL_QUESTIONS = 10;
+        let isAnswered = false;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initComponents('quiz');
+            setTimeout(initQuiz, 100);
+        });
+
+        function initQuiz() {
+            const loading = document.getElementById('loading');
+            const gameArea = document.getElementById('game-area');
+
+            if (typeof termDefinitions === 'undefined') {
+                loading.innerHTML = '<p class="text-red-500">Error al cargar datos.<br>Por favor, recarga la página.</p>';
+                return;
+            }
+
+            // Generate questions list
+            // Convert definitions object to array of {term, def, ex}
+            const allTerms = Object.entries(termDefinitions).map(([term, data]) => ({
+                term: term,
+                definition: data.definition,
+                example: data.example
+            }));
+
+            if (allTerms.length < 4) {
+                loading.innerHTML = '<p class="text-red-500">No hay suficientes datos para el quiz.</p>';
+                return;
+            }
+
+            // Shuffle and pick TOTAL_QUESTIONS
+            questions = allTerms.sort(() => 0.5 - Math.random()).slice(0, TOTAL_QUESTIONS);
+
+            loading.classList.add('hidden');
+            gameArea.classList.remove('hidden');
+
+            showQuestion();
+        }
+
+        function showQuestion() {
+            isAnswered = false;
+            const questionData = questions[currentQuestionIndex];
+
+            // Update UI
+            document.getElementById('question-count').textContent = `Pregunta ${currentQuestionIndex + 1} / ${TOTAL_QUESTIONS}`;
+            document.getElementById('question-text').textContent = questionData.definition;
+            document.getElementById('hint-area').classList.add('hidden');
+
+            // Generate options
+            // 1 Correct + 3 Distractors
+            const correctTerm = questionData.term;
+
+            // Get distractors from FULL list (termDefinitions)
+            const allTermsKeys = Object.keys(termDefinitions);
+            const distractors = [];
+            while (distractors.length < 3) {
+                const randomTerm = allTermsKeys[Math.floor(Math.random() * allTermsKeys.length)];
+                if (randomTerm !== correctTerm && !distractors.includes(randomTerm)) {
+                    distractors.push(randomTerm);
+                }
+            }
+
+            const options = [correctTerm, ...distractors].sort(() => 0.5 - Math.random());
+
+            const optionsGrid = document.getElementById('options-grid');
+            optionsGrid.innerHTML = '';
+
+            options.forEach(term => {
+                const btn = document.createElement('button');
+                btn.className = "btn btn-outline bg-white hover:bg-slate-50 h-auto py-4 min-h-[3rem] text-slate-700 font-normal hover:border-slate-300 normal-case text-lg block w-full";
+                btn.textContent = term;
+                btn.onclick = () => checkAnswer(term, correctTerm, btn);
+                optionsGrid.appendChild(btn);
+            });
+        }
+
+        function checkAnswer(selectedTerm, correctTerm, btnElement) {
+            if (isAnswered) return;
+            isAnswered = true;
+
+            const buttons = document.querySelectorAll('#options-grid button');
+            const hintArea = document.getElementById('hint-area');
+            const hintText = document.getElementById('hint-text');
+
+            if (selectedTerm === correctTerm) {
+                // Correct
+                btnElement.classList.remove('btn-outline', 'bg-white');
+                btnElement.classList.add('btn-success', 'text-white');
+                score += 10;
+                document.getElementById('score-display').textContent = `Puntuación: ${score}`;
+
+                // Confetti effect or simple delay
+                setTimeout(nextQuestion, 1000);
+            } else {
+                // Incorrect
+                btnElement.classList.remove('btn-outline', 'bg-white');
+                btnElement.classList.add('btn-error', 'text-white');
+
+                // Highlight correct answer
+                buttons.forEach(b => {
+                    if (b.textContent === correctTerm) {
+                        b.classList.remove('btn-outline', 'bg-white');
+                        b.classList.add('btn-success', 'text-white');
+                    }
+                });
+
+                // Show Hint
+                const qData = questions[currentQuestionIndex];
+                if (qData.example) {
+                    hintText.textContent = qData.example;
+                    hintArea.classList.remove('hidden');
+                }
+
+                // Wait longer for user to read hint/correction
+                setTimeout(nextQuestion, 3000);
+            }
+        }
+
+        function nextQuestion() {
+            currentQuestionIndex++;
+            if (currentQuestionIndex < TOTAL_QUESTIONS) {
+                showQuestion();
+            } else {
+                showResult();
+            }
+        }
+
+        function showResult() {
+            document.getElementById('game-area').classList.add('hidden');
+            document.getElementById('question-count').parentElement.classList.add('hidden');
+
+            const resultArea = document.getElementById('result-area');
+            resultArea.classList.remove('hidden');
+
+            document.getElementById('final-score').textContent = `${score} pts`;
+        }
+    </script>
+</body>
+
+</html>

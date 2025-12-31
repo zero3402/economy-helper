@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="corporate">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <!-- Primary Meta Tags -->
+    <title>Economy Helper - Economía simplificada para todos</title>
+    <meta name="title" content="Economy Helper - Economía simplificada para todos">
+    <meta name="description" content="Domina los conceptos de inversión, trading y finanzas personales.">
+    <meta name="keywords"
+        content="términos económicos, glosario financiero, inversión, vocabulario de trading, términos bancarios, mercado de valores, finanzas personales">
+    <meta name="author" content="Economy Helper">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://economyhelper.com/es/">
+    <link rel="icon" type="image/png" href="../images/favicon.png">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://economyhelper.com/es/">
+    <meta property="og:title" content="Economy Helper - Economía simplificada para todos">
+    <meta property="og:description" content="Domina los conceptos de inversión, trading y finanzas personales.">
+    <meta property="og:image" content="https://economyhelper.com/images/og.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:site_name" content="Economy Helper">
+    <meta property="og:locale" content="en_US">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://economyhelper.com/es/">
+    <meta name="twitter:title" content="Economy Helper - Economía simplificada para todos">
+    <meta name="twitter:description" content="Domina los conceptos de inversión, trading y finanzas personales.">
+    <meta name="twitter:image" content="https://economyhelper.com/images/og.png">
+
+    <!-- Additional SEO -->
+    <meta name="theme-color" content="#3B82F6">
+    <meta name="apple-mobile-web-app-title" content="Economy Helper">
+    <meta name="application-name" content="Economy Helper">
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "Economy Helper",
+        "description": "Master investing, trading, and personal finance knowledge.",
+        "url": "https://economyhelper.com/",
+        "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://economyhelper.com/?q={search_term_string}",
+            "query-input": "required name=search_term_string"
+        }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "DefinedTermSet",
+        "name": "Economic Dictionary",
+        "description": "A comprehensive collection of financial and economic terms with definitions and examples.",
+        "url": "https://economyhelper.com/",
+        "inLanguage": "en"
+    }
+    </script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet" type="text/css" />
+</head>
+
+<body class="bg-slate-50 min-h-screen">
+
+    <header id="header" class="bg-white border-b border-slate-200 sticky top-0 z-50"></header>
+    <main class="container mx-auto px-4 py-6 sm:py-10">
+        <section class="max-w-4xl mx-auto">
+            <!-- Hero Section -->
+            <div class="text-center mb-8">
+                <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-800 mb-3">
+                    Diccionario Económico
+                </h1>
+                <p class="text-slate-500 text-sm sm:text-base  mb-6">
+                    Aprende términos económicos con definiciones fáciles de entender y ejemplos del mundo real
+                </p>
+
+                <!-- Today's Terms -->
+                <div
+                    class="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-2xl p-4 sm:p-5 max-w-2xl mx-auto">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div
+                            class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                            </svg>
+                        </div>
+                        <span class="font-semibold text-slate-700">Términos de hoy</span>
+                    </div>
+                    <div id="todays-terms-list" class="flex flex-wrap gap-2">
+                        <!-- Terms will be inserted here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search Box -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-6 mb-6">
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <div class="relative flex-1">
+                        <svg xmlns="http://www.w3.org/2000/svg"
+                            class="h-5 w-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <input type="text" id="search-input" placeholder="Buscar términos... (ej. Inflación, PIB, Bono)"
+                            class="input input-bordered w-full pl-12 h-12 sm:h-14 text-base bg-slate-50 border-slate-200 focus:border-blue-500 focus:bg-white rounded-xl" />
+                    </div>
+                    <button id="search-btn"
+                        class="btn btn-primary h-12 sm:h-14 px-8 rounded-xl text-base font-semibold shadow-sm hover:shadow-md transition-shadow">
+                        Buscar
+                    </button>
+                </div>
+
+                <!-- Alphabet Filter -->
+                <div class="mt-5 pt-5 border-t border-slate-100">
+                    <div class="flex flex-wrap justify-center gap-1 sm:gap-1.5" id="alphabet-filter">
+                        <button
+                            class="btn btn-sm h-9 min-h-9 px-3 sm:px-4 rounded-lg font-medium alphabet-btn bg-slate-100 hover:bg-blue-600 hover:text-white border-0 text-slate-600"
+                            data-letter="ALL">Todos</button>
+                        <button
+                            class="btn btn-sm h-9 min-h-9 w-9 sm:w-10 rounded-lg font-medium alphabet-btn bg-slate-100 hover:bg-blue-600 hover:text-white border-0 text-slate-600"
+                            data-letter="A">A</button>
+                        <button
+                            class="btn btn-sm h-9 min-h-9 w-9 sm:w-10 rounded-lg font-medium alphabet-btn bg-slate-100 hover:bg-blue-600 hover:text-white border-0 text-slate-600"
+                            data-letter="B">B</button>
+                        <button
+                            class="btn btn-sm h-9 min-h-9 w-9 sm:w-10 rounded-lg font-medium alphabet-btn bg-slate-100 hover:bg-blue-600 hover:text-white border-0 text-slate-600"
+                            data-letter="C">C</button>
+                        <button
+                            class="btn btn-sm h-9 min-h-9 w-9 sm:w-10 rounded-lg font-medium alphabet-btn bg-slate-100 hover:bg-blue-600 hover:text-white border-0 text-slate-600"
+                            data-letter="D">D</button>
+                        <button
+                            class="btn btn-sm h-9 min-h-9 w-9 sm:w-10 rounded-lg font-medium alphabet-btn bg-slate-100 hover:bg-blue-600 hover:text-white border-0 text-slate-600"
+                            data-letter="E">E</button>
+                        <button
+                            class="btn btn-sm h-9 min-h-9 w-9 sm:w-10 rounded-lg font-medium alphabet-btn bg-slate-100 hover:bg-blue-600 hover:text-white border-0 text-slate-600"
+                            data-letter="F">F</button>
+                        <button
+                            class="btn btn-sm h-9 min-h-9 w-9 sm:w-10 rounded-lg font-medium alphabet-btn bg-slate-100 hover:bg-blue-600 hover:text-white border-0 text-slate-600"
+                            data-letter="G">G</button>
+                        <button
+                            class="btn btn-sm h-9 min-h-9 w-9 sm:w-10 rounded-lg font-medium alphabet-btn bg-slate-100 hover:bg-blue-600 hover:text-white border-0 text-slate-600"
+                            data-letter="H">H</button>
+                        <button
+                            class="btn btn-sm h-9 min-h-9 w-9 sm:w-10 rounded-lg font-medium alphabet-btn bg-slate-100 hover:bg-blue-600 hover:text-white border-0 text-slate-600"
+                            data-letter="I">I</button>
+                        <button
+                            class="btn btn-sm h-9 min-h-9 w-9 sm:w-10 rounded-lg font-medium alphabet-btn bg-slate-100 hover:bg-blue-600 hover:text-white border-0 text-slate-600"
+                            data-letter="J">J</button>
+                        <button
+                            class="btn btn-sm h-9 min-h-9 w-9 sm:w-10 rounded-lg font-medium alphabet-btn bg-slate-100 hover:bg-blue-600 hover:text-white border-0 text-slate-600"
+                            data-letter="K">K</button>
+                        <button
+                            class="btn btn-sm h-9 min-h-9 w-9 sm:w-10 rounded-lg font-medium alphabet-btn bg-slate-100 hover:bg-blue-600 hover:text-white border-0 text-slate-600"
+                            data-letter="L">L</button>
+                        <button
+                            class="btn btn-sm h-9 min-h-9 w-9 sm:w-10 rounded-lg font-medium alphabet-btn bg-slate-100 hover:bg-blue-600 hover:text-white border-0 text-slate-600"
+                            data-letter="M">M</button>
+                        <button
+                            class="btn btn-sm h-9 min-h-9 w-9 sm:w-10 rounded-lg font-medium alphabet-btn bg-slate-100 hover:bg-blue-600 hover:text-white border-0 text-slate-600"
+                            data-letter="N">N</button>
+                        <button
+                            class="btn btn-sm h-9 min-h-9 w-9 sm:w-10 rounded-lg font-medium alphabet-btn bg-slate-100 hover:bg-blue-600 hover:text-white border-0 text-slate-600"
+                            data-letter="Ñ">Ñ</button>
+                        <button
+                            class="btn btn-sm h-9 min-h-9 w-9 sm:w-10 rounded-lg font-medium alphabet-btn bg-slate-100 hover:bg-blue-600 hover:text-white border-0 text-slate-600"
+                            data-letter="O">O</button>
+                        <button
+                            class="btn btn-sm h-9 min-h-9 w-9 sm:w-10 rounded-lg font-medium alphabet-btn bg-slate-100 hover:bg-blue-600 hover:text-white border-0 text-slate-600"
+                            data-letter="P">P</button>
+                        <button
+                            class="btn btn-sm h-9 min-h-9 w-9 sm:w-10 rounded-lg font-medium alphabet-btn bg-slate-100 hover:bg-blue-600 hover:text-white border-0 text-slate-600"
+                            data-letter="Q">Q</button>
+                        <button
+                            class="btn btn-sm h-9 min-h-9 w-9 sm:w-10 rounded-lg font-medium alphabet-btn bg-slate-100 hover:bg-blue-600 hover:text-white border-0 text-slate-600"
+                            data-letter="R">R</button>
+                        <button
+                            class="btn btn-sm h-9 min-h-9 w-9 sm:w-10 rounded-lg font-medium alphabet-btn bg-slate-100 hover:bg-blue-600 hover:text-white border-0 text-slate-600"
+                            data-letter="S">S</button>
+                        <button
+                            class="btn btn-sm h-9 min-h-9 w-9 sm:w-10 rounded-lg font-medium alphabet-btn bg-slate-100 hover:bg-blue-600 hover:text-white border-0 text-slate-600"
+                            data-letter="T">T</button>
+                        <button
+                            class="btn btn-sm h-9 min-h-9 w-9 sm:w-10 rounded-lg font-medium alphabet-btn bg-slate-100 hover:bg-blue-600 hover:text-white border-0 text-slate-600"
+                            data-letter="U">U</button>
+                        <button
+                            class="btn btn-sm h-9 min-h-9 w-9 sm:w-10 rounded-lg font-medium alphabet-btn bg-slate-100 hover:bg-blue-600 hover:text-white border-0 text-slate-600"
+                            data-letter="V">V</button>
+                        <button
+                            class="btn btn-sm h-9 min-h-9 w-9 sm:w-10 rounded-lg font-medium alphabet-btn bg-slate-100 hover:bg-blue-600 hover:text-white border-0 text-slate-600"
+                            data-letter="W">W</button>
+                        <button
+                            class="btn btn-sm h-9 min-h-9 w-9 sm:w-10 rounded-lg font-medium alphabet-btn bg-slate-100 hover:bg-blue-600 hover:text-white border-0 text-slate-600"
+                            data-letter="X">X</button>
+                        <button
+                            class="btn btn-sm h-9 min-h-9 w-9 sm:w-10 rounded-lg font-medium alphabet-btn bg-slate-100 hover:bg-blue-600 hover:text-white border-0 text-slate-600"
+                            data-letter="Y">Y</button>
+                        <button
+                            class="btn btn-sm h-9 min-h-9 w-9 sm:w-10 rounded-lg font-medium alphabet-btn bg-slate-100 hover:bg-blue-600 hover:text-white border-0 text-slate-600"
+                            data-letter="Z">Z</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div id="search-results" class="hidden mt-8">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="p-4 sm:p-6 border-b border-slate-100 bg-slate-50">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                            <h2 class="text-lg sm:text-xl font-semibold text-slate-800" id="results-title">Resultados
+                            </h2>
+                            <span id="results-count" class="text-sm text-slate-500 font-medium"></span>
+                        </div>
+                    </div>
+                    <div id="results-list"
+                        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-4 sm:p-6 max-h-[60vh] overflow-y-auto">
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer id="footer" class="bg-white border-t border-slate-200 mt-auto"></footer>
+
+    <!-- Term Detail Modal -->
+    <dialog id="term-modal" class="modal modal-bottom sm:modal-middle">
+        <div class="modal-box w-full sm:max-w-2xl p-0 rounded-t-3xl sm:rounded-2xl">
+            <!-- Modal Header -->
+            <div class="sticky top-0 bg-white border-b border-slate-100 px-5 py-4 sm:px-6 sm:py-5">
+                <form method="dialog">
+                    <button
+                        class="btn btn-sm btn-circle btn-ghost absolute right-3 top-3 text-slate-400 hover:text-slate-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </form>
+                <h3 class="font-bold text-xl sm:text-2xl text-slate-800 pr-8" id="modal-term"></h3>
+            </div>
+
+            <!-- Modal Content -->
+            <div class="px-5 py-5 sm:px-6 sm:py-6 space-y-5">
+                <div class="bg-blue-50 rounded-xl p-4 sm:p-5">
+                    <div class="flex items-start gap-3">
+                        <div
+                            class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-blue-900 mb-1.5">Definición</h4>
+                            <p id="modal-definition" class="text-blue-800 text-sm sm:text-base leading-relaxed"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-emerald-50 rounded-xl p-4 sm:p-5">
+                    <div class="flex items-start gap-3">
+                        <div
+                            class="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-emerald-900 mb-1.5">Ejemplo Real</h4>
+                            <p id="modal-example" class="text-emerald-800 text-sm sm:text-base leading-relaxed"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="px-5 py-4 sm:px-6 border-t border-slate-100 bg-slate-50">
+                <form method="dialog">
+                    <button
+                        class="btn btn-block sm:btn-wide bg-slate-800 hover:bg-slate-700 text-white border-0 rounded-xl h-12">
+                        Cerrar
+                    </button>
+                </form>
+            </div>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button>close</button>
+        </form>
+    </dialog>
+
+    <script src="dictionary-data.js"></script>
+    <script src="../components.js"></script>
+    <script>
+        // economyDictionary loaded from dictionary-data.js
+
+        // Term definitions and examples
+        // termDefinitions loaded from dictionary-data.js
+
+
+        function searchDictionary(query) {
+            const results = [];
+            const lowerQuery = query.toLowerCase();
+
+            for (const [letter, terms] of Object.entries(economyDictionary)) {
+                for (const term of terms) {
+                    if (term.toLowerCase().includes(lowerQuery)) {
+                        results.push({ letter, term });
+                    }
+                }
+            }
+            return results;
+        }
+
+        function filterByLetter(letter) {
+            if (letter === 'ALL') {
+                const results = [];
+                for (const [l, terms] of Object.entries(economyDictionary)) {
+                    for (const term of terms) {
+                        results.push({ letter: l, term });
+                    }
+                }
+                return results;
+            }
+            return economyDictionary[letter]?.map(term => ({ letter, term })) || [];
+        }
+
+        function showTermModal(term) {
+            const modal = document.getElementById('term-modal');
+            const modalTerm = document.getElementById('modal-term');
+            const modalDefinition = document.getElementById('modal-definition');
+            const modalExample = document.getElementById('modal-example');
+
+            const termData = termDefinitions[term];
+
+            modalTerm.textContent = term;
+
+            if (termData) {
+                modalDefinition.textContent = termData.definition;
+                modalExample.textContent = termData.example;
+            } else {
+                modalDefinition.textContent = 'Definition coming soon. This term refers to a concept in economics or finance.';
+                modalExample.textContent = 'Real-life example coming soon.';
+            }
+
+            modal.showModal();
+        }
+
+        function displayResults(results, title, hideCount = false) {
+            const resultsContainer = document.getElementById('search-results');
+            const resultsTitle = document.getElementById('results-title');
+            const resultsCount = document.getElementById('results-count');
+            const resultsList = document.getElementById('results-list');
+
+            resultsTitle.textContent = title;
+            resultsCount.textContent = hideCount ? '' : `${results.length} términos encontrados`;
+
+            resultsList.innerHTML = results.map(({ letter, term }) => `
+                <div class="term-card bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 rounded-xl p-3 sm:p-4 cursor-pointer flex items-center gap-3" onclick="showTermModal('${term.replace(/'/g, "\\'")}')">
+                    <span class="w-8 h-8 rounded-lg bg-blue-600 text-white font-bold text-sm flex items-center justify-center flex-shrink-0">${letter}</span>
+                    <span class="text-slate-700 font-medium text-sm sm:text-base truncate">${term}</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-400 ml-auto flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                </div>
+            `).join('');
+
+            resultsContainer.classList.remove('hidden');
+        }
+
+        // Today's Terms - date-based seeded random for consistent daily terms
+        function seededRandom(seed) {
+            const x = Math.sin(seed) * 10000;
+            return x - Math.floor(x);
+        }
+
+        function getTodaysTerms(count = 10) {
+            const termsWithDefinitions = Object.keys(termDefinitions);
+            const today = new Date();
+            const dateSeed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+
+            const selectedTerms = [];
+            const usedIndices = new Set();
+
+            for (let i = 0; i < count && i < termsWithDefinitions.length; i++) {
+                let index;
+                let attempts = 0;
+                do {
+                    index = Math.floor(seededRandom(dateSeed + i + attempts * 100) * termsWithDefinitions.length);
+                    attempts++;
+                } while (usedIndices.has(index) && attempts < 100);
+
+                usedIndices.add(index);
+                selectedTerms.push(termsWithDefinitions[index]);
+            }
+
+            return selectedTerms;
+        }
+
+        function initTodaysTerms() {
+            const terms = getTodaysTerms(10);
+            const container = document.getElementById('todays-terms-list');
+
+            container.innerHTML = terms.map(term => `
+                <button onclick="showTermModal('${term.replace(/'/g, "\\'")}')" class="px-3 py-1.5 bg-white hover:bg-blue-100 border border-blue-200 hover:border-blue-400 rounded-lg text-sm font-medium text-slate-700 hover:text-blue-700 transition-all cursor-pointer">
+                    ${term}
+                </button>
+            `).join('');
+        }
+
+
+        document.addEventListener('DOMContentLoaded', async () => {
+
+            const searchInput = document.getElementById('search-input');
+            const searchBtn = document.getElementById('search-btn');
+            const alphabetBtns = document.querySelectorAll('.alphabet-btn');
+
+            searchBtn.addEventListener('click', () => {
+                const query = searchInput.value.trim();
+                if (query) {
+                    const results = searchDictionary(query);
+                    displayResults(results, `Resultados para "${query}"`);
+                }
+            });
+
+            searchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    const query = searchInput.value.trim();
+                    if (query) {
+                        const results = searchDictionary(query);
+                        displayResults(results, `Resultados para "${query}"`);
+                    }
+                }
+            });
+
+            let debounceTimer;
+            searchInput.addEventListener('input', () => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    const query = searchInput.value.trim();
+                    if (query.length >= 2) {
+                        const results = searchDictionary(query);
+                        displayResults(results, `Resultados para "${query}"`);
+                    } else if (query.length === 0) {
+                        document.getElementById('search-results').classList.add('hidden');
+                    }
+                }, 300);
+            });
+
+            alphabetBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    // Reset all buttons
+                    alphabetBtns.forEach(b => {
+                        b.classList.remove('bg-blue-600', 'text-white');
+                        b.classList.add('bg-slate-100', 'text-slate-600');
+                    });
+                    // Activate clicked button
+                    btn.classList.remove('bg-slate-100', 'text-slate-600');
+                    btn.classList.add('bg-blue-600', 'text-white');
+
+                    const letter = btn.dataset.letter;
+                    const results = filterByLetter(letter);
+                    const title = letter === 'ALL' ? 'Todos los Términos' : `Términos que empiezan por "${letter}"`;
+                    displayResults(results, title, true);
+
+                    searchInput.value = '';
+                });
+            });
+
+            searchInput.value = '';
+
+
+            // Initial state: Show ALL terms
+            const allBtn = document.querySelector('.alphabet-btn[data-letter="ALL"]');
+            allBtn.classList.remove('bg-slate-100', 'text-slate-600');
+            allBtn.classList.add('bg-blue-600', 'text-white');
+            displayResults(filterByLetter('ALL'), 'Todos los Términos', true);
+
+            // Initialize Today's Terms
+            initTodaysTerms();
+
+            // Initialize Header & Footer
+            initComponents('dictionary');
+        });
+    </script>
+</body>
+
+</html>
