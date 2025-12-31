@@ -4,34 +4,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Economy Helper - Making economics simple for everyone</title>
-     <meta name="description"
-        content="Master investing, trading, and personal finance knowledge.">
+    <title>Economy Helper - Financial Literacy for Everyone | 경제 용어 사전 | 経済用語辞典</title>
+    <meta name="description"
+        content="Master investing, trading, and personal finance knowledge. Available in English, Korean (한국어), and Japanese (日本語). Free financial calculators and investment personality test.">
     <meta name="keywords"
-        content="economic terms, finance glossary, investment terms, trading vocabulary, banking terms, stock market terminology, personal finance, financial literacy">
+        content="economic terms, finance glossary, investment terms, trading vocabulary, 경제 용어, 금융 사전, 経済用語, 金融辞典, financial literacy, compound interest calculator, savings goal">
     <meta name="author" content="Economy Helper">
     <meta name="robots" content="index, follow">
-    <link rel="canonical" href="https://economyhelper.com">
+    <link rel="canonical" href="https://economyhelper.com/">
     <link rel="icon" type="image/png" href="./images/favicon.png">
+
+    <!-- Alternate language versions -->
+    <link rel="alternate" hreflang="en" href="https://economyhelper.com/us/index.html">
+    <link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/index.html">
+    <link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/index.html">
+    <link rel="alternate" hreflang="x-default" href="https://economyhelper.com/">
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://economyhelper.com">
-    <meta property="og:title" content="Economy Helper - Making economics simple for everyone">
+    <meta property="og:url" content="https://economyhelper.com/">
+    <meta property="og:title" content="Economy Helper - Financial Literacy for Everyone">
     <meta property="og:description"
-        content="Master investing, trading, and personal finance knowledge.">
+        content="Master investing, trading, and personal finance knowledge. Free financial calculators and tools.">
     <meta property="og:image" content="https://economyhelper.com/images/og.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta property="og:site_name" content="Economy Helper">
     <meta property="og:locale" content="en_US">
+    <meta property="og:locale:alternate" content="ko_KR">
+    <meta property="og:locale:alternate" content="ja_JP">
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:url" content="https://economyhelper.com">
-    <meta name="twitter:title" content="Economy Helper - Making economics simple for everyone">
+    <meta name="twitter:url" content="https://economyhelper.com/">
+    <meta name="twitter:title" content="Economy Helper - Financial Literacy for Everyone">
     <meta name="twitter:description"
-        content="Master investing, trading, and personal finance knowledge.">
+        content="Master investing, trading, and personal finance knowledge. Free financial calculators and tools.">
     <meta name="twitter:image" content="https://economyhelper.com/images/og.png">
 
     <!-- Additional SEO -->
@@ -39,34 +47,244 @@
     <meta name="apple-mobile-web-app-title" content="Economy Helper">
     <meta name="application-name" content="Economy Helper">
 
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "Economy Helper",
+        "alternateName": ["경제 헬퍼", "エコノミーヘルパー"],
+        "url": "https://economyhelper.com/",
+        "description": "Financial literacy platform with economic dictionaries, calculators, and tools in multiple languages.",
+        "inLanguage": ["en", "ko", "ja"],
+        "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://economyhelper.com/us/index.html?search={search_term_string}",
+            "query-input": "required name=search_term_string"
+        }
+    }
+    </script>
+
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1927828313220344"
         crossorigin="anonymous"></script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet" type="text/css" />
+
+    <style>
+        .language-card {
+            transition: all 0.3s ease;
+        }
+
+        .language-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .hero-pattern {
+            background-color: #f8fafc;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%233b82f6' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+    </style>
+</head>
+
+<body class="hero-pattern min-h-screen">
+    <amp-auto-ads type="adsense" data-ad-client="ca-pub-1927828313220344"></amp-auto-ads>
+
+    <!-- Header -->
+    <header class="bg-white/80 backdrop-blur-sm border-b border-slate-200 sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex items-center justify-center">
+                <a href="/" class="flex items-center gap-2">
+                    <span class="text-2xl">📊</span>
+                    <span class="font-bold text-xl text-slate-800">Economy Helper</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-12 sm:py-20">
+
+        <!-- Hero Section -->
+        <div class="text-center max-w-4xl mx-auto mb-16">
+            <h1 class="text-4xl sm:text-5xl font-bold text-slate-800 mb-6">
+                Welcome to Economy Helper
+            </h1>
+            <p class="text-lg sm:text-xl text-slate-600 mb-4">
+                Your gateway to financial literacy and economic understanding
+            </p>
+            <p class="text-base text-slate-500">
+                Free economic dictionaries, financial calculators, and investment tools
+            </p>
+        </div>
+
+        <!-- Language Selection -->
+        <div class="max-w-5xl mx-auto">
+            <h2 class="text-2xl font-semibold text-center text-slate-700 mb-8">
+                Select Your Language / 언어를 선택하세요 / 言語を選択してください
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
+
+                <!-- English -->
+                <a href="us/index.html"
+                    class="language-card bg-white rounded-2xl border border-slate-200 p-8 text-center hover:border-blue-400 block">
+                    <div class="w-20 h-20 mx-auto mb-6 rounded-full bg-blue-100 flex items-center justify-center">
+                        <span class="text-4xl">🇺🇸</span>
+                    </div>
+                    <h3 class="text-2xl font-bold text-slate-800 mb-2">English</h3>
+                    <p class="text-slate-500 mb-4">United States</p>
+                    <div class="text-sm text-slate-400">
+                        <p>Economic Dictionary</p>
+                        <p>Financial Calculators</p>
+                        <p>Investment Personality Test</p>
+                    </div>
+                    <div class="mt-6">
+                        <span class="inline-flex items-center text-blue-600 font-medium">
+                            Enter Site
+                            <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 5l7 7-7 7" />
+                            </svg>
+                        </span>
+                    </div>
+                </a>
+
+                <!-- Korean -->
+                <a href="kr/index.html"
+                    class="language-card bg-white rounded-2xl border border-slate-200 p-8 text-center hover:border-blue-400 block">
+                    <div class="w-20 h-20 mx-auto mb-6 rounded-full bg-red-100 flex items-center justify-center">
+                        <span class="text-4xl">🇰🇷</span>
+                    </div>
+                    <h3 class="text-2xl font-bold text-slate-800 mb-2">한국어</h3>
+                    <p class="text-slate-500 mb-4">대한민국</p>
+                    <div class="text-sm text-slate-400">
+                        <p>경제 용어 사전</p>
+                        <p>금융 계산기</p>
+                        <p>투자 성향 테스트</p>
+                    </div>
+                    <div class="mt-6">
+                        <span class="inline-flex items-center text-blue-600 font-medium">
+                            사이트 입장
+                            <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 5l7 7-7 7" />
+                            </svg>
+                        </span>
+                    </div>
+                </a>
+
+                <!-- Japanese -->
+                <a href="jp/index.html"
+                    class="language-card bg-white rounded-2xl border border-slate-200 p-8 text-center hover:border-blue-400 block">
+                    <div class="w-20 h-20 mx-auto mb-6 rounded-full bg-pink-100 flex items-center justify-center">
+                        <span class="text-4xl">🇯🇵</span>
+                    </div>
+                    <h3 class="text-2xl font-bold text-slate-800 mb-2">日本語</h3>
+                    <p class="text-slate-500 mb-4">日本</p>
+                    <div class="text-sm text-slate-400">
+                        <p>経済用語辞典</p>
+                        <p>金融計算機</p>
+                        <p>投資性向テスト</p>
+                    </div>
+                    <div class="mt-6">
+                        <span class="inline-flex items-center text-blue-600 font-medium">
+                            サイトへ
+                            <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 5l7 7-7 7" />
+                            </svg>
+                        </span>
+                    </div>
+                </a>
+
+            </div>
+        </div>
+
+        <!-- Features Section -->
+        <div class="max-w-5xl mx-auto mt-20">
+            <h2 class="text-2xl font-semibold text-center text-slate-700 mb-10">
+                What We Offer
+            </h2>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="bg-white/60 rounded-xl p-6 text-center">
+                    <div class="text-3xl mb-3">📖</div>
+                    <h3 class="font-semibold text-slate-700 mb-2">Economic Dictionary</h3>
+                    <p class="text-sm text-slate-500">1000+ financial terms explained simply</p>
+                </div>
+                <div class="bg-white/60 rounded-xl p-6 text-center">
+                    <div class="text-3xl mb-3">🧮</div>
+                    <h3 class="font-semibold text-slate-700 mb-2">Financial Calculators</h3>
+                    <p class="text-sm text-slate-500">Compound interest & savings goal tools</p>
+                </div>
+                <div class="bg-white/60 rounded-xl p-6 text-center">
+                    <div class="text-3xl mb-3">🎯</div>
+                    <h3 class="font-semibold text-slate-700 mb-2">Investment Test</h3>
+                    <p class="text-sm text-slate-500">Discover your investment personality</p>
+                </div>
+                <div class="bg-white/60 rounded-xl p-6 text-center">
+                    <div class="text-3xl mb-3">🌍</div>
+                    <h3 class="font-semibold text-slate-700 mb-2">Multi-language</h3>
+                    <p class="text-sm text-slate-500">Available in EN, KO, JP</p>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 mt-20">
+        <div class="container mx-auto px-4 py-8">
+            <div class="text-center">
+                <p class="text-slate-500 text-sm mb-2">
+                    © 2024 Economy Helper. All rights reserved.
+                </p>
+                <p class="text-slate-400 text-xs">
+                    Making financial literacy accessible to everyone.
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Auto-redirect script with language detection -->
     <script>
         (function () {
             var savedLang = localStorage.getItem('preferredLanguage');
 
+            // If user has saved preference, redirect immediately
             if (savedLang) {
                 window.location.replace(savedLang + '/index.html');
                 return;
             }
 
+            // For new users, detect language and redirect after a short delay
+            // This delay allows crawlers to see the content
             var userLang = navigator.language || navigator.userLanguage;
             var lang = userLang.toLowerCase();
+            var targetUrl;
 
             if (lang.startsWith('ko')) {
-                window.location.replace('kr/index.html');
+                targetUrl = 'kr/index.html';
+            } else if (lang.startsWith('ja')) {
+                targetUrl = 'jp/index.html';
             } else {
-                window.location.replace('us/index.html');
+                targetUrl = 'us/index.html';
             }
+
+            // Redirect after 1.5 seconds for human users
+            // Bots typically don't wait and will index the current content
+            setTimeout(function () {
+                window.location.replace(targetUrl);
+            }, 1500);
         })();
     </script>
-</head>
-<body>
-    <amp-auto-ads type="adsense" data-ad-client="ca-pub-1927828313220344"></amp-auto-ads>
-    <noscript>
-        <meta http-equiv="refresh" content="0; url=us/index.html">
-        <p>Redirecting... <a href="us/index.html">Click here if not redirected</a></p>
-    </noscript>
+
 </body>
 
 </html>
