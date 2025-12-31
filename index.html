@@ -140,11 +140,6 @@
                     </div>
                     <h3 class="text-2xl font-bold text-slate-800 mb-2">English</h3>
                     <p class="text-slate-500 mb-4">United States</p>
-                    <div class="text-sm text-slate-400">
-                        <p>Economic Dictionary</p>
-                        <p>Financial Calculators</p>
-                        <p>Investment Personality Test</p>
-                    </div>
                     <div class="mt-6">
                         <span class="inline-flex items-center text-blue-600 font-medium">
                             Enter Site
@@ -164,11 +159,6 @@
                     </div>
                     <h3 class="text-2xl font-bold text-slate-800 mb-2">한국어</h3>
                     <p class="text-slate-500 mb-4">대한민국</p>
-                    <div class="text-sm text-slate-400">
-                        <p>경제 용어 사전</p>
-                        <p>금융 계산기</p>
-                        <p>투자 성향 테스트</p>
-                    </div>
                     <div class="mt-6">
                         <span class="inline-flex items-center text-blue-600 font-medium">
                             사이트 입장
@@ -188,11 +178,6 @@
                     </div>
                     <h3 class="text-2xl font-bold text-slate-800 mb-2">日本語</h3>
                     <p class="text-slate-500 mb-4">日本</p>
-                    <div class="text-sm text-slate-400">
-                        <p>経済用語辞典</p>
-                        <p>金融計算機</p>
-                        <p>投資性向テスト</p>
-                    </div>
                     <div class="mt-6">
                         <span class="inline-flex items-center text-blue-600 font-medium">
                             サイトへ
@@ -212,11 +197,6 @@
                     </div>
                     <h3 class="text-2xl font-bold text-slate-800 mb-2">Español</h3>
                     <p class="text-slate-500 mb-4">España / Latinoamérica</p>
-                    <div class="text-sm text-slate-400">
-                        <p>Diccionario Económico</p>
-                        <p>Calculadoras Financieras</p>
-                        <p>Test de Personalidad</p>
-                    </div>
                     <div class="mt-6">
                         <span class="inline-flex items-center text-blue-600 font-medium">
                             Entrar al Sitio
@@ -241,17 +221,14 @@
                 <div class="bg-white/60 rounded-xl p-6 text-center">
                     <div class="text-3xl mb-3">📖</div>
                     <h3 class="font-semibold text-slate-700 mb-2">Economic Dictionary</h3>
-                    <p class="text-sm text-slate-500">1000+ financial terms explained simply</p>
+                </div>
+                <div class="bg-white/60 rounded-xl p-6 text-center">
+                    <div class="text-3xl mb-3">🎯</div>
+                    <h3 class="font-semibold text-slate-700 mb-2">Personality Test</h3>
                 </div>
                 <div class="bg-white/60 rounded-xl p-6 text-center">
                     <div class="text-3xl mb-3">🧮</div>
                     <h3 class="font-semibold text-slate-700 mb-2">Financial Calculators</h3>
-                    <p class="text-sm text-slate-500">Compound interest & savings goal tools</p>
-                </div>
-                <div class="bg-white/60 rounded-xl p-6 text-center">
-                    <div class="text-3xl mb-3">🎯</div>
-                    <h3 class="font-semibold text-slate-700 mb-2">Investment Test</h3>
-                    <p class="text-sm text-slate-500">Discover your investment personality</p>
                 </div>
                 <div class="bg-white/60 rounded-xl p-6 text-center">
                     <div class="text-3xl mb-3">🌍</div>
@@ -268,7 +245,7 @@
         <div class="container mx-auto px-4 py-8">
             <div class="text-center">
                 <p class="text-slate-500 text-sm mb-2">
-                    © 2026 Economy Helper. All rights reserved.
+                    &copy; <span id="current-year">2026</span> Economy Helper. All rights reserved.
                 </p>
                 <p class="text-slate-400 text-xs">
                     Making financial literacy accessible to everyone.
@@ -276,6 +253,10 @@
             </div>
         </div>
     </footer>
+
+    <script>
+        document.getElementById('current-year').textContent = new Date().getFullYear();
+    </script>
 
     <!-- Auto-redirect script with language detection -->
     <script>

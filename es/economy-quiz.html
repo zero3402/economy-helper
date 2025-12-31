@@ -52,10 +52,32 @@
                         <!-- Options will be injected here -->
                     </div>
 
-                    <!-- Example Hint (Hidden by default) -->
-                    <div id="hint-area"
-                        class="hidden mt-4 p-4 bg-yellow-50 rounded-lg border border-yellow-100 text-sm text-yellow-800">
-                        <span class="font-bold">💡 Pista (Ejemplo):</span> <span id="hint-text"></span>
+                    <!-- Actions area (Hint & Next) -->
+                    <div class="flex flex-col gap-3 mt-6">
+                        <button id="hint-btn" onclick="toggleHint()"
+                            class="btn btn-ghost btn-sm text-slate-500 hover:text-blue-600 gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Ver Pista
+                        </button>
+
+                        <div id="hint-area"
+                            class="hidden p-4 bg-yellow-50 rounded-lg border border-yellow-100 text-sm text-yellow-800">
+                            <span class="font-bold">💡 Pista:</span> <span id="hint-text"></span>
+                        </div>
+
+                        <button id="next-btn" onclick="nextQuestion()"
+                            class="hidden btn btn-primary w-full gap-2 mt-2 py-4 h-auto text-lg shadow-lg shadow-blue-100">
+                            Siguiente Pregunta
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                            </svg>
+                        </button>
                     </div>
                 </div>
 
@@ -135,6 +157,9 @@
             document.getElementById('question-count').textContent = `Pregunta ${currentQuestionIndex + 1} / ${TOTAL_QUESTIONS}`;
             document.getElementById('question-text').textContent = questionData.definition;
             document.getElementById('hint-area').classList.add('hidden');
+            document.getElementById('hint-btn').classList.remove('hidden');
+            document.getElementById('next-btn').classList.add('hidden');
+            document.getElementById('hint-text').textContent = questionData.example || "";
 
             // Generate options
             // 1 Correct + 3 Distractors
@@ -172,15 +197,19 @@
             const hintArea = document.getElementById('hint-area');
             const hintText = document.getElementById('hint-text');
 
+            // Disable all option buttons after an answer is selected
+            buttons.forEach(b => b.disabled = true);
+
+            // Show Next Button
+            document.getElementById('next-btn').classList.remove('hidden');
+            document.getElementById('hint-btn').classList.add('hidden');
+
             if (selectedTerm === correctTerm) {
                 // Correct
                 btnElement.classList.remove('btn-outline', 'bg-white');
                 btnElement.classList.add('btn-success', 'text-white');
                 score += 10;
                 document.getElementById('score-display').textContent = `Puntuación: ${score}`;
-
-                // Confetti effect or simple delay
-                setTimeout(nextQuestion, 1000);
             } else {
                 // Incorrect
                 btnElement.classList.remove('btn-outline', 'bg-white');
@@ -194,15 +223,20 @@
                     }
                 });
 
-                // Show Hint
-                const qData = questions[currentQuestionIndex];
-                if (qData.example) {
-                    hintText.textContent = qData.example;
-                    hintArea.classList.remove('hidden');
-                }
+            }
+            // Show hint
+            document.getElementById('hint-area').classList.remove('hidden');
+        }
 
-                // Wait longer for user to read hint/correction
-                setTimeout(nextQuestion, 3000);
+        function toggleHint() {
+            const hintArea = document.getElementById('hint-area');
+            const hintBtn = document.getElementById('hint-btn');
+            if (hintArea.classList.contains('hidden')) {
+                hintArea.classList.remove('hidden');
+                hintBtn.classList.add('text-blue-600', 'bg-blue-50');
+            } else {
+                hintArea.classList.add('hidden');
+                hintBtn.classList.remove('text-blue-600', 'bg-blue-50');
             }
         }
 

@@ -3,7 +3,7 @@
 // URL 경로에서 현재 언어 및 깊이 감지
 const CURRENT_LANG = window.location.pathname.includes('/kr/') ? 'kr' : window.location.pathname.includes('/jp/') ? 'jp' : window.location.pathname.includes('/es/') ? 'es' : 'us';
 const IS_RESULTS_PAGE = window.location.pathname.includes('/results/');
-const ROOT_PATH = IS_RESULTS_PAGE ? '../../' : '../';
+const ROOT_PATH = IS_RESULTS_PAGE ? '../../../' : '../';
 const LANG_PATH = ROOT_PATH + CURRENT_LANG + '/';
 
 // 다국어 설정
@@ -11,9 +11,11 @@ const I18N = {
     kr: {
         DICTIONARY: '경제 사전',
         QUIZ: '경제 퀴즈',
-        CALCULATORS: '금융 계산기',
-        TEST: '투자 성향 테스트',
-        COMPOUND: '공학용 복리 계산기',
+        CALCULATORS: '계산기',
+        TEST: '성향 테스트',
+        INVESTMENT_TEST: '투자 성향 테스트',
+        SPENDING_TEST: '소비 성향 테스트',
+        COMPOUND: '복리 계산기',
         SAVINGS: '목돈 마련 계산기',
         SHARE_TITLE: '공유하기',
         COPY_LINK: '링크 복사',
@@ -26,6 +28,8 @@ const I18N = {
         QUIZ: 'Economy Quiz',
         CALCULATORS: 'Calculators',
         TEST: 'Personality Test',
+        INVESTMENT_TEST: 'Investment Personality Test',
+        SPENDING_TEST: 'Spending Personality Test',
         COMPOUND: 'Compound Interest',
         SAVINGS: 'Savings Goal',
         SHARE_TITLE: 'Share',
@@ -39,6 +43,8 @@ const I18N = {
         QUIZ: '経済クイズ',
         CALCULATORS: '計算機',
         TEST: '投資診断',
+        INVESTMENT_TEST: '投資性向診断',
+        SPENDING_TEST: '消費性向診断',
         COMPOUND: '複利計算機',
         SAVINGS: '貯蓄目標計算',
         SHARE_TITLE: '共有',
@@ -52,6 +58,8 @@ const I18N = {
         QUIZ: 'Quiz de Economía',
         CALCULATORS: 'Calculadoras',
         TEST: 'Test de Personalidad',
+        INVESTMENT_TEST: 'Test de Personalidad de Inversión',
+        SPENDING_TEST: 'Test de Personalidad de Gasto',
         COMPOUND: 'Interés Compuesto',
         SAVINGS: 'Meta de Ahorro',
         SHARE_TITLE: 'Compartir',
@@ -80,17 +88,19 @@ const TEST_STATE_KEY = 'personalityTestState';
 
 // 테스트 상태 저장
 function saveTestState(currentQuestion, answers) {
+    const type = window.location.pathname.includes('investment') ? 'investment' : 'spending';
     const state = {
         currentQuestion: currentQuestion,
         answers: answers,
         timestamp: Date.now()
     };
-    localStorage.setItem(TEST_STATE_KEY, JSON.stringify(state));
+    localStorage.setItem(TEST_STATE_KEY + '_' + type, JSON.stringify(state));
 }
 
 // 테스트 상태 불러오기
 function loadTestState() {
-    const stateJson = localStorage.getItem(TEST_STATE_KEY);
+    const type = window.location.pathname.includes('investment') ? 'investment' : 'spending';
+    const stateJson = localStorage.getItem(TEST_STATE_KEY + '_' + type);
     if (!stateJson) return null;
 
     const state = JSON.parse(stateJson);
@@ -104,6 +114,9 @@ function loadTestState() {
 
 // 테스트 상태 삭제
 function clearTestState() {
+    localStorage.removeItem(TEST_STATE_KEY + '_investment');
+    localStorage.removeItem(TEST_STATE_KEY + '_spending');
+    // 하위 호환성을 위해 기존 키도 삭제
     localStorage.removeItem(TEST_STATE_KEY);
 }
 
@@ -118,9 +131,15 @@ function handleLanguageChange(lang, activePageId) {
     const langPath = ROOT_PATH + lang + '/';
     let targetUrl;
 
-    if (activePageId === 'personality' || IS_RESULTS_PAGE) {
+    // 성향 테스트 페이지인 경우 상태 초기화
+    if (activePageId === 'personality-investment' || activePageId === 'personality-spending') {
         clearTestState();
-        targetUrl = langPath + 'personality-test.html';
+    }
+
+    if (activePageId === 'personality-investment') {
+        targetUrl = langPath + 'investment-test.html';
+    } else if (activePageId === 'personality-spending') {
+        targetUrl = langPath + 'spending-test.html';
     } else if (activePageId === 'compoundInterest') {
         targetUrl = langPath + 'compound-interest-calculator.html';
     } else if (activePageId === 'savingsGoal') {
@@ -161,6 +180,44 @@ function injectAmpAutoAds() {
         header.parentNode.insertBefore(ampAutoAds, header.nextSibling);
     } else {
         document.body.insertBefore(ampAutoAds, document.body.firstChild);
+    }
+}
+
+// 검색 엔진 로봇 여부 확인
+function isSearchBot() {
+    const botUserAgents = [
+        'googlebot', 'bingbot', 'yandexbot', 'baiduspider', 'twitterbot', 'facebookexternalhit', 'rogerbot', 'linkedinbot', 'embedly', 'quora link preview', 'showyoubot', 'outbrain', 'pinterest/0.', 'developers.google.com/+/web/snippet', 'slackbot', 'vkshare', 'w3c_validator', 'redditbot', 'applebot', 'whatsapp', 'flipboard', 'tumblr', 'bitlybot', 'skypeuripreview', 'nuzzel', 'discordbot', 'google pagead', 'msnbot', 'ia_archiver'
+    ];
+    const ua = navigator.userAgent.toLowerCase();
+    return botUserAgents.some(bot => ua.includes(bot));
+}
+
+// 자동 언어 리다이렉션 (검색 봇 제외)
+function handleAutoRedirect() {
+    if (isSearchBot()) return;
+
+    const savedLang = localStorage.getItem('preferredLanguage');
+    const path = window.location.pathname;
+
+    // 루트 페이지(/ 또는 /index.html)에서만 자동 리다이렉션 수행
+    if (path === '/' || path.endsWith('/index.html')) {
+        // 이미 언어 경로에 있는 경우(예: /kr/index.html) 리다이렉션 안함
+        if (path.includes('/kr/') || path.includes('/us/') || path.includes('/jp/') || path.includes('/es/')) return;
+
+        if (savedLang && savedLang !== CURRENT_LANG) {
+            window.location.replace(savedLang + '/index.html');
+            return;
+        }
+
+        const userLang = (navigator.language || navigator.userLanguage).toLowerCase();
+        let targetLang = 'us';
+        if (userLang.startsWith('ko')) targetLang = 'kr';
+        else if (userLang.startsWith('ja')) targetLang = 'jp';
+        else if (userLang.startsWith('es')) targetLang = 'es';
+
+        if (targetLang !== CURRENT_LANG) {
+            window.location.replace(targetLang + '/index.html');
+        }
     }
 }
 
@@ -211,6 +268,7 @@ function renderHeader(activePageId) {
     const otherLangs = Object.keys(langLabels).filter(l => l !== CURRENT_LANG);
 
     const isCalculatorActive = activePageId === 'compoundInterest' || activePageId === 'savingsGoal';
+    const isTestActive = activePageId === 'personality-investment' || activePageId === 'personality-spending';
 
     // 네비게이션 아이템 생성 (Desktop)
     const navItemsDesktop = NAV_ITEMS.map(item => {
@@ -218,16 +276,14 @@ function renderHeader(activePageId) {
             return '<li class="dropdown dropdown-hover dropdown-end"><label tabindex="0" class="font-medium ' + (isCalculatorActive ? 'text-blue-600 bg-blue-50' : 'text-slate-600 hover:text-blue-600 hover:bg-blue-50') + ' rounded-lg cursor-pointer flex items-center gap-1">' + lang.CALCULATORS + '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg></label><ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow-lg bg-white rounded-xl w-52 border border-slate-100"><li><a href="' + LANG_PATH + 'compound-interest-calculator.html" class="' + (activePageId === 'compoundInterest' ? 'text-blue-600' : 'text-slate-600') + '">' + lang.COMPOUND + '</a></li><li><a href="' + LANG_PATH + 'savings-goal-calculator.html" class="' + (activePageId === 'savingsGoal' ? 'text-blue-600' : 'text-slate-600') + '">' + lang.SAVINGS + '</a></li></ul></li>';
         }
 
-        // General link
-        // Check if item matches active page. For Quiz, activePageId might be 'quiz'.
-        // We need to map activePageId to item key somewhat, or just check IDs.
-        // Let's rely on string inclusion or exact match if possible, or just passed ID.
-        // The pages call initComponents('dictionary'), 'quiz', etc.
+        if (item.key === 'TEST') {
+            return '<li class="dropdown dropdown-hover dropdown-end"><label tabindex="0" class="font-medium ' + (isTestActive ? 'text-blue-600 bg-blue-50' : 'text-slate-600 hover:text-blue-600 hover:bg-blue-50') + ' rounded-lg cursor-pointer flex items-center gap-1">' + lang.TEST + '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg></label><ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow-lg bg-white rounded-xl w-64 border border-slate-100"><li><a href="' + LANG_PATH + 'investment-test.html" class="' + (activePageId === 'personality-investment' ? 'text-blue-600' : 'text-slate-600') + '">' + lang.INVESTMENT_TEST + '</a></li><li><a href="' + LANG_PATH + 'spending-test.html" class="' + (activePageId === 'personality-spending' ? 'text-blue-600' : 'text-slate-600') + '">' + lang.SPENDING_TEST + '</a></li></ul></li>';
+        }
 
+        // General link
         let isActive = false;
         if (item.key === 'DICTIONARY' && activePageId === 'dictionary') isActive = true;
         if (item.key === 'QUIZ' && activePageId === 'quiz') isActive = true;
-        if (item.key === 'TEST' && activePageId === 'personality') isActive = true;
 
         const activeClass = isActive ? 'text-blue-600 bg-blue-50' : 'text-slate-600 hover:text-blue-600 hover:bg-blue-50';
         return '<li><a href="' + LANG_PATH + item.path + '" class="font-medium ' + activeClass + ' rounded-lg">' + lang[item.key] + '</a></li>';
@@ -245,10 +301,13 @@ function renderHeader(activePageId) {
             return '<li><details><summary class="font-medium ' + (isCalculatorActive ? 'text-blue-600' : 'text-slate-600') + '">' + lang.CALCULATORS + '</summary><ul class="p-2 bg-slate-50 rounded-lg"><li><a href="' + LANG_PATH + 'compound-interest-calculator.html" class="' + (activePageId === 'compoundInterest' ? 'text-blue-600' : 'text-slate-600') + '">' + lang.COMPOUND + '</a></li><li><a href="' + LANG_PATH + 'savings-goal-calculator.html" class="' + (activePageId === 'savingsGoal' ? 'text-blue-600' : 'text-slate-600') + '">' + lang.SAVINGS + '</a></li></ul></details></li>';
         }
 
+        if (item.key === 'TEST') {
+            return '<li><details><summary class="font-medium ' + (isTestActive ? 'text-blue-600' : 'text-slate-600') + '">' + lang.TEST + '</summary><ul class="p-2 bg-slate-50 rounded-lg"><li><a href="' + LANG_PATH + 'investment-test.html" class="' + (activePageId === 'personality-investment' ? 'text-blue-600' : 'text-slate-600') + '">' + lang.INVESTMENT_TEST + '</a></li><li><a href="' + LANG_PATH + 'spending-test.html" class="' + (activePageId === 'personality-spending' ? 'text-blue-600' : 'text-slate-600') + '">' + lang.SPENDING_TEST + '</a></li></ul></details></li>';
+        }
+
         let isActive = false;
         if (item.key === 'DICTIONARY' && activePageId === 'dictionary') isActive = true;
         if (item.key === 'QUIZ' && activePageId === 'quiz') isActive = true;
-        if (item.key === 'TEST' && activePageId === 'personality') isActive = true;
 
         const activeClass = isActive ? 'text-blue-600' : 'text-slate-600';
         return '<li><a href="' + LANG_PATH + item.path + '" class="font-medium ' + activeClass + '">' + lang[item.key] + '</a></li>';
@@ -277,6 +336,7 @@ function initComponents(activePageId) {
     injectAmpAutoAds();
     renderHeader(activePageId);
     renderFooter();
+    handleAutoRedirect();
 }
 
 // === 결과 페이지 공유 기능 ===

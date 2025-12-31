@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="corporate" id="html-root">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <!-- Primary Meta Tags -->
+    <title>投資性向テスト - Economy Helper</title>
+    <meta name="title" content="投資性向テスト - Economy Helper">
+    <meta name="description"
+        content="無料の50問投資性向テストであなたの金融タイプを発見しましょう。セーフガード、アグレッシブブル、戦略的プランナー、バリューシーカー、トレンドフォロワーのどれですか？">
+    <meta name="keywords" content="投資性向テスト, 金融性格診断, 投資スタイルテスト, お金の性格, 投資家タイプ診断, 金融行動テスト, 資産マインド評価, 個人金融クイズ">
+    <meta name="author" content="Economy Helper">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://economyhelper.com/jp/investment-test.html">
+    <link rel="icon" type="image/png" href="../images/favicon.png">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://economyhelper.com/jp/investment-test.html">
+    <meta property="og:title" content="投資性向テスト - Economy Helper">
+    <meta property="og:description" content="無料の50問テストであなたの投資性向タイプを発見しましょう。あなたの強みと弱みを学びましょう。">
+    <meta property="og:image" content="https://economyhelper.com/images/og.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:site_name" content="Economy Helper">
+    <meta property="og:locale" content="ja_JP">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://economyhelper.com/jp/investment-test.html">
+    <meta name="twitter:title" content="投資性向テスト - Economy Helper">
+    <meta name="twitter:description" content="無料の50問テストであなたの投資性向タイプを発見しましょう。あなたの強みと弱みを学びましょう。">
+    <meta name="twitter:image" content="https://economyhelper.com/images/og.png">
+
+    <!-- Additional SEO -->
+    <meta name="theme-color" content="#3B82F6">
+    <meta name="apple-mobile-web-app-title" content="Economy Helper">
+    <meta name="application-name" content="Economy Helper">
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "Quiz",
+        "name": "投資性向テスト",
+        "description": "あなたの金融タイプと投資スタイルを発見するための包括的な50問の性格テスト。",
+        "url": "https://economyhelper.com/jp/investment-test.html",
+        "provider": {
+            "@type": "Organization",
+            "name": "Economy Helper",
+            "url": "https://economyhelper.com/"
+        },
+        "about": {
+            "@type": "Thing",
+            "name": "投資性向タイプ"
+        },
+        "educationalLevel": "beginner",
+        "numberOfQuestions": 50,
+        "timeRequired": "PT10M",
+        "inLanguage": "ja"
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "ホーム",
+                "item": "https://economyhelper.com/"
+            },
+            {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "投資性向テスト",
+                "item": "https://economyhelper.com/jp/investment-test.html"
+            }
+        ]
+    }
+    </script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="../components.js"></script>
+</head>
+
+<body class="bg-slate-50 min-h-screen">
+    <!-- Header -->
+    <header id="header" class="bg-white border-b border-slate-200 sticky top-0 z-50"></header>
+    <main class="container mx-auto px-4 py-6 sm:py-10">
+        <!-- Start Screen -->
+        <div id="start-screen" class="max-w-4xl mx-auto text-center">
+            <div class="mb-8">
+                <div
+                    class="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                </div>
+                <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-800 mb-4">
+                    投資性向テスト
+                </h1>
+                <p class="text-slate-500 text-sm sm:text-base mb-6">
+                    5つのセクションにわたる50の厳選された質問を通じて、あなたの投資性向タイプを発見しましょう。<br class="hidden sm:inline">
+                    あなたの強みと弱みについて学びましょう。
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8 text-left">
+                <div class="bg-white rounded-xl p-4 border border-slate-200">
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-600" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="font-semibold text-slate-800">8-10分</div>
+                            <div class="text-xs text-slate-500">包括的な分析</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl p-4 border border-slate-200">
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-purple-600" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="font-semibold text-slate-800">50問</div>
+                            <div class="text-xs text-slate-500">5セクション、各10問</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-6 border border-slate-200 mb-8">
+                <h3 class="font-semibold text-slate-800 mb-4">5つの性向タイプ</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-5 gap-3 text-center">
+                    <div class="p-3">
+                        <div
+                            class="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-2">
+                            <span class="text-xl">🛡️</span>
+                        </div>
+                        <div class="text-xs font-medium text-slate-700">セーフガード</div>
+                    </div>
+                    <div class="p-3">
+                        <div class="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-2">
+                            <span class="text-xl">🐂</span>
+                        </div>
+                        <div class="text-xs font-medium text-slate-700">アグレッシブブル</div>
+                    </div>
+                    <div class="p-3">
+                        <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-2">
+                            <span class="text-xl">📊</span>
+                        </div>
+                        <div class="text-xs font-medium text-slate-700">戦略的プランナー</div>
+                    </div>
+                    <div class="p-3">
+                        <div class="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-2">
+                            <span class="text-xl">💰</span>
+                        </div>
+                        <div class="text-xs font-medium text-slate-700">バリューシーカー</div>
+                    </div>
+                    <div class="p-3">
+                        <div class="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center mx-auto mb-2">
+                            <span class="text-xl">🚀</span>
+                        </div>
+                        <div class="text-xs font-medium text-slate-700">トレンドフォロワー</div>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="startTest()"
+                class="btn btn-primary btn-lg px-12 rounded-xl text-base font-semibold shadow-lg hover:shadow-xl transition-all h-14 hover:scale-105">
+                テストを開始
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-2" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Question Screen -->
+        <div id="question-screen" class="hidden max-w-2xl mx-auto">
+            <!-- Progress -->
+            <div class="mb-6">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-medium text-slate-600">質問 <span id="current-q">1</span> / <span
+                            id="total-q">50</span></span>
+                    <span id="progress-percent" class="text-sm font-medium text-blue-600">0%</span>
+                </div>
+                <div class="w-full bg-slate-200 rounded-full h-2">
+                    <div id="progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Question Card -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8 mb-6 fade-in"
+                id="question-card">
+                <div id="section-badge"
+                    class="inline-block px-3 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full mb-4">
+                    セクション1: 投資態度とリスク
+                </div>
+                <h2 id="question-text" class="text-lg sm:text-xl font-semibold text-slate-800 leading-relaxed mb-8">
+                    Question text here
+                </h2>
+
+                <!-- Answer Scale -->
+                <div class="space-y-4">
+                    <div class="flex justify-between text-xs sm:text-sm text-slate-500 px-2">
+                        <span>全く同意しない</span>
+                        <span>強く同意する</span>
+                    </div>
+                    <div class="grid grid-cols-7 gap-1.5 sm:gap-3" id="answer-buttons">
+                        <button onclick="selectAnswer(1)"
+                            class="answer-btn aspect-square sm:aspect-auto sm:h-14 rounded-lg sm:rounded-xl bg-red-100 hover:bg-red-200 text-red-700 font-bold text-sm sm:text-base"
+                            data-value="1">1</button>
+                        <button onclick="selectAnswer(2)"
+                            class="answer-btn aspect-square sm:aspect-auto sm:h-14 rounded-lg sm:rounded-xl bg-orange-100 hover:bg-orange-200 text-orange-700 font-bold text-sm sm:text-base"
+                            data-value="2">2</button>
+                        <button onclick="selectAnswer(3)"
+                            class="answer-btn aspect-square sm:aspect-auto sm:h-14 rounded-lg sm:rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-700 font-bold text-sm sm:text-base"
+                            data-value="3">3</button>
+                        <button onclick="selectAnswer(4)"
+                            class="answer-btn aspect-square sm:aspect-auto sm:h-14 rounded-lg sm:rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm sm:text-base"
+                            data-value="4">4</button>
+                        <button onclick="selectAnswer(5)"
+                            class="answer-btn aspect-square sm:aspect-auto sm:h-14 rounded-lg sm:rounded-xl bg-lime-100 hover:bg-lime-200 text-lime-700 font-bold text-sm sm:text-base"
+                            data-value="5">5</button>
+                        <button onclick="selectAnswer(6)"
+                            class="answer-btn aspect-square sm:aspect-auto sm:h-14 rounded-lg sm:rounded-xl bg-green-100 hover:bg-green-200 text-green-700 font-bold text-sm sm:text-base"
+                            data-value="6">6</button>
+                        <button onclick="selectAnswer(7)"
+                            class="answer-btn aspect-square sm:aspect-auto sm:h-14 rounded-lg sm:rounded-xl bg-emerald-100 hover:bg-emerald-200 text-emerald-700 font-bold text-sm sm:text-base"
+                            data-value="7">7</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation -->
+            <div class="flex justify-between">
+                <button onclick="prevQuestion()" id="prev-btn" class="btn btn-ghost rounded-xl text-slate-600" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                    前へ
+                </button>
+                <button onclick="nextQuestion()" id="next-btn" class="btn btn-primary rounded-xl" disabled>
+                    次へ
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-1" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer id="footer" class="bg-white border-t border-slate-200 mt-auto"></footer>
+
+    <script>
+        const TEST_TYPE = 'investment';
+        const resultPages = {
+            safeGuard: 'safe-guard',
+            aggressiveBull: 'aggressive-bull',
+            strategicPlanner: 'strategic-planner',
+            valueSeeker: 'value-seeker',
+            trendFollower: 'trend-follower'
+        };
+
+        const questions = [
+            // セクション1: 投資態度とリスク (10問)
+            { section: 'セクション1: 投資態度とリスク', text: '元本を失う可能性が1%でもあれば、その投資は避けたい。', weights: [3, -2, 0, 1, -1] },
+            { section: 'セクション1: 投資態度とリスク', text: '「ハイリスク・ハイリターン」が私の人生のモットーだ。', weights: [-2, 3, 0, -1, 2] },
+            { section: 'セクション1: 投資態度とリスク', text: 'レバレッジ(借入)を活用することは、富を築くために不可欠な戦略だと信じている。', weights: [-2, 3, 0, -1, 1] },
+            { section: 'セクション1: 投資態度とリスク', text: '投資する際、最初に確認するのは「最大損失額」だ。', weights: [3, -1, 2, 1, 0] },
+            { section: 'セクション1: 投資態度とリスク', text: '急騰している株やニュースで話題になっているテーマに常に引き寄せられる。', weights: [-1, 2, -1, 0, 3] },
+            { section: 'セクション1: 投資態度とリスク', text: '暗号資産は将来の核心資産になると信じている。', weights: [-1, 1, 0, 0, 3] },
+            { section: 'セクション1: 投資態度とリスク', text: '分散投資より、信頼できる1〜2銘柄への集中投資を好む。', weights: [-1, 3, -2, 0, 1] },
+            { section: 'セクション1: 投資態度とリスク', text: 'パニックに満ちた市場は最高の買い場だと思う。', weights: [-1, 3, 1, 0, 1] },
+            { section: 'セクション1: 投資態度とリスク', text: '複利の力を信じており、10年以上の投資をする準備ができている。', weights: [1, -1, 3, 1, 0] },
+            { section: 'セクション1: 投資態度とリスク', text: '資産の50%以上が現金でないと安心できない。', weights: [3, -2, -1, 1, -1] },
+
+            // セクション2: 支出習慣と価値追求 (10問)
+            { section: 'セクション2: 支出習慣と価値追求', text: '購入する前に、少なくとも3つのサイトで価格を比較する。', weights: [1, -1, 1, 3, 0] },
+            { section: 'セクション2: 支出習慣と価値追求', text: '「コストパフォーマンス」より「ブランドイメージ」が重要だ。', weights: [0, 1, -1, -3, 1] },
+            { section: 'セクション2: 支出習慣と価値追求', text: 'クレジットカードのマイレージやキャッシュバック特典を最大限活用する。', weights: [0, 0, 2, 3, 1] },
+            { section: 'セクション2: 支出習慣と価値追求', text: '家計簿アプリを使って、支出を1円単位まで記録している。', weights: [1, 0, 2, 3, 0] },
+            { section: 'セクション2: 支出習慣と価値追求', text: '友人から「倹約家」や「ケチ」と言われたことがある。', weights: [2, -1, 0, 3, -1] },
+            { section: 'セクション2: 支出習慣と価値追求', text: '使わなくなったサブスクリプションサービスを定期的に見直して解約する。', weights: [1, 0, 2, 3, 0] },
+            { section: 'セクション2: 支出習慣と価値追求', text: '自分への「贅沢なご褒美」には出費を惜しまない。', weights: [-1, 1, -1, -3, 1] },
+            { section: 'セクション2: 支出習慣と価値追求', text: '電気代や水道代などの光熱費を節約するよう意識的に努力している。', weights: [1, -1, 1, 3, 0] },
+            { section: 'セクション2: 支出習慣と価値追求', text: '衝動買いを避けるため、カートに入れてから数日待って決済する。', weights: [2, -1, 2, 3, 0] },
+            { section: 'セクション2: 支出習慣と価値追求', text: '銀行残高が増える喜びは、お金を使う喜びより大きい。', weights: [2, 0, 1, 3, 0] },
+
+            // セクション3: 情報とテクノロジートレンド (10問)
+            { section: 'セクション3: 情報とテクノロジートレンド', text: '新しい金融アプリ(ネオバンク、フィンテック)が出たらすぐにインストールする。', weights: [-1, 1, 0, 0, 3] },
+            { section: 'セクション3: 情報とテクノロジートレンド', text: 'フィンテック、AI、ロボティクスなどの未来産業に非常に興味がある。', weights: [0, 1, 1, 0, 3] },
+            { section: 'セクション3: 情報とテクノロジートレンド', text: 'NFTやメタバース上の土地などのデジタル資産の価値を認識している。', weights: [-1, 1, 0, 0, 3] },
+            { section: 'セクション3: 情報とテクノロジートレンド', text: '新しいお金の稼ぎ方を友人に最初に教えるのは大抵私だ。', weights: [-1, 2, 0, 0, 3] },
+            { section: 'セクション3: 情報とテクノロジートレンド', text: '複雑な利用規約や公示資料を読むことに抵抗がない。', weights: [1, 0, 3, 1, 0] },
+            { section: 'セクション3: 情報とテクノロジートレンド', text: 'ChatGPTのようなツールを専門的な投資分析に活用したい。', weights: [0, 1, 2, 0, 3] },
+            { section: 'セクション3: 情報とテクノロジートレンド', text: '他の人がまだ知らない「隠れた宝石」や情報を見つけることに夢中だ。', weights: [-1, 2, 0, 0, 3] },
+            { section: 'セクション3: 情報とテクノロジートレンド', text: '金利や為替のニュースを常に自分の生活と結びつけて考える。', weights: [1, 1, 3, 1, 1] },
+            { section: 'セクション3: 情報とテクノロジートレンド', text: '革新的な企業は、現在赤字でも投資する価値があると信じている。', weights: [-1, 2, 0, -1, 3] },
+            { section: 'セクション3: 情報とテクノロジートレンド', text: '世界が速く変化するほど、お金を稼ぐ機会が増えると信じている。', weights: [-1, 2, 0, 0, 3] },
+
+            // セクション4: プランニングと資産管理 (10問)
+            { section: 'セクション4: プランニングと資産管理', text: '10年後や20年後に達成したい具体的な資産目標額がある。', weights: [1, 0, 3, 1, 0] },
+            { section: 'セクション4: プランニングと資産管理', text: '給料をもらったら、まず貯蓄・投資をして、残りで生活する。', weights: [2, 0, 3, 2, 0] },
+            { section: 'セクション4: プランニングと資産管理', text: '株式、不動産、現金の間で一定의 比率を維持している(ポートフォリオ)。', weights: [0, -1, 3, 0, 0] },
+            { section: 'セクション4: プランニングと資産管理', text: '予期せぬ支出に備えて、常に緊急資金を別に確保している。', weights: [3, -1, 2, 1, 0] },
+            { section: 'セクション4: プランニングと資産管理', text: '今日現在の正確な「純資産額」(資産-負債)を数字で把握している。', weights: [1, 0, 3, 2, 0] },
+            { section: 'セクション4: プランニングと資産管理', text: 'ローンを組むことは「悪いこと」ではなく、戦略的なツールだと考えている。', weights: [-1, 3, 1, -1, 1] },
+            { section: 'セクション4: プランニングと資産管理', text: '退職計画はできるだけ早く始めるべきで、すでに始めている。', weights: [2, 0, 3, 1, 0] },
+            { section: 'セクション4: プランニングと資産管理', text: '毎月の支出を項目別に分類した予算に従って生活している。', weights: [1, -1, 3, 3, 0] },
+            { section: 'セクション4: プランニングと資産管理', text: '利益を再投資して、複利の力を最大化している。', weights: [1, 1, 3, 1, 0] },
+            { section: 'セクション4: プランニングと資産管理', text: '富を築くために最も重要な美徳は「忍耐」だと信じている。', weights: [2, -1, 3, 1, 0] },
+
+            // セクション5: ライフスタイルと哲学 (10問)
+            { section: 'セクション5: ライフスタイルと哲学', text: 'お金を使うことより、貯める過程でより幸せを感じる。', weights: [2, -1, 1, 3, 0] },
+            { section: 'セクション5: ライフスタイルと哲学', text: 'お金を稼ぐために、時間や健康をある程度犠牲にしてもかまわない。', weights: [0, 2, 0, 0, 1] },
+            { section: 'セクション5: ライフスタイルと哲学', text: '「経済的自由」を達成することが人生の最終目標だ。', weights: [1, 1, 2, 2, 1] },
+            { section: 'セクション5: ライフスタイルと哲学', text: '他人に「裕福に見える」ことより、「実際に裕福である」ことが重要だ。', weights: [2, 0, 2, 3, 0] },
+            { section: 'セクション5: ライフスタイルと哲学', text: '高級車を運転することより、良い株を所有していることに誇りを感じる。', weights: [1, 1, 2, 2, 1] },
+            { section: 'セクション5: ライフスタイルと哲学', text: '宝くじのような運に頼るより、実力で富を築きたい。', weights: [1, 1, 3, 1, 0] },
+            { section: 'セクション5: ライフスタイルと哲学', text: 'ミニマリズム(少なく所有すること)は私の経済観とよく合っている。', weights: [1, -1, 1, 2, 0] },
+            { section: 'セクション5: ライフスタイルと哲学', text: '莫大なお金のために、愛や友情を諦めることができると思う。', weights: [-1, 2, 0, 0, 0] },
+            { section: 'セクション5: ライフスタイルと哲学', text: '大きな経済的成功を収めた人々の伝記を読むのが好きだ。', weights: [0, 2, 2, 0, 1] },
+            { section: 'セクション5: ライフスタイルと哲学', text: '現在の幸せのためにお金を使うこと(YOLO)も価値があると信じている。', weights: [-2, 1, -1, -2, 1] }
+        ];
+
+        let currentQuestion = 0;
+        let answers = new Array(questions.length).fill(null);
+
+        function startTest(resumeFromSaved = false) {
+            const savedState = loadTestState();
+            if (savedState && !resumeFromSaved) {
+                const answeredCount = savedState.answers.filter(a => a !== null).length;
+                if (answeredCount > 0 && confirm('進行中のテストがあります (' + answeredCount + '/' + questions.length + ' 問完了)。続けますか？\n\n「キャンセル」をクリックして最初からやり直します。')) {
+                    answers = savedState.answers;
+                    currentQuestion = savedState.currentQuestion;
+                } else {
+                    clearTestState();
+                }
+            }
+
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('question-screen').classList.remove('hidden');
+            document.getElementById('total-q').textContent = questions.length;
+            showQuestion(currentQuestion);
+        }
+
+        function showQuestion(index) {
+            currentQuestion = index;
+            const q = questions[index];
+            saveTestState(currentQuestion, answers);
+
+            document.getElementById('current-q').textContent = index + 1;
+            document.getElementById('progress-percent').textContent = Math.round(((index + 1) / questions.length) * 100) + '%';
+            document.getElementById('progress-bar').style.width = (((index + 1) / questions.length) * 100) + '%';
+            document.getElementById('section-badge').textContent = q.section;
+            document.getElementById('question-text').textContent = q.text;
+
+            document.querySelectorAll('.answer-btn').forEach(btn => btn.classList.remove('selected'));
+            if (answers[index] !== null) {
+                const selectedBtn = document.querySelector(`.answer-btn[data-value="${answers[index]}"]`);
+                if (selectedBtn) selectedBtn.classList.add('selected');
+            }
+
+            document.getElementById('prev-btn').disabled = index === 0;
+            updateNextButton();
+
+            const card = document.getElementById('question-card');
+            card.classList.remove('fade-in');
+            void card.offsetWidth;
+            card.classList.add('fade-in');
+        }
+
+        function selectAnswer(value) {
+            answers[currentQuestion] = value;
+            document.querySelectorAll('.answer-btn').forEach(btn => btn.classList.remove('selected'));
+            document.querySelector(`.answer-btn[data-value="${value}"]`).classList.add('selected');
+            updateNextButton();
+            setTimeout(() => {
+                if (currentQuestion < questions.length - 1) nextQuestion();
+            }, 300);
+        }
+
+        function updateNextButton() {
+            const nextBtn = document.getElementById('next-btn');
+            const isLastQuestion = currentQuestion === questions.length - 1;
+            const hasAnswer = answers[currentQuestion] !== null;
+            nextBtn.disabled = !hasAnswer;
+            nextBtn.innerHTML = isLastQuestion
+                ? '結果を見る <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>'
+                : '次へ <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>';
+        }
+
+        function prevQuestion() {
+            if (currentQuestion > 0) showQuestion(currentQuestion - 1);
+        }
+
+        function nextQuestion() {
+            if (currentQuestion < questions.length - 1) {
+                showQuestion(currentQuestion + 1);
+            } else {
+                showResults();
+            }
+        }
+
+        function calculateScores() {
+            const currentTypes = ['safeGuard', 'aggressiveBull', 'strategicPlanner', 'valueSeeker', 'trendFollower'];
+            const scores = {};
+            currentTypes.forEach(type => scores[type] = 0);
+
+            questions.forEach((q, i) => {
+                const answer = answers[i];
+                const normalizedAnswer = (answer - 4) / 3;
+                currentTypes.forEach((type, j) => {
+                    scores[type] += normalizedAnswer * q.weights[j];
+                });
+            });
+
+            const maxPossible = questions.length * 3;
+            currentTypes.forEach(type => {
+                scores[type] = Math.round(((scores[type] + maxPossible) / (maxPossible * 2)) * 100);
+                scores[type] = Math.max(0, Math.min(100, scores[type]));
+            });
+            return scores;
+        }
+
+        function showResults() {
+            const scores = calculateScores();
+            const sortedTypes = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+            const topType = sortedTypes[0][0];
+            clearTestState();
+            window.location.href = `results/investment/${resultPages[topType]}.html`;
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            if (typeof initComponents === 'function') {
+                initComponents('personality-investment');
+            }
+
+            const savedState = loadTestState();
+            if (savedState) {
+                const answeredCount = savedState.answers.filter(a => a !== null).length;
+                if (answeredCount > 0) {
+                    answers = savedState.answers;
+                    currentQuestion = savedState.currentQuestion;
+                    document.getElementById('start-screen').classList.add('hidden');
+                    document.getElementById('question-screen').classList.remove('hidden');
+                    document.getElementById('total-q').textContent = questions.length;
+                    showQuestion(currentQuestion);
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>
