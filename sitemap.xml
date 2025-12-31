@@ -1,84 +1,83 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
-<!--  created with Free Online Sitemap Generator www.xml-sitemaps.com  -->
-<url>
-  <loc>https://economyhelper.com/</loc>
-  <lastmod>2025-12-31T23:35:00+09:00</lastmod>
-  <priority>1.00</priority>
-</url>
-<url>
-  <loc>https://economyhelper.com/us/</loc>
-  <lastmod>2025-12-31T23:35:00+09:00</lastmod>
-  <priority>0.80</priority>
-</url>
-<url>
-  <loc>https://economyhelper.com/kr/</loc>
-  <lastmod>2025-12-31T23:35:00+09:00</lastmod>
-  <priority>0.80</priority>
-</url>
-<url>
-  <loc>https://economyhelper.com/jp/</loc>
-  <lastmod>2025-12-31T23:35:00+09:00</lastmod>
-  <priority>0.80</priority>
-</url>
-<url>
-  <loc>https://economyhelper.com/kr/economy-quiz.html</loc>
-  <lastmod>2025-12-31T23:35:00+09:00</lastmod>
-  <priority>0.80</priority>
-</url>
-<url>
-  <loc>https://economyhelper.com/us/economy-quiz.html</loc>
-  <lastmod>2025-12-31T23:35:00+09:00</lastmod>
-  <priority>0.80</priority>
-</url>
-<url>
-  <loc>https://economyhelper.com/jp/economy-quiz.html</loc>
-  <lastmod>2025-12-31T23:35:00+09:00</lastmod>
-  <priority>0.80</priority>
-</url>
-<url>
-  <loc>https://economyhelper.com/kr/personality-test.html</loc>
-  <lastmod>2025-12-31T23:35:00+09:00</lastmod>
-  <priority>0.80</priority>
-</url>
-<url>
-  <loc>https://economyhelper.com/us/personality-test.html</loc>
-  <lastmod>2025-12-31T23:35:00+09:00</lastmod>
-  <priority>0.80</priority>
-</url>
-<url>
-  <loc>https://economyhelper.com/jp/personality-test.html</loc>
-  <lastmod>2025-12-31T23:35:00+09:00</lastmod>
-  <priority>0.80</priority>
-</url>
-<url>
-  <loc>https://economyhelper.com/kr/compound-interest-calculator.html</loc>
-  <lastmod>2025-12-31T23:35:00+09:00</lastmod>
-  <priority>0.80</priority>
-</url>
-<url>
-  <loc>https://economyhelper.com/us/compound-interest-calculator.html</loc>
-  <lastmod>2025-12-31T23:35:00+09:00</lastmod>
-  <priority>0.80</priority>
-</url>
-<url>
-  <loc>https://economyhelper.com/jp/compound-interest-calculator.html</loc>
-  <lastmod>2025-12-31T23:35:00+09:00</lastmod>
-  <priority>0.80</priority>
-</url>
-<url>
-  <loc>https://economyhelper.com/kr/savings-goal-calculator.html</loc>
-  <lastmod>2025-12-31T23:35:00+09:00</lastmod>
-  <priority>0.80</priority>
-</url>
-<url>
-  <loc>https://economyhelper.com/us/savings-goal-calculator.html</loc>
-  <lastmod>2025-12-31T23:35:00+09:00</lastmod>
-  <priority>0.80</priority>
-</url>
-<url>
-  <loc>https://economyhelper.com/jp/savings-goal-calculator.html</loc>
-  <lastmod>2025-12-31T23:35:00+09:00</lastmod>
-  <priority>0.80</priority>
-</url>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://economyhelper.com/</loc>
+    <lastmod>2025-12-31T23:35:00+09:00</lastmod>
+    <priority>1.00</priority>
+  </url>
+  <url>
+    <loc>https://economyhelper.com/us/</loc>
+    <lastmod>2025-12-31T23:35:00+09:00</lastmod>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://economyhelper.com/kr/</loc>
+    <lastmod>2025-12-31T23:35:00+09:00</lastmod>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://economyhelper.com/jp/</loc>
+    <lastmod>2025-12-31T23:35:00+09:00</lastmod>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://economyhelper.com/kr/economy-quiz.html</loc>
+    <lastmod>2025-12-31T23:35:00+09:00</lastmod>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://economyhelper.com/us/economy-quiz.html</loc>
+    <lastmod>2025-12-31T23:35:00+09:00</lastmod>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://economyhelper.com/jp/economy-quiz.html</loc>
+    <lastmod>2025-12-31T23:35:00+09:00</lastmod>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://economyhelper.com/kr/personality-test.html</loc>
+    <lastmod>2025-12-31T23:35:00+09:00</lastmod>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://economyhelper.com/us/personality-test.html</loc>
+    <lastmod>2025-12-31T23:35:00+09:00</lastmod>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://economyhelper.com/jp/personality-test.html</loc>
+    <lastmod>2025-12-31T23:35:00+09:00</lastmod>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://economyhelper.com/kr/compound-interest-calculator.html</loc>
+    <lastmod>2025-12-31T23:35:00+09:00</lastmod>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://economyhelper.com/us/compound-interest-calculator.html</loc>
+    <lastmod>2025-12-31T23:35:00+09:00</lastmod>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://economyhelper.com/jp/compound-interest-calculator.html</loc>
+    <lastmod>2025-12-31T23:35:00+09:00</lastmod>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://economyhelper.com/kr/savings-goal-calculator.html</loc>
+    <lastmod>2025-12-31T23:35:00+09:00</lastmod>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://economyhelper.com/us/savings-goal-calculator.html</loc>
+    <lastmod>2025-12-31T23:35:00+09:00</lastmod>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://economyhelper.com/jp/savings-goal-calculator.html</loc>
+    <lastmod>2025-12-31T23:35:00+09:00</lastmod>
+    <priority>0.80</priority>
+  </url>
 </urlset>
