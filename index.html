@@ -14,285 +14,230 @@
     <link rel="canonical" href="https://economyhelper.com/">
     <link rel="icon" type="image/png" href="./images/favicon.png">
 
-    <!-- Alternate language versions -->
-    <link rel="alternate" hreflang="en" href="https://economyhelper.com/us/index.html">
-    <link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/index.html">
-    <link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/index.html">
-    <link rel="alternate" hreflang="es" href="https://economyhelper.com/es/index.html">
-    <link rel="alternate" hreflang="x-default" href="https://economyhelper.com/">
-
-    <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://economyhelper.com/">
-    <meta property="og:title" content="Economy Helper - Financial Literacy for Everyone">
-    <meta property="og:description"
-        content="Master investing, trading, and personal finance knowledge. Free financial calculators and tools.">
-    <meta property="og:image" content="https://economyhelper.com/images/og.png">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
-    <meta property="og:site_name" content="Economy Helper">
-    <meta property="og:locale" content="en_US">
-    <meta property="og:locale:alternate" content="ko_KR">
-    <meta property="og:locale:alternate" content="ja_JP">
-
-    <!-- Twitter -->
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:url" content="https://economyhelper.com/">
-    <meta name="twitter:title" content="Economy Helper - Financial Literacy for Everyone">
-    <meta name="twitter:description"
-        content="Master investing, trading, and personal finance knowledge. Free financial calculators and tools.">
-    <meta name="twitter:image" content="https://economyhelper.com/images/og.png">
-
-    <!-- Additional SEO -->
-    <meta name="theme-color" content="#3B82F6">
-    <meta name="apple-mobile-web-app-title" content="Economy Helper">
-    <meta name="application-name" content="Economy Helper">
-
-    <!-- Structured Data -->
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@type": "WebSite",
-        "name": "Economy Helper",
-        "alternateName": ["경제 헬퍼", "エコノミーヘルパー"],
-        "url": "https://economyhelper.com/",
-        "description": "Financial literacy platform with economic dictionaries, calculators, and tools in multiple languages.",
-        "inLanguage": ["en", "ko", "ja"],
-        "potentialAction": {
-            "@type": "SearchAction",
-            "target": "https://economyhelper.com/us/index.html?search={search_term_string}",
-            "query-input": "required name=search_term_string"
-        }
-    }
-    </script>
-
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1927828313220344"
-        crossorigin="anonymous"></script>
-
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet" type="text/css" />
 
     <style>
+        .hero-pattern {
+            background-color: #f8fafc;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%233b82f6' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+
+        .root-fade-in {
+            animation: rootFadeIn 0.8s ease-out forwards;
+            opacity: 0;
+        }
+
+        @keyframes rootFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
         .language-card {
             transition: all 0.3s ease;
         }
 
         .language-card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-        }
-
-        .gradient-bg {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
-
-        .hero-pattern {
-            background-color: #f8fafc;
-            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%233b82f6' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
         }
     </style>
 </head>
 
-<body class="hero-pattern min-h-screen">
-    <amp-auto-ads type="adsense" data-ad-client="ca-pub-1927828313220344"></amp-auto-ads>
-
-    <!-- Header -->
-    <header class="bg-white/80 backdrop-blur-sm border-b border-slate-200 sticky top-0 z-50">
-        <div class="container mx-auto px-4 py-4">
-            <div class="flex items-center justify-center">
-                <a href="/" class="flex items-center gap-2">
-                    <span class="text-2xl">📊</span>
-                    <span class="font-bold text-xl text-slate-800">Economy Helper</span>
-                </a>
-            </div>
-        </div>
-    </header>
+<body class="hero-pattern min-h-screen flex flex-col">
+    <!-- Header injected by components.js -->
+    <header id="header" class="bg-white/80 backdrop-blur-sm border-b border-slate-200 sticky top-0 z-50"></header>
 
     <!-- Main Content -->
-    <main class="container mx-auto px-4 py-12 sm:py-20">
-
-        <!-- Hero Section -->
-        <div class="text-center max-w-4xl mx-auto mb-16">
-            <h1 class="text-4xl sm:text-5xl font-bold text-slate-800 mb-6">
-                Welcome to Economy Helper
-            </h1>
-            <p class="text-lg sm:text-xl text-slate-600 mb-4">
-                Your gateway to financial literacy and economic understanding
-            </p>
-            <p class="text-base text-slate-500">
-                Free economic dictionaries, financial calculators, and investment tools
-            </p>
+    <main id="main-content" class="container mx-auto px-4 py-12 sm:py-20 flex-grow">
+        <!-- Dynamic content will be injected here -->
+        <div id="loading" class="flex justify-center items-center py-20">
+            <span class="loading loading-spinner loading-lg text-blue-500"></span>
         </div>
-
-        <!-- Language Selection -->
-        <div class="max-w-5xl mx-auto">
-            <h2 class="text-2xl font-semibold text-center text-slate-700 mb-8">
-                Select Your Language / 언어를 선택하세요 / 言語を選択してください
-            </h2>
-
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
-
-                <!-- English -->
-                <a href="us/index.html"
-                    class="language-card bg-white rounded-2xl border border-slate-200 p-8 text-center hover:border-blue-400 block">
-                    <div class="w-20 h-20 mx-auto mb-6 rounded-full bg-blue-100 flex items-center justify-center">
-                        <span class="text-4xl">🇺🇸</span>
-                    </div>
-                    <h3 class="text-2xl font-bold text-slate-800 mb-2">English</h3>
-                    <p class="text-slate-500 mb-4">United States</p>
-                    <div class="mt-6">
-                        <span class="inline-flex items-center text-blue-600 font-medium">
-                            Enter Site
-                            <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M9 5l7 7-7 7" />
-                            </svg>
-                        </span>
-                    </div>
-                </a>
-
-                <!-- Korean -->
-                <a href="kr/index.html"
-                    class="language-card bg-white rounded-2xl border border-slate-200 p-8 text-center hover:border-blue-400 block">
-                    <div class="w-20 h-20 mx-auto mb-6 rounded-full bg-red-100 flex items-center justify-center">
-                        <span class="text-4xl">🇰🇷</span>
-                    </div>
-                    <h3 class="text-2xl font-bold text-slate-800 mb-2">한국어</h3>
-                    <p class="text-slate-500 mb-4">대한민국</p>
-                    <div class="mt-6">
-                        <span class="inline-flex items-center text-blue-600 font-medium">
-                            사이트 입장
-                            <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M9 5l7 7-7 7" />
-                            </svg>
-                        </span>
-                    </div>
-                </a>
-
-                <!-- Japanese -->
-                <a href="jp/index.html"
-                    class="language-card bg-white rounded-2xl border border-slate-200 p-8 text-center hover:border-blue-400 block">
-                    <div class="w-20 h-20 mx-auto mb-6 rounded-full bg-pink-100 flex items-center justify-center">
-                        <span class="text-4xl">🇯🇵</span>
-                    </div>
-                    <h3 class="text-2xl font-bold text-slate-800 mb-2">日本語</h3>
-                    <p class="text-slate-500 mb-4">日本</p>
-                    <div class="mt-6">
-                        <span class="inline-flex items-center text-blue-600 font-medium">
-                            サイトへ
-                            <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M9 5l7 7-7 7" />
-                            </svg>
-                        </span>
-                    </div>
-                </a>
-
-                <!-- Spanish -->
-                <a href="es/index.html"
-                    class="language-card bg-white rounded-2xl border border-slate-200 p-8 text-center hover:border-blue-400 block">
-                    <div class="w-20 h-20 mx-auto mb-6 rounded-full bg-yellow-100 flex items-center justify-center">
-                        <span class="text-4xl">🇪🇸</span>
-                    </div>
-                    <h3 class="text-2xl font-bold text-slate-800 mb-2">Español</h3>
-                    <p class="text-slate-500 mb-4">España / Latinoamérica</p>
-                    <div class="mt-6">
-                        <span class="inline-flex items-center text-blue-600 font-medium">
-                            Entrar al Sitio
-                            <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M9 5l7 7-7 7" />
-                            </svg>
-                        </span>
-                    </div>
-                </a>
-
-            </div>
-        </div>
-
-        <!-- Features Section -->
-        <div class="max-w-5xl mx-auto mt-20">
-            <h2 class="text-2xl font-semibold text-center text-slate-700 mb-10">
-                What We Offer
-            </h2>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div class="bg-white/60 rounded-xl p-6 text-center">
-                    <div class="text-3xl mb-3">📖</div>
-                    <h3 class="font-semibold text-slate-700 mb-2">Economic Dictionary</h3>
-                </div>
-                <div class="bg-white/60 rounded-xl p-6 text-center">
-                    <div class="text-3xl mb-3">🎯</div>
-                    <h3 class="font-semibold text-slate-700 mb-2">Personality Test</h3>
-                </div>
-                <div class="bg-white/60 rounded-xl p-6 text-center">
-                    <div class="text-3xl mb-3">🧮</div>
-                    <h3 class="font-semibold text-slate-700 mb-2">Financial Calculators</h3>
-                </div>
-                <div class="bg-white/60 rounded-xl p-6 text-center">
-                    <div class="text-3xl mb-3">🌍</div>
-                    <h3 class="font-semibold text-slate-700 mb-2">Multi-language</h3>
-                    <p class="text-sm text-slate-500">Available in EN, KO, JP, ES</p>
-                </div>
-            </div>
-        </div>
-
     </main>
 
-    <!-- Footer -->
-    <footer class="bg-white border-t border-slate-200 mt-20">
-        <div class="container mx-auto px-4 py-8">
-            <div class="text-center">
-                <p class="text-slate-500 text-sm mb-2">
-                    &copy; <span id="current-year">2026</span> Economy Helper. All rights reserved.
-                </p>
-                <p class="text-slate-400 text-xs">
-                    Making financial literacy accessible to everyone.
-                </p>
-            </div>
-        </div>
-    </footer>
+    <!-- Footer injected by components.js -->
+    <footer id="footer" class="bg-white border-t border-slate-200"></footer>
 
+    <script src="components.js"></script>
     <script>
-        document.getElementById('current-year').textContent = new Date().getFullYear();
-    </script>
-
-    <!-- Auto-redirect script with language detection -->
-    <script>
-        (function () {
-            var savedLang = localStorage.getItem('preferredLanguage');
-
-            // If user has saved preference, redirect immediately
-            if (savedLang) {
-                window.location.replace(savedLang + '/index.html');
-                return;
+        const ROOT_I18N = {
+            kr: {
+                TITLE: '경제 도우미에 오신 것을 환영합니다',
+                SUBTITLE: '금융 이해력과 경제적 이해를 위한 관문',
+                DESC: '무료 경제 사전, 금융 계산기 및 투자 성향 도구',
+                FEATURES_TITLE: '주요 서비스',
+                DICT_NAME: '경제 사전',
+                QUIZ_NAME: '경제 퀴즈',
+                CALC_NAME: '금융 계산기',
+                LANG_NAME: '다국어 지원',
+                LANG_DESC: 'KO, EN, JP, ES 지원',
+                ENTER_BTN: '사이트 입장',
+                SELECT_LANG: '다른 언어 선택하기'
+            },
+            us: {
+                TITLE: 'Welcome to Economy Helper',
+                SUBTITLE: 'Your gateway to financial literacy and economic understanding',
+                DESC: 'Free economic dictionaries, financial calculators, and investment tools',
+                FEATURES_TITLE: 'What We Offer',
+                DICT_NAME: 'Economic Dictionary',
+                QUIZ_NAME: 'Economy Quiz',
+                CALC_NAME: 'Financial Calculators',
+                LANG_NAME: 'Multi-language',
+                LANG_DESC: 'Available in EN, KO, JP, ES',
+                ENTER_BTN: 'Enter Site',
+                SELECT_LANG: 'Select Another Language'
+            },
+            jp: {
+                TITLE: 'Economy Helperへようこそ',
+                SUBTITLE: '金融リテラシーと経済理解への入り口',
+                DESC: '無料の経済辞典、金融計算機、投資ツール',
+                FEATURES_TITLE: '提供サービス',
+                DICT_NAME: '経済辞典',
+                QUIZ_NAME: '経済クイズ',
+                CALC_NAME: '金融計算機',
+                LANG_NAME: '多言語対応',
+                LANG_DESC: 'JP, EN, KO, ESに対応',
+                ENTER_BTN: '사이트へ',
+                SELECT_LANG: '다른 언어를 선택하세요'
+            },
+            es: {
+                TITLE: 'Bienvenido a Economy Helper',
+                SUBTITLE: 'Tu puerta de entrada a la educación financiera y la comprensión económica',
+                DESC: 'Diccionarios económicos gratuitos, calculadoras financieras y herramientas de inversión',
+                FEATURES_TITLE: 'Lo Que Ofrecemos',
+                DICT_NAME: 'Diccionario Económico',
+                QUIZ_NAME: 'Quiz de Economía',
+                CALC_NAME: 'Calculadoras Financieras',
+                LANG_NAME: 'Multilingüe',
+                LANG_DESC: 'Disponible en ES, EN, KO, JP',
+                ENTER_BTN: 'Entrar al Sitio',
+                SELECT_LANG: 'Seleccionar otro idioma'
             }
+        };
 
-            // For new users, detect language and redirect after a short delay
-            // This delay allows crawlers to see the content
-            var userLang = navigator.language || navigator.userLanguage;
-            var lang = userLang.toLowerCase();
-            var targetUrl;
+        function initRootPage() {
+            // components.js에서 전역으로 노출한 변수 사용
+            const lang = window.CURRENT_LANG || 'us';
+            const langPath = window.LANG_PATH || './us/';
 
-            if (lang.startsWith('ko')) {
-                targetUrl = 'kr/index.html';
-            } else if (lang.startsWith('ja')) {
-                targetUrl = 'jp/index.html';
-            } else if (lang.startsWith('es')) {
-                targetUrl = 'es/index.html';
-            } else {
-                targetUrl = 'us/index.html';
+            const content = ROOT_I18N[lang] || ROOT_I18N.us;
+            const main = document.getElementById('main-content');
+
+            main.innerHTML = `
+                <div class="root-fade-in max-w-5xl mx-auto">
+                    <!-- Hero Section -->
+                    <div class="text-center mb-16">
+                        <div class="inline-block px-4 py-1.5 mb-6 text-sm font-semibold tracking-wide text-blue-600 uppercase bg-blue-50 rounded-full">
+                           ${lang.toUpperCase()} Version
+                        </div>
+                        <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-slate-800 mb-6 leading-tight">
+                            ${content.TITLE}
+                        </h1>
+                        <p class="text-xl sm:text-2xl text-slate-600 mb-8 max-w-2xl mx-auto font-medium">
+                            ${content.SUBTITLE}
+                        </p>
+                        <p class="text-lg text-slate-500 mb-10">
+                            ${content.DESC}
+                        </p>
+                        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                            <a href="${langPath}index.html" class="btn btn-primary btn-lg px-12 rounded-2xl shadow-xl shadow-blue-100 h-16 text-lg">
+                                ${content.ENTER_BTN}
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                </svg>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Visual Section -->
+                    <div class="relative bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden mb-24 aspect-[16/9] sm:aspect-[21/9]">
+                        <div class="absolute inset-0 bg-gradient-to-tr from-blue-600 to-purple-600 opacity-90 flex items-center justify-center">
+                            <div class="text-center text-white p-8">
+                                <div class="text-7xl mb-4">🌍</div>
+                                <h3 class="text-3xl font-bold mb-2">Making finance accessible to everyone.</h3>
+                                <p class="text-blue-100">Across 4 languages and global markets.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Features Section -->
+                    <div class="mb-24">
+                        <h2 class="text-3xl font-bold text-center text-slate-800 mb-12">${content.FEATURES_TITLE}</h2>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                            <div class="bg-white p-8 rounded-2xl border border-slate-100 shadow-sm text-center">
+                                <div class="text-4xl mb-4">📖</div>
+                                <h3 class="font-bold text-slate-800 mb-2">${content.DICT_NAME}</h3>
+                                <p class="text-sm text-slate-500">Comprehensive terms and examples.</p>
+                            </div>
+                            <div class="bg-white p-8 rounded-2xl border border-slate-100 shadow-sm text-center">
+                                <div class="text-4xl mb-4">🎯</div>
+                                <h3 class="font-bold text-slate-800 mb-2">${content.QUIZ_NAME}</h3>
+                                <p class="text-sm text-slate-500">Test your knowledge daily.</p>
+                            </div>
+                            <div class="bg-white p-8 rounded-2xl border border-slate-100 shadow-sm text-center">
+                                <div class="text-4xl mb-4">🧮</div>
+                                <h3 class="font-bold text-slate-800 mb-2">${content.CALC_NAME}</h3>
+                                <p class="text-sm text-slate-500">Free compound & savings tools.</p>
+                            </div>
+                            <div class="bg-white p-8 rounded-2xl border border-slate-100 shadow-sm text-center">
+                                <div class="text-4xl mb-4">🌐</div>
+                                <h3 class="font-bold text-slate-800 mb-2">${content.LANG_NAME}</h3>
+                                <p class="text-sm text-slate-500">${content.LANG_DESC}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Language Selector Cards -->
+                    <div class="bg-slate-100/50 rounded-3xl p-8 sm:p-12">
+                        <h2 class="text-2xl font-bold text-slate-700 mb-8 text-center">${content.SELECT_LANG}</h2>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <a href="kr/index.html" class="language-card bg-white rounded-xl p-4 text-center border border-slate-200">
+                                <span class="text-3xl block mb-2">🇰🇷</span>
+                                <span class="font-bold text-slate-700">한국어</span>
+                            </a>
+                            <a href="us/index.html" class="language-card bg-white rounded-xl p-4 text-center border border-slate-200">
+                                <span class="text-3xl block mb-2">🇺🇸</span>
+                                <span class="font-bold text-slate-700">English</span>
+                            </a>
+                            <a href="jp/index.html" class="language-card bg-white rounded-xl p-4 text-center border border-slate-200">
+                                <span class="text-3xl block mb-2">🇯🇵</span>
+                                <span class="font-bold text-slate-700">日本語</span>
+                            </a>
+                            <a href="es/index.html" class="language-card bg-white rounded-xl p-4 text-center border border-slate-200">
+                                <span class="text-3xl block mb-2">🇪🇸</span>
+                                <span class="font-bold text-slate-700">Español</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // components.js가 먼저 실행되어 변수들을 설정함
+            if (typeof initComponents === 'function') {
+                initComponents('home');
             }
+            if (typeof initRootPage === 'function') {
+                initRootPage();
+            }
+        });
 
-            // Redirect after 1.5 seconds for human users
-            // Bots typically don't wait and will index the current content
-            setTimeout(function () {
-                window.location.replace(targetUrl);
-            }, 1500);
-        })();
+        // 만약 DOMContentLoaded가 이미 발생했을 경우를 대비
+        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+            if (typeof initRootPage === 'function' && !document.querySelector('.root-fade-in')) {
+                initRootPage();
+            }
+        }
     </script>
-
 </body>
 
 </html>

@@ -182,7 +182,7 @@
 
             options.forEach(term => {
                 const btn = document.createElement('button');
-                btn.className = "btn btn-outline bg-white hover:bg-slate-50 h-auto py-4 min-h-[3rem] text-slate-700 font-normal hover:border-slate-300 normal-case text-lg block w-full";
+                btn.className = "btn btn-outline h-auto py-3 min-h-[3.5rem] bg-white text-slate-700 border-slate-200 hover:bg-blue-50 hover:border-blue-300 normal-case font-normal text-base leading-snug";
                 btn.textContent = term;
                 btn.onclick = () => checkAnswer(term, correctTerm, btn);
                 optionsGrid.appendChild(btn);
@@ -199,26 +199,23 @@
 
             if (selectedTerm === correctTerm) {
                 // Correct
-                btnElement.classList.remove('btn-outline', 'bg-white');
-                btnElement.classList.add('btn-success', 'text-white');
+                btnElement.classList.remove('btn-outline', 'bg-white', 'text-slate-700', 'border-slate-200');
+                btnElement.classList.add('btn-success', 'text-white', 'border-success');
                 score += 10;
                 document.getElementById('score-display').textContent = `Score: ${score}`;
             } else {
                 // Incorrect
-                btnElement.classList.remove('btn-outline', 'bg-white');
-                btnElement.classList.add('btn-error', 'text-white');
+                btnElement.classList.remove('btn-outline', 'bg-white', 'text-slate-700', 'border-slate-200');
+                btnElement.classList.add('btn-error', 'text-white', 'border-error');
 
                 // Highlight correct answer
                 buttons.forEach(b => {
                     if (b.textContent === correctTerm) {
-                        b.classList.remove('btn-outline', 'bg-white');
-                        b.classList.add('btn-success', 'text-white');
+                        b.classList.remove('btn-outline', 'bg-white', 'text-slate-700', 'border-slate-200');
+                        b.classList.add('btn-success', 'text-white', 'border-success');
                     }
                 });
             }
-
-            // Disable all option buttons after an answer is selected
-            buttons.forEach(b => b.disabled = true);
 
             // Show Next Button
             document.getElementById('next-btn').classList.remove('hidden');
@@ -251,12 +248,15 @@
 
         function showResult() {
             document.getElementById('game-area').classList.add('hidden');
-            document.getElementById('question-count').parentElement.classList.add('hidden');
-
             const resultArea = document.getElementById('result-area');
             resultArea.classList.remove('hidden');
 
-            document.getElementById('final-score').textContent = `${score} pts`;
+            const finalScoreEl = document.getElementById('final-score');
+            finalScoreEl.textContent = `${score} pts`;
+
+            // Simple animation
+            finalScoreEl.classList.add('scale-110');
+            setTimeout(() => finalScoreEl.classList.remove('scale-110'), 300);
         }
     </script>
 </body>

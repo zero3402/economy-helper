@@ -1,10 +1,56 @@
 // Economy Helper - Shared Components
 
-// URL 경로에서 현재 언어 및 깊이 감지
-const CURRENT_LANG = window.location.pathname.includes('/kr/') ? 'kr' : window.location.pathname.includes('/jp/') ? 'jp' : window.location.pathname.includes('/es/') ? 'es' : 'us';
-const IS_RESULTS_PAGE = window.location.pathname.includes('/results/');
-const ROOT_PATH = IS_RESULTS_PAGE ? '../../../' : '../';
-const LANG_PATH = ROOT_PATH + CURRENT_LANG + '/';
+// URL 경로에서 현재 언어 및 맥락 감지
+function getURLContext() {
+    const path = window.location.pathname;
+    const parts = path.split('/');
+
+    let lang = null;
+    let isResultsPage = path.includes('/results/');
+
+    // 경로 세그먼트에서 언어 코드 찾기 (뒤에서부터 검색하여 가장 인접한 언어 폴더 탐색)
+    for (let i = parts.length - 1; i >= 0; i--) {
+        const p = parts[i].toLowerCase();
+        if (['kr', 'jp', 'es', 'us'].includes(p)) {
+            lang = p;
+            break;
+        }
+    }
+
+    const isRoot = (lang === null);
+
+    // 언어 결정: 경로에서 못 찾으면 localStorage나 브라우저 설정 사용
+    if (isRoot) {
+        const savedLang = localStorage.getItem('preferredLanguage');
+        if (savedLang) lang = savedLang;
+        else {
+            const userLang = (navigator.language || navigator.userLanguage).toLowerCase();
+            if (userLang.startsWith('ko')) lang = 'kr';
+            else if (userLang.startsWith('ja')) lang = 'jp';
+            else if (userLang.startsWith('es')) lang = 'es';
+            else lang = 'us';
+        }
+    }
+
+    return {
+        lang: lang,
+        isRoot: isRoot,
+        isResultsPage: isResultsPage
+    };
+}
+
+const context = getURLContext();
+const CURRENT_LANG = context.lang;
+const IS_ROOT = context.isRoot;
+const IS_RESULTS_PAGE = context.isResultsPage;
+
+const ROOT_PATH = IS_ROOT ? './' : (IS_RESULTS_PAGE ? '../../../' : '../');
+const LANG_PATH = IS_ROOT ? `./${CURRENT_LANG}/` : ROOT_PATH + CURRENT_LANG + '/';
+
+// 전역 변수로 노출 (index.html 등에서 사용)
+window.CURRENT_LANG = CURRENT_LANG;
+window.LANG_PATH = LANG_PATH;
+window.IS_ROOT = IS_ROOT;
 
 // 다국어 설정
 const I18N = {
@@ -128,6 +174,14 @@ function switchLanguage(targetLang, targetUrl) {
 
 // 언어 변경 핸들러
 function handleLanguageChange(lang, activePageId) {
+    localStorage.setItem('preferredLanguage', lang);
+
+    // 루트 페이지인 경우 현재 페이지 새로고침 (URL 변경 없이 언어만 변경)
+    if (IS_ROOT) {
+        window.location.reload();
+        return;
+    }
+
     const langPath = ROOT_PATH + lang + '/';
     let targetUrl;
 
@@ -150,7 +204,7 @@ function handleLanguageChange(lang, activePageId) {
         targetUrl = langPath + 'index.html';
     }
 
-    switchLanguage(lang, targetUrl);
+    window.location.href = targetUrl;
 }
 
 // AdSense 스크립트 로드
@@ -196,28 +250,18 @@ function isSearchBot() {
 function handleAutoRedirect() {
     if (isSearchBot()) return;
 
+    // 루트 페이지(/ 또는 /index.html)에서는 리다이렉션 안 함 (동적 콘텐츠 노출)
+    if (IS_ROOT) return;
+
     const savedLang = localStorage.getItem('preferredLanguage');
     const path = window.location.pathname;
 
-    // 루트 페이지(/ 또는 /index.html)에서만 자동 리다이렉션 수행
+    // 언어 경로가 아닌 곳에서만 체크 (이미 /kr/ 등에 있으면 안 함)
     if (path === '/' || path.endsWith('/index.html')) {
         // 이미 언어 경로에 있는 경우(예: /kr/index.html) 리다이렉션 안함
         if (path.includes('/kr/') || path.includes('/us/') || path.includes('/jp/') || path.includes('/es/')) return;
 
-        if (savedLang && savedLang !== CURRENT_LANG) {
-            window.location.replace(savedLang + '/index.html');
-            return;
-        }
-
-        const userLang = (navigator.language || navigator.userLanguage).toLowerCase();
-        let targetLang = 'us';
-        if (userLang.startsWith('ko')) targetLang = 'kr';
-        else if (userLang.startsWith('ja')) targetLang = 'jp';
-        else if (userLang.startsWith('es')) targetLang = 'es';
-
-        if (targetLang !== CURRENT_LANG) {
-            window.location.replace(targetLang + '/index.html');
-        }
+        // 여기에 도달했다면 리다이렉션 로직이 필요할 수 있으나, IS_ROOT가 true면 위에서 이미 return됨
     }
 }
 
@@ -319,7 +363,7 @@ function renderHeader(activePageId) {
     ).join('');
     const langSwitchMobile = '<li class="border-t border-slate-100 mt-2 pt-2">' + langOptionsMobile + '</li>';
 
-    header.innerHTML = '<div class="container mx-auto px-4"><div class="navbar min-h-16 p-0"><div class="navbar-start"><a href="' + LANG_PATH + 'index.html" class="flex items-center gap-3 text-xl font-bold text-slate-800 hover:text-blue-600 transition-colors"><img src="' + ROOT_PATH + 'images/logo.png" alt="Economy Helper" class="h-8 w-8 object-contain scale-150"><span class="hidden sm:inline">Economy Helper</span></a></div><div class="navbar-end"><ul class="menu menu-horizontal px-1 hidden md:flex gap-1 items-center">' + navItemsDesktop + langSwitchDesktop + '</ul><div class="dropdown dropdown-end md:hidden"><label tabindex="0" class="btn btn-ghost btn-circle"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg></label><ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow-lg bg-white rounded-xl w-52 border border-slate-100">' + navItemsMobile + langSwitchMobile + '</ul></div></div></div></div>';
+    header.innerHTML = '<div class="container mx-auto px-4"><div class="navbar min-h-16 p-0"><div class="navbar-start"><a href="' + ROOT_PATH + 'index.html" class="flex items-center gap-3 text-xl font-bold text-slate-800 hover:text-blue-600 transition-colors"><img src="' + ROOT_PATH + 'images/logo.png" alt="Economy Helper" class="h-8 w-8 object-contain scale-150"><span class="hidden sm:inline">Economy Helper</span></a></div><div class="navbar-end"><ul class="menu menu-horizontal px-1 hidden md:flex gap-1 items-center">' + navItemsDesktop + langSwitchDesktop + '</ul><div class="dropdown dropdown-end md:hidden"><label tabindex="0" class="btn btn-ghost btn-circle"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg></label><ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow-lg bg-white rounded-xl w-52 border border-slate-100">' + navItemsMobile + langSwitchMobile + '</ul></div></div></div></div>';
 }
 
 // 푸터 렌더링
