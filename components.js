@@ -65,8 +65,8 @@ const I18N = {
         SAVINGS: '목돈 마련 계산기',
         SHARE_TITLE: '공유하기',
         COPY_LINK: '링크 복사',
-        LINK_COPIED: '링크 복사됨!',
-        SHARE_TWITTER: '엑스(트위터)',
+        LINK_COPIED: '복사 완료!',
+        SHARE_TWITTER: 'X (트위터)',
         SHARE_FACEBOOK: '페이스북'
     },
     us: {
@@ -92,10 +92,10 @@ const I18N = {
         INVESTMENT_TEST: '投資性向診断',
         SPENDING_TEST: '消費性向診断',
         COMPOUND: '複利計算機',
-        SAVINGS: '貯蓄目標計算',
+        SAVINGS: '貯蓄目標シミュレーション',
         SHARE_TITLE: '共有',
         COPY_LINK: 'リンクをコピー',
-        LINK_COPIED: 'コピー完了!',
+        LINK_COPIED: 'コピーしました!',
         SHARE_TWITTER: 'X (Twitter)',
         SHARE_FACEBOOK: 'Facebook'
     },
@@ -105,12 +105,12 @@ const I18N = {
         CALCULATORS: 'Calculadoras',
         TEST: 'Test de Personalidad',
         INVESTMENT_TEST: 'Test de Personalidad de Inversión',
-        SPENDING_TEST: 'Test de Personalidad de Gasto',
+        SPENDING_TEST: 'Test de Personalidad de Consumo',
         COMPOUND: 'Interés Compuesto',
         SAVINGS: 'Meta de Ahorro',
         SHARE_TITLE: 'Compartir',
         COPY_LINK: 'Copiar enlace',
-        LINK_COPIED: '¡Copiado!',
+        LINK_COPIED: '¡Enlace copiado!',
         SHARE_TWITTER: 'X (Twitter)',
         SHARE_FACEBOOK: 'Facebook'
     }

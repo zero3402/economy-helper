@@ -12,7 +12,36 @@
     <meta name="author" content="Economy Helper">
     <meta name="robots" content="index, follow">
     <link rel="canonical" href="https://economyhelper.com/">
+    <link rel="alternate" hreflang="x-default" href="https://economyhelper.com/">
+    <link rel="alternate" hreflang="en" href="https://economyhelper.com/us/">
+    <link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/">
+    <link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/">
+    <link rel="alternate" hreflang="es" href="https://economyhelper.com/es/">
     <link rel="icon" type="image/png" href="./images/favicon.png">
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "Economy Helper",
+      "url": "https://economyhelper.com/",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://economyhelper.com/us/index.html?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      },
+      "description": "Master investing, trading, and personal finance knowledge. Available in English, Korean, and Japanese.",
+      "publisher": {
+        "@type": "Organization",
+        "name": "Economy Helper",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://economyhelper.com/images/logo.png"
+        }
+      }
+    }
+    </script>
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet" type="text/css" />
@@ -77,10 +106,7 @@
                 DICT_NAME: '경제 사전',
                 QUIZ_NAME: '경제 퀴즈',
                 CALC_NAME: '금융 계산기',
-                LANG_NAME: '다국어 지원',
-                LANG_DESC: 'KO, EN, JP, ES 지원',
-                ENTER_BTN: '사이트 입장',
-                SELECT_LANG: '다른 언어 선택하기'
+                LANG_NAME: '다국어 지원'
             },
             us: {
                 TITLE: 'Welcome to Economy Helper',
@@ -90,10 +116,7 @@
                 DICT_NAME: 'Economic Dictionary',
                 QUIZ_NAME: 'Economy Quiz',
                 CALC_NAME: 'Financial Calculators',
-                LANG_NAME: 'Multi-language',
-                LANG_DESC: 'Available in EN, KO, JP, ES',
-                ENTER_BTN: 'Enter Site',
-                SELECT_LANG: 'Select Another Language'
+                LANG_NAME: 'Multi-language'
             },
             jp: {
                 TITLE: 'Economy Helperへようこそ',
@@ -103,10 +126,7 @@
                 DICT_NAME: '経済辞典',
                 QUIZ_NAME: '経済クイズ',
                 CALC_NAME: '金融計算機',
-                LANG_NAME: '多言語対応',
-                LANG_DESC: 'JP, EN, KO, ESに対応',
-                ENTER_BTN: '사이트へ',
-                SELECT_LANG: '다른 언어를 선택하세요'
+                LANG_NAME: '多言語対応'
             },
             es: {
                 TITLE: 'Bienvenido a Economy Helper',
@@ -116,10 +136,7 @@
                 DICT_NAME: 'Diccionario Económico',
                 QUIZ_NAME: 'Quiz de Economía',
                 CALC_NAME: 'Calculadoras Financieras',
-                LANG_NAME: 'Multilingüe',
-                LANG_DESC: 'Disponible en ES, EN, KO, JP',
-                ENTER_BTN: 'Entrar al Sitio',
-                SELECT_LANG: 'Seleccionar otro idioma'
+                LANG_NAME: 'Multilingüe'
             }
         };
 
@@ -135,9 +152,6 @@
                 <div class="root-fade-in max-w-5xl mx-auto">
                     <!-- Hero Section -->
                     <div class="text-center mb-16">
-                        <div class="inline-block px-4 py-1.5 mb-6 text-sm font-semibold tracking-wide text-blue-600 uppercase bg-blue-50 rounded-full">
-                           ${lang.toUpperCase()} Version
-                        </div>
                         <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-slate-800 mb-6 leading-tight">
                             ${content.TITLE}
                         </h1>
@@ -147,14 +161,6 @@
                         <p class="text-lg text-slate-500 mb-10">
                             ${content.DESC}
                         </p>
-                        <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                            <a href="${langPath}index.html" class="btn btn-primary btn-lg px-12 rounded-2xl shadow-xl shadow-blue-100 h-16 text-lg">
-                                ${content.ENTER_BTN}
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                                </svg>
-                            </a>
-                        </div>
                     </div>
 
                     <!-- Visual Section -->
@@ -172,49 +178,22 @@
                     <div class="mb-24">
                         <h2 class="text-3xl font-bold text-center text-slate-800 mb-12">${content.FEATURES_TITLE}</h2>
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-                            <div class="bg-white p-8 rounded-2xl border border-slate-100 shadow-sm text-center">
+                            <a href="${langPath}index.html" class="bg-white p-8 rounded-2xl border border-slate-100 shadow-sm text-center hover:shadow-md transition-shadow">
                                 <div class="text-4xl mb-4">📖</div>
-                                <h3 class="font-bold text-slate-800 mb-2">${content.DICT_NAME}</h3>
-                                <p class="text-sm text-slate-500">Comprehensive terms and examples.</p>
-                            </div>
-                            <div class="bg-white p-8 rounded-2xl border border-slate-100 shadow-sm text-center">
+                                <h3 class="font-bold text-slate-800">${content.DICT_NAME}</h3>
+                            </a>
+                            <a href="${langPath}economy-quiz.html" class="bg-white p-8 rounded-2xl border border-slate-100 shadow-sm text-center hover:shadow-md transition-shadow">
                                 <div class="text-4xl mb-4">🎯</div>
-                                <h3 class="font-bold text-slate-800 mb-2">${content.QUIZ_NAME}</h3>
-                                <p class="text-sm text-slate-500">Test your knowledge daily.</p>
-                            </div>
-                            <div class="bg-white p-8 rounded-2xl border border-slate-100 shadow-sm text-center">
+                                <h3 class="font-bold text-slate-800">${content.QUIZ_NAME}</h3>
+                            </a>
+                            <a href="${langPath}compound-interest-calculator.html" class="bg-white p-8 rounded-2xl border border-slate-100 shadow-sm text-center hover:shadow-md transition-shadow">
                                 <div class="text-4xl mb-4">🧮</div>
-                                <h3 class="font-bold text-slate-800 mb-2">${content.CALC_NAME}</h3>
-                                <p class="text-sm text-slate-500">Free compound & savings tools.</p>
-                            </div>
+                                <h3 class="font-bold text-slate-800">${content.CALC_NAME}</h3>
+                            </a>
                             <div class="bg-white p-8 rounded-2xl border border-slate-100 shadow-sm text-center">
                                 <div class="text-4xl mb-4">🌐</div>
-                                <h3 class="font-bold text-slate-800 mb-2">${content.LANG_NAME}</h3>
-                                <p class="text-sm text-slate-500">${content.LANG_DESC}</p>
+                                <h3 class="font-bold text-slate-800">${content.LANG_NAME}</h3>
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- Language Selector Cards -->
-                    <div class="bg-slate-100/50 rounded-3xl p-8 sm:p-12">
-                        <h2 class="text-2xl font-bold text-slate-700 mb-8 text-center">${content.SELECT_LANG}</h2>
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <a href="kr/index.html" class="language-card bg-white rounded-xl p-4 text-center border border-slate-200">
-                                <span class="text-3xl block mb-2">🇰🇷</span>
-                                <span class="font-bold text-slate-700">한국어</span>
-                            </a>
-                            <a href="us/index.html" class="language-card bg-white rounded-xl p-4 text-center border border-slate-200">
-                                <span class="text-3xl block mb-2">🇺🇸</span>
-                                <span class="font-bold text-slate-700">English</span>
-                            </a>
-                            <a href="jp/index.html" class="language-card bg-white rounded-xl p-4 text-center border border-slate-200">
-                                <span class="text-3xl block mb-2">🇯🇵</span>
-                                <span class="font-bold text-slate-700">日本語</span>
-                            </a>
-                            <a href="es/index.html" class="language-card bg-white rounded-xl p-4 text-center border border-slate-200">
-                                <span class="text-3xl block mb-2">🇪🇸</span>
-                                <span class="font-bold text-slate-700">Español</span>
-                            </a>
                         </div>
                     </div>
                 </div>
