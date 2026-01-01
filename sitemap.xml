@@ -25,49 +25,41 @@
   <url><loc>https://economyhelper.com/us/savings-goal-calculator.html</loc><priority>0.7</priority></url>
   <url><loc>https://economyhelper.com/jp/savings-goal-calculator.html</loc><priority>0.7</priority></url>
   <url><loc>https://economyhelper.com/es/savings-goal-calculator.html</loc><priority>0.7</priority></url>
-  <!-- Investment Results KR -->
   <url><loc>https://economyhelper.com/kr/results/investment/aggressive-bull.html</loc><priority>0.5</priority></url>
   <url><loc>https://economyhelper.com/kr/results/investment/safe-guard.html</loc><priority>0.5</priority></url>
   <url><loc>https://economyhelper.com/kr/results/investment/strategic-planner.html</loc><priority>0.5</priority></url>
   <url><loc>https://economyhelper.com/kr/results/investment/trend-follower.html</loc><priority>0.5</priority></url>
   <url><loc>https://economyhelper.com/kr/results/investment/value-seeker.html</loc><priority>0.5</priority></url>
-  <!-- Investment Results US -->
   <url><loc>https://economyhelper.com/us/results/investment/aggressive-bull.html</loc><priority>0.5</priority></url>
   <url><loc>https://economyhelper.com/us/results/investment/safe-guard.html</loc><priority>0.5</priority></url>
   <url><loc>https://economyhelper.com/us/results/investment/strategic-planner.html</loc><priority>0.5</priority></url>
   <url><loc>https://economyhelper.com/us/results/investment/trend-follower.html</loc><priority>0.5</priority></url>
   <url><loc>https://economyhelper.com/us/results/investment/value-seeker.html</loc><priority>0.5</priority></url>
-  <!-- Investment Results JP -->
   <url><loc>https://economyhelper.com/jp/results/investment/aggressive-bull.html</loc><priority>0.5</priority></url>
   <url><loc>https://economyhelper.com/jp/results/investment/safe-guard.html</loc><priority>0.5</priority></url>
   <url><loc>https://economyhelper.com/jp/results/investment/strategic-planner.html</loc><priority>0.5</priority></url>
   <url><loc>https://economyhelper.com/jp/results/investment/trend-follower.html</loc><priority>0.5</priority></url>
   <url><loc>https://economyhelper.com/jp/results/investment/value-seeker.html</loc><priority>0.5</priority></url>
-  <!-- Investment Results ES -->
   <url><loc>https://economyhelper.com/es/results/investment/aggressive-bull.html</loc><priority>0.5</priority></url>
   <url><loc>https://economyhelper.com/es/results/investment/safe-guard.html</loc><priority>0.5</priority></url>
   <url><loc>https://economyhelper.com/es/results/investment/strategic-planner.html</loc><priority>0.5</priority></url>
   <url><loc>https://economyhelper.com/es/results/investment/trend-follower.html</loc><priority>0.5</priority></url>
   <url><loc>https://economyhelper.com/es/results/investment/value-seeker.html</loc><priority>0.5</priority></url>
-  <!-- Spending Results KR -->
   <url><loc>https://economyhelper.com/kr/results/spending/flex-master.html</loc><priority>0.5</priority></url>
   <url><loc>https://economyhelper.com/kr/results/spending/smart-spender.html</loc><priority>0.5</priority></url>
   <url><loc>https://economyhelper.com/kr/results/spending/ultra-saver.html</loc><priority>0.5</priority></url>
   <url><loc>https://economyhelper.com/kr/results/spending/value-consumer.html</loc><priority>0.5</priority></url>
   <url><loc>https://economyhelper.com/kr/results/spending/yoloer.html</loc><priority>0.5</priority></url>
-  <!-- Spending Results US -->
   <url><loc>https://economyhelper.com/us/results/spending/flex-master.html</loc><priority>0.5</priority></url>
   <url><loc>https://economyhelper.com/us/results/spending/smart-spender.html</loc><priority>0.5</priority></url>
   <url><loc>https://economyhelper.com/us/results/spending/ultra-saver.html</loc><priority>0.5</priority></url>
   <url><loc>https://economyhelper.com/us/results/spending/value-consumer.html</loc><priority>0.5</priority></url>
   <url><loc>https://economyhelper.com/us/results/spending/yoloer.html</loc><priority>0.5</priority></url>
-  <!-- Spending Results JP -->
   <url><loc>https://economyhelper.com/jp/results/spending/flex-master.html</loc><priority>0.5</priority></url>
   <url><loc>https://economyhelper.com/jp/results/spending/smart-spender.html</loc><priority>0.5</priority></url>
   <url><loc>https://economyhelper.com/jp/results/spending/ultra-saver.html</loc><priority>0.5</priority></url>
   <url><loc>https://economyhelper.com/jp/results/spending/value-consumer.html</loc><priority>0.5</priority></url>
   <url><loc>https://economyhelper.com/jp/results/spending/yoloer.html</loc><priority>0.5</priority></url>
-  <!-- Spending Results ES -->
   <url><loc>https://economyhelper.com/es/results/spending/flex-master.html</loc><priority>0.5</priority></url>
   <url><loc>https://economyhelper.com/es/results/spending/smart-spender.html</loc><priority>0.5</priority></url>
   <url><loc>https://economyhelper.com/es/results/spending/ultra-saver.html</loc><priority>0.5</priority></url>
