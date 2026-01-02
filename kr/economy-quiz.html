@@ -12,6 +12,7 @@
     <link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/economy-quiz.html">
     <link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/economy-quiz.html">
     <link rel="alternate" hreflang="es" href="https://economyhelper.com/es/economy-quiz.html">
+    <link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/economy-quiz.html">
     <link rel="icon" type="image/png" href="../images/favicon.png">
 
     <meta property="og:type" content="website">
@@ -91,7 +92,7 @@
                             <span class="font-bold">💡 힌트:</span> <span id="hint-text"></span>
                         </div>
 
-                        <button id="next-btn" onclick="goToNextQuestion()"
+                        <button id="next-btn" onclick="nextQuestion()"
                             class="hidden btn btn-primary w-full gap-2 mt-2 py-4 h-auto text-lg shadow-lg shadow-blue-100">
                             다음 문제
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
@@ -360,7 +361,7 @@
         }
 
         // ==================== 다음 문제로 이동 ====================
-        function goToNextQuestion() {
+        function nextQuestion() {
             gameState.currentQuestionIndex++;
 
             if (gameState.currentQuestionIndex < gameState.questions.length) {

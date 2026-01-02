@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
     <title>Quiz de Economia - Economy Helper</title>
-    <meta name="description" content="Pon a prueba seus conocimientos econômicos con nuestro quiz interactivo.">
+    <meta name="description" content="Teste seus conhecimentos econômicos com nosso quiz interativo.">
     <link rel="canonical" href="https://economyhelper.com/pt/economy-quiz.html">
     <link rel="alternate" hreflang="en" href="https://economyhelper.com/us/economy-quiz.html">
     <link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/economy-quiz.html">
@@ -18,7 +18,7 @@
     <meta property="og:url" content="https://economyhelper.com/pt/economy-quiz.html">
     <meta property="og:title" content="Quiz de Economia - Economy Helper">
     <meta property="og:description"
-        content="Pon a prueba seus conocimientos econômicos con nuestro quiz interactivo. ¡Mira seu nivel ahora!">
+        content="Teste seus conhecimentos econômicos com nosso quiz interativo. Veja seu nível agora!">
     <meta property="og:image" content="https://economyhelper.com/images/og.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
@@ -28,7 +28,7 @@
     <meta name="twitter:url" content="https://economyhelper.com/pt/economy-quiz.html">
     <meta name="twitter:title" content="Quiz de Economia - Economy Helper">
     <meta name="twitter:description"
-        content="¡Pon a prueba seus conocimientos con nuestro quiz! Check out your knowledge!">
+        content="Teste seus conhecimentos econômicos com nosso quiz interativo! Veja seu nível agora!">
     <meta name="twitter:image" content="https://economyhelper.com/images/og.png">
 
     <script src="https://cdn.tailwindcss.com"></script>
@@ -44,7 +44,7 @@
         <div class="max-w-2xl mx-auto">
             <div class="text-center mb-8">
                 <h1 class="text-2xl sm:text-3xl font-bold text-slate-800 mb-2">Quiz de Economia</h1>
-                <p class="text-slate-500">¡Lee la definición e adivina el término correcto!</p>
+                <p class="text-slate-500">Leia a definição e adivinhe o termo correto!</p>
             </div>
 
             <!-- Quiz Container -->
@@ -66,7 +66,7 @@
                 <div id="game-area" class="hidden">
                     <!-- Question (Definition) -->
                     <div class="bg-blue-50 rounded-xl p-6 mb-8 text-center">
-                        <p class="text-sm text-blue-600 font-bold mb-2">¿Qué término es este?</p>
+                        <p class="text-sm text-blue-600 font-bold mb-2">Que termo é este?</p>
                         <p id="question-text" class="text-lg sm:text-xl text-slate-800 font-medium leading-relaxed"></p>
                     </div>
 
@@ -108,8 +108,8 @@
                 <div id="result-area" class="hidden text-center py-8">
                     <div class="mb-6">
                         <div class="text-6xl mb-4">🎉</div>
-                        <h2 class="text-2xl font-bold text-slate-800 mb-2">¡Quiz Completado!</h2>
-                        <p class="text-slate-600">Tu puntuación final es:</p>
+                        <h2 class="text-2xl font-bold text-slate-800 mb-2">Quiz Concluído!</h2>
+                        <p class="text-slate-600">Sua pontuação final é:</p>
                     </div>
 
                     <div class="text-4xl font-black text-blue-600 mb-8" id="final-score">0</div>
@@ -195,8 +195,8 @@
             return typeof termDefinitions !== 'undefined' && Object.keys(termDefinitions).length > 0;
         }
 
-        function showError(mêssage) {
-            DOM.loading.innerHTML = `<p class="text-red-500">${mêssage}</p>`;
+        function showError(message) {
+            DOM.loading.innerHTML = `<p class="text-red-500">${message}</p>`;
         }
 
         // ==================== Geração de Questões ====================
