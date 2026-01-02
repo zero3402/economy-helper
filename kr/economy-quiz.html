@@ -128,164 +128,260 @@
     <script src="dictionary-data.js"></script>
     <script src="../components.js"></script>
     <script>
-        // Quiz State
-        let currentQuestionIndex = 0;
-        let score = 0;
-        let questions = [];
-        const TOTAL_QUESTIONS = 10;
-        let isAnswered = false;
+        // ==================== 상수 정의 ====================
+        const CONSTANTS = {
+            TOTAL_QUESTIONS: 10,
+            WRONG_OPTIONS_COUNT: 3,
+            POINTS_PER_QUESTION: 10,
+            INIT_DELAY_MS: 100,
+            ANIMATION_DELAY_MS: 300
+        };
 
+        const CSS_CLASSES = {
+            HIDDEN: 'hidden',
+            BTN_BASE: 'btn btn-outline h-auto py-3 min-h-[3.5rem] bg-white text-slate-700 border-slate-200 hover:bg-blue-50 hover:border-blue-300 normal-case font-normal text-base leading-snug',
+            BTN_DISABLED: ['cursor-not-allowed', 'opacity-60'],
+            BTN_REMOVE: ['btn-outline', 'bg-white', 'text-slate-700', 'border-slate-200', 'opacity-60'],
+            BTN_CORRECT: ['!bg-green-500', '!text-white', '!border-green-500', 'opacity-100'],
+            BTN_WRONG: ['!bg-red-500', '!text-white', '!border-red-500', 'opacity-100'],
+            HINT_ACTIVE: ['text-blue-600', 'bg-blue-50']
+        };
+
+        // ==================== 전역 상태 ====================
+        let gameState = {
+            currentQuestionIndex: 0,
+            score: 0,
+            questions: [],
+            isAnswered: false
+        };
+
+        // ==================== DOM 요소 캐싱 ====================
+        const DOM = {};
+
+        function cacheDOMElements() {
+            DOM.loading = document.getElementById('loading');
+            DOM.gameArea = document.getElementById('game-area');
+            DOM.resultArea = document.getElementById('result-area');
+            DOM.questionCount = document.getElementById('question-count');
+            DOM.questionText = document.getElementById('question-text');
+            DOM.scoreDisplay = document.getElementById('score-display');
+            DOM.hintArea = document.getElementById('hint-area');
+            DOM.hintBtn = document.getElementById('hint-btn');
+            DOM.hintText = document.getElementById('hint-text');
+            DOM.nextBtn = document.getElementById('next-btn');
+            DOM.optionsGrid = document.getElementById('options-grid');
+            DOM.finalScore = document.getElementById('final-score');
+        }
+
+        // ==================== 초기화 ====================
         document.addEventListener('DOMContentLoaded', () => {
-            initComponents('quiz'); // Initialize header/footer
-
-            // Wait slightly for dictionary data if needed, though script load order ensures availability
-            setTimeout(initQuiz, 100);
+            cacheDOMElements();
+            initComponents('quiz');
+            setTimeout(initQuiz, CONSTANTS.INIT_DELAY_MS);
         });
 
         function initQuiz() {
-            const loading = document.getElementById('loading');
-            const gameArea = document.getElementById('game-area');
-
-            if (typeof termDefinitions === 'undefined') {
-                loading.innerHTML = '<p class="text-red-500">데이터를 불러오는데 실패했습니다.<br>새로고침을 해주세요.</p>';
+            if (!validateData()) {
+                showError('데이터를 불러오는데 실패했습니다.<br>새로고침을 해주세요.');
                 return;
             }
 
-            // Generate Questions
+            gameState.questions = generateQuestions();
+            startGame();
+        }
+
+        function validateData() {
+            return typeof termDefinitions !== 'undefined' && Object.keys(termDefinitions).length > 0;
+        }
+
+        function showError(message) {
+            DOM.loading.innerHTML = `<p class="text-red-500">${message}</p>`;
+        }
+
+        // ==================== 문제 생성 ====================
+        function generateQuestions() {
             const allTerms = Object.keys(termDefinitions);
-            questions = [];
+            const selectedIndices = getRandomIndices(allTerms.length, CONSTANTS.TOTAL_QUESTIONS);
 
-            // Randomly select 10 unique terms
-            const selectedIndices = new Set();
-            while (selectedIndices.size < TOTAL_QUESTIONS && selectedIndices.size < allTerms.length) {
-                const idx = Math.floor(Math.random() * allTerms.length);
-                selectedIndices.add(idx);
-            }
-
-            selectedIndices.forEach(idx => {
+            return Array.from(selectedIndices).map(idx => {
                 const term = allTerms[idx];
                 const data = termDefinitions[term];
+                const wrongOptions = getWrongOptions(allTerms, idx);
 
-                // Create 3 wrong options
-                const wrongOptions = [];
-                const wrongIndices = new Set([idx]); // Avoid the correct answer
-
-                while (wrongOptions.length < 3) {
-                    const wrongIdx = Math.floor(Math.random() * allTerms.length);
-                    if (!wrongIndices.has(wrongIdx)) {
-                        wrongIndices.add(wrongIdx);
-                        wrongOptions.push(allTerms[wrongIdx]);
-                    }
-                }
-
-                questions.push({
-                    term: term,
+                return {
+                    term,
                     definition: data.definition,
                     example: data.example,
-                    options: [...wrongOptions, term].sort(() => Math.random() - 0.5) // Shuffle options
-                });
+                    options: shuffleArray([...wrongOptions, term])
+                };
             });
+        }
 
-            // Start Game
-            loading.classList.add('hidden');
-            gameArea.classList.remove('hidden');
+        function getRandomIndices(maxLength, count) {
+            const indices = new Set();
+            while (indices.size < count && indices.size < maxLength) {
+                indices.add(Math.floor(Math.random() * maxLength));
+            }
+            return indices;
+        }
+
+        function getWrongOptions(allTerms, correctIdx) {
+            const wrongOptions = [];
+            const usedIndices = new Set([correctIdx]);
+
+            while (wrongOptions.length < CONSTANTS.WRONG_OPTIONS_COUNT) {
+                const wrongIdx = Math.floor(Math.random() * allTerms.length);
+                if (!usedIndices.has(wrongIdx)) {
+                    usedIndices.add(wrongIdx);
+                    wrongOptions.push(allTerms[wrongIdx]);
+                }
+            }
+
+            return wrongOptions;
+        }
+
+        function shuffleArray(array) {
+            return array.sort(() => Math.random() - 0.5);
+        }
+
+        // ==================== 게임 진행 ====================
+        function startGame() {
+            DOM.loading.classList.add(CSS_CLASSES.HIDDEN);
+            DOM.gameArea.classList.remove(CSS_CLASSES.HIDDEN);
             showQuestion();
         }
 
         function showQuestion() {
-            isAnswered = false;
-            const q = questions[currentQuestionIndex];
+            gameState.isAnswered = false;
+            const question = gameState.questions[gameState.currentQuestionIndex];
 
-            // Update UI
-            document.getElementById('question-count').textContent = `문제 ${currentQuestionIndex + 1} / ${TOTAL_QUESTIONS}`;
-            document.getElementById('question-text').textContent = q.definition;
-            document.getElementById('hint-area').classList.add('hidden');
-            document.getElementById('hint-btn').classList.remove('hidden');
-            document.getElementById('next-btn').classList.add('hidden');
-            document.getElementById('hint-text').textContent = q.example;
+            updateQuestionUI(question);
+            renderOptions(question);
+        }
 
-            const optionsGrid = document.getElementById('options-grid');
-            optionsGrid.innerHTML = '';
+        function updateQuestionUI(question) {
+            DOM.questionCount.textContent = `문제 ${gameState.currentQuestionIndex + 1} / ${CONSTANTS.TOTAL_QUESTIONS}`;
+            DOM.questionText.textContent = question.definition;
+            DOM.hintText.textContent = question.example;
 
-            q.options.forEach(option => {
-                const btn = document.createElement('button');
-                btn.className = "btn btn-outline h-auto py-3 min-h-[3.5rem] bg-white text-slate-700 border-slate-200 hover:bg-blue-50 hover:border-blue-300 normal-case font-normal text-base leading-snug";
-                btn.textContent = option;
-                btn.onclick = () => checkAnswer(option, btn, q.term);
-                optionsGrid.appendChild(btn);
+            DOM.hintArea.classList.add(CSS_CLASSES.HIDDEN);
+            DOM.hintBtn.classList.remove(CSS_CLASSES.HIDDEN);
+            DOM.nextBtn.classList.add(CSS_CLASSES.HIDDEN);
+        }
+
+        function renderOptions(question) {
+            DOM.optionsGrid.innerHTML = '';
+
+            question.options.forEach(option => {
+                const btn = createOptionButton(option, question.term);
+                DOM.optionsGrid.appendChild(btn);
             });
         }
 
+        function createOptionButton(optionText, correctAnswer) {
+            const btn = document.createElement('button');
+            btn.className = CSS_CLASSES.BTN_BASE;
+            btn.textContent = optionText;
+            btn.onclick = () => checkAnswer(optionText, btn, correctAnswer);
+            return btn;
+        }
+
+        // ==================== 답변 체크 ====================
         function checkAnswer(selected, btnElement, correct) {
-            if (isAnswered) return;
-            isAnswered = true;
+            if (gameState.isAnswered) return;
+            gameState.isAnswered = true;
 
             const buttons = document.querySelectorAll('#options-grid button');
+            disableAllButtons(buttons);
 
-            if (selected === correct) {
-                // Correct
-                btnElement.classList.remove('btn-outline', 'bg-white', 'text-slate-700', 'border-slate-200');
-                btnElement.classList.add('btn-success', 'text-white', 'border-success');
-                score += 10;
-                document.getElementById('score-display').textContent = `점수: ${score}`;
+            const isCorrect = selected === correct;
+            updateButtonStyles(btnElement, buttons, correct, isCorrect);
+
+            if (isCorrect) {
+                handleCorrectAnswer();
             } else {
-                // Wrong
-                btnElement.classList.remove('btn-outline', 'bg-white', 'text-slate-700', 'border-slate-200');
-                btnElement.classList.add('btn-error', 'text-white', 'border-error');
-
-                // Highlight correct answer
-                buttons.forEach(btn => {
-                    if (btn.textContent === correct) {
-                        btn.classList.remove('btn-outline', 'bg-white', 'text-slate-700', 'border-slate-200');
-                        btn.classList.add('btn-success', 'text-white', 'border-success');
-                    }
-                });
-
-                // Show Example as Hint/Learning on wrong answer
-                const hintArea = document.getElementById('hint-area');
-                document.getElementById('hint-text').textContent = questions[currentQuestionIndex].example;
-                hintArea.classList.remove('hidden');
+                handleWrongAnswer();
             }
 
-            // Show Next Button
-            document.getElementById('next-btn').classList.remove('hidden');
-            document.getElementById('hint-btn').classList.add('hidden');
-
-            // Show hint automatically
-            document.getElementById('hint-area').classList.remove('hidden');
+            showNextButton();
         }
 
+        function disableAllButtons(buttons) {
+            buttons.forEach(btn => {
+                btn.disabled = true;
+                btn.classList.add(...CSS_CLASSES.BTN_DISABLED);
+            });
+        }
+
+        function updateButtonStyles(selectedBtn, allButtons, correctAnswer, isCorrect) {
+            selectedBtn.classList.remove(...CSS_CLASSES.BTN_REMOVE);
+            selectedBtn.classList.add(...(isCorrect ? CSS_CLASSES.BTN_CORRECT : CSS_CLASSES.BTN_WRONG));
+
+            if (!isCorrect) {
+                highlightCorrectAnswer(allButtons, correctAnswer);
+            }
+        }
+
+        function highlightCorrectAnswer(buttons, correctAnswer) {
+            buttons.forEach(btn => {
+                if (btn.textContent === correctAnswer) {
+                    btn.classList.remove(...CSS_CLASSES.BTN_REMOVE);
+                    btn.classList.add(...CSS_CLASSES.BTN_CORRECT);
+                }
+            });
+        }
+
+        function handleCorrectAnswer() {
+            gameState.score += CONSTANTS.POINTS_PER_QUESTION;
+            DOM.scoreDisplay.textContent = `점수: ${gameState.score}`;
+        }
+
+        function handleWrongAnswer() {
+            DOM.hintArea.classList.remove(CSS_CLASSES.HIDDEN);
+        }
+
+        function showNextButton() {
+            DOM.nextBtn.classList.remove(CSS_CLASSES.HIDDEN);
+            DOM.hintBtn.classList.add(CSS_CLASSES.HIDDEN);
+            DOM.hintArea.classList.remove(CSS_CLASSES.HIDDEN);
+        }
+
+        // ==================== 힌트 토글 ====================
         function toggleHint() {
-            const hintArea = document.getElementById('hint-area');
-            const hintBtn = document.getElementById('hint-btn');
-            if (hintArea.classList.contains('hidden')) {
-                hintArea.classList.remove('hidden');
-                hintBtn.classList.add('text-blue-600', 'bg-blue-50');
+            const isHidden = DOM.hintArea.classList.contains(CSS_CLASSES.HIDDEN);
+
+            if (isHidden) {
+                DOM.hintArea.classList.remove(CSS_CLASSES.HIDDEN);
+                DOM.hintBtn.classList.add(...CSS_CLASSES.HINT_ACTIVE);
             } else {
-                hintArea.classList.add('hidden');
-                hintBtn.classList.remove('text-blue-600', 'bg-blue-50');
+                DOM.hintArea.classList.add(CSS_CLASSES.HIDDEN);
+                DOM.hintBtn.classList.remove(...CSS_CLASSES.HINT_ACTIVE);
             }
         }
 
+        // ==================== 다음 문제로 이동 ====================
         function goToNextQuestion() {
-            currentQuestionIndex++;
-            if (currentQuestionIndex < questions.length) {
+            gameState.currentQuestionIndex++;
+
+            if (gameState.currentQuestionIndex < gameState.questions.length) {
                 showQuestion();
             } else {
                 showResult();
             }
         }
 
+        // ==================== 결과 표시 ====================
         function showResult() {
-            document.getElementById('game-area').classList.add('hidden');
-            document.getElementById('result-area').classList.remove('hidden');
+            DOM.gameArea.classList.add(CSS_CLASSES.HIDDEN);
+            DOM.resultArea.classList.remove(CSS_CLASSES.HIDDEN);
+            DOM.finalScore.textContent = `${gameState.score}점`;
 
-            const finalScoreEl = document.getElementById('final-score');
-            finalScoreEl.textContent = `${score}점`;
+            animateFinalScore();
+        }
 
-            // Simple animation
-            finalScoreEl.classList.add('scale-110');
-            setTimeout(() => finalScoreEl.classList.remove('scale-110'), 300);
+        function animateFinalScore() {
+            DOM.finalScore.classList.add('scale-110');
+            setTimeout(() => DOM.finalScore.classList.remove('scale-110'), CONSTANTS.ANIMATION_DELAY_MS);
         }
     </script>
 </body>

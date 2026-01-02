@@ -127,177 +127,260 @@
     <script src="dictionary-data.js"></script>
     <script src="../components.js"></script>
     <script>
-        // Quiz State
-        let currentQuestionIndex = 0;
-        let score = 0;
-        let questions = [];
-        const TOTAL_QUESTIONS = 10;
-        let isAnswered = false;
+        // ==================== 定数定義 ====================
+        const CONSTANTS = {
+            TOTAL_QUESTIONS: 10,
+            WRONG_OPTIONS_COUNT: 3,
+            POINTS_PER_QUESTION: 10,
+            INIT_DELAY_MS: 100,
+            ANIMATION_DELAY_MS: 300
+        };
 
+        const CSS_CLASSES = {
+            HIDDEN: 'hidden',
+            BTN_BASE: 'btn btn-outline h-auto py-3 min-h-[3.5rem] bg-white text-slate-700 border-slate-200 hover:bg-blue-50 hover:border-blue-300 normal-case font-normal text-base leading-snug',
+            BTN_DISABLED: ['cursor-not-allowed', 'opacity-60'],
+            BTN_REMOVE: ['btn-outline', 'bg-white', 'text-slate-700', 'border-slate-200', 'opacity-60'],
+            BTN_CORRECT: ['!bg-green-500', '!text-white', '!border-green-500', 'opacity-100'],
+            BTN_WRONG: ['!bg-red-500', '!text-white', '!border-red-500', 'opacity-100'],
+            HINT_ACTIVE: ['text-blue-600', 'bg-blue-50']
+        };
+
+        // ==================== グローバル状態 ====================
+        let gameState = {
+            currentQuestionIndex: 0,
+            score: 0,
+            questions: [],
+            isAnswered: false
+        };
+
+        // ==================== DOM要素キャッシング ====================
+        const DOM = {};
+
+        function cacheDOMElements() {
+            DOM.loading = document.getElementById('loading');
+            DOM.gameArea = document.getElementById('game-area');
+            DOM.resultArea = document.getElementById('result-area');
+            DOM.questionCount = document.getElementById('question-count');
+            DOM.questionText = document.getElementById('question-text');
+            DOM.scoreDisplay = document.getElementById('score-display');
+            DOM.hintArea = document.getElementById('hint-area');
+            DOM.hintBtn = document.getElementById('hint-btn');
+            DOM.hintText = document.getElementById('hint-text');
+            DOM.nextBtn = document.getElementById('next-btn');
+            DOM.optionsGrid = document.getElementById('options-grid');
+            DOM.finalScore = document.getElementById('final-score');
+        }
+
+        // ==================== 初期化 ====================
         document.addEventListener('DOMContentLoaded', () => {
+            cacheDOMElements();
             initComponents('quiz');
-            setTimeout(initQuiz, 100);
+            setTimeout(initQuiz, CONSTANTS.INIT_DELAY_MS);
         });
 
         function initQuiz() {
-            const loading = document.getElementById('loading');
-            const gameArea = document.getElementById('game-area');
-
-            if (typeof termDefinitions === 'undefined') {
-                loading.innerHTML = '<p class="text-red-500">データの読み込みに失敗しました。<br>ページを更新してください。</p>';
+            if (!validateData()) {
+                showError('データの読み込みに失敗しました。<br>ページを更新してください。');
                 return;
             }
 
-            // Generate questions list
+            gameState.questions = generateQuestions();
+            startGame();
+        }
+
+        function validateData() {
+            return typeof termDefinitions !== 'undefined' && Object.keys(termDefinitions).length > 0;
+        }
+
+        function showError(message) {
+            DOM.loading.innerHTML = `<p class="text-red-500">${message}</p>`;
+        }
+
+        // ==================== 問題生成 ====================
+        function generateQuestions() {
             const allTerms = Object.keys(termDefinitions);
+            const selectedIndices = getRandomIndices(allTerms.length, CONSTANTS.TOTAL_QUESTIONS);
 
-            // If we have fewer terms than TOTAL_QUESTIONS, just use what we have
-            const questionCount = Math.min(TOTAL_QUESTIONS, allTerms.length);
-
-            // Shuffle
-            questions = [];
-            const selectedIndices = new Set();
-            while (selectedIndices.size < questionCount) {
-                const idx = Math.floor(Math.random() * allTerms.length);
-                selectedIndices.add(idx);
-            }
-
-            // Get distractors from economyDictionary (all terms list) if available, otherwise use keys
-            // To ensure we have enough distractors, let's collect ALL terms available in the dictionary
-            let allPossibleDistractors = [];
-            if (typeof economyDictionary !== 'undefined') {
-                Object.values(economyDictionary).forEach(list => allPossibleDistractors.push(...list));
-            } else {
-                allPossibleDistractors = allTerms;
-            }
-
-            selectedIndices.forEach(idx => {
+            return Array.from(selectedIndices).map(idx => {
                 const term = allTerms[idx];
                 const data = termDefinitions[term];
+                const wrongOptions = getWrongOptions(allTerms, idx);
 
-                // Generare distractors
-                const distractors = [];
-                while (distractors.length < 3) {
-                    const randomDistractor = allPossibleDistractors[Math.floor(Math.random() * allPossibleDistractors.length)];
-                    if (randomDistractor !== term && !distractors.includes(randomDistractor) && randomDistractor.length < 20) { // Limit length for UI
-                        distractors.push(randomDistractor);
-                    }
-                }
-
-                questions.push({
-                    term: term,
+                return {
+                    term,
                     definition: data.definition,
                     example: data.example,
-                    options: [...distractors, term].sort(() => 0.5 - Math.random())
-                });
+                    options: shuffleArray([...wrongOptions, term])
+                };
             });
+        }
 
-            loading.classList.add('hidden');
-            gameArea.classList.remove('hidden');
+        function getRandomIndices(maxLength, count) {
+            const indices = new Set();
+            while (indices.size < count && indices.size < maxLength) {
+                indices.add(Math.floor(Math.random() * maxLength));
+            }
+            return indices;
+        }
 
+        function getWrongOptions(allTerms, correctIdx) {
+            const wrongOptions = [];
+            const usedIndices = new Set([correctIdx]);
+
+            while (wrongOptions.length < CONSTANTS.WRONG_OPTIONS_COUNT) {
+                const wrongIdx = Math.floor(Math.random() * allTerms.length);
+                if (!usedIndices.has(wrongIdx)) {
+                    usedIndices.add(wrongIdx);
+                    wrongOptions.push(allTerms[wrongIdx]);
+                }
+            }
+
+            return wrongOptions;
+        }
+
+        function shuffleArray(array) {
+            return array.sort(() => Math.random() - 0.5);
+        }
+
+        // ==================== ゲーム進行 ====================
+        function startGame() {
+            DOM.loading.classList.add(CSS_CLASSES.HIDDEN);
+            DOM.gameArea.classList.remove(CSS_CLASSES.HIDDEN);
             showQuestion();
         }
 
         function showQuestion() {
-            if (currentQuestionIndex >= questions.length) {
-                showResult();
-                return;
-            }
+            gameState.isAnswered = false;
+            const question = gameState.questions[gameState.currentQuestionIndex];
 
-            isAnswered = false;
-            const questionData = questions[currentQuestionIndex];
+            updateQuestionUI(question);
+            renderOptions(question);
+        }
 
-            // Update UI
-            document.getElementById('question-count').textContent = `第 ${currentQuestionIndex + 1} 問 / ${questions.length} 問`;
-            document.getElementById('question-text').textContent = questionData.definition;
-            document.getElementById('hint-area').classList.add('hidden');
-            document.getElementById('hint-btn').classList.remove('hidden');
-            document.getElementById('next-btn').classList.add('hidden');
-            document.getElementById('hint-text').textContent = questionData.example || "";
+        function updateQuestionUI(question) {
+            DOM.questionCount.textContent = `第 ${gameState.currentQuestionIndex + 1} 問 / ${CONSTANTS.TOTAL_QUESTIONS} 問`;
+            DOM.questionText.textContent = question.definition;
+            DOM.hintText.textContent = question.example;
 
-            const optionsGrid = document.getElementById('options-grid');
-            optionsGrid.innerHTML = '';
+            DOM.hintArea.classList.add(CSS_CLASSES.HIDDEN);
+            DOM.hintBtn.classList.remove(CSS_CLASSES.HIDDEN);
+            DOM.nextBtn.classList.add(CSS_CLASSES.HIDDEN);
+        }
 
-            questionData.options.forEach(term => {
-                const btn = document.createElement('button');
-                btn.className = "btn btn-outline h-auto py-3 min-h-[3.5rem] bg-white text-slate-700 border-slate-200 hover:bg-blue-50 hover:border-blue-300 normal-case font-normal text-base leading-snug";
-                btn.textContent = term;
-                btn.onclick = () => checkAnswer(term, questionData.term, btn);
-                optionsGrid.appendChild(btn);
+        function renderOptions(question) {
+            DOM.optionsGrid.innerHTML = '';
+
+            question.options.forEach(option => {
+                const btn = createOptionButton(option, question.term);
+                DOM.optionsGrid.appendChild(btn);
             });
         }
 
-        function checkAnswer(selectedTerm, correctTerm, btnElement) {
-            if (isAnswered) return;
-            isAnswered = true;
+        function createOptionButton(optionText, correctAnswer) {
+            const btn = document.createElement('button');
+            btn.className = CSS_CLASSES.BTN_BASE;
+            btn.textContent = optionText;
+            btn.onclick = () => checkAnswer(optionText, btn, correctAnswer);
+            return btn;
+        }
+
+        // ==================== 答えチェック ====================
+        function checkAnswer(selected, btnElement, correct) {
+            if (gameState.isAnswered) return;
+            gameState.isAnswered = true;
 
             const buttons = document.querySelectorAll('#options-grid button');
-            const hintArea = document.getElementById('hint-area');
-            const hintText = document.getElementById('hint-text');
+            disableAllButtons(buttons);
 
-            if (selectedTerm === correctTerm) {
-                // Correct
-                btnElement.classList.remove('btn-outline', 'bg-white', 'text-slate-700', 'border-slate-200');
-                btnElement.classList.add('btn-success', 'text-white', 'border-success');
-                score += 10;
-                document.getElementById('score-display').textContent = `スコア: ${score}`;
+            const isCorrect = selected === correct;
+            updateButtonStyles(btnElement, buttons, correct, isCorrect);
 
+            if (isCorrect) {
+                handleCorrectAnswer();
             } else {
-                // Incorrect
-                btnElement.classList.remove('btn-outline', 'bg-white', 'text-slate-700', 'border-slate-200');
-                btnElement.classList.add('btn-error', 'text-white', 'border-error');
+                handleWrongAnswer();
+            }
 
-                // Highlight correct answer
-                buttons.forEach(b => {
-                    if (b.textContent === correctTerm) {
-                        b.classList.remove('btn-outline', 'bg-white', 'text-slate-700', 'border-slate-200');
-                        b.classList.add('btn-success', 'text-white', 'border-success');
-                    }
-                });
+            showNextButton();
+        }
 
-                // Show Hint
-                const qData = questions[currentQuestionIndex];
-                if (qData.example) {
-                    hintText.textContent = qData.example;
+        function disableAllButtons(buttons) {
+            buttons.forEach(btn => {
+                btn.disabled = true;
+                btn.classList.add(...CSS_CLASSES.BTN_DISABLED);
+            });
+        }
+
+        function updateButtonStyles(selectedBtn, allButtons, correctAnswer, isCorrect) {
+            selectedBtn.classList.remove(...CSS_CLASSES.BTN_REMOVE);
+            selectedBtn.classList.add(...(isCorrect ? CSS_CLASSES.BTN_CORRECT : CSS_CLASSES.BTN_WRONG));
+
+            if (!isCorrect) {
+                highlightCorrectAnswer(allButtons, correctAnswer);
+            }
+        }
+
+        function highlightCorrectAnswer(buttons, correctAnswer) {
+            buttons.forEach(btn => {
+                if (btn.textContent === correctAnswer) {
+                    btn.classList.remove(...CSS_CLASSES.BTN_REMOVE);
+                    btn.classList.add(...CSS_CLASSES.BTN_CORRECT);
                 }
-            }
-
-            // Show Next Button
-            document.getElementById('next-btn').classList.remove('hidden');
-            document.getElementById('hint-btn').classList.add('hidden');
-
-            // Show hint
-            document.getElementById('hint-area').classList.remove('hidden');
+            });
         }
 
+        function handleCorrectAnswer() {
+            gameState.score += CONSTANTS.POINTS_PER_QUESTION;
+            DOM.scoreDisplay.textContent = `スコア: ${gameState.score}`;
+        }
+
+        function handleWrongAnswer() {
+            DOM.hintArea.classList.remove(CSS_CLASSES.HIDDEN);
+        }
+
+        function showNextButton() {
+            DOM.nextBtn.classList.remove(CSS_CLASSES.HIDDEN);
+            DOM.hintBtn.classList.add(CSS_CLASSES.HIDDEN);
+            DOM.hintArea.classList.remove(CSS_CLASSES.HIDDEN);
+        }
+
+        // ==================== ヒントトグル ====================
         function toggleHint() {
-            const hintArea = document.getElementById('hint-area');
-            const hintBtn = document.getElementById('hint-btn');
-            if (hintArea.classList.contains('hidden')) {
-                hintArea.classList.remove('hidden');
-                hintBtn.classList.add('text-blue-600', 'bg-blue-50');
+            const isHidden = DOM.hintArea.classList.contains(CSS_CLASSES.HIDDEN);
+
+            if (isHidden) {
+                DOM.hintArea.classList.remove(CSS_CLASSES.HIDDEN);
+                DOM.hintBtn.classList.add(...CSS_CLASSES.HINT_ACTIVE);
             } else {
-                hintArea.classList.add('hidden');
-                hintBtn.classList.remove('text-blue-600', 'bg-blue-50');
+                DOM.hintArea.classList.add(CSS_CLASSES.HIDDEN);
+                DOM.hintBtn.classList.remove(...CSS_CLASSES.HINT_ACTIVE);
             }
         }
 
+        // ==================== 次の問題へ ====================
         function nextQuestion() {
-            currentQuestionIndex++;
-            showQuestion(); // Boundary check is inside showQuestion
+            gameState.currentQuestionIndex++;
+
+            if (gameState.currentQuestionIndex < gameState.questions.length) {
+                showQuestion();
+            } else {
+                showResult();
+            }
         }
 
+        // ==================== 結果表示 ====================
         function showResult() {
-            document.getElementById('game-area').classList.add('hidden');
-            const resultArea = document.getElementById('result-area');
-            resultArea.classList.remove('hidden');
+            DOM.gameArea.classList.add(CSS_CLASSES.HIDDEN);
+            DOM.resultArea.classList.remove(CSS_CLASSES.HIDDEN);
+            DOM.finalScore.textContent = `${gameState.score} 点`;
 
-            const finalScoreEl = document.getElementById('final-score');
-            finalScoreEl.textContent = `${score} 点`;
+            animateFinalScore();
+        }
 
-            // Simple animation
-            finalScoreEl.classList.add('scale-110');
-            setTimeout(() => finalScoreEl.classList.remove('scale-110'), 300);
+        function animateFinalScore() {
+            DOM.finalScore.classList.add('scale-110');
+            setTimeout(() => DOM.finalScore.classList.remove('scale-110'), CONSTANTS.ANIMATION_DELAY_MS);
         }
     </script>
 </body>

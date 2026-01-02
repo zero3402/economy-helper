@@ -125,7 +125,6 @@ const NAV_ITEMS = [
 ];
 
 // Google AdSense 설정
-// Google AdSense 설정
 const ADSENSE_CLIENT_ID = 'ca-pub-9654373024529321';
 
 
