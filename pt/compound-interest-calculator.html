@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="pt" data-theme="corporate" id="html-root">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <!-- Primary Meta Tags -->
+    <title>Calculadora de Juros Compostos - Economy Helper</title>
+    <meta name="title" content="Calculadora de Juros Compostos - Economy Helper">
+    <meta name="description"
+        content="Calcula el interés compuesto de tus inversiones. Mira cómo crece tu dinero con el tiempo.">
+    <meta name="keywords"
+        content="calculadora interés compuesto, calculadora inversiones, calculadora ahorros, crecimiento dinero">
+    <meta name="author" content="Economy Helper">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://economyhelper.com/pt/compound-interest-calculator.html">
+    <link rel="icon" type="image/png" href="../images/favicon.png">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://economyhelper.com/pt/compound-interest-calculator.html">
+    <meta property="og:title" content="Calculadora de Juros Compostos - Economy Helper">
+    <meta property="og:description"
+        content="Calcula el interés compuesto de tus inversiones. Mira cómo crece tu dinero con el tiempo.">
+    <meta property="og:image" content="https://economyhelper.com/images/og.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:site_name" content="Economy Helper">
+    <meta property="og:locale" content="es_BR">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://economyhelper.com/pt/compound-interest-calculator.html">
+    <meta name="twitter:title" content="Calculadora de Juros Compostos - Economy Helper">
+    <meta name="twitter:description"
+        content="Calcula el interés compuesto de tus inversiones. Mira cómo crece tu dinero con el tiempo.">
+    <meta name="twitter:image" content="https://economyhelper.com/images/og.png">
+
+    <!-- Additional SEO -->
+    <meta name="theme-color" content="#3B82F6">
+    <meta name="apple-mobile-web-app-title" content="Economy Helper">
+    <meta name="application-name" content="Economy Helper">
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Calculadora de Juros Compostos",
+        "description": "Calcula el interés compuesto de tus inversiones y mira cómo crece tu dinero con el tiempo.",
+        "url": "https://economyhelper.com/pt/compound-interest-calculator.html",
+        "applicationCategory": "FinanceApplication",
+        "provider": {
+            "@type": "Organization",
+            "name": "Economy Helper",
+            "url": "https://economyhelper.com/"
+        }
+    }
+    </script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.jsdelivr.net/npm/decimal.js@10.4.3/decimal.min.js"></script>
+    <script src="../components.js"></script>
+</head>
+
+<body class="bg-slate-50 min-h-screen">
+    <!-- Header -->
+    <header id="header" class="bg-white border-b border-slate-200 sticky top-0 z-50"></header>
+
+    <main class="container mx-auto px-4 py-6 sm:py-10">
+        <div class="max-w-4xl mx-auto">
+            <!-- Title -->
+            <div class="text-center mb-8">
+                <div
+                    class="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <h1 class="text-2xl sm:text-3xl font-bold text-slate-800 mb-2">Calculadora de Juros Compostos</h1>
+                <p class="text-slate-500">Mira cómo crece tu dinero con el poder del interés compuesto</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Calculator Form -->
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                    <h2 class="text-lg font-semibold text-slate-800 mb-6">Ingresa tus datos</h2>
+
+                    <div class="space-y-5">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Inversión Inicial (€)</label>
+                            <input type="text" id="principal" value="10,000" class="input input-bordered w-full"
+                                placeholder="Ingresa monto">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Contribución Mensual
+                                (€)</label>
+                            <input type="text" id="monthly" value="500" class="input input-bordered w-full"
+                                placeholder="Ingresa monto">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Tasa de Interés Anual
+                                (%)</label>
+                            <input type="number" id="rate" value="7" min="0" max="100" step="0.1"
+                                class="input input-bordered w-full" placeholder="Ingresa tasa">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Período de Inversión
+                                (Años)</label>
+                            <input type="number" id="years" value="20" min="1" max="100" step="1"
+                                class="input input-bordered w-full" placeholder="Ingresa años">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Frecuencia de
+                                Capitalización</label>
+                            <select id="frequency" class="select select-bordered w-full">
+                                <option value="1">Anual</option>
+                                <option value="4">Trimestral</option>
+                                <option value="12" selected>Mensual</option>
+                                <option value="365">Diaria</option>
+                            </select>
+                        </div>
+
+                        <button onclick="calculate()" class="btn btn-primary w-full rounded-xl">
+                            Calcular
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-1" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Results -->
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                    <h2 class="text-lg font-semibold text-slate-800 mb-6">Resultados</h2>
+
+                    <div class="space-y-4">
+                        <div
+                            class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200">
+                            <div class="text-sm text-green-600 font-medium mb-1">Valor Futuro</div>
+                            <div id="futureValue"
+                                class="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-green-700 break-all">0
+                                €
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div class="bg-slate-50 rounded-xl p-4">
+                                <div class="text-sm text-slate-500 mb-1">Contribuciones Totales</div>
+                                <div id="totalContributions"
+                                    class="text-base sm:text-lg md:text-xl font-semibold text-slate-700 break-all">0 €
+                                </div>
+                            </div>
+                            <div class="bg-blue-50 rounded-xl p-4">
+                                <div class="text-sm text-blue-500 mb-1">Interés Total</div>
+                                <div id="totalInterest"
+                                    class="text-base sm:text-lg md:text-xl font-semibold text-blue-700 break-all">0 €
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-50 rounded-xl p-4">
+                            <div class="text-sm text-slate-500 mb-1">Porcentaje de Interés del Total</div>
+                            <div class="flex items-center gap-3">
+                                <progress id="interestProgress" class="progress progress-primary w-full" value="0"
+                                    max="100"></progress>
+                                <span id="interestPercent" class="text-sm font-medium text-slate-700 w-12">0%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Yearly Breakdown -->
+                    <div class="mt-6">
+                        <h3 class="text-md font-semibold text-slate-800 mb-3">Desglose Anual</h3>
+                        <div id="yearlyBreakdown" class="max-h-64 overflow-y-auto space-y-2">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Info Section -->
+            <div class="mt-8 bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <h2 class="text-lg font-semibold text-slate-800 mb-4">Entendiendo el Juros Compostos</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="p-4 bg-blue-50 rounded-xl">
+                        <div class="font-medium text-blue-800 mb-2">La Fórmula</div>
+                        <p class="text-sm text-blue-600">A = P(1 + r/n)^(nt) donde P es el principal, r es la tasa, n es
+                            la frecuencia y t el tiempo.</p>
+                    </div>
+                    <div class="p-4 bg-green-50 rounded-xl">
+                        <div class="font-medium text-green-800 mb-2">Por qué importa</div>
+                        <p class="text-sm text-green-600">El interés compuesto genera interés sobre los intereses,
+                            haciendo que tu riqueza crezca exponencialmente.</p>
+                    </div>
+                    <div class="p-4 bg-purple-50 rounded-xl">
+                        <div class="font-medium text-purple-800 mb-2">Consejo Pro</div>
+                        <p class="text-sm text-purple-600">¡Empieza temprano! El tiempo es el factor más poderoso.
+                            Incluso pequeñas cantidades suman mucho.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer id="footer" class="bg-white border-t border-slate-200 mt-auto"></footer>
+
+    <script>
+        // Decimal.js configuration: high precision
+        Decimal.set({ precision: 50, rounding: Decimal.ROUND_HALF_UP });
+
+        function formatCurrency(num) {
+            const value = num instanceof Decimal ? num.toFixed(2) : num.toFixed(2);
+            return Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+        }
+
+        function formatInputNumber(num) {
+            return num.toLocaleString('en-US');
+        }
+
+        function parseInputNumber(str) {
+            const cleaned = str.replace(/,/g, '');
+            return cleaned === '' ? new Decimal(0) : new Decimal(cleaned);
+        }
+
+        function handleCurrencyInput(e) {
+            const input = e.target;
+            const cursorPos = input.selectionStart;
+            const oldLength = input.value.length;
+
+            let value = input.value.replace(/[^0-9.]/g, '');
+            if (value === '') {
+                input.value = '';
+                return;
+            }
+
+            const num = parseFloat(value);
+            if (!isNaN(num)) {
+                input.value = formatInputNumber(num);
+            }
+
+            const newLength = input.value.length;
+            const diff = newLength - oldLength;
+            input.setSelectionRange(cursorPos + diff, cursorPos + diff);
+        }
+
+        function calculate() {
+            const principal = parseInputNumber(document.getElementById('principal').value);
+            const monthly = parseInputNumber(document.getElementById('monthly').value);
+            const rateInput = parseFloat(document.getElementById('rate').value) || 0;
+            const years = parseInt(document.getElementById('years').value) || 0;
+            const frequency = parseInt(document.getElementById('frequency').value) || 12;
+
+            const rate = new Decimal(rateInput).div(100);
+            const r = rate.div(frequency);
+            const n = frequency * years;
+
+            // Future value of principal: P * (1 + r)^n
+            let fvPrincipal = principal.mul(Decimal.pow(new Decimal(1).plus(r), n));
+
+            // Future value of monthly contributions (annuity)
+            let fvContributions = new Decimal(0);
+            if (rate.gt(0)) {
+                const monthlyRate = rate.div(12);
+                const totalMonths = years * 12;
+                const growthFactor = Decimal.pow(new Decimal(1).plus(monthlyRate), totalMonths).minus(1);
+                fvContributions = monthly.mul(growthFactor.div(monthlyRate));
+            } else {
+                fvContributions = monthly.mul(years * 12);
+            }
+
+            const futureValue = fvPrincipal.plus(fvContributions);
+            const totalContributions = principal.plus(monthly.mul(12 * years));
+            const totalInterest = futureValue.minus(totalContributions);
+            const interestPercent = totalContributions.gt(0)
+                ? totalInterest.div(futureValue).mul(100).toNumber()
+                : 0;
+
+            // Update display
+            document.getElementById('futureValue').textContent = formatCurrency(futureValue);
+            document.getElementById('totalContributions').textContent = formatCurrency(totalContributions);
+            document.getElementById('totalInterest').textContent = formatCurrency(totalInterest);
+            document.getElementById('interestProgress').value = interestPercent;
+            document.getElementById('interestPercent').textContent = interestPercent.toFixed(1) + '%';
+
+            // Yearly breakdown
+            let breakdown = '';
+            let balance = principal;
+            const monthlyRate = rate.div(12);
+
+            for (let year = 1; year <= Math.min(years, 100); year++) {
+                for (let month = 0; month < 12; month++) {
+                    balance = balance.mul(new Decimal(1).plus(monthlyRate)).plus(monthly);
+                }
+                const yearContributions = principal.plus(monthly.mul(12 * year));
+
+                breakdown += `
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 bg-slate-50 rounded-lg text-sm gap-1 sm:gap-4">
+                        <span class="font-medium text-slate-700">Año ${year}</span>
+                        <div class="flex flex-col sm:flex-row gap-1 sm:gap-4 text-right w-full sm:w-auto">
+                            <span class="text-slate-500 text-xs sm:text-sm">${formatCurrency(yearContributions)} invertidos</span>
+                            <span class="text-green-600 font-medium">${formatCurrency(balance)}</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            document.getElementById('yearlyBreakdown').innerHTML = breakdown;
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function () {
+            if (typeof initComponents === 'function') {
+                initComponents('compoundInterest');
+            }
+
+            // Currency formatting for money inputs
+            ['principal', 'monthly'].forEach(id => {
+                document.getElementById(id).addEventListener('input', handleCurrencyInput);
+            });
+        });
+    </script>
+</body>
+
+</html>

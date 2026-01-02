@@ -11,7 +11,7 @@ function getURLContext() {
     // 경로 세그먼트에서 언어 코드 찾기 (뒤에서부터 검색하여 가장 인접한 언어 폴더 탐색)
     for (let i = parts.length - 1; i >= 0; i--) {
         const p = parts[i].toLowerCase();
-        if (['kr', 'jp', 'es', 'us'].includes(p)) {
+        if (['kr', 'jp', 'es', 'us', 'pt'].includes(p)) {
             lang = p;
             break;
         }
@@ -28,6 +28,7 @@ function getURLContext() {
             if (userLang.startsWith('ko')) lang = 'kr';
             else if (userLang.startsWith('ja')) lang = 'jp';
             else if (userLang.startsWith('es')) lang = 'es';
+            else if (userLang.startsWith('pt')) lang = 'pt';
             else lang = 'us';
         }
     }
@@ -111,6 +112,21 @@ const I18N = {
         SHARE_TITLE: 'Compartir',
         COPY_LINK: 'Copiar enlace',
         LINK_COPIED: '¡Enlace copiado!',
+        SHARE_TWITTER: 'X (Twitter)',
+        SHARE_FACEBOOK: 'Facebook'
+    },
+    pt: {
+        DICTIONARY: 'Dicionário',
+        QUIZ: 'Quiz de Economia',
+        CALCULATORS: 'Calculadoras',
+        TEST: 'Teste de Personalidade',
+        INVESTMENT_TEST: 'Teste de Personalidade de Investimento',
+        SPENDING_TEST: 'Teste de Personalidade de Consumo',
+        COMPOUND: 'Juros Compostos',
+        SAVINGS: 'Meta de Poupança',
+        SHARE_TITLE: 'Compartilhar',
+        COPY_LINK: 'Copiar link',
+        LINK_COPIED: 'Link copiado!',
         SHARE_TWITTER: 'X (Twitter)',
         SHARE_FACEBOOK: 'Facebook'
     }
@@ -258,7 +274,7 @@ function handleAutoRedirect() {
     // 언어 경로가 아닌 곳에서만 체크 (이미 /kr/ 등에 있으면 안 함)
     if (path === '/' || path.endsWith('/index.html')) {
         // 이미 언어 경로에 있는 경우(예: /kr/index.html) 리다이렉션 안함
-        if (path.includes('/kr/') || path.includes('/us/') || path.includes('/jp/') || path.includes('/es/')) return;
+        if (path.includes('/kr/') || path.includes('/us/') || path.includes('/jp/') || path.includes('/es/') || path.includes('/pt/')) return;
 
         // 여기에 도달했다면 리다이렉션 로직이 필요할 수 있으나, IS_ROOT가 true면 위에서 이미 return됨
     }
@@ -305,7 +321,8 @@ function renderHeader(activePageId) {
         kr: '한국어',
         us: 'English',
         jp: '日本語',
-        es: 'Español'
+        es: 'Español',
+        pt: 'Português'
     };
     const langLabel = langLabels[CURRENT_LANG];
     const otherLangs = Object.keys(langLabels).filter(l => l !== CURRENT_LANG);
@@ -392,7 +409,8 @@ function getShareText() {
         kr: '투자 성향 테스트 결과, 나는',
         us: 'My Investment Personality Test Result:',
         jp: '投資性向テスト結果、私は',
-        es: 'Resultado del Test de Personalidad de Inversión:'
+        es: 'Resultado del Test de Personalidad de Inversión:',
+        pt: 'Resultado do Teste de Personalidade de Investimento:'
     };
     const prefix = prefixes[CURRENT_LANG] || prefixes.us;
     return `${prefix} "${name}"! ${slogan}`;
@@ -412,7 +430,9 @@ function shareResults() {
         const copyLinkTexts = {
             kr: '링크 복사',
             us: 'Copy Link',
-            jp: 'リンクをコピー'
+            jp: 'リンクをコピー',
+            es: 'Copiar enlace',
+            pt: 'Copiar link'
         };
         if (copyText) copyText.textContent = copyLinkTexts[CURRENT_LANG] || copyLinkTexts.us;
         const modal = document.getElementById('share-modal');
@@ -442,13 +462,15 @@ function copyShareLink() {
         kr: '복사됨!',
         us: 'Copied!',
         jp: 'コピーしました！',
-        es: '¡Copiado!'
+        es: '¡Copiado!',
+        pt: 'Copiado!'
     };
     const defaultTexts = {
         kr: '링크 복사',
         us: 'Copy Link',
         jp: 'リンクをコピー',
-        es: 'Copiar enlace'
+        es: 'Copiar enlace',
+        pt: 'Copiar link'
     };
     const copiedText = copiedTexts[CURRENT_LANG] || copiedTexts.us;
     const defaultText = defaultTexts[CURRENT_LANG] || defaultTexts.us;
