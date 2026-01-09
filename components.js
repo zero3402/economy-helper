@@ -53,6 +53,250 @@ window.CURRENT_LANG = CURRENT_LANG;
 window.LANG_PATH = LANG_PATH;
 window.IS_ROOT = IS_ROOT;
 
+// 언어별 HTML lang 코드 매핑
+const LANG_CODES = {
+    kr: 'ko',
+    us: 'en',
+    jp: 'ja',
+    es: 'es',
+    pt: 'pt'
+};
+
+// 언어별 locale 코드 매핑
+const LOCALE_CODES = {
+    kr: 'ko_KR',
+    us: 'en_US',
+    jp: 'ja_JP',
+    es: 'es_ES',
+    pt: 'pt_BR'
+};
+
+// 페이지별 메타 데이터 (다국어)
+const PAGE_META = {
+    dictionary: {
+        kr: {
+            title: '경제 도우미 - 누구나 쉽게 배우는 경제 지식',
+            description: '투자, 트레이딩, 개인 금융 지식을 마스터하세요. 한국어 서비스를 제공합니다.',
+            keywords: '경제 사전, 경제 용어, 경제 용어집, 투자 용어, 거래 용어, 은행 용어, 주식 시장 용어, 개인 금융, 금융 지식',
+            siteName: '경제 도우미',
+            jsonLd: {
+                websiteName: '경제 도우미',
+                websiteDesc: '투자, 거래, 은행, 개인 금융 지식을 마스터하세요.',
+                termSetName: '경제 사전',
+                termSetDesc: '금융 및 경제 용어를 정의와 예시와 함께 포괄적으로 수록한 사전입니다.'
+            }
+        },
+        us: {
+            title: 'Economy Helper - Making economics simple for everyone',
+            description: 'Master investing, trading, and personal finance knowledge. Explore our tools and calculators.',
+            keywords: 'economic terms, finance glossary, investment terms, trading vocabulary, banking terms, stock market terminology, personal finance, financial literacy, compound interest calculator, savings goal',
+            siteName: 'Economy Helper',
+            jsonLd: {
+                websiteName: 'Economy Helper',
+                websiteDesc: 'Master investing, trading, and personal finance knowledge.',
+                termSetName: 'Economic Dictionary',
+                termSetDesc: 'A comprehensive collection of financial and economic terms with definitions and examples.'
+            }
+        },
+        jp: {
+            title: '経済ヘルパー - 誰でも簡単に学べる経済知識',
+            description: '投資、トレーディング、個人金融の知識をマスターしましょう。日本語サービスを提供しています。',
+            keywords: '経済辞典, 経済用語, 投資用語, 取引用語, 銀行用語, 株式市場用語, 個人金融, 金融リテラシー',
+            siteName: '経済ヘルパー',
+            jsonLd: {
+                websiteName: '経済ヘルパー',
+                websiteDesc: '投資、取引、銀行、個人金融の知識をマスターしましょう。',
+                termSetName: '経済辞典',
+                termSetDesc: '金融・経済用語を定義と例を用いて包括的に収録した辞典です。'
+            }
+        },
+        es: {
+            title: 'Economy Helper - Haciendo la economía simple para todos',
+            description: 'Domina los conocimientos de inversión, trading y finanzas personales. Servicio en español disponible.',
+            keywords: 'diccionario económico, términos financieros, vocabulario de inversión, términos de trading, terminología bancaria, mercado de valores, finanzas personales, educación financiera',
+            siteName: 'Economy Helper',
+            jsonLd: {
+                websiteName: 'Economy Helper',
+                websiteDesc: 'Domina los conocimientos de inversión, trading y finanzas personales.',
+                termSetName: 'Diccionario Económico',
+                termSetDesc: 'Una colección completa de términos financieros y económicos con definiciones y ejemplos.'
+            }
+        },
+        pt: {
+            title: 'Economy Helper - Tornando a economia simples para todos',
+            description: 'Domine conhecimentos de investimento, trading e finanças pessoais. Serviço em português disponível.',
+            keywords: 'dicionário econômico, termos financeiros, vocabulário de investimento, termos de trading, terminologia bancária, mercado de ações, finanças pessoais, educação financeira',
+            siteName: 'Economy Helper',
+            jsonLd: {
+                websiteName: 'Economy Helper',
+                websiteDesc: 'Domine conhecimentos de investimento, trading e finanças pessoais.',
+                termSetName: 'Dicionário Econômico',
+                termSetDesc: 'Uma coleção abrangente de termos financeiros e econômicos com definições e exemplos.'
+            }
+        }
+    },
+    quiz: {
+        kr: {
+            title: '경제 퀴즈 - 경제 지식 테스트',
+            description: '재미있는 퀴즈로 경제 지식을 테스트해보세요.',
+            keywords: '경제 퀴즈, 금융 퀴즈, 경제 테스트, 금융 지식 테스트',
+            siteName: '경제 도우미'
+        },
+        us: {
+            title: 'Economy Quiz - Test Your Economic Knowledge',
+            description: 'Test your economic knowledge with fun quizzes.',
+            keywords: 'economy quiz, finance quiz, economic test, financial literacy test',
+            siteName: 'Economy Helper'
+        },
+        jp: {
+            title: '経済クイズ - 経済知識をテスト',
+            description: '楽しいクイズで経済知識をテストしましょう。',
+            keywords: '経済クイズ, 金融クイズ, 経済テスト, 金融知識テスト',
+            siteName: '経済ヘルパー'
+        },
+        es: {
+            title: 'Quiz de Economía - Pon a prueba tus conocimientos',
+            description: 'Pon a prueba tus conocimientos económicos con divertidos cuestionarios.',
+            keywords: 'quiz de economía, cuestionario financiero, test económico, prueba de conocimientos financieros',
+            siteName: 'Economy Helper'
+        },
+        pt: {
+            title: 'Quiz de Economia - Teste seus conhecimentos',
+            description: 'Teste seus conhecimentos econômicos com questionários divertidos.',
+            keywords: 'quiz de economia, questionário financeiro, teste econômico, teste de conhecimentos financeiros',
+            siteName: 'Economy Helper'
+        }
+    },
+    'personality-investment': {
+        kr: {
+            title: '투자 성향 테스트 - 나의 투자 성향 알아보기',
+            description: '간단한 테스트로 나의 투자 성향을 알아보세요. 안정형? 공격형? 나에게 맞는 투자 스타일을 찾아보세요.',
+            keywords: '투자 성향 테스트, 투자 심리 테스트, 투자 유형 테스트, 투자 스타일, 투자자 유형',
+            siteName: '경제 도우미'
+        },
+        us: {
+            title: 'Investment Personality Test - Discover Your Investment Style',
+            description: 'Discover your investment personality with our simple test. Are you conservative or aggressive? Find your perfect investment style.',
+            keywords: 'investment personality test, investor type test, investment style quiz, risk tolerance test',
+            siteName: 'Economy Helper'
+        },
+        jp: {
+            title: '投資性向診断 - あなたの投資スタイルを発見',
+            description: '簡単なテストであなたの投資性向を発見しましょう。安定型？積極型？あなたに合った投資スタイルを見つけましょう。',
+            keywords: '投資性向診断, 投資タイプテスト, 投資スタイル診断, リスク許容度テスト',
+            siteName: '経済ヘルパー'
+        },
+        es: {
+            title: 'Test de Personalidad de Inversión - Descubre tu estilo',
+            description: 'Descubre tu personalidad inversora con nuestro test simple. ¿Eres conservador o agresivo? Encuentra tu estilo de inversión perfecto.',
+            keywords: 'test de personalidad inversora, tipo de inversor, estilo de inversión, tolerancia al riesgo',
+            siteName: 'Economy Helper'
+        },
+        pt: {
+            title: 'Teste de Personalidade de Investimento - Descubra seu estilo',
+            description: 'Descubra sua personalidade de investimento com nosso teste simples. Você é conservador ou agressivo? Encontre seu estilo de investimento perfeito.',
+            keywords: 'teste de personalidade de investimento, tipo de investidor, estilo de investimento, tolerância ao risco',
+            siteName: 'Economy Helper'
+        }
+    },
+    'personality-spending': {
+        kr: {
+            title: '소비 성향 테스트 - 나의 소비 습관 알아보기',
+            description: '간단한 테스트로 나의 소비 성향을 알아보세요. 알뜰형? 플렉스형? 나에게 맞는 소비 스타일을 찾아보세요.',
+            keywords: '소비 성향 테스트, 소비 습관 테스트, 소비 유형 테스트, 소비 스타일, 지출 유형',
+            siteName: '경제 도우미'
+        },
+        us: {
+            title: 'Spending Personality Test - Discover Your Spending Habits',
+            description: 'Discover your spending personality with our simple test. Are you a saver or a spender? Find your spending style.',
+            keywords: 'spending personality test, spending habits quiz, consumer type test, spending style',
+            siteName: 'Economy Helper'
+        },
+        jp: {
+            title: '消費性向診断 - あなたの消費習慣を発見',
+            description: '簡単なテストであなたの消費性向を発見しましょう。節約型？浪費型？あなたに合った消費スタイルを見つけましょう。',
+            keywords: '消費性向診断, 消費習慣テスト, 消費タイプ診断, 消費スタイル',
+            siteName: '経済ヘルパー'
+        },
+        es: {
+            title: 'Test de Personalidad de Consumo - Descubre tus hábitos',
+            description: 'Descubre tu personalidad de consumo con nuestro test simple. ¿Eres ahorrador o gastador? Encuentra tu estilo de consumo.',
+            keywords: 'test de personalidad de consumo, hábitos de gasto, tipo de consumidor, estilo de consumo',
+            siteName: 'Economy Helper'
+        },
+        pt: {
+            title: 'Teste de Personalidade de Consumo - Descubra seus hábitos',
+            description: 'Descubra sua personalidade de consumo com nosso teste simples. Você é poupador ou gastador? Encontre seu estilo de consumo.',
+            keywords: 'teste de personalidade de consumo, hábitos de gasto, tipo de consumidor, estilo de consumo',
+            siteName: 'Economy Helper'
+        }
+    },
+    compoundInterest: {
+        kr: {
+            title: '복리 계산기 - 복리의 마법을 경험하세요',
+            description: '복리 계산기로 투자 수익을 계산해보세요. 시간이 지남에 따라 자산이 어떻게 성장하는지 확인하세요.',
+            keywords: '복리 계산기, 이자 계산기, 투자 계산기, 복리 이자, 자산 성장',
+            siteName: '경제 도우미'
+        },
+        us: {
+            title: 'Compound Interest Calculator - Experience the Magic of Compounding',
+            description: 'Calculate your investment returns with our compound interest calculator. See how your wealth grows over time.',
+            keywords: 'compound interest calculator, interest calculator, investment calculator, compound growth',
+            siteName: 'Economy Helper'
+        },
+        jp: {
+            title: '複利計算機 - 複利の魔法を体験',
+            description: '複利計算機で投資収益を計算しましょう。時間とともに資産がどのように成長するか確認できます。',
+            keywords: '複利計算機, 利息計算機, 投資計算機, 複利, 資産成長',
+            siteName: '経済ヘルパー'
+        },
+        es: {
+            title: 'Calculadora de Interés Compuesto - Experimenta la magia del interés compuesto',
+            description: 'Calcula tus rendimientos de inversión con nuestra calculadora de interés compuesto. Mira cómo crece tu riqueza con el tiempo.',
+            keywords: 'calculadora de interés compuesto, calculadora de intereses, calculadora de inversiones, crecimiento compuesto',
+            siteName: 'Economy Helper'
+        },
+        pt: {
+            title: 'Calculadora de Juros Compostos - Experimente a mágica dos juros compostos',
+            description: 'Calcule seus retornos de investimento com nossa calculadora de juros compostos. Veja como sua riqueza cresce ao longo do tempo.',
+            keywords: 'calculadora de juros compostos, calculadora de juros, calculadora de investimentos, crescimento composto',
+            siteName: 'Economy Helper'
+        }
+    },
+    savingsGoal: {
+        kr: {
+            title: '목돈 마련 계산기 - 저축 목표 달성하기',
+            description: '목돈 마련 계산기로 저축 계획을 세워보세요. 원하는 금액을 모으기 위해 얼마나 저축해야 하는지 계산합니다.',
+            keywords: '목돈 마련 계산기, 저축 계산기, 저축 목표, 재테크 계산기',
+            siteName: '경제 도우미'
+        },
+        us: {
+            title: 'Savings Goal Calculator - Reach Your Financial Goals',
+            description: 'Plan your savings with our savings goal calculator. Calculate how much you need to save to reach your target amount.',
+            keywords: 'savings goal calculator, savings calculator, financial goal calculator, saving planner',
+            siteName: 'Economy Helper'
+        },
+        jp: {
+            title: '貯蓄目標計算機 - 財務目標を達成',
+            description: '貯蓄目標計算機で貯蓄計画を立てましょう。目標金額に到達するためにどれくらい貯蓄が必要か計算します。',
+            keywords: '貯蓄目標計算機, 貯蓄計算機, 財務目標計算機, 貯蓄プランナー',
+            siteName: '経済ヘルパー'
+        },
+        es: {
+            title: 'Calculadora de Meta de Ahorro - Alcanza tus metas financieras',
+            description: 'Planifica tus ahorros con nuestra calculadora de metas de ahorro. Calcula cuánto necesitas ahorrar para alcanzar tu objetivo.',
+            keywords: 'calculadora de meta de ahorro, calculadora de ahorros, objetivo financiero, planificador de ahorro',
+            siteName: 'Economy Helper'
+        },
+        pt: {
+            title: 'Calculadora de Meta de Poupança - Alcance suas metas financeiras',
+            description: 'Planeje suas economias com nossa calculadora de metas de poupança. Calcule quanto você precisa poupar para atingir seu objetivo.',
+            keywords: 'calculadora de meta de poupança, calculadora de poupança, objetivo financeiro, planejador de poupança',
+            siteName: 'Economy Helper'
+        }
+    }
+};
+
 // 다국어 설정
 const I18N = {
     kr: {
@@ -377,8 +621,161 @@ function renderFooter() {
     footer.innerHTML = '<div class="container mx-auto px-4 py-6"><p class="text-center text-slate-500 text-sm">&copy; ' + new Date().getFullYear() + ' Economy Helper. All rights reserved.</p></div>';
 }
 
+// Head 초기화 (html lang, meta tags, hreflang, JSON-LD)
+function initHead(activePageId) {
+    const lang = CURRENT_LANG;
+    const htmlLang = LANG_CODES[lang] || 'en';
+    const locale = LOCALE_CODES[lang] || 'en_US';
+
+    // HTML lang 속성 설정
+    document.documentElement.lang = htmlLang;
+
+    // 페이지 메타 데이터 가져오기
+    const pageMeta = PAGE_META[activePageId]?.[lang] || PAGE_META.dictionary?.[lang] || PAGE_META.dictionary.us;
+
+    // Title 설정
+    document.title = pageMeta.title;
+
+    // 기존 동적 메타 태그 제거 (중복 방지)
+    document.querySelectorAll('meta[data-dynamic]').forEach(el => el.remove());
+    document.querySelectorAll('link[data-dynamic]').forEach(el => el.remove());
+    document.querySelectorAll('script[data-dynamic]').forEach(el => el.remove());
+
+    // 메타 태그 헬퍼 함수
+    function setMeta(name, content, isProperty = false) {
+        const attr = isProperty ? 'property' : 'name';
+        let meta = document.querySelector(`meta[${attr}="${name}"]`);
+        if (!meta) {
+            meta = document.createElement('meta');
+            meta.setAttribute(attr, name);
+            meta.setAttribute('data-dynamic', 'true');
+            document.head.appendChild(meta);
+        }
+        meta.content = content;
+    }
+
+    // 기본 URL 생성
+    const baseUrl = 'https://economyhelper.com';
+    const langPaths = { kr: '/kr/', us: '/us/', jp: '/jp/', es: '/es/', pt: '/pt/' };
+    const pageFiles = {
+        dictionary: 'index.html',
+        quiz: 'economy-quiz.html',
+        'personality-investment': 'investment-test.html',
+        'personality-spending': 'spending-test.html',
+        compoundInterest: 'compound-interest-calculator.html',
+        savingsGoal: 'savings-goal-calculator.html'
+    };
+    const pageFile = pageFiles[activePageId] || 'index.html';
+    const currentUrl = baseUrl + langPaths[lang] + (pageFile === 'index.html' ? '' : pageFile);
+
+    // Primary Meta Tags
+    setMeta('title', pageMeta.title);
+    setMeta('description', pageMeta.description);
+    setMeta('keywords', pageMeta.keywords);
+    setMeta('author', pageMeta.siteName);
+    setMeta('robots', 'index, follow');
+
+    // Open Graph
+    setMeta('og:type', 'website', true);
+    setMeta('og:url', currentUrl, true);
+    setMeta('og:title', pageMeta.title, true);
+    setMeta('og:description', pageMeta.description, true);
+    setMeta('og:image', baseUrl + '/images/og.png', true);
+    setMeta('og:image:width', '1200', true);
+    setMeta('og:image:height', '630', true);
+    setMeta('og:site_name', pageMeta.siteName, true);
+    setMeta('og:locale', locale, true);
+
+    // Twitter
+    setMeta('twitter:card', 'summary_large_image');
+    setMeta('twitter:url', currentUrl);
+    setMeta('twitter:title', pageMeta.title);
+    setMeta('twitter:description', pageMeta.description);
+    setMeta('twitter:image', baseUrl + '/images/og.png');
+
+    // Additional SEO
+    setMeta('theme-color', '#3B82F6');
+    setMeta('apple-mobile-web-app-title', pageMeta.siteName);
+    setMeta('application-name', pageMeta.siteName);
+
+    // Canonical URL
+    let canonical = document.querySelector('link[rel="canonical"]');
+    if (!canonical) {
+        canonical = document.createElement('link');
+        canonical.rel = 'canonical';
+        canonical.setAttribute('data-dynamic', 'true');
+        document.head.appendChild(canonical);
+    }
+    canonical.href = currentUrl;
+
+    // Hreflang 태그들
+    const hreflangMap = { us: 'en', kr: 'ko', jp: 'ja', es: 'es', pt: 'pt' };
+
+    // x-default (영어)
+    let xDefault = document.querySelector('link[hreflang="x-default"]');
+    if (!xDefault) {
+        xDefault = document.createElement('link');
+        xDefault.rel = 'alternate';
+        xDefault.setAttribute('hreflang', 'x-default');
+        xDefault.setAttribute('data-dynamic', 'true');
+        document.head.appendChild(xDefault);
+    }
+    xDefault.href = baseUrl + '/us/' + (pageFile === 'index.html' ? '' : pageFile);
+
+    // 각 언어별 hreflang
+    Object.entries(hreflangMap).forEach(([langKey, hreflang]) => {
+        let link = document.querySelector(`link[hreflang="${hreflang}"]`);
+        if (!link) {
+            link = document.createElement('link');
+            link.rel = 'alternate';
+            link.setAttribute('hreflang', hreflang);
+            link.setAttribute('data-dynamic', 'true');
+            document.head.appendChild(link);
+        }
+        link.href = baseUrl + langPaths[langKey] + (pageFile === 'index.html' ? '' : pageFile);
+    });
+
+    // JSON-LD (dictionary 페이지만)
+    if (activePageId === 'dictionary' && pageMeta.jsonLd) {
+        const jsonLd = pageMeta.jsonLd;
+
+        // WebSite schema
+        const websiteScript = document.createElement('script');
+        websiteScript.type = 'application/ld+json';
+        websiteScript.setAttribute('data-dynamic', 'true');
+        websiteScript.textContent = JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": jsonLd.websiteName,
+            "description": jsonLd.websiteDesc,
+            "url": baseUrl + "/",
+            "potentialAction": {
+                "@type": "SearchAction",
+                "target": baseUrl + "/?q={search_term_string}",
+                "query-input": "required name=search_term_string"
+            }
+        });
+        document.head.appendChild(websiteScript);
+
+        // DefinedTermSet schema
+        const termSetScript = document.createElement('script');
+        termSetScript.type = 'application/ld+json';
+        termSetScript.setAttribute('data-dynamic', 'true');
+        termSetScript.textContent = JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "DefinedTermSet",
+            "name": jsonLd.termSetName,
+            "description": jsonLd.termSetDesc,
+            "url": baseUrl + "/",
+            "inLanguage": htmlLang
+        });
+        document.head.appendChild(termSetScript);
+    }
+}
+
 // 컴포넌트 초기화
 function initComponents(activePageId) {
+    initHead(activePageId);
     injectCommonStyles();
     injectAdSenseScripts();
     renderHeader(activePageId);

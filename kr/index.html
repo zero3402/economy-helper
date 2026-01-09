@@ -4,74 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-
-    <!-- Primary Meta Tags -->
-    <title>경제 도우미 - 누구나 쉽게 배우는 경제 지식</title>
-    <meta name="title" content="경제 도우미 - 누구나 쉽게 배우는 경제 지식">
-    <meta name="description" content="투자, 트레이딩, 개인 금융 지식을 마스터하세요. 한국어 서비스를 제공합니다.">
-    <meta name="keywords" content="경제 사전, 경제 용어, 경제 용어집, 투자 용어, 거래 용어, 은행 용어, 주식 시장 용어, 개인 금융, 금융 지식">
-    <meta name="author" content="경제 도우미">
-    <meta name="robots" content="index, follow">
-    <link rel="canonical" href="https://economyhelper.com/kr/">
-    <link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/">
-    <link rel="alternate" hreflang="en" href="https://economyhelper.com/us/">
-    <link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/">
-    <link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/">
-    <link rel="alternate" hreflang="es" href="https://economyhelper.com/es/">
-    <link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/">
+    <title>경제 도우미</title>
     <link rel="icon" type="image/png" href="../images/favicon.png">
-
-    <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://economyhelper.com/kr/">
-    <meta property="og:title" content="경제 도우미 - 누구나 쉽게 배우는 경제 지식">
-    <meta property="og:description" content="투자, 트레이딩, 개인 금융 지식을 마스터하세요. 한국어 서비스를 제공합니다.">
-    <meta property="og:image" content="https://economyhelper.com/images/og.png">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
-    <meta property="og:site_name" content="경제 도우미">
-    <meta property="og:locale" content="ko_KR">
-
-    <!-- Twitter -->
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:url" content="https://economyhelper.com/kr/">
-    <meta name="twitter:title" content="경제 도우미 - 누구나 쉽게 배우는 경제 지식">
-    <meta name="twitter:description" content="투자, 트레이딩, 개인 금융 지식을 마스터하세요. 한국어 서비스를 제공합니다.">
-    <meta name="twitter:image" content="https://economyhelper.com/images/og.png">
-
-    <!-- Additional SEO -->
-    <meta name="theme-color" content="#3B82F6">
-    <meta name="apple-mobile-web-app-title" content="경제 도우미">
-    <meta name="application-name" content="경제 도우미">
-
-    <!-- Structured Data -->
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@type": "WebSite",
-        "name": "경제 도우미",
-        "description": "투자, 거래, 은행, 개인 금융 지식을 마스터하세요.",
-        "url": "https://economyhelper.com/",
-        "potentialAction": {
-            "@type": "SearchAction",
-            "target": "https://economyhelper.com/?q={search_term_string}",
-            "query-input": "required name=search_term_string"
-        }
-    }
-    </script>
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@type": "DefinedTermSet",
-        "name": "경제 사전",
-        "description": "금융 및 경제 용어를 정의와 예시와 함께 포괄적으로 수록한 사전입니다.",
-        "url": "https://economyhelper.com/",
-        "inLanguage": "ko"
-    }
-    </script>
-
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="../components.js"></script>
+    <script>initHead('dictionary');</script>
 </head>
 
 <body class="bg-slate-50 min-h-screen">
@@ -217,7 +153,6 @@
     <footer id="footer" class="bg-white border-t border-slate-200 mt-12"></footer>
 
     <script src="dictionary-data.js"></script>
-    <script src="../components.js"></script>
     <script>
         // 한글 초성 추출 함수
         function getKoreanInitial(char) {
