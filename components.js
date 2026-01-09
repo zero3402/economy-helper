@@ -66,9 +66,10 @@ const I18N = {
         SAVINGS: '목돈 마련 계산기',
         SHARE_TITLE: '공유하기',
         COPY_LINK: '링크 복사',
-        LINK_COPIED: '복사 완료!',
+        LINK_COPIED: '복사됨!',
         SHARE_TWITTER: 'X (트위터)',
-        SHARE_FACEBOOK: '페이스북'
+        SHARE_FACEBOOK: '페이스북',
+        SHARE_PREFIX: '투자 성향 테스트 결과, 나는'
     },
     us: {
         DICTIONARY: 'Dictionary',
@@ -83,7 +84,8 @@ const I18N = {
         COPY_LINK: 'Copy Link',
         LINK_COPIED: 'Copied!',
         SHARE_TWITTER: 'X (Twitter)',
-        SHARE_FACEBOOK: 'Facebook'
+        SHARE_FACEBOOK: 'Facebook',
+        SHARE_PREFIX: 'My Investment Personality Test Result:'
     },
     jp: {
         DICTIONARY: '経済用語辞典',
@@ -96,9 +98,10 @@ const I18N = {
         SAVINGS: '貯蓄目標シミュレーション',
         SHARE_TITLE: '共有',
         COPY_LINK: 'リンクをコピー',
-        LINK_COPIED: 'コピーしました!',
+        LINK_COPIED: 'コピーしました！',
         SHARE_TWITTER: 'X (Twitter)',
-        SHARE_FACEBOOK: 'Facebook'
+        SHARE_FACEBOOK: 'Facebook',
+        SHARE_PREFIX: '投資性向テスト結果、私は'
     },
     es: {
         DICTIONARY: 'Diccionario',
@@ -111,9 +114,10 @@ const I18N = {
         SAVINGS: 'Meta de Ahorro',
         SHARE_TITLE: 'Compartir',
         COPY_LINK: 'Copiar enlace',
-        LINK_COPIED: '¡Enlace copiado!',
+        LINK_COPIED: '¡Copiado!',
         SHARE_TWITTER: 'X (Twitter)',
-        SHARE_FACEBOOK: 'Facebook'
+        SHARE_FACEBOOK: 'Facebook',
+        SHARE_PREFIX: 'Resultado del Test de Personalidad de Inversión:'
     },
     pt: {
         DICTIONARY: 'Dicionário',
@@ -126,9 +130,10 @@ const I18N = {
         SAVINGS: 'Meta de Poupança',
         SHARE_TITLE: 'Compartilhar',
         COPY_LINK: 'Copiar link',
-        LINK_COPIED: 'Link copiado!',
+        LINK_COPIED: 'Copiado!',
         SHARE_TWITTER: 'X (Twitter)',
-        SHARE_FACEBOOK: 'Facebook'
+        SHARE_FACEBOOK: 'Facebook',
+        SHARE_PREFIX: 'Resultado do Teste de Personalidade de Investimento:'
     }
 };
 
@@ -387,15 +392,8 @@ function initComponents(activePageId) {
 function getShareText() {
     const name = typeof getPersonalityName === 'function' ? getPersonalityName() : '';
     const slogan = typeof getPersonalitySlogan === 'function' ? getPersonalitySlogan() : '';
-    const prefixes = {
-        kr: '투자 성향 테스트 결과, 나는',
-        us: 'My Investment Personality Test Result:',
-        jp: '投資性向テスト結果、私は',
-        es: 'Resultado del Test de Personalidad de Inversión:',
-        pt: 'Resultado do Teste de Personalidade de Investimento:'
-    };
-    const prefix = prefixes[CURRENT_LANG] || prefixes.us;
-    return `${prefix} "${name}"! ${slogan}`;
+    const lang = I18N[CURRENT_LANG] || I18N.us;
+    return `${lang.SHARE_PREFIX} "${name}"! ${slogan}`;
 }
 
 // 공유 모달 열기
@@ -409,14 +407,8 @@ function shareResults() {
         });
     } else {
         const copyText = document.getElementById('copy-link-text');
-        const copyLinkTexts = {
-            kr: '링크 복사',
-            us: 'Copy Link',
-            jp: 'リンクをコピー',
-            es: 'Copiar enlace',
-            pt: 'Copiar link'
-        };
-        if (copyText) copyText.textContent = copyLinkTexts[CURRENT_LANG] || copyLinkTexts.us;
+        const lang = I18N[CURRENT_LANG] || I18N.us;
+        if (copyText) copyText.textContent = lang.COPY_LINK;
         const modal = document.getElementById('share-modal');
         if (modal) modal.showModal();
     }
@@ -440,27 +432,12 @@ function copyShareLink() {
     const shareText = getShareText();
     const fullText = `${shareText}\n\n${window.location.href}`;
     const copyTextEl = document.getElementById('copy-link-text');
-    const copiedTexts = {
-        kr: '복사됨!',
-        us: 'Copied!',
-        jp: 'コピーしました！',
-        es: '¡Copiado!',
-        pt: 'Copiado!'
-    };
-    const defaultTexts = {
-        kr: '링크 복사',
-        us: 'Copy Link',
-        jp: 'リンクをコピー',
-        es: 'Copiar enlace',
-        pt: 'Copiar link'
-    };
-    const copiedText = copiedTexts[CURRENT_LANG] || copiedTexts.us;
-    const defaultText = defaultTexts[CURRENT_LANG] || defaultTexts.us;
+    const lang = I18N[CURRENT_LANG] || I18N.us;
 
     navigator.clipboard.writeText(fullText).then(() => {
         if (copyTextEl) {
-            copyTextEl.textContent = copiedText;
-            setTimeout(() => { copyTextEl.textContent = defaultText; }, 2000);
+            copyTextEl.textContent = lang.LINK_COPIED;
+            setTimeout(() => { copyTextEl.textContent = lang.COPY_LINK; }, 2000);
         }
     });
 }
