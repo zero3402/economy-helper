@@ -234,23 +234,6 @@ function injectAdSenseScripts() {
     document.head.appendChild(script);
 }
 
-// 자동 광고 삽입
-function injectAmpAutoAds() {
-    if (document.querySelector('amp-auto-ads')) return;
-
-    const ampAutoAds = document.createElement('amp-auto-ads');
-    ampAutoAds.setAttribute('type', 'adsense');
-    ampAutoAds.setAttribute('data-ad-client', ADSENSE_CLIENT_ID);
-
-    // 모바일 헤더 아래, 데스크탑은 본문 상단 등 적절한 위치
-    // 여기서는 body 바로 아래에 삽입하여 자동 배치 유도
-    const header = document.getElementById('header');
-    if (header && header.nextSibling) {
-        header.parentNode.insertBefore(ampAutoAds, header.nextSibling);
-    } else {
-        document.body.insertBefore(ampAutoAds, document.body.firstChild);
-    }
-}
 
 // 검색 엔진 로봇 여부 확인
 function isSearchBot() {
@@ -393,7 +376,6 @@ function renderFooter() {
 function initComponents(activePageId) {
     injectCommonStyles();
     injectAdSenseScripts();
-    injectAmpAutoAds();
     renderHeader(activePageId);
     renderFooter();
     handleAutoRedirect();
