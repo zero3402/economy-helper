@@ -123,30 +123,65 @@
     <script>
         const ROOT_I18N = {
             kr: {
+                HTML_LANG: 'ko',
+                PAGE_TITLE: '경제 도우미 - 누구나 쉽게 배우는 경제 지식',
+                META_DESC: '투자, 트레이딩, 개인 금융 지식을 마스터하세요. 한국어 서비스를 제공합니다.',
+                META_KEYWORDS: '경제 사전, 경제 용어, 투자 용어, 금융 지식, 복리 계산기, 저축 목표',
+                OG_LOCALE: 'ko_KR',
+                LD_JSON_DESC: '투자, 거래, 은행, 개인 금융 지식을 마스터하세요.',
+                LD_JSON_NAME: '경제 도우미',
                 TITLE: '경제 도우미에 오신 것을 환영합니다',
                 SUBTITLE: '금융 이해력과 경제적 이해를 위한 관문',
                 DESC: '무료 경제 사전, 금융 계산기 및 투자 성향 도구',
                 VISUAL_TITLE: '경제 지식을 모두에게 더 쉽고 가깝게.'
             },
             us: {
+                HTML_LANG: 'en',
+                PAGE_TITLE: 'Economy Helper - Making economics simple for everyone',
+                META_DESC: 'Master investing, trading, and personal finance knowledge. Explore our tools and calculators.',
+                META_KEYWORDS: 'economic terms, finance glossary, investment terms, trading vocabulary, personal finance, compound interest calculator, savings goal',
+                OG_LOCALE: 'en_US',
+                LD_JSON_DESC: 'Master investing, trading, and personal finance knowledge.',
+                LD_JSON_NAME: 'Economy Helper',
                 TITLE: 'Welcome to Economy Helper',
                 SUBTITLE: 'Your gateway to financial literacy and economic understanding',
                 DESC: 'Free economic dictionaries, financial calculators, and investment tools',
                 VISUAL_TITLE: 'Making economics simple for everyone.'
             },
             jp: {
+                HTML_LANG: 'ja',
+                PAGE_TITLE: 'Economy Helper - 誰でも簡単に学べる経済的知識',
+                META_DESC: '投資、トレード、個人財務の知識をマスターしましょう。日本語サービスを提供しています。',
+                META_KEYWORDS: '経済用語, 金融用語集, 投資用語, 取引用語, 個人金融, 複利計算機, 貯蓄目標',
+                OG_LOCALE: 'ja_JP',
+                LD_JSON_DESC: '投資、取引、銀行、個人金融の知識をマスターしましょう。',
+                LD_JSON_NAME: 'Economy Helper',
                 TITLE: 'Economy Helperへようこそ',
                 SUBTITLE: '金融リテラシーと経済理解への入り口',
                 DESC: '無料の経済辞典、金融計算機、投資ツール',
                 VISUAL_TITLE: 'すべての人に、経済をよりシンプルに。'
             },
             es: {
+                HTML_LANG: 'es',
+                PAGE_TITLE: 'Economy Helper - Haciendo la economía simple para todos',
+                META_DESC: 'Domina el conocimiento sobre inversión, trading y finanzas personales. Disponible en español.',
+                META_KEYWORDS: 'términos económicos, glosario financiero, términos de inversión, finanzas personales, calculadora interés compuesto, meta ahorro',
+                OG_LOCALE: 'es_ES',
+                LD_JSON_DESC: 'Domina el conocimiento sobre inversión, trading y finanzas personales.',
+                LD_JSON_NAME: 'Economy Helper',
                 TITLE: 'Bienvenido a Economy Helper',
                 SUBTITLE: 'Tu puerta de entrada a la educación financiera y la comprensión económica',
                 DESC: 'Diccionarios económicos gratuitos, calculadoras financieras y herramientas de inversión',
                 VISUAL_TITLE: 'Haciendo la economía simple para todos.'
             },
             pt: {
+                HTML_LANG: 'pt',
+                PAGE_TITLE: 'Economy Helper - Educação financeira para todos',
+                META_DESC: 'Aprenda sobre investimento, trading e finanças pessoais. Disponível em português.',
+                META_KEYWORDS: 'termos econômicos, glossário financeiro, investimento, finanças pessoais, calculadora juros compostos, meta poupança',
+                OG_LOCALE: 'pt_BR',
+                LD_JSON_DESC: 'Domine o conhecimento sobre investimento, trading e finanças pessoais.',
+                LD_JSON_NAME: 'Economy Helper',
                 TITLE: 'Bem-vindo ao Economy Helper',
                 SUBTITLE: 'Seu portal para educação financeira e compreensão econômica',
                 DESC: 'Dicionários econômicos gratuitos, calculadoras financeiras e ferramentas de investimento',
@@ -160,6 +195,63 @@
             const langPath = window.LANG_PATH || './us/';
 
             const content = ROOT_I18N[lang] || ROOT_I18N.us;
+
+            // 동적으로 html lang 변경
+            document.documentElement.lang = content.HTML_LANG;
+
+            // 동적으로 title 변경
+            document.title = content.PAGE_TITLE;
+            const metaTitle = document.querySelector('meta[name="title"]');
+            if (metaTitle) metaTitle.content = content.PAGE_TITLE;
+
+            // 동적으로 meta description 변경
+            const metaDesc = document.querySelector('meta[name="description"]');
+            if (metaDesc) metaDesc.content = content.META_DESC;
+
+            // 동적으로 meta keywords 변경
+            const metaKeywords = document.querySelector('meta[name="keywords"]');
+            if (metaKeywords) metaKeywords.content = content.META_KEYWORDS;
+
+            // 동적으로 og:title, og:description, og:locale 변경
+            const ogTitle = document.querySelector('meta[property="og:title"]');
+            if (ogTitle) ogTitle.content = content.PAGE_TITLE;
+            const ogDesc = document.querySelector('meta[property="og:description"]');
+            if (ogDesc) ogDesc.content = content.META_DESC;
+            const ogLocale = document.querySelector('meta[property="og:locale"]');
+            if (ogLocale) ogLocale.content = content.OG_LOCALE;
+
+            // 동적으로 twitter:title, twitter:description 변경
+            const twitterTitle = document.querySelector('meta[name="twitter:title"]');
+            if (twitterTitle) twitterTitle.content = content.PAGE_TITLE;
+            const twitterDesc = document.querySelector('meta[name="twitter:description"]');
+            if (twitterDesc) twitterDesc.content = content.META_DESC;
+
+            // 동적으로 ld+json 변경
+            const ldJsonScript = document.querySelector('script[type="application/ld+json"]');
+            if (ldJsonScript) {
+                const ldJson = {
+                    "@context": "https://schema.org",
+                    "@type": "WebSite",
+                    "name": content.LD_JSON_NAME,
+                    "url": "https://economyhelper.com/",
+                    "potentialAction": {
+                        "@type": "SearchAction",
+                        "target": `https://economyhelper.com/${lang}/index.html?q={search_term_string}`,
+                        "query-input": "required name=search_term_string"
+                    },
+                    "description": content.LD_JSON_DESC,
+                    "inLanguage": content.HTML_LANG,
+                    "publisher": {
+                        "@type": "Organization",
+                        "name": content.LD_JSON_NAME,
+                        "logo": {
+                            "@type": "ImageObject",
+                            "url": "https://economyhelper.com/images/logo.png"
+                        }
+                    }
+                };
+                ldJsonScript.textContent = JSON.stringify(ldJson);
+            }
             const main = document.getElementById('main-content');
 
             main.innerHTML = `
