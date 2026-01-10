@@ -1,38 +1,5 @@
 // Economy Helper - Shared Components
 
-// FOUC 방지: 스타일 로드 전에 즉시 body 숨김 (인라인 스타일)
-(function() {
-    // 즉시 실행: body가 존재하면 숨기고, 없으면 스타일 태그로 처리
-    var style = document.createElement('style');
-    style.id = 'fouc-prevention';
-    style.textContent = 'body:not(.page-ready){opacity:0!important;}';
-    document.head.appendChild(style);
-})();
-
-// 페이지 전환 시 깜빡임 방지 (bfcache 대응)
-(function() {
-    // 페이지 이탈 시 즉시 숨김 처리
-    window.addEventListener('pagehide', function() {
-        document.body.classList.remove('page-ready');
-    });
-
-    // 페이지 표시 시 (bfcache에서 복원 포함) page-ready 클래스 추가
-    window.addEventListener('pageshow', function(event) {
-        // bfcache에서 복원된 경우 즉시 표시
-        if (event.persisted) {
-            document.body.classList.add('page-ready');
-        }
-    });
-
-    // 링크 클릭 시 즉시 숨김 처리
-    document.addEventListener('click', function(e) {
-        const link = e.target.closest('a');
-        if (link && link.href && !link.href.startsWith('javascript:') && !link.href.startsWith('#')) {
-            document.body.classList.remove('page-ready');
-        }
-    });
-})();
-
 // URL 경로에서 현재 언어 및 맥락 감지
 function getURLContext() {
     const path = window.location.pathname;
@@ -511,32 +478,20 @@ function injectAdSenseScripts() {
 }
 
 
-// 공통 스타일 주입 (Promise 반환)
+// 공통 스타일 주입
 function injectCommonStyles() {
     const stylesheets = [
-        { href: 'https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css', critical: false },
-        { href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap', critical: false },
-        { href: ROOT_PATH + 'styles.css', critical: true }
+        'https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css',
+        'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap',
+        ROOT_PATH + 'styles.css'
     ];
 
-    const criticalPromises = [];
-
-    stylesheets.forEach(item => {
-        if (!document.querySelector('link[href="' + item.href + '"]')) {
+    stylesheets.forEach(href => {
+        if (!document.querySelector('link[href="' + href + '"]')) {
             const link = document.createElement('link');
             link.rel = 'stylesheet';
-            link.href = item.href;
+            link.href = href;
             link.type = 'text/css';
-
-            // 중요 스타일(styles.css)은 로드 완료를 기다림
-            if (item.critical) {
-                const promise = new Promise(function(resolve) {
-                    link.onload = resolve;
-                    link.onerror = resolve; // 에러 시에도 진행
-                });
-                criticalPromises.push(promise);
-            }
-
             document.head.appendChild(link);
         }
     });
@@ -546,9 +501,6 @@ function injectCommonStyles() {
         tailwindScript.src = 'https://cdn.tailwindcss.com';
         document.head.appendChild(tailwindScript);
     }
-
-    // 중요 스타일 로드 완료 Promise 반환
-    return Promise.all(criticalPromises);
 }
 
 // 헤더 렌더링
@@ -790,16 +742,10 @@ function initHead(activePageId) {
 // 컴포넌트 초기화
 function initComponents(activePageId) {
     initHead(activePageId);
+    injectCommonStyles();
     injectAdSenseScripts();
     renderHeader(activePageId);
     renderFooter();
-
-    // 스타일 로드 후 페이지 표시
-    injectCommonStyles().then(function() {
-        requestAnimationFrame(function() {
-            document.body.classList.add('page-ready');
-        });
-    });
 }
 
 // === 결과 페이지 공유 기능 ===
