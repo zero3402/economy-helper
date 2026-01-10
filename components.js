@@ -430,12 +430,6 @@ function clearTestState() {
     localStorage.removeItem(TEST_STATE_KEY);
 }
 
-// 언어 변경 시 localStorage에 저장
-function switchLanguage(targetLang, targetUrl) {
-    localStorage.setItem('preferredLanguage', targetLang);
-    window.location.href = targetUrl;
-}
-
 // 언어 변경 핸들러
 function handleLanguageChange(lang, activePageId) {
     localStorage.setItem('preferredLanguage', lang);
@@ -483,34 +477,6 @@ function injectAdSenseScripts() {
     document.head.appendChild(script);
 }
 
-
-// 검색 엔진 로봇 여부 확인
-function isSearchBot() {
-    const botUserAgents = [
-        'googlebot', 'bingbot', 'yandexbot', 'baiduspider', 'twitterbot', 'facebookexternalhit', 'rogerbot', 'linkedinbot', 'embedly', 'quora link preview', 'showyoubot', 'outbrain', 'pinterest/0.', 'developers.google.com/+/web/snippet', 'slackbot', 'vkshare', 'w3c_validator', 'redditbot', 'applebot', 'whatsapp', 'flipboard', 'tumblr', 'bitlybot', 'skypeuripreview', 'nuzzel', 'discordbot', 'google pagead', 'msnbot', 'ia_archiver'
-    ];
-    const ua = navigator.userAgent.toLowerCase();
-    return botUserAgents.some(bot => ua.includes(bot));
-}
-
-// 자동 언어 리다이렉션 (검색 봇 제외)
-function handleAutoRedirect() {
-    if (isSearchBot()) return;
-
-    // 루트 페이지(/ 또는 /index.html)에서는 리다이렉션 안 함 (동적 콘텐츠 노출)
-    if (IS_ROOT) return;
-
-    const savedLang = localStorage.getItem('preferredLanguage');
-    const path = window.location.pathname;
-
-    // 언어 경로가 아닌 곳에서만 체크 (이미 /kr/ 등에 있으면 안 함)
-    if (path === '/' || path.endsWith('/index.html')) {
-        // 이미 언어 경로에 있는 경우(예: /kr/index.html) 리다이렉션 안함
-        if (path.includes('/kr/') || path.includes('/us/') || path.includes('/jp/') || path.includes('/es/') || path.includes('/pt/')) return;
-
-        // 여기에 도달했다면 리다이렉션 로직이 필요할 수 있으나, IS_ROOT가 true면 위에서 이미 return됨
-    }
-}
 
 // 공통 스타일 주입
 function injectCommonStyles() {
@@ -780,7 +746,6 @@ function initComponents(activePageId) {
     injectAdSenseScripts();
     renderHeader(activePageId);
     renderFooter();
-    handleAutoRedirect();
 }
 
 // === 결과 페이지 공유 기능 ===
