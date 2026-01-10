@@ -682,6 +682,25 @@ function initHead(activePageId) {
         link.href = baseUrl + langPaths[langKey] + (pageFile === 'index.html' ? '' : pageFile);
     });
 
+    // Organization schema (모든 페이지에 적용 - 구글 서치 콘솔 로고 인식용)
+    const orgScript = document.createElement('script');
+    orgScript.type = 'application/ld+json';
+    orgScript.setAttribute('data-dynamic', 'true');
+    orgScript.textContent = JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Economy Helper",
+        "url": baseUrl + "/",
+        "logo": {
+            "@type": "ImageObject",
+            "url": baseUrl + "/images/logo.png",
+            "width": 512,
+            "height": 512
+        },
+        "sameAs": []
+    });
+    document.head.appendChild(orgScript);
+
     // JSON-LD (dictionary 페이지만)
     if (activePageId === 'dictionary' && pageMeta.jsonLd) {
         const jsonLd = pageMeta.jsonLd;

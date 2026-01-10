@@ -43,7 +43,24 @@
     <meta name="apple-mobile-web-app-title" content="Economy Helper">
     <meta name="application-name" content="Economy Helper">
 
-    <!-- Structured Data -->
+    <!-- Structured Data - Organization -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "Economy Helper",
+      "url": "https://economyhelper.com/",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://economyhelper.com/images/logo.png",
+        "width": 512,
+        "height": 512
+      },
+      "sameAs": []
+    }
+    </script>
+
+    <!-- Structured Data - WebSite -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -55,15 +72,7 @@
         "target": "https://economyhelper.com/us/index.html?q={search_term_string}",
         "query-input": "required name=search_term_string"
       },
-      "description": "Master investing, trading, and personal finance knowledge.",
-      "publisher": {
-        "@type": "Organization",
-        "name": "Economy Helper",
-        "logo": {
-          "@type": "ImageObject",
-          "url": "https://economyhelper.com/images/logo.png"
-        }
-      }
+      "description": "Master investing, trading, and personal finance knowledge."
     }
     </script>
 
@@ -222,9 +231,26 @@
             if (twitterDesc) twitterDesc.content = content.META_DESC;
 
             // 동적으로 ld+json 변경
-            const ldJsonScript = document.querySelector('script[type="application/ld+json"]');
-            if (ldJsonScript) {
-                const ldJson = {
+            const ldJsonScripts = document.querySelectorAll('script[type="application/ld+json"]');
+            if (ldJsonScripts.length >= 2) {
+                // Organization 스키마 업데이트
+                const orgJson = {
+                    "@context": "https://schema.org",
+                    "@type": "Organization",
+                    "name": "Economy Helper",
+                    "url": "https://economyhelper.com/",
+                    "logo": {
+                        "@type": "ImageObject",
+                        "url": "https://economyhelper.com/images/logo.png",
+                        "width": 512,
+                        "height": 512
+                    },
+                    "sameAs": []
+                };
+                ldJsonScripts[0].textContent = JSON.stringify(orgJson);
+
+                // WebSite 스키마 업데이트
+                const websiteJson = {
                     "@context": "https://schema.org",
                     "@type": "WebSite",
                     "name": content.LD_JSON_NAME,
@@ -235,17 +261,9 @@
                         "query-input": "required name=search_term_string"
                     },
                     "description": content.LD_JSON_DESC,
-                    "inLanguage": content.HTML_LANG,
-                    "publisher": {
-                        "@type": "Organization",
-                        "name": content.LD_JSON_NAME,
-                        "logo": {
-                            "@type": "ImageObject",
-                            "url": "https://economyhelper.com/images/logo.png"
-                        }
-                    }
+                    "inLanguage": content.HTML_LANG
                 };
-                ldJsonScript.textContent = JSON.stringify(ldJson);
+                ldJsonScripts[1].textContent = JSON.stringify(websiteJson);
             }
             const main = document.getElementById('main-content');
 
