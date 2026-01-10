@@ -478,29 +478,10 @@ function injectAdSenseScripts() {
 }
 
 
-// 공통 스타일 주입
+// 공통 스타일 주입 (정적 로딩으로 전환 - HTML head에서 직접 로드)
 function injectCommonStyles() {
-    const stylesheets = [
-        'https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css',
-        'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap',
-        ROOT_PATH + 'styles.css'
-    ];
-
-    stylesheets.forEach(href => {
-        if (!document.querySelector('link[href="' + href + '"]')) {
-            const link = document.createElement('link');
-            link.rel = 'stylesheet';
-            link.href = href;
-            link.type = 'text/css';
-            document.head.appendChild(link);
-        }
-    });
-
-    if (!document.querySelector('script[src*="tailwindcss.com"]')) {
-        const tailwindScript = document.createElement('script');
-        tailwindScript.src = 'https://cdn.tailwindcss.com';
-        document.head.appendChild(tailwindScript);
-    }
+    // CSS는 각 HTML 파일의 head에서 정적으로 로드됨
+    // 동적 로딩 제거로 FOUC(Flash of Unstyled Content) 방지
 }
 
 // 헤더 렌더링
