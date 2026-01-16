@@ -481,7 +481,7 @@ const COLUMNS_DATA = [
         `
     },
     {
-        id: 'micro-macro-07',
+        id: '07',
         title: '신용점수라는 신분제',
         subtitle: '거시적 금융 신뢰와 미시적 자산 관리의 핵심',
         description: '1점 차이로 수백만 원의 이자가 왔다 갔다 하는 신용 관리의 세계를 실생활 사례로 분석합니다.',
@@ -565,7 +565,7 @@ const COLUMNS_DATA = [
         `
     },
     {
-        id: 'micro-macro-08',
+        id: '08',
         title: '비상금의 경제학',
         subtitle: '0% 수익률이 가져다주는 100%의 자유',
         description: '국가가 위기에 대비해 외환보유액을 쌓아두는 거시경제적 전략과 개인의 미시경제적 방어 기제를 살펴봅니다.',
@@ -649,7 +649,7 @@ const COLUMNS_DATA = [
         `
     },
     {
-        id: 'micro-macro-09',
+        id: '09',
         title: '잠자는 동안에도 돈이 들어오는 시스템',
         subtitle: '배당주 투자와 현금흐름의 미학',
         description: '기업이 벌어들인 이익을 주주들과 나누는 거시경제적 선순환 구조와 개인의 미시경제적 생존 전략을 분석합니다.',
@@ -734,7 +734,7 @@ const COLUMNS_DATA = [
         `
     },
     {
-        id: 'micro-macro-10',
+        id: '10',
         title: '환율과 달러 패권',
         subtitle: '세계 경제의 언어를 이해하면 돈의 흐름이 보인다',
         description: '전 세계 모든 자산의 가격표를 결정하는 달러의 힘과 환율의 원리를 실생활 사례로 분석합니다.',
@@ -819,7 +819,7 @@ const COLUMNS_DATA = [
         `
     },
     {
-        id: 'micro-macro-11',
+        id: '11',
         title: '공공재와 외부효과',
         subtitle: '층간소음에서 기후 위기까지, 우리의 경제학',
         description: '가격표가 없는 것들이 어떻게 시장 실패를 일으키고, 국가가 이를 어떻게 해결하는지 살펴봅니다.',
@@ -903,7 +903,7 @@ const COLUMNS_DATA = [
         `
     },
     {
-        id: 'micro-macro-12',
+        id: '12',
         title: '정보의 비대칭성',
         subtitle: '중고차 시장의 레몬과 국가의 인증 사이',
         description: '정보의 불균형이 시장을 어떻게 망가뜨리고, 국가가 이를 어떻게 해결하는지 분석합니다.',
@@ -987,7 +987,7 @@ const COLUMNS_DATA = [
         `
     },
     {
-        id: 'micro-macro-13',
+        id: '13',
         title: '비교우위의 마법',
         subtitle: '왜 우리는 모든 것을 직접 만들지 않을까?',
         description: '잘하는 것에 집중하고 서로 바꾸는 것이 왜 더 부유해지는 길인지 살펴봅니다.',
@@ -1069,7 +1069,7 @@ const COLUMNS_DATA = [
         `
     },
     {
-        id: 'micro-macro-14',
+        id: '14',
         title: '공유지의 비극',
         subtitle: '내 집은 깨끗하고 공원은 지저분한 경제학적 이유',
         description: '주인 없는 자원이 왜 빨리 망가지는지, 사유재산권이 왜 필요한지 분석합니다.',
@@ -1153,7 +1153,7 @@ const COLUMNS_DATA = [
         `
     },
     {
-        id: 'micro-macro-15',
+        id: '15',
         title: '첫 잔의 감동과 열 번째의 괴로움',
         subtitle: '한계 효용 체감의 법칙',
         description: '더 많이 가질수록 왜 행복이 줄어드는지, 이것이 세금 정책과 어떻게 연결되는지 분석합니다.',
@@ -1237,7 +1237,7 @@ const COLUMNS_DATA = [
         `
     },
     {
-        id: 'micro-macro-16',
+        id: '16',
         title: '뭉치면 싸지고 모이면 강해진다',
         subtitle: '규모의 경제와 네트워크 효과',
         description: '왜 1등 서비스는 무너지지 않는지, 규모와 네트워크가 만드는 경쟁 우위를 분석합니다.',
@@ -1321,7 +1321,7 @@ const COLUMNS_DATA = [
         `
     },
     {
-        id: 'micro-macro-17',
+        id: '17',
         title: '역전세와 전세 사기',
         subtitle: '내 보증금은 왜 위험에 빠졌을까?',
         description: '한국의 전세 시스템이 어떻게 작동하고, 왜 위기에 빠졌는지 분석합니다.',
