@@ -294,6 +294,38 @@ const PAGE_META = {
             keywords: 'calculadora de meta de poupança, calculadora de poupança, objetivo financeiro, planejador de poupança',
             siteName: 'Economy Helper'
         }
+    },
+    columns: {
+        kr: {
+            title: '경제 칼럼 - 미시에서 거시까지',
+            description: '실생활에서 바로 적용할 수 있는 경제 지식을 쉽고 재미있게 배워보세요. 미시경제부터 거시경제까지 26가지 핵심 주제를 다룹니다.',
+            keywords: '경제 칼럼, 경제 상식, 미시경제, 거시경제, 인플레이션, 금리, 투자, 재테크, 경제 공부',
+            siteName: '경제 도우미'
+        },
+        us: {
+            title: 'Economy Columns - From Micro to Macro',
+            description: 'Learn practical economic knowledge you can apply in everyday life. We cover 26 key topics from microeconomics to macroeconomics.',
+            keywords: 'economy columns, economic literacy, microeconomics, macroeconomics, inflation, interest rates, investment, finance education',
+            siteName: 'Economy Helper'
+        },
+        jp: {
+            title: '経済コラム - ミクロからマクロまで',
+            description: '日常生活ですぐに活用できる経済知識を楽しく学びましょう。ミクロ経済からマクロ経済まで26の重要テーマを扱います。',
+            keywords: '経済コラム, 経済常識, ミクロ経済, マクロ経済, インフレ, 金利, 投資, 財テク, 経済学習',
+            siteName: '経済ヘルパー'
+        },
+        es: {
+            title: 'Columnas de Economía - De lo Micro a lo Macro',
+            description: 'Aprende conocimientos económicos prácticos que puedes aplicar en la vida diaria. Cubrimos 26 temas clave desde microeconomía hasta macroeconomía.',
+            keywords: 'columnas de economía, educación económica, microeconomía, macroeconomía, inflación, tasas de interés, inversión, finanzas',
+            siteName: 'Economy Helper'
+        },
+        pt: {
+            title: 'Colunas de Economia - Do Micro ao Macro',
+            description: 'Aprenda conhecimentos econômicos práticos que você pode aplicar no dia a dia. Cobrimos 26 temas-chave da microeconomia à macroeconomia.',
+            keywords: 'colunas de economia, educação econômica, microeconomia, macroeconomia, inflação, taxas de juros, investimento, finanças',
+            siteName: 'Economy Helper'
+        }
     }
 };
 
@@ -302,6 +334,7 @@ const I18N = {
     kr: {
         DICTIONARY: '경제 사전',
         QUIZ: '경제 퀴즈',
+        COLUMNS: '경제 칼럼',
         CALCULATORS: '계산기',
         TEST: '성향 테스트',
         INVESTMENT_TEST: '투자 성향 테스트',
@@ -318,6 +351,7 @@ const I18N = {
     us: {
         DICTIONARY: 'Dictionary',
         QUIZ: 'Economy Quiz',
+        COLUMNS: 'Columns',
         CALCULATORS: 'Calculators',
         TEST: 'Personality Test',
         INVESTMENT_TEST: 'Investment Personality Test',
@@ -334,6 +368,7 @@ const I18N = {
     jp: {
         DICTIONARY: '経済用語辞典',
         QUIZ: '経済クイズ',
+        COLUMNS: '経済コラム',
         CALCULATORS: '計算機',
         TEST: '投資診断',
         INVESTMENT_TEST: '投資性向診断',
@@ -350,6 +385,7 @@ const I18N = {
     es: {
         DICTIONARY: 'Diccionario',
         QUIZ: 'Quiz de Economía',
+        COLUMNS: 'Columnas',
         CALCULATORS: 'Calculadoras',
         TEST: 'Test de Personalidad',
         INVESTMENT_TEST: 'Test de Personalidad de Inversión',
@@ -366,6 +402,7 @@ const I18N = {
     pt: {
         DICTIONARY: 'Dicionário',
         QUIZ: 'Quiz de Economia',
+        COLUMNS: 'Colunas',
         CALCULATORS: 'Calculadoras',
         TEST: 'Teste de Personalidade',
         INVESTMENT_TEST: 'Teste de Personalidade de Investimento',
@@ -385,6 +422,7 @@ const I18N = {
 const NAV_ITEMS = [
     { key: 'DICTIONARY', path: 'index.html' },
     { key: 'QUIZ', path: 'economy-quiz.html' },
+    { key: 'COLUMNS', path: 'columns.html' },
     { key: 'TEST', path: 'personality-test.html' },
     { key: 'CALCULATORS', path: '#' }, // Has dropdown
 ];
@@ -458,6 +496,13 @@ function handleLanguageChange(lang, activePageId) {
         targetUrl = langPath + 'savings-goal-calculator.html';
     } else if (activePageId === 'quiz') {
         targetUrl = langPath + 'economy-quiz.html';
+    } else if (activePageId === 'columns') {
+        targetUrl = langPath + 'columns.html';
+    } else if (activePageId === 'columnDetail') {
+        // 칼럼 상세 페이지에서 언어 변경 시 동일 칼럼의 다른 언어 버전으로 이동
+        const urlParams = new URLSearchParams(window.location.search);
+        const columnId = urlParams.get('id');
+        targetUrl = langPath + 'column.html' + (columnId ? '?id=' + columnId : '');
     } else {
         targetUrl = langPath + 'index.html';
     }
@@ -523,6 +568,7 @@ function renderHeader(activePageId) {
         let isActive = false;
         if (item.key === 'DICTIONARY' && activePageId === 'dictionary') isActive = true;
         if (item.key === 'QUIZ' && activePageId === 'quiz') isActive = true;
+        if (item.key === 'COLUMNS' && (activePageId === 'columns' || activePageId === 'columnDetail')) isActive = true;
 
         const activeClass = isActive ? 'text-blue-600 bg-blue-50' : 'text-slate-600 hover:text-blue-600 hover:bg-blue-50';
         return '<li><a href="' + LANG_PATH + item.path + '" class="font-medium ' + activeClass + ' rounded-lg">' + lang[item.key] + '</a></li>';
@@ -547,6 +593,7 @@ function renderHeader(activePageId) {
         let isActive = false;
         if (item.key === 'DICTIONARY' && activePageId === 'dictionary') isActive = true;
         if (item.key === 'QUIZ' && activePageId === 'quiz') isActive = true;
+        if (item.key === 'COLUMNS' && (activePageId === 'columns' || activePageId === 'columnDetail')) isActive = true;
 
         const activeClass = isActive ? 'text-blue-600' : 'text-slate-600';
         return '<li><a href="' + LANG_PATH + item.path + '" class="font-medium ' + activeClass + '">' + lang[item.key] + '</a></li>';

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="pt" data-theme="corporate">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Economy Columns - From Micro to Macro</title>
+    <link rel="icon" type="image/png" href="../images/favicon.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <link rel="stylesheet" href="../styles.css">
+    <script src="../components.js"></script>
+    <script src="columns-data.js"></script>
+    <script>initHead('columns');</script>
+</head>
+
+<body class="bg-slate-50 min-h-screen flex flex-col">
+
+    <header id="header" class="bg-white border-b border-slate-200 sticky top-0 z-50"></header>
+
+    <main class="container mx-auto px-4 py-8 flex-grow">
+        <div class="max-w-4xl mx-auto">
+            <div class="text-center mb-12">
+                <h1 class="text-3xl sm:text-4xl font-bold text-slate-800 mb-3" id="page-title">Economy Columns</h1>
+                <p class="text-xl text-blue-600 font-medium mb-2" id="page-subtitle">From Micro to Macro</p>
+                <p class="text-slate-500" id="page-description">Learn practical economic knowledge you can apply in everyday life</p>
+            </div>
+
+            <div class="mb-8">
+                <div class="relative max-w-md mx-auto">
+                    <input type="text" id="search-input" placeholder="Search columns..."
+                        class="input input-bordered w-full pl-12 pr-4 py-3 rounded-xl border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                        onkeyup="handleSearch(this.value)">
+                    <svg class="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400"
+                        xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </div>
+            </div>
+
+            <div id="columns-grid" class="grid gap-6"></div>
+
+            <div id="pagination" class="flex justify-center items-center gap-2 mt-10"></div>
+
+            <div id="no-results" class="hidden text-center py-16">
+                <div class="text-6xl mb-4">🔍</div>
+                <p class="text-slate-500 text-lg">No results found</p>
+            </div>
+        </div>
+    </main>
+
+    <footer id="footer" class="bg-white border-t border-slate-200"></footer>
+
+    <script>
+        const ITEMS_PER_PAGE = 6;
+        let currentPage = 1;
+        let filteredColumns = [...COLUMNS_DATA];
+
+        function initColumnsPage() {
+            document.getElementById('page-title').textContent = COLUMNS_I18N.TITLE;
+            document.getElementById('page-subtitle').textContent = COLUMNS_I18N.SUBTITLE;
+            document.getElementById('page-description').textContent = COLUMNS_I18N.DESCRIPTION;
+            document.getElementById('search-input').placeholder = COLUMNS_I18N.SEARCH_PLACEHOLDER;
+            renderColumns();
+        }
+
+        function handleSearch(query) {
+            const searchTerm = query.toLowerCase().trim();
+            if (!searchTerm) {
+                filteredColumns = [...COLUMNS_DATA];
+            } else {
+                filteredColumns = COLUMNS_DATA.filter(column =>
+                    column.title.toLowerCase().includes(searchTerm) ||
+                    column.subtitle.toLowerCase().includes(searchTerm) ||
+                    column.description.toLowerCase().includes(searchTerm) ||
+                    (column.keywords && column.keywords.toLowerCase().includes(searchTerm))
+                );
+            }
+            currentPage = 1;
+            renderColumns();
+        }
+
+        function renderColumns() {
+            const grid = document.getElementById('columns-grid');
+            const noResults = document.getElementById('no-results');
+            const pagination = document.getElementById('pagination');
+
+            if (filteredColumns.length === 0) {
+                grid.classList.add('hidden');
+                pagination.classList.add('hidden');
+                noResults.classList.remove('hidden');
+                return;
+            }
+
+            grid.classList.remove('hidden');
+            noResults.classList.add('hidden');
+
+            const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+            const endIndex = startIndex + ITEMS_PER_PAGE;
+            const pageColumns = filteredColumns.slice(startIndex, endIndex);
+
+            grid.innerHTML = pageColumns.map((column) => `
+                <article class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-lg transition-all duration-300 group">
+                    <a href="column.html?id=${column.id}" class="block p-6 sm:p-8">
+                        <div class="flex items-start justify-between mb-4">
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-50 text-blue-700">
+                                ${column.id === 'summary' ? 'Summary' : '#' + column.id}
+                            </span>
+                            <span class="text-sm text-slate-400 flex items-center gap-1">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                ${column.readTime} ${COLUMNS_I18N.READ_TIME}
+                            </span>
+                        </div>
+                        <h2 class="text-xl sm:text-2xl font-bold text-slate-800 mb-2 group-hover:text-blue-600 transition-colors">${column.title}</h2>
+                        <p class="text-blue-600 font-medium mb-3">${column.subtitle}</p>
+                        <p class="text-slate-600 leading-relaxed mb-4">${column.description}</p>
+                        <div class="flex items-center text-blue-600 font-medium group-hover:gap-3 transition-all">
+                            ${COLUMNS_I18N.READ_MORE}
+                            <svg class="w-5 h-5 ml-1 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
+                            </svg>
+                        </div>
+                    </a>
+                </article>
+            `).join('');
+
+            renderPagination();
+        }
+
+        function renderPagination() {
+            const pagination = document.getElementById('pagination');
+            const totalPages = Math.ceil(filteredColumns.length / ITEMS_PER_PAGE);
+
+            if (totalPages <= 1) {
+                pagination.classList.add('hidden');
+                return;
+            }
+
+            pagination.classList.remove('hidden');
+            let paginationHTML = `<button onclick="goToPage(${currentPage - 1})" class="btn btn-sm btn-ghost ${currentPage === 1 ? 'btn-disabled' : ''}" ${currentPage === 1 ? 'disabled' : ''}><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg></button>`;
+
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+                    paginationHTML += `<button onclick="goToPage(${i})" class="btn btn-sm ${currentPage === i ? 'btn-primary' : 'btn-ghost'}">${i}</button>`;
+                } else if (i === currentPage - 2 || i === currentPage + 2) {
+                    paginationHTML += `<span class="px-2 text-slate-400">...</span>`;
+                }
+            }
+
+            paginationHTML += `<button onclick="goToPage(${currentPage + 1})" class="btn btn-sm btn-ghost ${currentPage === totalPages ? 'btn-disabled' : ''}" ${currentPage === totalPages ? 'disabled' : ''}><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></button>`;
+            pagination.innerHTML = paginationHTML;
+        }
+
+        function goToPage(page) {
+            const totalPages = Math.ceil(filteredColumns.length / ITEMS_PER_PAGE);
+            if (page < 1 || page > totalPages) return;
+            currentPage = page;
+            renderColumns();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initComponents('columns');
+            initColumnsPage();
+        });
+    </script>
+</body>
+
+</html>
