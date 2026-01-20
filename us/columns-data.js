@@ -1577,6 +1577,1011 @@ const COLUMNS_DATA = [
                 </div>
             </section>
         `
+    },
+    {
+        id: '27',
+        title: 'Bonds and Interest Rates: A Seesaw Game',
+        subtitle: 'The Mathematical Principle Behind Price Changes',
+        description: 'Why do bond prices fall when interest rates rise? Analyzing the mathematical relationship between fixed income characteristics and market interest rates.',
+        readTime: 5,
+        keywords: 'bonds, interest rates, duration, fixed income, asset allocation, real yield',
+        content: `
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">1. Introduction: "Why Do My Bonds Lose Value When Rates Rise?"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">The inverse relationship between interest rates and bond prices is one of the most fundamental yet confusing concepts in financial markets. This isn't a psychological choice by market participants, but a mathematical result stemming from bonds' <strong>'Fixed Income'</strong> characteristic.</p>
+                <p class="text-slate-700 leading-relaxed">Let's analyze the internal mechanism of why interest rates and bonds move like a seesaw.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">2. The Essence of Bonds: "Rights to Fixed Future Payments"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">A bond is a certificate issued by an entity seeking to raise funds, with three elements fixed at the time of contract:</p>
+                <div class="space-y-4 mb-4">
+                    <div class="bg-blue-50 rounded-xl p-4">
+                        <h3 class="font-semibold text-blue-800 mb-2">Coupon Rate</h3>
+                        <p class="text-slate-700">The periodic interest payment is fixed.</p>
+                    </div>
+                    <div class="bg-green-50 rounded-xl p-4">
+                        <h3 class="font-semibold text-green-800 mb-2">Principal</h3>
+                        <p class="text-slate-700">The amount to be returned at maturity is fixed.</p>
+                    </div>
+                    <div class="bg-yellow-50 rounded-xl p-4">
+                        <h3 class="font-semibold text-yellow-800 mb-2">Maturity</h3>
+                        <p class="text-slate-700">The time of capital recovery is fixed.</p>
+                    </div>
+                </div>
+                <p class="text-slate-700 leading-relaxed">Market interest rates change constantly, but the 'interest' promised by already issued bonds doesn't change. Price fluctuations occur when this <strong>'fixed value'</strong> meets the market's <strong>'changing value (interest rates)'</strong>.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">3. The Principle of Inverse Relationship: "Comparative Advantage Over Alternative Assets"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">The direction of price becomes clear when you see how existing bonds' attractiveness changes with interest rates.</p>
+                <div class="bg-red-50 rounded-xl p-6 mb-4">
+                    <h3 class="font-semibold text-red-800 mb-2">When Market Rates Rise (Bond Prices Fall)</h3>
+                    <p class="text-slate-700">If market rates rise from 3% to 5%, new bonds offer 5%. The old 3% bonds become less attractive. Investors try to sell 3% bonds and switch to 5% bonds, so existing bonds must sell at a discount.</p>
+                </div>
+                <div class="bg-green-50 rounded-xl p-6">
+                    <h3 class="font-semibold text-green-800 mb-2">When Market Rates Fall (Bond Prices Rise)</h3>
+                    <p class="text-slate-700">If market rates drop from 5% to 2%, old 5% bonds become precious. They offer more profit than newly issued bonds. People are willing to pay a premium for these bonds, causing prices to rise.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">4. Duration: "The Longer the Time, the Greater the Volatility"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Not all bonds react equally to interest rate changes. This is where the concept of duration comes in. It represents the average time to recover principal, but practically means <strong>'price sensitivity to interest rate changes'</strong>.</p>
+                <div class="space-y-4">
+                    <div class="bg-slate-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-slate-800 mb-2">Long-Term Bonds</h3>
+                        <p class="text-slate-700">Even a 1% rate change significantly affects prices because the total future interest is larger.</p>
+                    </div>
+                    <div class="bg-slate-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-slate-800 mb-2">Short-Term Bonds</h3>
+                        <p class="text-slate-700">Price volatility is limited because the period affected by rate changes is shorter.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">5. Market Implications: Reading Capital Flows</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Understanding bond price movements isn't just for bond investing—it's a tool for reading overall market capital flows.</p>
+                <div class="space-y-4">
+                    <div class="bg-purple-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-purple-800 mb-2">Asset Allocation</h3>
+                        <p class="text-slate-700">When stock market uncertainty increases, capital tends to move to safe bonds, lowering rates and raising bond prices.</p>
+                    </div>
+                    <div class="bg-orange-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-orange-800 mb-2">Real Yield</h3>
+                        <p class="text-slate-700">Bond investors calculate 'real yield' by subtracting inflation from nominal rates to protect real asset value.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">6. Conclusion: Understanding Market Gravity</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Interest rates are like 'gravity' in capital markets. When rates change, all asset values are reassessed, not just bonds.</p>
+                <p class="text-slate-700 leading-relaxed">The phenomenon of bond prices moving opposite to interest rates is the natural market order of capital seeking higher efficiency. Understanding this principle is the most fundamental wisdom for protecting assets and capturing opportunities in volatile financial markets.</p>
+            </section>
+        `
+    },
+    {
+        id: '28',
+        title: 'Numbers That Reveal Company Value',
+        subtitle: 'What Are PER, PBR, and ROE?',
+        description: 'How do you distinguish expensive stocks from cheap ones? Learn the meaning and application of PER, PBR, and ROE—the key metrics for measuring intrinsic value.',
+        readTime: 5,
+        keywords: 'PER, PBR, ROE, valuation, price-earnings ratio, return on equity',
+        content: `
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">1. Introduction: "How Do You Distinguish Expensive from Cheap Stocks?"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">When investing in stocks, we often say "this stock has risen too much" or "now is the bottom." But judging by price alone is dangerous.</p>
+                <p class="text-slate-700 leading-relaxed">Markets use valuation metrics to determine if prices are appropriate relative to earnings and assets. Let's analyze how markets price companies through the three most popular tools: PER, PBR, and ROE.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">2. PER (Price-Earnings Ratio): "How Many Times Premium Over Earnings?"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">PER is the stock price divided by earnings per share (EPS). It means "if this company keeps earning at this rate, how many years to recover the principal?"</p>
+                <div class="bg-blue-50 rounded-xl p-6">
+                    <h3 class="font-semibold text-blue-800 mb-2">Growth Stocks vs. Value Stocks</h3>
+                    <p class="text-slate-700">High-growth tech companies form high PERs due to expectations of future profits (overvaluation debates). Mature industries tend to have low PERs despite stable profits due to lower growth prospects.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">3. PBR (Price-Book Ratio): "What's the Liquidation Value?"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">PBR is the stock price divided by book value per share (BPS).</p>
+                <div class="bg-green-50 rounded-xl p-6">
+                    <h3 class="font-semibold text-green-800 mb-2">Asset Value Basis</h3>
+                    <p class="text-slate-700">If PBR is below 1, the market values the company less than its actual assets (buildings, land, cash, etc.). This suggests the market views the company's future negatively, or it's in a hidden undervalued state.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">4. ROE (Return on Equity): "How Efficiently Is Capital Used?"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">ROE is an efficiency metric showing how much net profit a company generates with its equity.</p>
+                <div class="bg-yellow-50 rounded-xl p-6">
+                    <h3 class="font-semibold text-yellow-800 mb-2">Measure of Profitability</h3>
+                    <p class="text-slate-700">While PER and PBR focus on 'price,' ROE focuses on company 'performance.' Consistently high ROE signals that the company efficiently utilizes capital for compound growth.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">5. Conclusion: The Need for Multidimensional Analysis</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Judging a company by just one metric is like touching only an elephant's leg. A company with low PER (looks cheap) but declining ROE might be in a 'value trap.'</p>
+                <p class="text-slate-700 leading-relaxed">Numbers don't lie, but you can only approach market essence when you read the context behind those numbers (industry characteristics, capital structure).</p>
+            </section>
+        `
+    },
+    {
+        id: '29',
+        title: 'Exchange Rates: How Currency Prices Are Set',
+        subtitle: 'The Principle of International Money Pricing',
+        description: 'Why do exchange rates swing daily? Analyzing the key variables that determine the relative value between two currencies.',
+        readTime: 5,
+        keywords: 'exchange rates, capital flows, current account, purchasing power parity, PPP, currency value',
+        content: `
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">1. Introduction: "Why Do Exchange Rates Fluctuate Daily?"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Exchange rates aren't simply the ratio applied when exchanging foreign money. They're price tags showing the <strong>'relative value'</strong> between two countries' currencies.</p>
+                <p class="text-slate-700 leading-relaxed">Exchange rate fluctuations affect not only export-import company profits but also individual asset values. Let's analyze the key variables that determine exchange rates in markets.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">2. Supply and Demand: The Direction of Capital Flow</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Exchange rates follow the law of supply and demand just like regular goods.</p>
+                <div class="space-y-4">
+                    <div class="bg-blue-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-blue-800 mb-2">Capital Inflows</h3>
+                        <p class="text-slate-700">If a market has high interest rates or strong economic vitality with expected investment returns, global capital buys that country's currency to enter. As currency demand increases, value rises (exchange rate falls).</p>
+                    </div>
+                    <div class="bg-green-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-green-800 mb-2">Current Account</h3>
+                        <p class="text-slate-700">When a country's goods sell well overseas and dollars flow in, dollars become common in the market, relatively strengthening the local currency value.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">3. Purchasing Power Parity (PPP): "What the Big Mac Index Tells Us"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">This theory suggests that long-term exchange rates are determined by price levels between countries. It's based on the 'law of one price'—the same goods should have the same value in any country.</p>
+                <div class="bg-yellow-50 rounded-xl p-6">
+                    <p class="text-slate-700">If a currency's exchange rate is too high or low relative to prices, it eventually converges to its fair value.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">4. Conclusion: Exchange Rates Are Economic Report Cards</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Exchange rate movements are real-time reflections of market participant psychology and economic fundamentals.</p>
+                <p class="text-slate-700 leading-relaxed">Understanding exchange rate flows is the most powerful tool for grasping where global capital is moving and which markets are undervalued.</p>
+            </section>
+        `
+    },
+    {
+        id: '30',
+        title: 'Reserve Currency Conditions',
+        subtitle: 'What Makes a Currency the Market Standard',
+        description: 'Why does the world trade in dollars? Examining the economic conditions required for a currency to become the standard for international transactions.',
+        readTime: 5,
+        keywords: 'reserve currency, dollar, liquidity, credibility, Triffin dilemma, global finance',
+        content: `
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">1. Introduction: "Why Does the World Trade in Dollars?"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">When we shop internationally or buy oil, we mostly use the dollar ($). A currency that serves as a payment method in international transactions and becomes the basis of financial dealings is called a <strong>Key Currency</strong> or Reserve Currency.</p>
+                <p class="text-slate-700 leading-relaxed">Let's examine the economic conditions required for a specific currency to become the market's absolute standard.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">2. Credibility and Stability</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">The first condition for a reserve currency is 'trust.'</p>
+                <div class="bg-blue-50 rounded-xl p-6">
+                    <p class="text-slate-700">The currency must be recognized for its value anywhere, anytime, with macroeconomic stability guaranteeing it won't crash overnight. This is based on the scale and legal credibility of the economy issuing that currency.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">3. Network Effects and Liquidity</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">The 'network effect'—using it because everyone else does—works powerfully here.</p>
+                <div class="bg-green-50 rounded-xl p-6">
+                    <p class="text-slate-700">Also, the currency supply must be sufficient to handle global transaction volumes, with deep and wide capital markets (liquidity). No matter how stable, a hard-to-obtain currency cannot become a reserve currency.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">4. Triffin's Dilemma</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Reserve currency nations face a contradictory situation.</p>
+                <div class="bg-yellow-50 rounded-xl p-6">
+                    <p class="text-slate-700">To supply liquidity worldwide, they must continuously run deficits and send currency abroad, but accumulated deficits reduce the currency's value (credibility). Markets constantly search for the equilibrium point between liquidity and trust.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">5. Conclusion: The Invisible Order</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Reserve currency status isn't artificially designated but maintained by market participant choices.</p>
+                <p class="text-slate-700 leading-relaxed">Observing how a currency maintains or loses reserve status is a key indicator for reading where global wealth hegemony is moving.</p>
+            </section>
+        `
+    },
+    {
+        id: '31',
+        title: 'The Economics of Scarcity',
+        subtitle: 'Why Gold and Bitcoin Become Assets',
+        description: 'Where does value come from? Analyzing how gold—humanity\'s oldest safe asset—and Bitcoin maintain their status as assets.',
+        readTime: 5,
+        keywords: 'scarcity, gold, Bitcoin, store of value, digital gold, safe assets',
+        content: `
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">1. Introduction: "Where Does Value Come From?"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">We often think only tangible things have value. But in modern financial markets, asset value comes from 'scarcity' and 'consensus.'</p>
+                <p class="text-slate-700 leading-relaxed">Let's analyze how <strong>Gold</strong>, humanity's oldest safe asset, and <strong>Bitcoin</strong>, the digital age alternative, acquire and maintain their status as assets.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">2. Gold: The Untarnished History of Trust</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Gold has been used as a store of value for thousands of years.</p>
+                <div class="space-y-4">
+                    <div class="bg-yellow-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-yellow-800 mb-2">Physical Scarcity</h3>
+                        <p class="text-slate-700">The amount on Earth is limited and cannot be artificially created.</p>
+                    </div>
+                    <div class="bg-yellow-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-yellow-800 mb-2">Immutability</h3>
+                        <p class="text-slate-700">It doesn't corrode or deteriorate, preserving value across time.</p>
+                    </div>
+                    <div class="bg-yellow-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-yellow-800 mb-2">Psychological Anchor</h3>
+                        <p class="text-slate-700">During economic crises or currency devaluation, market participants instinctively return to it as a 'last resort.'</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">3. Bitcoin: Scarcity Created by Digital Protocol</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Bitcoin, called 'digital gold,' has been incorporated as a new asset class.</p>
+                <div class="space-y-4">
+                    <div class="bg-orange-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-orange-800 mb-2">Algorithmic Scarcity</h3>
+                        <p class="text-slate-700">With supply fixed at 21 million, it's free from inflation.</p>
+                    </div>
+                    <div class="bg-orange-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-orange-800 mb-2">Decentralization and Censorship Resistance</h3>
+                        <p class="text-slate-700">It provides systemic trust for transmitting value anywhere in the world without specific authority approval.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">4. Conclusion: The Substance of Value Is 'Consensus'</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Whether gold or Bitcoin, they're valuable because market participants 'believe' they're valuable.</p>
+                <p class="text-slate-700 leading-relaxed">Scarce assets are humanity's instinctive choice to preserve purchasing power in uncertain market environments.</p>
+            </section>
+        `
+    },
+    {
+        id: '32',
+        title: 'ETF (Exchange-Traded Funds)',
+        subtitle: 'A Smart Way to Own the Market Average',
+        description: 'If picking stocks is hard, own the market itself! Exploring the economic principles of ETFs that reduce individual company risk while capturing overall market growth.',
+        readTime: 5,
+        keywords: 'ETF, exchange-traded funds, diversification, index funds, market efficiency, passive investing',
+        content: `
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">1. Introduction: "If Picking Stocks Is Hard, Own the Market Itself"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">In the past, stock investing was all about analyzing individual companies and picking stocks. But modern capital markets have shifted paradigms with the emergence of index-tracking ETFs.</p>
+                <p class="text-slate-700 leading-relaxed">Let's explore the economic principles of ETFs that reduce individual company risk while capturing overall market growth.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">2. Automation of Diversification</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">ETFs are products that bundle companies included in specific indices (S&P 500, NASDAQ, etc.) into a basket and trade them like stocks.</p>
+                <div class="space-y-4">
+                    <div class="bg-blue-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-blue-800 mb-2">Risk Diversification</h3>
+                        <p class="text-slate-700">Even if one company fails, its impact on the overall index is limited.</p>
+                    </div>
+                    <div class="bg-green-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-green-800 mb-2">Low Costs</h3>
+                        <p class="text-slate-700">Operating costs are dramatically lower compared to active funds that pay high fees to fund managers.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">3. Efficient Market Hypothesis</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Research has shown that very few professionals can beat market average returns long-term.</p>
+                <div class="bg-yellow-50 rounded-xl p-6">
+                    <p class="text-slate-700">ETFs are based on the philosophy that "markets are efficient, and riding market flows is more rational than picking individual stocks."</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">4. Conclusion: Democratization of Investing</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">ETFs have opened the path for individual investors to diversify into quality companies worldwide with small amounts.</p>
+                <p class="text-slate-700 leading-relaxed">The most powerful weapon for weathering market volatility might be patience in believing in 'overall market growth' rather than sophisticated analysis.</p>
+            </section>
+        `
+    },
+    {
+        id: '33',
+        title: 'Derivatives and Leverage',
+        subtitle: 'A Double-Edged Sword Amplifying Market Volatility',
+        description: 'What\'s the cost of making big profits with small capital? Analyzing the principles of derivatives like futures and options, and the dangers of leverage.',
+        readTime: 5,
+        keywords: 'derivatives, leverage, futures, options, hedge, speculation',
+        content: `
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">1. Introduction: "What's the Cost of Big Profits with Small Capital?"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">In financial markets, there are <strong>Derivatives</strong> that bet on asset price movements without owning the actual asset.</p>
+                <p class="text-slate-700 leading-relaxed">These products, represented by futures and options, supply liquidity to markets but simultaneously cause massive volatility.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">2. The Principle of Leverage</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Using the lever principle to move large-scale assets with small capital.</p>
+                <div class="space-y-4">
+                    <div class="bg-green-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-green-800 mb-2">Profit Maximization</h3>
+                        <p class="text-slate-700">If prices move as expected, you can earn several times your principal.</p>
+                    </div>
+                    <div class="bg-red-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-red-800 mb-2">Asymmetry of Risk</h3>
+                        <p class="text-slate-700">Even a small price drop can result in total loss (liquidation) of principal—extreme risk.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">3. Hedge and Speculation</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Originally, derivatives were created to avoid (hedge) price fluctuation risks. Like a farmer locking in future rice prices in advance.</p>
+                <div class="bg-yellow-50 rounded-xl p-6">
+                    <p class="text-slate-700">But in modern markets, 'speculative capital' betting on price direction has flowed in, sometimes intensifying market concentration.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">4. Conclusion: Look at the Principle, Not the Tool</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Derivatives themselves aren't evil or good. They're simply devices that concentrate and release market energy.</p>
+                <p class="text-slate-700 leading-relaxed">Participants who don't understand leverage risks become powerless before market volatility.</p>
+            </section>
+        `
+    },
+    {
+        id: '34',
+        title: 'Behavioral Finance',
+        subtitle: 'Why Do We Buy High and Sell Low?',
+        description: 'Human instinct is scarier than charts! Analyzing how psychological biases lead to investment failures through behavioral finance.',
+        readTime: 5,
+        keywords: 'behavioral finance, herd behavior, FOMO, loss aversion, disposition effect, investment psychology',
+        content: `
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">1. Introduction: "Human Instinct Is Scarier Than Charts"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Traditional economics assumes humans are rational, but actual investing is dominated by emotions.</p>
+                <p class="text-slate-700 leading-relaxed">Behavioral finance studies how psychological biases lead to investment failures.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">2. Herd Behavior and FOMO</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">The phenomenon of jumping into markets late, fearing being left out when hearing others made money.</p>
+                <div class="bg-red-50 rounded-xl p-6">
+                    <h3 class="font-semibold text-red-800 mb-2">Bubble Formation</h3>
+                    <p class="text-slate-700">When demand piles up with 'buying because others are buying' without logical basis, markets overheat beyond intrinsic value.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">3. Loss Aversion and Disposition Effect</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Humans feel the pain of losses more than twice as strongly as the joy of gains.</p>
+                <div class="bg-yellow-50 rounded-xl p-6">
+                    <h3 class="font-semibold text-yellow-800 mb-2">Irrational Pattern</h3>
+                    <p class="text-slate-700">People quickly sell profitable stocks but hold onto losing stocks thinking about their principal, ultimately suffering bigger losses—an irrational pattern.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">4. Conclusion: Knowing Yourself Is the Start of Investing</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Markets seem to move by numbers, but human desire and fear create those numbers.</p>
+                <p class="text-slate-700 leading-relaxed">Recognizing your psychological vulnerabilities and establishing objective principles is the only way to escape instinctual traps.</p>
+            </section>
+        `
+    },
+    {
+        id: '35',
+        title: 'Reshaping Global Supply Chains',
+        subtitle: 'From Efficiency to Resilience',
+        description: 'Seeking the safest place, not the cheapest! Analyzing why the global economy\'s capillaries—supply chains—are changing.',
+        readTime: 5,
+        keywords: 'supply chain, reshoring, friendshoring, JIT, resilience, globalization',
+        content: `
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">1. Introduction: "Seeking the Safest Place, Not the Cheapest"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">For decades, global markets raced toward one goal: 'cost optimization.' Making parts in the cheapest country and assembling where labor costs are lowest was the answer.</p>
+                <p class="text-slate-700 leading-relaxed">But recently, markets have begun focusing on <strong>'Supply Chain Resilience'</strong> over cost. Let's analyze why the world economy's capillaries—supply chains—are changing.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">2. Limits of Just-in-Time (JIT)</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">The 'just-in-time production' method that maximized efficiency by minimizing inventory exposed the risk of the entire system stopping with even small supply chain disruptions.</p>
+                <div class="bg-red-50 rounded-xl p-6">
+                    <p class="text-slate-700">As a reaction, markets are pivoting toward securing inventory and diversifying suppliers in preparation for 'just in case.'</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">3. Reshoring and Friendshoring</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Companies are now moving production facilities back home (reshoring) or to trustworthy regions that share values and interests (friendshoring).</p>
+                <div class="bg-blue-50 rounded-xl p-6">
+                    <p class="text-slate-700">This isn't just geographic relocation—it's 'insurance premium' spending as capital pays to reduce uncertainty.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">4. Conclusion: The Era of New Costs</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Supply chain reshaping may cause short-term production cost increases. But markets are reevaluating this not as 'loss of efficiency' but as 'securing stability.'</p>
+                <p class="text-slate-700 leading-relaxed">Reading the changing supply chain map is a key to predicting where future industrial centers will move.</p>
+            </section>
+        `
+    },
+    {
+        id: '36',
+        title: 'Energy Resources and Cost Structure',
+        subtitle: 'The Trigger of Inflation',
+        description: 'When energy prices rise, everything rises! Analyzing how energy price fluctuations become macroeconomic variables shaking the entire price structure.',
+        readTime: 5,
+        keywords: 'energy, greenflation, resource nationalism, energy transition, commodities, cost structure',
+        content: `
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">1. Introduction: "When Energy Prices Rise, Everything Rises"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Energy is the blood of the modern economy. It's consumed in all processes—running factories, transporting goods, and heating.</p>
+                <p class="text-slate-700 leading-relaxed">Thus, energy price fluctuations go beyond gas station prices to become macroeconomic variables shaking the entire price structure.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">2. Energy Transition</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">The 'Greenflation' phenomenon occurring during the transition from fossil fuels to renewable energy is gaining attention.</p>
+                <div class="bg-green-50 rounded-xl p-6">
+                    <p class="text-slate-700">Transitional costs for going green are causing raw material prices and electricity rates to rise, raising the entire supply chain's cost structure.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">3. Resource Nationalism and Market Volatility</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">In regions rich in energy resources, movements to make resources strategic assets are strengthening.</p>
+                <div class="bg-yellow-50 rounded-xl p-6">
+                    <p class="text-slate-700">This injects supply uncertainty into markets and maximizes price volatility. For market participants, energy prices have become core risk management indicators, not just cost factors.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">4. Conclusion: Energy Efficiency Is Competitiveness</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">In the high-energy-cost era, how efficiently energy is used determines corporate and market competitiveness.</p>
+                <p class="text-slate-700 leading-relaxed">Understanding energy resource flows and pricing structures is the shortcut to grasping macroeconomic inflation trends.</p>
+            </section>
+        `
+    },
+    {
+        id: '37',
+        title: 'Demographic Changes',
+        subtitle: 'The Invisible Hand Determining Potential Growth',
+        description: 'Numbers foretelling the market\'s future! Analyzing how demographic changes represented by aging and low birth rates affect asset values and economic growth.',
+        readTime: 5,
+        keywords: 'demographics, aging, low birth rate, potential growth rate, labor supply, consumption patterns',
+        content: `
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">1. Introduction: "Numbers Foretelling the Market's Future"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Population is the most honest indicator of the economy. The flow of people being born, working, and consuming is reflected in markets with delays of decades.</p>
+                <p class="text-slate-700 leading-relaxed">Let's examine what signals demographic changes—represented by aging and low birth rates—send to asset values and economic growth.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">2. Declining Labor Supply and Asset Prices</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">When the working-age population decreases, labor costs rise and potential growth rates face downward pressure.</p>
+                <div class="bg-blue-50 rounded-xl p-6">
+                    <p class="text-slate-700">Also, when retiring generations start liquidating assets, fundamental changes occur in demand structures for real estate, stocks, and other asset markets.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">3. Shifting Consumption Patterns</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">When demographic structure changes, market protagonists change too.</p>
+                <div class="bg-green-50 rounded-xl p-6">
+                    <p class="text-slate-700">Industries targeting young people may shrink, but healthcare, silver industries, and automation technology emerge as new massive markets for aging societies. Markets are finding new consumption opportunities within the crisis of population decline.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">4. Conclusion: Population Is Environment, Not Fate</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Demographic changes are unavoidable trends, but markets continue efforts to fill labor shortages through automation and AI.</p>
+                <p class="text-slate-700 leading-relaxed">Reading demographics is the most scientific method for predicting, with very long horizons, where wealth will flow and dry up.</p>
+            </section>
+        `
+    },
+    {
+        id: '38',
+        title: 'Frontier Markets',
+        subtitle: 'Why Capital Constantly Seeks New Territories',
+        description: 'Capital\'s instinct to overcome growth limits! Analyzing the economic reasons why emerging markets in Southeast Asia, Central Asia, and Africa attract attention.',
+        readTime: 5,
+        keywords: 'frontier markets, emerging markets, high risk high return, leapfrogging, global investment',
+        content: `
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">1. Introduction: "Capital's Instinct to Overcome Growth Limits"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Mature markets are stable but tend to have lower returns. Capital constantly flows into unexplored 'Frontier Markets' seeking higher returns.</p>
+                <p class="text-slate-700 leading-relaxed">Let's analyze the economic reasons why emerging markets in Southeast Asia, Central Asia, and Africa attract attention.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">2. High Risk, High Return</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Frontier markets can expect explosive growth based on high population and urbanization rates.</p>
+                <div class="bg-yellow-50 rounded-xl p-6">
+                    <p class="text-slate-700">But risks like weak financial infrastructure and high exchange rate volatility coexist. Capital constantly weighs whether there's enough growth premium to justify these risks.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">3. Leapfrogging Phenomenon</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Emerging markets sometimes skip existing stages and go directly to the latest technology.</p>
+                <div class="bg-blue-50 rounded-xl p-6">
+                    <p class="text-slate-700">Like smartphone payment systems spreading without landline networks. Such technological leaps accelerate frontier market growth speeds and become powerful attractions for capital.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">4. Conclusion: Expanding Global Portfolios</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Understanding frontier markets isn't simply making risky investments—it's grasping how global growth axes are shifting.</p>
+                <p class="text-slate-700 leading-relaxed">Tracking capital movement paths reveals answers to where future production bases and consumer markets will be.</p>
+            </section>
+        `
+    },
+    {
+        id: '39',
+        title: 'Business Cycle',
+        subtitle: 'The Rhythm of Market Breathing',
+        description: 'No eternal boom or endless bust! Analyzing the four stages of economic cycles that move like waves and how capital moves.',
+        readTime: 5,
+        keywords: 'business cycle, economic cycle, boom, recession, recovery, asset allocation',
+        content: `
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">1. Introduction: "No Eternal Boom or Endless Bust"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Economies don't grow in straight lines. They move forward while rising and falling like waves. This is called the business cycle.</p>
+                <p class="text-slate-700 leading-relaxed">The process from vibrant expansion through overheating into contraction is the natural physiology of capitalist markets. Understanding how capital moves at each stage is crucial.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">2. Four Stages of the Cycle: Recovery, Boom, Decline, Recession</h2>
+                <div class="space-y-4">
+                    <div class="bg-green-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-green-800 mb-2">Recovery and Boom Phases</h3>
+                        <p class="text-slate-700">Consumption and investment increase, corporate profits grow. Capital flows into risky assets like stocks, and markets are dominated by optimism.</p>
+                    </div>
+                    <div class="bg-red-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-red-800 mb-2">Decline and Recession Phases</h3>
+                        <p class="text-slate-700">Excessive investment adjusts and consumption contracts. Capital retreats to safe assets like bonds or cash, preparing for the next recovery.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">3. Conclusion: Investors Riding the Rhythm</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Reading business cycles is about identifying the current market position.</p>
+                <p class="text-slate-700 leading-relaxed">Just as you wear clothes suited to seasons, wisdom is needed to adjust asset portfolios according to economic phases.</p>
+            </section>
+        `
+    },
+    {
+        id: '40',
+        title: 'Liquidity and Asset Bubbles',
+        subtitle: 'What Happens When Money Becomes Abundant',
+        description: 'Why prices run ahead of fundamentals! Analyzing how money supply affects asset prices and the mechanics of bubbles.',
+        readTime: 5,
+        keywords: 'liquidity, asset bubbles, money supply, interest rates, FOMO, fundamentals',
+        content: `
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">1. Introduction: "Why Prices Run Ahead of Fundamentals"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Sometimes stock or real estate prices soar while corporate performance stays the same. Behind this is usually Liquidity—the amount of money released into markets.</p>
+                <p class="text-slate-700 leading-relaxed">Let's analyze how money supply affects asset prices and the mechanics of 'bubbles' that follow.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">2. The Monetary Phenomenon of Asset Prices</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">When money supply surges in markets, money's value falls relatively while real asset prices rise.</p>
+                <div class="bg-blue-50 rounded-xl p-6">
+                    <p class="text-slate-700">Low interest rates facilitate borrowing, accelerating capital inflows into asset markets. This becomes a force pushing up prices regardless of economic fundamentals.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">3. Bubble Formation and Collapse</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Rises beyond rational price ranges combine with 'FOMO' psychology to create bubbles.</p>
+                <div class="bg-red-50 rounded-xl p-6">
+                    <p class="text-slate-700">But the moment liquidity supply decreases or interest rates rise, abnormally inflated prices instantly return to their place, shocking markets.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">4. Conclusion: Liquidity's Party and Hangover</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Liquidity makes markets glamorous, but there's always a cost at the end.</p>
+                <p class="text-slate-700 leading-relaxed">The eye to distinguish between intrinsic asset value and liquidity-created bubbles is key to surviving in capital markets.</p>
+            </section>
+        `
+    },
+    {
+        id: '41',
+        title: 'Credit Cycle and Debt',
+        subtitle: 'Accelerator and Brake of Economic Growth',
+        description: 'Debt is spending tomorrow\'s income today! Examining the credit cycle where debt accumulation and repayment shake the real economy.',
+        readTime: 5,
+        keywords: 'credit cycle, debt, leverage, deleveraging, economic growth, financial crisis',
+        content: `
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">1. Introduction: "Debt Is Spending Tomorrow's Income Today"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Modern economies run on Credit. Appropriate debt accelerates growth by promoting investment, but excessive debt becomes a boomerang paralyzing economic systems.</p>
+                <p class="text-slate-700 leading-relaxed">Let's examine the credit cycle where debt accumulation and repayment shake the real economy.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">2. The Leverage Effect of Debt</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">When companies and individuals invest in productive areas through debt, the entire economic pie grows.</p>
+                <div class="bg-green-50 rounded-xl p-6">
+                    <p class="text-slate-700">In this case, debt serves as a powerful engine of growth. Markets expand by creating more credit.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">3. The Pain of Deleveraging</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">When debt exceeds manageable levels, 'debt reduction (deleveraging)' begins.</p>
+                <div class="bg-red-50 rounded-xl p-6">
+                    <p class="text-slate-700">Selling assets to repay debt causes asset prices to fall, which leads to consumption contraction—a vicious cycle.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">4. Conclusion: The Two Faces of Debt</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Debt is medicine when used well, poison when not.</p>
+                <p class="text-slate-700 leading-relaxed">Monitoring overall market debt levels and repayment capacity is the fastest indicator for detecting major economic crises.</p>
+            </section>
+        `
+    },
+    {
+        id: '42',
+        title: 'Modern Interpretation of Comparative Advantage',
+        subtitle: 'Intellectual Property and Technology Hegemony',
+        description: 'From the labor era to the intellectual capital era! Analyzing how classical comparative advantage theory has evolved to center on technology and intellectual property.',
+        readTime: 5,
+        keywords: 'comparative advantage, intellectual property, technology hegemony, intangible assets, value added, global trade',
+        content: `
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">1. Introduction: "From the Labor Era to the Intellectual Capital Era"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Past trade centered on 'goods' like agricultural or manufactured products. But modern market trade is being restructured around intangible assets like technology, patents, and software.</p>
+                <p class="text-slate-700 leading-relaxed">Let's analyze how classical comparative advantage theory has evolved today.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">2. Knowledge-Intensive Division of Labor</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Now it's more important who 'designs' and who holds 'standards' rather than who makes things well.</p>
+                <div class="bg-blue-50 rounded-xl p-6">
+                    <p class="text-slate-700">As the core of value-added has shifted from manufacturing to design and brands, market entities holding intellectual property rights take most of global profits.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">3. Technology Advantage Creates Entry Barriers</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Cutting-edge technology itself becomes a powerful 'economic moat.'</p>
+                <div class="bg-purple-50 rounded-xl p-6">
+                    <p class="text-slate-700">Once technology gaps widen, it becomes nearly impossible for other market participants to catch up, forming monopolistic positions. This becomes a key variable determining national and corporate trade balances.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">4. Conclusion: Intangible Assets Creating Wealth Gaps</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">The path to victory in modern trade lies in unique technology, not cheap labor.</p>
+                <p class="text-slate-700 leading-relaxed">Understanding intellectual property and technology ecosystems is key to reading the global wealth redistribution process.</p>
+            </section>
+        `
+    },
+    {
+        id: '43',
+        title: 'Generative AI and the Productivity Revolution',
+        subtitle: 'Fundamental Changes in Cost Structure',
+        description: 'The era when intelligence becomes a commodity! Analyzing how generative AI\'s emergence fundamentally disrupts corporate cost structures.',
+        readTime: 5,
+        keywords: 'generative AI, productivity revolution, marginal cost, AI capital, corporate polarization, intelligence capital',
+        content: `
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">1. Introduction: "The Era When Intelligence Becomes a Commodity"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">If past industrial revolutions replaced human muscle with machines, generative AI's emergence is capitalizing human 'intelligence.'</p>
+                <p class="text-slate-700 leading-relaxed">This goes beyond introducing new tools—it fundamentally disrupts the <strong>Cost Structure</strong> through which companies create value.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">2. Zero Marginal Cost Knowledge Production</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">The marginal cost of writing software, content, and analysis reports is dramatically decreasing through AI.</p>
+                <div class="bg-blue-50 rounded-xl p-6">
+                    <p class="text-slate-700">As professional knowledge services become cheaper, markets now value 'what results you design using AI' more than 'what you know.'</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">3. Productivity Gap and Corporate Polarization</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Companies that proactively adopt AI maximize internal efficiency while accelerating innovation speed.</p>
+                <div class="bg-yellow-50 rounded-xl p-6">
+                    <p class="text-slate-700">Meanwhile, entities remaining in traditional labor-intensive methods lose competitiveness. Markets now reevaluate corporate future value based on whether they possess AI capital.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">4. Conclusion: The Era of Intelligence Capital</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Generative AI is blurring boundaries between labor and capital.</p>
+                <p class="text-slate-700 leading-relaxed">In an era when intelligence is supplied as a cheap service, understanding changing productivity curves is key to judging future asset values.</p>
+            </section>
+        `
+    },
+    {
+        id: '44',
+        title: 'Semiconductor Ecosystem Division',
+        subtitle: 'Economics of Fabless Design and Foundry Manufacturing',
+        description: 'Why is 21st century rice—semiconductors—monopolized? Analyzing the sophisticated division between fabless and foundry and their monopolistic value.',
+        readTime: 5,
+        keywords: 'semiconductors, fabless, foundry, winner takes all, technology hegemony, capital investment',
+        content: `
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">1. Introduction: "Why Is 21st Century Rice Monopolized?"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Today, from smartphones to cars to AI servers, there's nowhere semiconductors aren't used. But the semiconductor market isn't somewhere anyone can enter.</p>
+                <p class="text-slate-700 leading-relaxed">Let's analyze the sophisticated division between <strong>Fabless</strong> (design specialists) and <strong>Foundry</strong> (manufacturing specialists), and their monopolistic value.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">2. Design Value and Manufacturing Entry Barriers</h2>
+                <div class="space-y-4">
+                    <div class="bg-blue-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-blue-800 mb-2">Design (Fabless)</h3>
+                        <p class="text-slate-700">The chip design domain has an 'intangible moat' concentrated with sophisticated intellectual assets.</p>
+                    </div>
+                    <div class="bg-green-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-green-800 mb-2">Manufacturing (Foundry)</h3>
+                        <p class="text-slate-700">The manufacturing process that actually implements designs has a 'tangible moat' requiring billions in facility investment.</p>
+                    </div>
+                </div>
+                <p class="text-slate-700 leading-relaxed mt-4">Markets grant overwhelming premiums to companies with dominant positions in these two domains.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">3. Winner-Takes-All Structure</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">As advanced processes require astronomical capital and technology, it becomes increasingly impossible for lower-tier companies to catch up to leaders—forming a 'winner takes all' market.</p>
+                <div class="bg-purple-50 rounded-xl p-6">
+                    <p class="text-slate-700">This is why semiconductor companies are classified not as simple manufacturers but as core assets of technology hegemony in capital markets.</p>
+                </div>
+            </section>
+        `
+    },
+    {
+        id: '45',
+        title: 'Decarbonization and Green Economy',
+        subtitle: 'How Carbon Costs Affect Financial Statements',
+        description: 'Beyond environmental protection to a cost issue! Examining how new economic rules like carbon trading and border taxes change asset values.',
+        readTime: 5,
+        keywords: 'decarbonization, ESG, carbon credits, green finance, greenflation, sustainability',
+        content: `
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">1. Introduction: "Beyond Environmental Protection to a Cost Issue"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">In the past, sustainability was a 'corporate social responsibility' domain. But now carbon emissions have become actual <strong>'costs'</strong> companies must pay.</p>
+                <p class="text-slate-700 leading-relaxed">Let's examine how new economic rules like carbon trading and carbon border taxes change asset values.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">2. Internalizing Externalities</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Previously, companies didn't pay for the externality of environmental pollution as costs.</p>
+                <div class="bg-green-50 rounded-xl p-6">
+                    <p class="text-slate-700">But with carbon taxes, emissions become liabilities and emission-reducing technologies become assets. This is a macroeconomic variable that can directly impact corporate operating margins.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">3. Capital Movement: ESG and Green Finance</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Investment capital also avoids companies with low carbon efficiency and flows toward companies with green technology.</p>
+                <div class="bg-blue-50 rounded-xl p-6">
+                    <p class="text-slate-700">As differences emerge in capital procurement costs (interest rates), green capabilities have become economic competitiveness determining corporate survival.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">4. Conclusion: Capital Redistribution to Green Economy</h2>
+                <p class="text-slate-700 leading-relaxed">Decarbonization trends are changing the cost structure of all industries. Those who proactively control carbon costs will seize future market leadership.</p>
+            </section>
+        `
+    },
+    {
+        id: '46',
+        title: 'Platform Economy and Network Effects',
+        subtitle: 'The Principle Where Market Share Becomes Value',
+        description: 'Value grows exponentially as users increase! Analyzing network effects and winner-takes-all structures of platform companies.',
+        readTime: 5,
+        keywords: 'platform economy, network effects, winner takes all, data assets, lock-in effect, ecosystem',
+        content: `
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">1. Introduction: "Value Grows Exponentially as Users Increase"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Traditional manufacturing companies see costs increase steadily with each additional product made.</p>
+                <p class="text-slate-700 leading-relaxed">But platform companies enjoy <strong>Network Effects</strong>—value explodes without cost increases once users cross a critical threshold.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">2. Winner-Takes-All and First-Mover Advantage</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">In platform markets, first-place companies tend to dominate entire markets.</p>
+                <div class="bg-blue-50 rounded-xl p-6">
+                    <p class="text-slate-700">Because users prefer platforms where many people already gather. Due to this characteristic, platform companies stake their survival on securing market share (Lock-in) while accepting early losses.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">3. Data Assetization and Business Expansion</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">User data accumulated on platforms becomes powerful capital itself.</p>
+                <div class="bg-green-50 rounded-xl p-6">
+                    <p class="text-slate-700">Based on this data, they expand infinitely into adjacent markets like finance, shopping, and advertising, building massive ecosystems. Markets now focus on 'ecosystem size' and 'data quality' rather than platform profit figures.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">4. Conclusion: The Invisible Territory War</h2>
+                <p class="text-slate-700 leading-relaxed">In modern markets, platforms are like invisible territories. Platform companies that build moats through network effects dominating capital market tops is an inevitable result of the information age.</p>
+            </section>
+        `
+    },
+    {
+        id: '47',
+        title: 'Digital Assets and Blockchain',
+        subtitle: 'Possibilities of a Decentralized Trading System',
+        description: 'Can trust be replaced by technology? Analyzing how blockchain technology created the new concept of digital assets.',
+        readTime: 5,
+        keywords: 'blockchain, digital assets, distributed ledger, tokenization, cryptocurrency, DLT',
+        content: `
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">1. Introduction: "Can Trust Be Replaced by Technology?"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Traditional economic transactions always required 'trusted third parties' like banks or notaries.</p>
+                <p class="text-slate-700 leading-relaxed">But blockchain technology guarantees data integrity without central authorities, creating the new concept of digital assets.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">2. Economic Utility of Distributed Ledger Technology (DLT)</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Blockchain is a system where everyone shares transaction records.</p>
+                <div class="bg-blue-50 rounded-xl p-6">
+                    <p class="text-slate-700">This makes hacking virtually impossible and dramatically reduces fees and waiting times previously paid to intermediaries. Markets expect faster and more transparent capital movement through this.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">3. Asset Tokenization</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Methods for dividing and trading real assets like real estate, art, and gold as digital tokens are emerging.</p>
+                <div class="bg-green-50 rounded-xl p-6">
+                    <p class="text-slate-700">This increases accessibility to high-value assets and supplies liquidity, expanding the base of capital markets.</p>
+                </div>
+            </section>
+        `
+    },
+    {
+        id: '48',
+        title: 'Fintech and Payment System Innovation',
+        subtitle: 'Changes from Reducing Transaction Costs',
+        description: 'A cashless society where payments become data! Analyzing how the fintech revolution reduces economic friction and changes consumption patterns.',
+        readTime: 5,
+        keywords: 'fintech, payment innovation, simple payments, financial data, digital finance, mobile payments',
+        content: `
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">1. Introduction: "A Cashless Society Where Payments Become Data"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">The Fintech revolution, where all payments happen with a smartphone, goes beyond convenience to reduce economic 'friction.'</p>
+                <p class="text-slate-700 leading-relaxed">Let's analyze how payment system evolution affects consumption patterns and financial markets.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">2. Removing Payment Friction and Stimulating Consumption</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">As payment processes simplify, consumers' psychological resistance decreases.</p>
+                <div class="bg-blue-50 rounded-xl p-6">
+                    <p class="text-slate-700">'One-click payments' and 'simple transfers' increase the Velocity of Money in markets, serving as catalysts boosting economic vitality.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">3. The Value of Financial Data</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Payments aren't just money movement—they generate data containing user preferences.</p>
+                <div class="bg-green-50 rounded-xl p-6">
+                    <p class="text-slate-700">Fintech companies analyze this data to propose sophisticated financial products, pioneering niche markets that traditional finance couldn't reach.</p>
+                </div>
+            </section>
+        `
+    },
+    {
+        id: '49',
+        title: 'Automation and the Robot Economy',
+        subtitle: 'How Capital Replaces Labor',
+        description: 'Productivity calculated by electricity bills, not labor costs! Examining how robots and automation technology reshape corporate profit structures and employment dynamics.',
+        readTime: 5,
+        keywords: 'automation, robot economy, labor replacement, fixed costs, economies of scale, productivity',
+        content: `
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">1. Introduction: "Productivity Calculated by Electricity Bills, Not Labor Costs"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">As robots and automation technology advance, the nature of labor in production is changing.</p>
+                <p class="text-slate-700 leading-relaxed">Let's examine how corporate profit structures and market employment dynamics are reshaped when machines replace human work.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">2. Variable Costs Becoming Fixed Costs</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Labor costs are largely variable costs changing with employee count, but robot adoption creates massive fixed costs from initial equipment investment.</p>
+                <div class="bg-blue-50 rounded-xl p-6">
+                    <p class="text-slate-700">Once established, maintenance costs are very low, so profitability explodes for companies achieving economies of scale.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">3. Labor Sophistication and Polarization</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Robots handle simple repetitive tasks while humans focus on robot management or creative design.</p>
+                <div class="bg-yellow-50 rounded-xl p-6">
+                    <p class="text-slate-700">Markets allocate more wealth to capital-intensive entities with high technology, maximizing production efficiency.</p>
+                </div>
+            </section>
+        `
+    },
+    {
+        id: '50',
+        title: 'Commercialization of Space Industry',
+        subtitle: 'New Territories Pioneered by Private Capital',
+        description: 'Finding new growth engines beyond Earth! Analyzing the potential of the Space Economy from LEO satellite communications to space resource mining.',
+        readTime: 5,
+        keywords: 'space industry, satellite communications, space economy, asteroid mining, commercial space, space economy',
+        content: `
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">1. Introduction: "Finding New Growth Engines Beyond Earth"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Space development was once a domain of national pride, but now massive private capital generates profits as a business.</p>
+                <p class="text-slate-700 leading-relaxed">Let's analyze the potential of the 'Space Economy' from low-earth orbit satellite communications to space resource mining.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">2. Satellite Data and Hyperconnected Society</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Networks created by thousands of small satellites bind the entire globe into a communication network with no dead zones.</p>
+                <div class="bg-blue-50 rounded-xl p-6">
+                    <p class="text-slate-700">This becomes infrastructure capital raising efficiency across all industries—autonomous driving, logistics, and agriculture.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">3. Infinite Resource Warehouse</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Asteroid mining is considered a long-term alternative to solve rare mineral supply shortages.</p>
+                <div class="bg-purple-50 rounded-xl p-6">
+                    <p class="text-slate-700">Capital movements seeking to escape Earth's limited resource framework are physically expanding the territory of human economy.</p>
+                </div>
+            </section>
+        `
+    },
+    {
+        id: '51',
+        title: 'Series Finale: Building Your Economic Moat',
+        subtitle: 'Surviving in the Changing Economic Landscape',
+        description: 'Concluding our 51-part journey! From supply and demand basics to the future of space industry, summarizing how to build your own moat in the changing economic landscape.',
+        readTime: 5,
+        keywords: 'economic moat, economic series, capital market principles, financial freedom, investment strategy, future economy',
+        content: `
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">1. Concluding Our 51-Part Journey</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">We've traveled together from supply and demand basics to the future of space industry.</p>
+                <p class="text-slate-700 leading-relaxed">Markets constantly change, and yesterday's answers become today's errors. But the underlying principles of <strong>'capital efficiency'</strong> and <strong>'human desire'</strong> remain unchanged.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">2. Reading Essence in the Flood of Information</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">In the modern economy, the most important asset isn't 'information' but 'perspective for interpreting information.'</p>
+                <div class="bg-blue-50 rounded-xl p-6">
+                    <p class="text-slate-700">The eye to capture micro opportunities within macro trends can only be cultivated through constant learning and market attention.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">3. What Is Your Economic Moat?</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">Moats aren't just for companies.</p>
+                <div class="bg-green-50 rounded-xl p-6">
+                    <p class="text-slate-700">Only individuals who use changing technology (AI, robots) as tools, understand market rhythms (business cycles), and build their own expertise can survive in the highly volatile future economy.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">4. Closing Words</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">We hope this Capital Market Principles series has broadened your economic knowledge and become a foundation for successful asset management.</p>
+                <p class="text-slate-700 leading-relaxed">Financial freedom starts from 'understanding,' not numbers. We wish you abundant fruits of growth in your journey ahead.</p>
+            </section>
+        `
     }
 ];
 
