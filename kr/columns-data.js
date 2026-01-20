@@ -1403,6 +1403,740 @@ const COLUMNS_DATA = [
                 <p class="text-slate-700 leading-relaxed">거시적 정책은 임차인을 보호하는 법안을 더 촘촘히 설계해야 하고, 미시적 주체인 우리는 "설마 내 집이?"라는 안일함에서 벗어나 철저한 데이터와 서류로 무장해야 합니다. 경제는 아는 만큼 보이고, 아는 만큼 지킬 수 있습니다. 부동산이라는 거대한 자본주의의 장에서 정보의 약자가 되지 않도록 노력하는 것, 그것이 역전세와 사기의 공포로부터 내 소중한 보금자리를 지키는 가장 확실한 방법입니다.</p>
             </section>
         `
+    },
+    {
+        id: '18',
+        title: '이성적인 척하는 당신의 뇌',
+        subtitle: '행동경제학이 말하는 소비의 심리학',
+        description: '우리는 정말 합리적인 경제 주체일까요? 행동경제학이 밝혀낸 비합리적 소비 심리와 현명한 소비를 위한 방어 전략을 알아봅니다.',
+        readTime: 5,
+        keywords: '행동경제학, 앵커링, 손실회피, 넛지, 소비심리, 인지편향',
+        content: `
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">1. 서론: "우리는 정말 합리적인 경제 주체일까?"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">기존의 경제학은 인간을 '호모 이코노미쿠스(Homo Economicus)', 즉 언제나 냉철하고 합리적으로 계산하여 이익을 극대화하는 존재로 가정했습니다. 하지만 현실의 우리는 어떤가요?</p>
+                <p class="text-slate-700 leading-relaxed mb-4">배가 불러도 '한정판 디저트'라는 말에 지갑을 열고, 주가가 반토막 난 주식은 차마 팔지 못해 더 큰 손실을 봅니다. 이처럼 인간의 비합리적인 선택 패턴을 연구하는 행동경제학은 <strong>미시경제(Microeconomics)</strong>의 소비자 심리와 <strong>거시경제(Macroeconomics)</strong>의 정책 설계를 잇는 새로운 열쇠입니다.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">2. 미시경제적 관점: "뇌가 파놓은 함정, 앵커링과 손실 회피"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">미시경제학은 개인의 선택을 들여다봅니다. 행동경제학은 우리 뇌가 지름길을 찾으려다 발생하는 '인지적 오류'에 주목합니다.</p>
+
+                <div class="bg-blue-50 rounded-xl p-6 mb-4">
+                    <h3 class="font-semibold text-blue-800 mb-2">실사례 1: 원래 10만 원인데 오늘만 5만 원? (앵커링 효과)</h3>
+                    <p class="text-slate-700">쇼핑몰에서 '권장소비자가격 10만 원'을 줄 긋고 '판매가 5만 원'이라고 써놓은 것을 본 적이 있을 것입니다. 우리 뇌는 처음에 본 숫자 10만 원에 닻(Anchor)을 내립니다. 실제 가치가 3만 원일지라도, 10만 원보다 싸다는 이유만으로 '이득'이라고 판단하는 미시적 착각에 빠집니다.</p>
+                </div>
+
+                <div class="bg-red-50 rounded-xl p-6 mb-4">
+                    <h3 class="font-semibold text-red-800 mb-2">실사례 2: 이익의 기쁨보다 손실의 아픔이 두 배 (손실 회피 편향)</h3>
+                    <p class="text-slate-700">우리는 1만 원을 길에서 주웠을 때의 기쁨보다, 1만 원을 잃어버렸을 때의 고통을 훨씬 크게 느낍니다. 이 때문에 미시적 투자자들은 손실 중인 종목을 팔지 못하고(손절 실패) 원금이 회복되기만을 기다리는 비합리적인 선택을 반복하게 됩니다.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">3. 거시경제적 관점: "팔을 비트는 대신 슬쩍 밀어주는 '넛지' 정책"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">거시경제학적 시각에서 국가는 대중의 비합리성을 교정하거나, 이를 역으로 이용하여 공공의 이익을 실현하려 합니다. 이를 '넛지(Nudge)'라고 부릅니다.</p>
+
+                <div class="space-y-4">
+                    <div class="bg-green-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-green-800 mb-2">실사례 1: 장기 기증 서약과 기본값(Default)의 위력</h3>
+                        <p class="text-slate-700">거시적 복지를 위해 장기 기증률을 높이려는 국가가 있다고 합시다. "기증하시겠습니까?"라고 묻는 대신, "거부하지 않으면 기증에 동의한 것으로 간주합니다"라고 기본값을 설정하는 것만으로 기증률은 폭발적으로 상승합니다.</p>
+                    </div>
+
+                    <div class="bg-green-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-green-800 mb-2">실사례 2: 퇴직연금 자동 가입 시스템</h3>
+                        <p class="text-slate-700">노후 준비를 미루는 개인의 미시적 본능을 극복하기 위해, 국가는 퇴직연금에 자동으로 가입되게 설계함으로써 국가 전체의 노인 빈곤 문제를 예방하려 합니다.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">4. 거시와 미시의 연결: "마케팅의 기술과 소비자 보호"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">기업의 미시적 마케팅과 국가의 거시적 보호는 끊임없이 충돌하고 타협합니다.</p>
+
+                <div class="bg-yellow-50 rounded-xl p-6">
+                    <h3 class="font-semibold text-yellow-800 mb-2">사례: 다크 패턴(Dark Patterns)과 규제</h3>
+                    <p class="text-slate-700">기업은 미시적으로 사용자의 실수나 심리를 교묘히 이용해 구독 해지를 어렵게 만들거나 원치 않는 결제를 유도합니다. 이것이 사회 전반의 불신으로 번지면(거시적 비효율), 국가는 이를 금지하는 법안을 마련하여 소비자의 미시적 선택권을 보호합니다.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">5. 일반인을 위한 '심리 경제' 방어 전략</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">내 뇌의 본능을 이해하면, 불필요한 지출을 줄이고 더 나은 자산 관리가 가능합니다.</p>
+
+                <div class="space-y-4">
+                    <div class="bg-slate-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-slate-800 mb-2">'공짜'라는 단어의 독성을 경계하라</h3>
+                        <p class="text-slate-700">'공짜 사은품'이나 '무료 배송'을 위해 필요 없는 물건을 더 사는 것은 미시적 손실입니다. 한계 효용을 생각하며 내가 정말 필요로 하는 가치에만 집중하십시오.</p>
+                    </div>
+
+                    <div class="bg-slate-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-slate-800 mb-2">결정의 순간에 '제3자'가 되어라</h3>
+                        <p class="text-slate-700">손실 중인 주식을 볼 때, "만약 내가 지금 이 주식을 들고 있지 않다면, 오늘 이 가격에 새로 사겠는가?"라고 물어보십시오. 만약 답이 '아니오'라면, 당신은 손실 회피 편향에 갇혀 있는 것입니다.</p>
+                    </div>
+
+                    <div class="bg-slate-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-slate-800 mb-2">환경을 설계하라(셀프 넛지)</h3>
+                        <p class="text-slate-700">저축을 결심했다면 의지에 맡기지 말고 '자동 이체'를 설정하십시오. 소비를 줄이고 싶다면 카드 결제 알림을 크게 설정하여 지출할 때마다 고통(손실)을 시각화하는 미시적 장치를 만드십시오.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">6. 결론: 본능을 이기는 데이터의 지혜</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">행동경제학은 우리가 얼마나 감정적이고 나약한 존재인지를 보여주지만, 동시에 이를 극복할 방법도 알려줍니다.</p>
+                <p class="text-slate-700 leading-relaxed">거시 경제 정책이 우리의 심리를 이용해 세상을 더 나은 방향으로 이끌듯, 우리 역시 스스로의 심리적 취약점을 파악하고 제어해야 합니다. "남들이 하니까", "지금 안 사면 큰일 날 것 같아서"라는 본능의 외침에 잠시 멈춤 버튼을 누르십시오. 차가운 데이터와 냉정한 기회비용을 따져보는 습관이 모일 때, 비로소 당신은 비합리적인 대중의 흐름에서 벗어나 진정한 경제적 주체로 거듭날 수 있을 것입니다.</p>
+            </section>
+        `
+    },
+    {
+        id: '19',
+        title: '복리의 마법과 72의 법칙',
+        subtitle: '시간이 부를 창조하는 공식',
+        description: '아인슈타인이 세계 8대 불가사의라 칭한 복리의 힘! 72의 법칙으로 내 자산이 두 배가 되는 시간을 계산해봅니다.',
+        readTime: 5,
+        keywords: '복리, 72의법칙, 투자, 자산증식, 장기투자, 재테크',
+        content: `
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">1. 서론: "세상에서 가장 강력한 힘은 무엇인가?"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">천재 물리학자 알베르트 아인슈타인은 복리를 두고 "세계 8대 불가사의"이자 "원자폭탄보다 강력한 힘"이라고 칭송했습니다.</p>
+                <p class="text-slate-700 leading-relaxed mb-4">하지만 우리 주변을 둘러보면 복리의 무서움을 체감하는 사람보다, 당장의 10%, 20% 수익에 일희일비하는 사람이 훨씬 많습니다. 복리는 단순히 이자에 이자가 붙는 산술적인 계산이 아닙니다. 그것은 <strong>미시경제(Microeconomics)</strong>적 인내심이 <strong>거시경제(Macroeconomics)</strong>적 성장의 파도를 만났을 때 일어나는 기적입니다.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">2. 미시경제적 관점: "이자가 이자를 낳는 눈덩이 효과"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">미시경제학은 개인이 자산을 운용할 때 '시간'이라는 변수가 수익률에 미치는 영향을 연구합니다.</p>
+
+                <div class="bg-blue-50 rounded-xl p-6 mb-4">
+                    <h3 class="font-semibold text-blue-800 mb-2">실사례 1: 단리와 복리의 갈림길</h3>
+                    <p class="text-slate-700">매달 100만 원씩 10%의 수익을 내는 두 사람이 있다고 가정해 봅시다. 한 명은 매달 번 10만 원을 써버리고(단리), 다른 한 명은 그 10만 원을 다시 투자금에 합칩니다(복리). 처음 몇 년은 차이가 미미해 보이지만, 10년, 20년이 지나면 결과는 천양지차입니다. 복리 투자자의 자산은 직선이 아니라 'J커브'를 그리며 수직 상승합니다.</p>
+                </div>
+
+                <div class="bg-green-50 rounded-xl p-6 mb-4">
+                    <h3 class="font-semibold text-green-800 mb-2">실사례 2: 72의 법칙으로 계산하는 미래</h3>
+                    <p class="text-slate-700">내 돈이 두 배가 되는 데 걸리는 시간은 <strong>'72 ÷ 연수익률'</strong>로 계산할 수 있습니다. 예를 들어 6% 수익률이라면 12년(72/6)이 걸리고, 12%라면 6년이 걸립니다. 이 공식을 알면 미시적 투자자가 장기 계획을 세울 때 매우 구체적인 목표를 가질 수 있습니다.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">3. 거시경제적 관점: "성장률의 차이가 국가의 운명을 바꾼다"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">거시경제학적 시각에서 복리는 국가의 경제 성장과 인플레이션을 설명하는 핵심 도구입니다.</p>
+
+                <div class="bg-yellow-50 rounded-xl p-6 mb-4">
+                    <h3 class="font-semibold text-yellow-800 mb-2">실사례: 연 2% 성장의 무서움</h3>
+                    <p class="text-slate-700">국가의 경제성장률이 매년 2%와 3%인 두 나라가 있다고 합시다. 단 1% 차이지만, 이것이 50년 동안 복리로 누적되면 두 나라의 국력 차이는 극복할 수 없을 만큼 벌어집니다. 거시 경제 정책가들이 소수점 단위의 성장률에 집착하는 이유는, 장기적으로 복리 효과가 국가 전체의 부를 결정하기 때문입니다.</p>
+                </div>
+
+                <div class="bg-red-50 rounded-xl p-6 mb-4">
+                    <h3 class="font-semibold text-red-800 mb-2">인플레이션의 역복리</h3>
+                    <p class="text-slate-700">복리는 내 편일 때는 마법이지만, 적일 때는 재앙입니다. 거시적 물가 상승(인플레이션)은 내 돈의 가치를 복리로 갉아먹습니다. 3%의 물가 상승이 24년간 지속되면 내 현금의 구매력은 정확히 절반(72/3=24)이 됩니다.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">4. 거시와 미시의 연결: "연금 시스템과 장기 투자의 시너지"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">국가의 거시적 시스템(연금)과 개인의 미시적 준비(투자)가 만나는 지점이 바로 복리입니다.</p>
+
+                <div class="bg-slate-50 rounded-xl p-6">
+                    <h3 class="font-semibold text-slate-800 mb-2">사례: 개인연금과 퇴직연금의 위력</h3>
+                    <p class="text-slate-700">국가는 국민이 노후에 빈곤해지지 않도록 거시적으로 연금 제도를 장려합니다. 개인이 20대부터 소액이라도 연금 저축을 시작하면, 복리 효과 덕분에 은퇴 시점에는 미시적 원금의 몇 배에 달하는 자산을 가질 수 있습니다. 거시적 제도 설계가 미시적 개인의 복리 혜택을 극대화하여 사회 전체의 노후 안정을 꾀하는 구조입니다.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">5. 일반인을 위한 '복리의 파도' 타기 전략</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">복리의 마법은 공짜로 주어지지 않습니다. 이를 누리기 위한 세 가지 미시적 전술이 필요합니다.</p>
+
+                <div class="space-y-4">
+                    <div class="bg-slate-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-slate-800 mb-2">가장 강력한 자본은 '시간'이다</h3>
+                        <p class="text-slate-700">복리 공식에서 가장 중요한 변수는 수익률이 아니라 '기간(t)'입니다. 1,000만 원으로 20% 수익을 내는 것보다, 100만 원으로 30년을 버티는 것이 훨씬 큰 부를 만듭니다. 투자의 미시적 기술보다 '일찍 시작하는 것'이 훨씬 중요합니다.</p>
+                    </div>
+
+                    <div class="bg-slate-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-slate-800 mb-2">수익을 인출하지 마라</h3>
+                        <p class="text-slate-700">복리의 엔진은 재투자입니다. 배당금이나 이자를 소비로 써버리는 순간, 복리의 마법 지팡이는 꺾입니다. 미시적으로 자산이 스스로 자가 증식할 수 있는 '임계점'에 도달할 때까지 소득을 재투입하는 인내가 필요합니다.</p>
+                    </div>
+
+                    <div class="bg-slate-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-slate-800 mb-2">마이너스 복리를 경계하라</h3>
+                        <p class="text-slate-700">50% 손실이 나면 원금을 회복하기 위해 100%의 수익이 필요합니다. 큰 손실은 복리의 흐름을 끊어버립니다. 거시적 리스크 관리를 통해 '잃지 않는 투자'를 유지하는 것이 미시적 복리 효과를 지속시키는 비결입니다.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">6. 결론: 시간이 당신을 위해 일하게 하라</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">우리는 대개 빨리 부자가 되고 싶어 조급해합니다. 하지만 진정한 부는 조급함이 아니라 느긋한 복리의 흐름 속에서 태어납니다.</p>
+                <p class="text-slate-700 leading-relaxed">거시 경제의 파동은 변덕스럽지만, 복리라는 수학적 진리는 변하지 않습니다. 오늘 여러분이 심은 작은 씨앗이 당장 눈에 띄지 않는다고 실망하지 마십시오. 72의 법칙을 믿고 묵묵히 시간을 견뎌낸다면, 그 씨앗은 반드시 거대한 나무가 되어 당신에게 안락한 그늘을 제공할 것입니다.</p>
+            </section>
+        `
+    },
+    {
+        id: '20',
+        title: '경제적 해자',
+        subtitle: '성을 지키는 깊은 도랑이 부의 격차를 만든다',
+        description: '워런 버핏이 사랑하는 기업의 조건! 무너지지 않는 기업 뒤에 있는 경제적 해자의 비밀을 파헤칩니다.',
+        readTime: 5,
+        keywords: '경제적해자, 워런버핏, 투자, 브랜드가치, 가격결정력, 경쟁우위',
+        content: `
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">1. 서론: "무너지지 않는 기업 뒤에는 '해자'가 있다"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">중세 시대 성곽 주위에는 적의 침입을 막기 위해 깊게 판 구덩이인 '해자(Moat)'가 있었습니다. 투자의 귀재 워런 버핏은 이 개념을 비즈니스 세계에 가져와 <strong>경제적 해자</strong>라는 용어를 탄생시켰습니다.</p>
+                <p class="text-slate-700 leading-relaxed mb-4">어떤 기업은 치열한 경쟁 속에서도 매년 기록적인 이익을 내는 반면, 어떤 기업은 반짝 흥행 후 사라집니다. 이는 단순히 운의 문제가 아니라, 그 기업이 가진 독점적 경쟁 우위의 깊이 차이 때문입니다.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">2. 미시경제적 관점: "가격 결정력과 브랜드의 힘"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">미시경제학에서 완벽한 경쟁 시장은 이윤이 0이 되는 지점을 향해 갑니다. 하지만 '해자'를 가진 기업은 이 법칙을 거스릅니다.</p>
+
+                <div class="bg-blue-50 rounded-xl p-6 mb-4">
+                    <h3 class="font-semibold text-blue-800 mb-2">실사례 1: 브랜드라는 이름의 강력한 해자</h3>
+                    <p class="text-slate-700">우리는 편의점에서 이름 모를 콜라보다 비싼 코카콜라를 선택합니다. 애플의 아이폰은 성능 대비 가격이 비싸다는 비판을 받아도 충성 고객들은 기꺼이 지갑을 엽니다. 미시적 관점에서 이는 '브랜드 해자'입니다. 강력한 브랜드는 소비자에게 <strong>가격 결정력(Pricing Power)</strong>을 갖게 하며, 원가가 올라도 이를 소비자에게 전가할 수 있는 무기가 됩니다.</p>
+                </div>
+
+                <div class="bg-green-50 rounded-xl p-6 mb-4">
+                    <h3 class="font-semibold text-green-800 mb-2">실사례 2: 전환 비용(Switching Cost)의 늪</h3>
+                    <p class="text-slate-700">마이크로소프트의 윈도우나 엑셀을 쓰던 기업이 다른 소프트웨어로 바꾸려면 엄청난 비용과 교육 시간이 듭니다. 한 번 들어오면 나가기 힘들게 만드는 이 '전환 비용'은 경쟁자가 침범할 수 없는 깊은 해자가 됩니다.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">3. 거시경제적 관점: "국가 산업의 해자와 글로벌 패권"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">거시경제학적 시각에서 특정 국가가 독점적 기술이나 자원(해자)을 보유하는 것은 그 국가의 국력과 직결됩니다.</p>
+
+                <div class="bg-yellow-50 rounded-xl p-6 mb-4">
+                    <h3 class="font-semibold text-yellow-800 mb-2">실사례: 반도체 공정과 독점의 힘</h3>
+                    <p class="text-slate-700">특정 회사가 전 세계에서 유일하게 최첨단 장비를 생산한다면, 이 회사가 장비를 공급하지 않으면 전 세계 산업이 멈춥니다. 거시적 관점에서 이런 기업을 보유한 국가는 글로벌 공급망에서 막강한 영향력을 행사합니다. 국가 단위의 '경제적 해자'가 외교적 발언권과 경제적 안보를 지탱하는 셈입니다.</p>
+                </div>
+
+                <p class="text-slate-700 leading-relaxed"><strong>무역 장벽과 해자 보호:</strong> 국가는 거시적 차원에서 자국 기업의 해자를 보호하기 위해 특허법을 강화하거나 보조금을 지급합니다. 이는 자국의 미시적 기업들이 글로벌 시장에서 경쟁 우위를 지속하게 하려는 거시적 포석입니다.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">4. 거시와 미시의 연결: "인플레이션 방어막으로서의 해자"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">거시적 경제 위기인 인플레이션이 닥쳤을 때, 해자를 가진 기업은 미시적으로 자산을 보호하는 방패가 됩니다.</p>
+
+                <div class="bg-slate-50 rounded-xl p-6">
+                    <h3 class="font-semibold text-slate-800 mb-2">사례: 물가 상승을 이기는 독점력</h3>
+                    <p class="text-slate-700">물가가 오르면(거시), 대부분의 기업은 비용 부담으로 실적이 악화됩니다. 하지만 경제적 해자가 깊은 기업은 가격을 올려도 수요가 줄지 않으므로 실적을 유지하거나 오히려 높입니다. 거시적 경제 풍파 속에서도 내 주식 계좌(미시)를 지키고 싶다면, 해자를 가진 기업을 포트폴리오에 담아야 하는 이유입니다.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">5. 일반인을 위한 '해자' 판별 및 투자 전략</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">개인 투자자가 워런 버핏처럼 성공하려면 다음과 같은 미시적 분석 능력을 갖춰야 합니다.</p>
+
+                <div class="space-y-4">
+                    <div class="bg-slate-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-slate-800 mb-2">"내일 이 회사가 사라진다면?"이라고 자문하라</h3>
+                        <p class="text-slate-700">만약 이 회사가 사라졌을 때 소비자들이 큰 불편을 느끼고 대안을 찾기 어렵다면, 그 회사는 깊은 해자를 가진 것입니다. 미시적으로 대체 불가능한 가치를 제공하는지 확인하십시오.</p>
+                    </div>
+
+                    <div class="bg-slate-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-slate-800 mb-2">영업이익률의 지속성을 보라</h3>
+                        <p class="text-slate-700">1~2년의 고성장은 운일 수 있지만, 10년 이상 높은 영업이익률을 유지한다면 반드시 숨겨진 해자가 존재합니다. 거시적 불황기에도 이익률이 훼손되지 않는 기업이 진짜배기입니다.</p>
+                    </div>
+
+                    <div class="bg-slate-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-slate-800 mb-2">자신만의 '인적 해자'를 구축하라</h3>
+                        <p class="text-slate-700">기업에만 해자가 있는 것이 아닙니다. 노동 시장에서 당신만이 제공할 수 있는 특수한 기술이나 평판(미시적 해자)이 있다면, 당신은 거시적 고용 불안 속에서도 높은 몸값을 유지하는 '경제적 승자'가 될 수 있습니다.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">6. 결론: 성벽을 쌓기보다 해자를 깊게 파라</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">자본주의는 끊임없이 남의 성을 공격하고 빼앗는 전쟁터와 같습니다. 단순히 성벽(규모)만 높이 쌓는 기업은 결국 더 큰 자본에 무너집니다. 하지만 보이지 않는 가치인 '해자'를 깊게 판 기업은 시간이 흐를수록 더 견고해집니다.</p>
+                <p class="text-slate-700 leading-relaxed">거시적 경제 지표는 매일 변하지만, 기업이 가진 본질적인 경쟁 우위는 쉽게 변하지 않습니다. 깊은 해자를 가진 성을 찾고, 그곳에 당신의 자본을 머물게 하십시오. 또한 스스로에게도 깊은 해자를 파십시오. 남들이 흉내 낼 수 없는 당신만의 가치가, 결국 이 거친 경제의 바다에서 당신을 지켜주는 가장 안전한 성이 될 것입니다.</p>
+            </section>
+        `
+    },
+    {
+        id: '21',
+        title: '아까워서 못 버리는 마음의 비용',
+        subtitle: '매몰비용과 기회비용',
+        description: '본전 생각 때문에 더 큰 손해를 보고 있지는 않나요? 매몰비용의 함정에서 벗어나 합리적 선택을 하는 방법을 알아봅니다.',
+        readTime: 5,
+        keywords: '매몰비용, 기회비용, 합리적선택, 콩코드오류, 손절, 투자심리',
+        content: `
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">1. 서론: "본전 생각 때문에 더 큰 손해를 보고 있지는 않나요?"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">우리는 매 순간 선택하며 삽니다. 점심 메뉴를 고르는 사소한 일부터, 수조 원이 투입되는 국가 사업까지 모든 선택 뒤에는 '비용'이 따릅니다.</p>
+                <p class="text-slate-700 leading-relaxed mb-4">하지만 많은 이들이 이미 지불해서 되돌릴 수 없는 돈에 집착하느라, 정작 미래에 얻을 수 있는 더 큰 가치를 놓치곤 합니다. 이것이 바로 <strong>매몰비용의 함정</strong>입니다. 개인이 느끼는 '본전 심리'라는 <strong>미시경제(Microeconomics)</strong>적 오류가 어떻게 <strong>거시경제(Macroeconomics)</strong>적 자원 배분의 비효율로 이어지는지 그 메커니즘을 살펴보겠습니다.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">2. 미시경제적 관점: "합리적 선택은 '앞으로'의 가치만 따진다"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">미시경제학에서 가장 중요한 원칙 중 하나는 "의사결정을 할 때 매몰비용은 무시하라"는 것입니다. 오직 내가 이 선택을 함으로써 포기해야 하는 다른 가치, 즉 <strong>기회비용</strong>만을 고려해야 합니다.</p>
+
+                <div class="bg-blue-50 rounded-xl p-6 mb-4">
+                    <h3 class="font-semibold text-blue-800 mb-2">실사례 1: 재미없는 영화와 비싼 티켓</h3>
+                    <p class="text-slate-700">15,000원을 내고 영화관에 들어갔는데 영화가 너무 재미없습니다. 이때 "돈이 아까우니 끝까지 봐야지"라고 생각한다면 매몰비용의 함정에 빠진 것입니다. 영화 티켓값은 이미 지불되어 돌아오지 않습니다. 남은 2시간 동안 밖으로 나가 맛있는 것을 먹거나 휴식을 취할 때 얻는 즐거움(기회비용)이 영화를 보며 겪는 고통보다 크다면, 즉시 나오는 것이 미시적으로 합리적인 선택입니다.</p>
+                </div>
+
+                <div class="bg-yellow-50 rounded-xl p-6 mb-4">
+                    <h3 class="font-semibold text-yellow-800 mb-2">실사례 2: 뷔페에서의 과식</h3>
+                    <p class="text-slate-700">"본전을 뽑아야 한다"며 배가 터질 정도로 먹는 것은, 이후 겪을 소화불량과 건강 손상이라는 비용을 계산에 넣지 않은 비합리적 행동입니다.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">3. 거시경제적 관점: "국가 사업의 딜레마, 콩코드 오류"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">거시경제학적 시각에서 매몰비용의 함정은 국가 전체의 자원 낭비를 초래합니다. 이를 대표하는 용어가 바로 '콩코드 오류(Concorde Fallacy)'입니다.</p>
+
+                <div class="bg-red-50 rounded-xl p-6 mb-4">
+                    <h3 class="font-semibold text-red-800 mb-2">실사례: 초음속 여객기 콩코드의 비극</h3>
+                    <p class="text-slate-700">영국과 프랑스 정부는 초음속 여객기 콩코드를 개발하면서 천문학적인 자금을 투입했습니다. 개발 도중 이미 사업성이 없다는 것이 밝혀졌지만, 그동안 쏟아부은 돈이 아까워 사업을 강행했습니다. 결국 거시적 관점에서 국가 재정은 파탄에 이르렀고 사업은 실패로 끝났습니다.</p>
+                </div>
+
+                <p class="text-slate-700 leading-relaxed"><strong>예비타당성 조사와 국책 사업:</strong> 국가는 거시적 자원 배분의 효율성을 높이기 위해 대규모 사업 시작 전 '예비타당성 조사'를 실시합니다. 이미 투입된 돈이 있더라도, 미래의 편익이 비용보다 적다면 과감히 사업을 접는 결단이 국가 전체의 경제적 건강을 지키는 길이기 때문입니다.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">4. 거시와 미시의 연결: "구조조정과 사회적 기회비용"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">거시적인 산업 구조조정은 미시적인 개인의 고통을 수반하지만, 국가 전체의 기회비용을 낮추는 과정입니다.</p>
+
+                <div class="bg-slate-50 rounded-xl p-6">
+                    <h3 class="font-semibold text-slate-800 mb-2">사례: 사양 산업에 대한 지원 중단</h3>
+                    <p class="text-slate-700">거시적으로 경쟁력을 잃은 산업에 계속 보조금을 주는 것은 매몰비용에 집착하는 일일 수 있습니다. 그 자금을 미래 신산업(반도체, AI 등)에 투자했다면 얻었을 이익(기회비용)이 더 크기 때문입니다. 다만, 이 과정에서 미시적으로 일자리를 잃는 노동자들을 위한 재교육 시스템을 마련하는 것이 국가의 거시적 조정 역할입니다.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">5. 일반인을 위한 '합리적 포기' 전략</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">인생의 부를 쌓기 위해서는 '본전'이라는 단어를 머릿속에서 지워야 합니다.</p>
+
+                <div class="space-y-4">
+                    <div class="bg-slate-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-slate-800 mb-2">"지금부터 시작한다면?"이라고 질문하라</h3>
+                        <p class="text-slate-700">주식이든 사업이든 연애든, 과거에 내가 쏟은 시간과 돈을 잊고 "내가 지금 아무것도 없는 상태에서 이 선택을 새로 시작할 것인가?"를 자문해 보십시오. 답이 '아니오'라면 지금 당장 그만두는 것이 미시적 이득입니다.</p>
+                    </div>
+
+                    <div class="bg-slate-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-slate-800 mb-2">기회비용을 가시화하라</h3>
+                        <p class="text-slate-700">어떤 일을 선택할 때 얻는 것뿐만 아니라, 그것 때문에 '못 하게 되는 것'의 목록을 적어보십시오. 돈뿐만 아니라 '시간' 역시 가장 비싼 기회비용임을 깨닫게 될 것입니다.</p>
+                    </div>
+
+                    <div class="bg-slate-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-slate-800 mb-2">손절매(Stop-loss)의 기준을 세워라</h3>
+                        <p class="text-slate-700">투자나 사업을 시작할 때 미리 '어디까지 감당할 것인가'에 대한 한계선을 정해두십시오. 감정이 개입되면 매몰비용의 함정에 빠지기 쉽기 때문에, 미시적인 기계적 원칙이 당신을 보호해 줄 것입니다.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">6. 결론: 과거를 묻고 미래의 가치를 사라</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">경제학은 우리에게 과거는 바꿀 수 없으니 오직 미래를 보고 결정하라고 조언합니다. 매몰비용은 이미 흘러간 물과 같아서 물레방아를 돌릴 수 없습니다.</p>
+                <p class="text-slate-700 leading-relaxed">거시적 정책이 냉정한 수치로 국가의 방향을 정하듯, 여러분의 인생 경영도 차가운 '미래 가치' 중심으로 재편되어야 합니다. 아까워서 붙들고 있는 낡은 습관, 마이너스 수익률의 자산, 무의미한 관계가 있다면 과감히 놓아주십시오. 그 빈자리를 더 높은 기회비용을 창출할 수 있는 새로운 도전으로 채울 때, 비로소 자본주의가 제공하는 진정한 성장의 열매를 맛볼 수 있을 것입니다.</p>
+            </section>
+        `
+    },
+    {
+        id: '22',
+        title: '소유에서 접속으로',
+        subtitle: '공유 경제와 플랫폼이 만든 새로운 질서',
+        description: '빌려 쓰고 나눠 쓰는 것이 어떻게 거대 기업이 되었을까요? 공유 경제가 바꾸는 산업 지도와 새로운 노동 형태를 분석합니다.',
+        readTime: 5,
+        keywords: '공유경제, 플랫폼, 긱경제, 우버, 에어비앤비, 디지털전환',
+        content: `
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">1. 서론: "빌려 쓰고 나눠 쓰는 것이 어떻게 거대 기업이 되었나?"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">과거에 '공유'란 이웃끼리 물건을 빌려주는 따뜻한 정(情)의 영역이었습니다. 하지만 스마트폰과 데이터 기술이 결합하면서 공유는 전 세계를 하나로 묶는 거대한 비즈니스 모델이 되었습니다.</p>
+                <p class="text-slate-700 leading-relaxed mb-4">이제 우리는 남의 차를 타고 이동하고, 남의 집에서 휴가를 보내며, 쓰지 않는 중고 물품을 이웃과 거래합니다. 이러한 <strong>미시경제(Microeconomics)</strong>적 개인 간 거래가 어떻게 기존 산업 지도를 바꾸고 <strong>거시경제(Macroeconomics)</strong>적 고용 구조와 규제의 틀을 뒤흔들고 있는지 분석해 보겠습니다.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">2. 미시경제적 관점: "유휴 자원의 활용과 거래 비용의 혁명"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">미시경제학은 개별 소비자와 공급자가 어떻게 최적의 선택을 하는지 연구합니다. 공유 경제는 잠자고 있던 자원을 '수익원'으로 변모시켰습니다.</p>
+
+                <div class="bg-blue-50 rounded-xl p-6 mb-4">
+                    <h3 class="font-semibold text-blue-800 mb-2">실사례 1: 내 집의 남는 방이 호텔이 되다 (자원 효율성)</h3>
+                    <p class="text-slate-700">전통적인 경제에서는 집을 소유하거나 호텔을 예약하는 두 가지 선택지만 있었습니다. 하지만 플랫폼은 집주인에게는 '남는 방'이라는 유휴 자원에서 추가 소득을 얻게 하고, 여행자에게는 호텔보다 저렴하거나 독특한 숙소를 제공합니다. 미시적 관점에서 이는 자원의 <strong>'한계 효용'</strong>을 극대화하는 행위입니다.</p>
+                </div>
+
+                <div class="bg-green-50 rounded-xl p-6 mb-4">
+                    <h3 class="font-semibold text-green-800 mb-2">실사례 2: 신뢰 시스템과 거래 비용의 감소</h3>
+                    <p class="text-slate-700">모르는 사람의 차를 타거나 집에서 자는 것은 위험해 보입니다. 플랫폼은 평점 시스템과 본인 인증이라는 장치를 통해 '신뢰'를 구축했습니다. 이는 미시 주체들이 거래할 때 겪는 불안감, 즉 <strong>'거래 비용(Transaction Cost)'</strong>을 획기적으로 낮춘 혁신입니다.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">3. 거시경제적 관점: "산업의 파괴적 혁신과 긱 경제(Gig Economy)"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">거시경제학적 시각에서 공유 경제는 기존 산업과의 갈등을 조정하고 새로운 노동 형태를 정의하는 숙제를 안겨주었습니다.</p>
+
+                <div class="bg-yellow-50 rounded-xl p-6 mb-4">
+                    <h3 class="font-semibold text-yellow-800 mb-2">실사례 1: 플랫폼과 기존 산업의 충돌</h3>
+                    <p class="text-slate-700">새로운 플랫폼의 등장은 기존 면허 기반 산업(거시적 제도)에 큰 충격을 줍니다. 국가는 혁신을 장려할 것인가, 기존 종사자의 생존권을 보호할 것인가라는 거시적 딜레마에 빠집니다. 이는 한 국가의 규제 환경이 얼마나 유연한지를 보여주는 척도가 됩니다.</p>
+                </div>
+
+                <div class="bg-red-50 rounded-xl p-6 mb-4">
+                    <h3 class="font-semibold text-red-800 mb-2">실사례 2: 노동의 유연화와 사회 안전망</h3>
+                    <p class="text-slate-700">공유 경제는 '긱 경제(Gig Economy)'를 확산시켰습니다. 개인이 원할 때만 일하는 자유를 얻었지만, 거시적으로는 고용 보험이나 퇴직금이 없는 '불안정한 노동자'를 양산한다는 비판도 따릅니다. 국가는 이제 이들을 위한 새로운 사회 안전망(거시 정책)을 고민해야 합니다.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">4. 거시와 미시의 연결: "데이터 독점과 플랫폼 노동자의 권리"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">플랫폼이 거대해지면 미시적인 개인들은 다시 플랫폼의 영향력 아래 놓이게 됩니다.</p>
+
+                <div class="bg-slate-50 rounded-xl p-6">
+                    <h3 class="font-semibold text-slate-800 mb-2">사례: 알고리즘이 결정하는 나의 수익</h3>
+                    <p class="text-slate-700">배달 라이더나 공유 차량 운전사는 미시적으로 자유롭게 일하는 듯 보이지만, 실제로는 플랫폼의 '알고리즘(거시적 통제)'이 배차와 수익을 결정합니다. 플랫폼이 시장을 독점하면 수수료를 올릴 수 있고, 이는 다시 개별 주체들의 소득 감소로 이어집니다. 거시적 독점 규제가 미시적 개인의 권익과 직결되는 이유입니다.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">5. 일반인을 위한 '플랫폼 시대' 생존 전략</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">공유와 소유가 공존하는 시대, 우리는 어떻게 경제적 이득을 취해야 할까요?</p>
+
+                <div class="space-y-4">
+                    <div class="bg-slate-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-slate-800 mb-2">소유의 기회비용을 계산하라</h3>
+                        <p class="text-slate-700">자동차를 소유할 때 드는 보험료, 세금, 감가상각비를 계산해 보십시오. 공유 서비스 이용료보다 소유 비용이 크다면 과감히 '접속(Access)'을 선택하는 것이 미시적으로 합리적입니다.</p>
+                    </div>
+
+                    <div class="bg-slate-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-slate-800 mb-2">자산의 '멀티태스킹'을 고민하라</h3>
+                        <p class="text-slate-700">내 소유물 중 공유를 통해 수익화할 수 있는 것이 있는지 찾아보십시오. 지식, 공간, 물건 등 모든 유휴 자원이 플랫폼을 만나면 자본이 될 수 있는 시대입니다.</p>
+                    </div>
+
+                    <div class="bg-slate-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-slate-800 mb-2">플랫폼 리스크에 분산 투자하라</h3>
+                        <p class="text-slate-700">한 플랫폼의 노동자로만 머무는 것은 위험합니다. 여러 플랫폼을 활용하거나, 반대로 성장하는 플랫폼 기업의 주주가 되어 그들이 창출하는 거시적 이익을 나누는 지혜가 필요합니다.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">6. 결론: 경계가 사라지는 시대의 새로운 경제학</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">공유 경제는 "내 것"과 "남의 것"의 경계를 허물고 있습니다. 이는 자원의 낭비를 줄이고 효율성을 높이는 인류의 진화이기도 합니다.</p>
+                <p class="text-slate-700 leading-relaxed">거시 경제 정책은 변화하는 노동 환경에 맞춰 제도를 업데이트해야 하며, 미시 주체인 우리는 플랫폼이 주는 편리함을 누리되 그 속에 숨겨진 종속의 위험을 경계해야 합니다. 소유하지 않아도 풍요를 누릴 수 있는 시대, 당신은 어떤 자원을 공유하고 어떤 플랫폼 위에서 당신의 가치를 증명하시겠습니까?</p>
+            </section>
+        `
+    },
+    {
+        id: '23',
+        title: '경쟁과 협력의 심리학',
+        subtitle: '게임 이론으로 본 최선의 선택',
+        description: '나에게 좋은 것이 모두에게도 좋을까요? 죄수의 딜레마를 통해 경쟁과 협력 사이에서 최적의 전략을 찾아봅니다.',
+        readTime: 5,
+        keywords: '게임이론, 죄수의딜레마, 내쉬균형, 협력, 경쟁, 전략적선택',
+        content: `
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">1. 서론: "나에게 좋은 것이 모두에게도 좋을까?"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">우리는 매일 누군가와 상호작용하며 선택의 기로에 섭니다. 비즈니스 협상, 동료와의 프로젝트, 심지어 배우자와의 저녁 메뉴 결정까지도 일종의 '게임'입니다.</p>
+                <p class="text-slate-700 leading-relaxed mb-4">고전 경제학은 개인이 각자 최선을 다하면 사회 전체도 좋아진다고 믿었지만, 현대 경제학의 게임 이론은 전혀 다른 현실을 보여줍니다. 각자가 가장 합리적인 선택을 했는데도 결과적으로 모두가 손해를 보는 비극이 발생할 수 있다는 것이죠.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">2. 미시경제적 관점: "불신이 낳은 합리적 비극, 죄수의 딜레마"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">미시경제학은 상대방의 대응에 따라 나의 선택이 어떻게 변하는지 분석합니다. 그 정점에 '죄수의 딜레마'가 있습니다.</p>
+
+                <div class="bg-blue-50 rounded-xl p-6 mb-4">
+                    <h3 class="font-semibold text-blue-800 mb-2">실사례 1: 편의점 가격 경쟁과 광고 전쟁</h3>
+                    <p class="text-slate-700">나란히 붙어 있는 두 편의점이 있습니다. 두 곳 모두 가격을 유지하면 높은 이익을 얻을 수 있지만, 한 곳이 세일을 하면 손님을 다 뺏깁니다. 결국 상대가 배신할까 봐 두려운 두 점주는 모두 가격을 내리는 선택(내쉬 균형)을 하게 됩니다. 미시적으로는 '합리적'인 방어였지만, 결과적으로 두 점주 모두 수익이 악화되는 결과(딜레마)를 낳습니다.</p>
+                </div>
+
+                <div class="bg-red-50 rounded-xl p-6 mb-4">
+                    <h3 class="font-semibold text-red-800 mb-2">실사례 2: 주식 시장의 공포 매도</h3>
+                    <p class="text-slate-700">하락장에서 나 혼자 들고 있다가 더 큰 손실을 볼까 봐 너도나도 주식을 파는 행위는 미시적으론 리스크 관리지만, 전체 시장에는 폭락이라는 재앙을 가져옵니다.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">3. 거시경제적 관점: "공멸을 막기 위한 강제적 협력과 국제 질서"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">거시경제학적 시각에서 국가는 개별 주체들이 딜레마에 빠져 공멸하지 않도록 규칙(Rule)을 정하고 감시하는 심판 역할을 합니다.</p>
+
+                <div class="bg-yellow-50 rounded-xl p-6 mb-4">
+                    <h3 class="font-semibold text-yellow-800 mb-2">실사례 1: 국가 간의 군비 경쟁과 협력</h3>
+                    <p class="text-slate-700">A국과 B국이 무기를 늘리면 거시적으로 전쟁 위험과 재정 낭비만 커집니다. 하지만 상대방만 무장할까 봐 두려워 멈추지 못합니다. 이를 해결하기 위해 국제 사회는 협정을 만듭니다. 게임의 규칙을 바꿔서 배신에 따른 비용을 높이고 협력을 유도하는 것입니다.</p>
+                </div>
+
+                <div class="bg-green-50 rounded-xl p-6 mb-4">
+                    <h3 class="font-semibold text-green-800 mb-2">실사례 2: 기후 위기와 탄소 중립</h3>
+                    <p class="text-slate-700">한 나라만 탄소를 줄이면 경제 성장만 뒤처진다는 미시적 두려움이 전 지구적 온난화(거시적 비극)를 만들었습니다. 이를 해결하기 위해 전 세계적 공동 게임의 규칙이 작동하는 것입니다.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">4. 거시와 미시의 연결: "신뢰라는 무형의 자산과 반복 게임"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">현실 세계는 단판 승부가 아닙니다. 거시적 신뢰 시스템이 갖춰지면 미시적 주체들도 협력을 선택하게 됩니다.</p>
+
+                <div class="bg-slate-50 rounded-xl p-6">
+                    <h3 class="font-semibold text-slate-800 mb-2">사례: 보복 전략(Tit-for-Tat)과 평판</h3>
+                    <p class="text-slate-700">시장에서 한 번 사기 치고 떠날 사람(단판 게임)은 배신이 유리합니다. 하지만 매일 얼굴을 봐야 하는 이웃(반복 게임)이라면 협력이 유리합니다. 거시적으로 '평판 사회'가 구축되면, 미시 주체들은 당장의 이익보다 장기적인 신뢰를 선택합니다. 온라인 쇼핑몰의 후기 시스템이 대표적인 거시적 신뢰 구축 장치입니다.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">5. 일반인을 위한 '전략적 선택'의 기술</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">치열한 눈치 싸움이 벌어지는 세상에서 승자가 되기 위해서는 다음과 같은 미시적 지혜가 필요합니다.</p>
+
+                <div class="space-y-4">
+                    <div class="bg-slate-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-slate-800 mb-2">상대방의 입장에서 판을 읽어라</h3>
+                        <p class="text-slate-700">나의 최선이 아닌, '상대가 최선을 다할 때 내가 할 수 있는 최선'이 무엇인지 고민하십시오. 이를 통해 불필요한 충돌을 피하고 실질적인 이득을 챙길 수 있습니다.</p>
+                    </div>
+
+                    <div class="bg-slate-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-slate-800 mb-2">신뢰를 먼저 보여주되, 배신에는 단호하라</h3>
+                        <p class="text-slate-700">게임 이론의 가장 성공적인 전략은 '먼저 협력하고, 상대가 배신하면 똑같이 갚아주며, 다시 협력하면 용서하는 것'입니다. 이는 미시적 관계에서 강력한 리더십과 평판을 만들어줍니다.</p>
+                    </div>
+
+                    <div class="bg-slate-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-slate-800 mb-2">게임의 틀을 바꾸는 '게임 체인저'가 되어라</h3>
+                        <p class="text-slate-700">현재의 경쟁 구조가 모두에게 불리하다면, 새로운 기술이나 파트너십을 통해 경쟁의 룰 자체를 바꿔버리십시오. 거시적 흐름을 바꾸는 혁신가는 딜레마 속에서 정답을 찾지 않고 새로운 문제를 제시합니다.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">6. 결론: 각자도생을 넘어 공존의 경제학으로</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">게임 이론은 우리에게 "혼자만 잘해서는 결코 행복해질 수 없다"는 사실을 수학적으로 증명해 줍니다.</p>
+                <p class="text-slate-700 leading-relaxed">거시적인 사회 시스템이 공정하고 투명할 때 미시적인 우리도 안심하고 서로 협력할 수 있습니다. 각자의 이익이 충돌하는 순간에도 우리가 대화와 협약을 멈추지 말아야 하는 이유는, 그것만이 죄수의 딜레마라는 차가운 감옥에서 빠져나올 수 있는 유일한 열쇠이기 때문입니다. 경쟁의 시대, 당신의 선택이 자신뿐만 아니라 공동체 전체의 승리를 이끄는 멋진 한 수가 되기를 바랍니다.</p>
+            </section>
+        `
+    },
+    {
+        id: '24',
+        title: '월급의 경제학',
+        subtitle: '왜 내 연봉은 항상 부족하게 느껴질까?',
+        description: '회사는 돈을 많이 번다는데, 왜 내 몫은 이 정도일까요? 노동 경제학의 관점에서 임금이 결정되는 원리를 파헤칩니다.',
+        readTime: 5,
+        keywords: '노동경제학, 임금, 생산성, 최저임금, 인적자본, 실질임금',
+        content: `
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">1. 서론: "일은 더 많이 하는 것 같은데, 지갑은 왜 얇아질까?"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">직장인들에게 가장 민감한 숫자는 단연 '월급'입니다. 매년 연봉 협상을 하고 월급이 조금씩 오르지만, 통장을 스치고 지나가는 잔액을 보면 한숨이 나옵니다.</p>
+                <p class="text-slate-700 leading-relaxed mb-4">"회사는 돈을 많이 번다는데, 왜 내 몫은 이 정도일까?"라는 의문은 개인의 불만을 넘어 <strong>미시경제(Microeconomics)</strong>적 노동 공급과 <strong>거시경제(Macroeconomics)</strong>적 분배 정의가 충돌하는 지점입니다.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">2. 미시경제적 관점: "임금은 결국 '한계 생산성'이 결정한다"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">미시경제학에서는 노동을 하나의 '상품'으로 봅니다. 기업이 당신에게 월급을 주는 이유는 당신이 그 이상의 가치를 만들어내기 때문입니다.</p>
+
+                <div class="bg-blue-50 rounded-xl p-6 mb-4">
+                    <h3 class="font-semibold text-blue-800 mb-2">실사례 1: 숙련도와 희소성의 가치</h3>
+                    <p class="text-slate-700">왜 프로 운동선수나 스타 개발자는 수억 원의 연봉을 받고, 일반 사무직은 그렇지 못할까요? 미시적으로 임금은 '노동의 한계 생산물 가치'에 비례합니다. 즉, 한 명의 인력이 추가되었을 때 회사의 수익이 얼마나 늘어나는가가 핵심입니다. 대체 불가능한 기술을 가졌거나(희소성), 혼자서 수만 명의 몫을 해내는 생산성을 보일 때 미시적 임금은 치솟습니다.</p>
+                </div>
+
+                <div class="bg-green-50 rounded-xl p-6 mb-4">
+                    <h3 class="font-semibold text-green-800 mb-2">실사례 2: 교육과 인적 자본 투자</h3>
+                    <p class="text-slate-700">우리가 비싼 등록금을 내고 대학을 가거나 자격증을 따는 이유는 자신의 '인적 자본(Human Capital)' 가치를 높여 미시적 노동 시장에서 더 높은 가격(임금)을 받기 위한 경제적 선택입니다.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">3. 거시경제적 관점: "노동 시장의 이중 구조와 제도적 안전판"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">거시경제학적 시각에서 임금은 한 국가의 소비 수준과 사회적 안정성을 결정하는 지표입니다.</p>
+
+                <div class="bg-yellow-50 rounded-xl p-6 mb-4">
+                    <h3 class="font-semibold text-yellow-800 mb-2">실사례 1: 최저임금제와 거시적 가계 소득</h3>
+                    <p class="text-slate-700">국가가 법으로 최저임금을 정하는 이유는 노동 시장의 미시적 균형에만 맡겨두었을 때 발생할 수 있는 '저임금 빈곤층'을 막기 위해서입니다. 거시적으로 최저임금 인상은 저소득층의 소비력을 높여 내수 경기를 부양하는 효과를 노리지만, 동시에 영세 사업자의 고용 감소를 초래할 수 있는 정책적 양날의 검입니다.</p>
+                </div>
+
+                <div class="bg-red-50 rounded-xl p-6 mb-4">
+                    <h3 class="font-semibold text-red-800 mb-2">실사례 2: 노동 시장의 이중 구조</h3>
+                    <p class="text-slate-700">대기업·정규직과 중소기업·비정규직 사이의 거대한 임금 격차는 고질적인 거시적 문제입니다. 이는 단순히 개인의 능력 차이가 아니라, 산업 생태계의 서열화와 노동 조합의 유무 등 거시적 구조에서 기인하는 경우가 많습니다.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">4. 거시와 미시의 연결: "인플레이션과 실질 임금의 역설"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">월급은 올랐는데 살림살이가 나아지지 않는 이유는 거시적 물가 상승이 미시적 구매력을 갉아먹기 때문입니다.</p>
+
+                <div class="bg-slate-50 rounded-xl p-6">
+                    <h3 class="font-semibold text-slate-800 mb-2">사례: 명목 임금 vs 실질 임금</h3>
+                    <p class="text-slate-700">내 연봉이 5% 올랐어도(명목 임금 상승), 거시적 물가 상승률이 6%라면 나의 실제 구매력은 1% 감소한 셈입니다(실질 임금 하락). 거시적인 고물가 시대에는 미시적으로 아무리 열심히 일해도 삶의 질이 떨어지는 '임금의 역설'이 발생합니다. 기업이 생산성 향상보다 물가 상승 속도를 따라가지 못할 때 가계 경제는 위기에 빠집니다.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">5. 일반인을 위한 '몸값 올리기' 생존 전략</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">변화하는 노동 시장에서 내 가치를 지키고 월급을 키우기 위해서는 다음과 같은 미시적 전략이 필요합니다.</p>
+
+                <div class="space-y-4">
+                    <div class="bg-slate-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-slate-800 mb-2">생산성을 수치로 증명하라</h3>
+                        <p class="text-slate-700">막연히 "열심히 했다"는 말은 경제학적 설득력이 없습니다. 내 노동이 회사의 매출 증대나 비용 절감에 구체적으로 얼마나 기여했는지 데이터로 보여줄 때, 미시적 협상 우위에 설 수 있습니다.</p>
+                    </div>
+
+                    <div class="bg-slate-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-slate-800 mb-2">'노동의 디지털화'에 올라타라</h3>
+                        <p class="text-slate-700">단순 반복 노동은 거시적으로 AI와 로봇에 의해 대체될 운명입니다. 기술을 도구로 활용해 자신의 생산성을 10배, 100배로 증폭시킬 수 있는 분야로 전문성을 확장하십시오.</p>
+                    </div>
+
+                    <div class="bg-slate-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-slate-800 mb-2">플랫폼과 부가 소득의 파이프라인</h3>
+                        <p class="text-slate-700">노동 소득에만 전적으로 의존하는 것은 위험합니다. 미시적으로 나의 지식이나 기술을 플랫폼(공유 경제)에 팔아 노동 외 소득을 창출함으로써, 거시적 고용 불안정성에 대비하는 포트폴리오를 짜야 합니다.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">6. 결론: 노동의 가치를 넘어 삶의 주권을 찾는 길</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">월급은 노동의 대가인 동시에 우리 삶을 지탱하는 가장 소중한 자원입니다. 하지만 자본주의는 냉정하게도 당신의 '노력'이 아닌 '결과물(생산성)'에만 값을 매깁니다.</p>
+                <p class="text-slate-700 leading-relaxed">거시 경제 정책은 모든 노동자가 정당한 대우를 받도록 제도를 다듬어야 하며, 미시 주체인 우리는 변화하는 시장이 요구하는 가치가 무엇인지 끊임없이 탐색해야 합니다. 내 월급이 제자리걸음이라면, 그것이 거시적인 경기 불황 때문인지 아니면 내 미시적 생산성의 정체 때문인지 냉정하게 분석해 보십시오. 노동의 가치를 스스로 높여가는 과정에서, 당신은 단순한 피고용인을 넘어 자기 인생의 진정한 경영자로 거듭나게 될 것입니다.</p>
+            </section>
+        `
+    },
+    {
+        id: '25',
+        title: '세금의 역설',
+        subtitle: '빼앗기는 돈인가, 공동체를 위한 투자인가?',
+        description: '세금과 죽음은 피할 수 없다! 조세 정책이 개인과 사회에 미치는 영향, 그리고 현명한 납세 전략을 알아봅니다.',
+        readTime: 5,
+        keywords: '세금, 조세정책, 누진세, 소득재분배, 절세, 납세',
+        content: `
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">1. 서론: "세금과 죽음은 피할 수 없다"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">벤자민 프랭클린은 "이 세상에서 죽음과 세금 외에는 확실한 것이 아무것도 없다"는 유명한 말을 남겼습니다.</p>
+                <p class="text-slate-700 leading-relaxed mb-4">우리는 물건을 살 때(부가가치세), 월급을 받을 때(소득세), 집을 소유할 때(재산세) 끊임없이 세금을 냅니다. 당장 내 주머니에서 나가는 돈은 아깝게 느껴지지만, 우리가 걷는 안전한 길, 아이들의 학교, 치안과 국방은 모두 이 세금으로 만들어집니다. 개인의 재산권 보호(미시)와 사회적 형평성 달성(거시)이라는 두 가치가 조세 정책에서 어떻게 충돌하고 조화를 이루는지 정리해 보겠습니다.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">2. 미시경제적 관점: "조세 왜곡과 소비자의 선택"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">미시경제학은 세금이 개별 경제 주체의 행동을 어떻게 변화시키는지 연구합니다. 이를 '조세의 귀착(Tax Incidence)'과 '초과 부담'이라고 합니다.</p>
+
+                <div class="bg-blue-50 rounded-xl p-6 mb-4">
+                    <h3 class="font-semibold text-blue-800 mb-2">실사례 1: 담뱃세 인상과 소비의 억제</h3>
+                    <p class="text-slate-700">정부가 담뱃세를 올리면 미시적 소비자는 담배 가격에 부담을 느껴 흡연량을 줄입니다. 이는 건강 증진이라는 목적도 있지만, 경제학적으로는 가격을 인위적으로 높여 수요를 조절하는 행위입니다. 하지만 세금이 너무 높으면 사람들은 암시장이나 대체재를 찾게 되는 미시적 부작용이 발생하기도 합니다.</p>
+                </div>
+
+                <div class="bg-yellow-50 rounded-xl p-6 mb-4">
+                    <h3 class="font-semibold text-yellow-800 mb-2">실사례 2: 근로 의욕과 세율의 관계</h3>
+                    <p class="text-slate-700">소득세율이 너무 높으면 사람들은 "더 일해봤자 세금으로 다 나간다"고 판단하여 노동 공급을 줄일 수 있습니다. 미시 주체에게 세금은 노동과 여가 사이의 선택을 바꾸는 강력한 변수입니다.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">3. 거시경제적 관점: "재분배의 정의와 국가의 자원 배분"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">거시경제학적 시각에서 세금은 시장이 해결하지 못하는 부의 불평등을 완화하고, 국가 시스템을 돌리는 유동성입니다.</p>
+
+                <div class="bg-green-50 rounded-xl p-6 mb-4">
+                    <h3 class="font-semibold text-green-800 mb-2">실사례 1: 누진세와 소득 재분배</h3>
+                    <p class="text-slate-700">소득이 높을수록 높은 세율을 적용하는 '누진세'는 거시적 형평성을 위한 핵심 장치입니다. 고소득자에게 걷은 세금을 복지 정책을 통해 저소득자에게 배분함으로써 사회적 갈등을 줄이고 전체 소비 기반을 유지합니다. 이는 거시 경제의 안정성을 높이는 기초가 됩니다.</p>
+                </div>
+
+                <div class="bg-green-50 rounded-xl p-6 mb-4">
+                    <h3 class="font-semibold text-green-800 mb-2">실사례 2: 재정 정책을 통한 경기 조절</h3>
+                    <p class="text-slate-700">불황기에는 세금을 깎아주어 소비를 진작시키고, 과열기에는 세금을 늘려 경기를 진정시킵니다. 국가는 조세라는 도구를 통해 거시 경제라는 거대한 배의 방향을 잡습니다.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">4. 거시와 미시의 연결: "납세자의 권리와 재정 투명성"</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">세금이 정당성을 얻기 위해서는 미시적인 납세자의 동의와 거시적인 집행의 투명성이 연결되어야 합니다.</p>
+
+                <div class="bg-slate-50 rounded-xl p-6">
+                    <h3 class="font-semibold text-slate-800 mb-2">사례: 조세 저항과 공공 서비스의 질</h3>
+                    <p class="text-slate-700">내가 낸 세금이 낭비된다고 느낄 때 미시 주체들은 조세 저항을 일으킵니다. 하지만 세금이 교육과 복지로 확실히 돌아온다는 거시적 신뢰가 형성되면, 국민들은 높은 세율을 기꺼이 수용합니다. 결국 조세 정책의 성공은 거시적 제도 신뢰도가 미시적 개인의 납세 의지에 얼마나 긍정적인 영향을 주느냐에 달려 있습니다.</p>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">5. 일반인을 위한 '절세와 납세'의 지혜</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">자본주의 사회에서 세금을 이해하는 것은 수익을 내는 것만큼 중요합니다.</p>
+
+                <div class="space-y-4">
+                    <div class="bg-slate-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-slate-800 mb-2">세액공제와 소득공제를 공부하라</h3>
+                        <p class="text-slate-700">국가는 특정 행위(기부, 교육, 연금 저축 등)를 장려하기 위해 세금을 깎아줍니다. 이는 거시적 정책 방향에 부합하는 미시적 주체에게 주는 '인센티브'입니다. 이를 활용하는 것은 탈세가 아니라 합리적인 경제 활동입니다.</p>
+                    </div>
+
+                    <div class="bg-slate-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-slate-800 mb-2">세금의 흐름으로 정책의 방향을 읽어라</h3>
+                        <p class="text-slate-700">정부가 어디에 세금을 더 걷고 어디를 깎아주는지를 보면 향후 집중 육성될 산업이나 규제될 분야가 보입니다. 거시적 조세 변화는 미시적 투자 지도의 나침반이 됩니다.</p>
+                    </div>
+
+                    <div class="bg-slate-50 rounded-xl p-6">
+                        <h3 class="font-semibold text-slate-800 mb-2">납세자로서의 목소리를 내라</h3>
+                        <p class="text-slate-700">세금은 '내는 것'으로 끝나지 않습니다. 내가 낸 돈이 거시적으로 올바르게 쓰이는지 감시하는 것은 미시적 경제 주체로서의 권리이자 의무입니다.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">6. 결론: 더 나은 공동체를 위한 사회적 계약</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">25회에 걸친 경제 칼럼 시리즈의 마지막 주제인 '세금'은 결국 우리 사회가 어떤 모습이어야 하는지에 대한 합의입니다.</p>
+                <p class="text-slate-700 leading-relaxed">거시 경제는 세금이라는 연료를 통해 국가를 움직이고, 미시 경제는 그 안에서 자신의 몫을 지키며 성장합니다. 세금을 단순히 '내 지갑에서 나가는 손실'로만 보지 마십시오. 그것은 우리 아이들의 미래, 노후의 안전판, 그리고 우리가 누리는 문명사회라는 서비스를 이용하기 위해 지불하는 공동 구매 비용입니다. 투명한 세금 집행과 합리적인 납세가 만날 때, 그 사회는 비로소 지속 가능한 부의 길로 나아갈 수 있습니다.</p>
+            </section>
+        `
+    },
+    {
+        id: '26',
+        title: '초보자를 위한 경제 상식 백과사전',
+        subtitle: '미시에서 거시까지 25가지 핵심 테마',
+        description: '지난 25회에 걸친 경제 칼럼 시리즈를 한눈에 파악할 수 있는 종합 가이드! 당신의 경제적 자유를 위한 핵심 지식을 정리합니다.',
+        readTime: 3,
+        keywords: '경제상식, 미시경제, 거시경제, 경제학입문, 재테크, 금융지식',
+        content: `
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">1. 경제를 읽는 눈, 왜 필요한가?</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">우리는 자본주의라는 거대한 바다 위를 항해하는 선원과 같습니다. 금리, 인플레이션, 세금이라는 파도가 어디서 오는지 모른 채 노를 저으면 금방 지치고 방향을 잃기 마련입니다.</p>
+                <p class="text-slate-700 leading-relaxed mb-4">지난 25회에 걸친 경제 칼럼 시리즈를 통해 개인의 선택(미시)이 어떻게 국가의 흐름(거시)과 연결되는지 깊이 있게 다루어 보았습니다. 이 글은 그동안 발행된 모든 경제 지식을 한눈에 파악할 수 있도록 정리한 종합 가이드입니다.</p>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">2. 한눈에 보는 경제 시리즈 리스트</h2>
+
+                <div class="bg-blue-50 rounded-xl p-6 mb-6">
+                    <h3 class="font-bold text-blue-800 mb-4">PART 1. 시장의 원리와 가격 (기초 체력 기르기)</h3>
+                    <ul class="space-y-2 text-slate-700">
+                        <li><strong>[1편]</strong> 인플레이션의 두 얼굴: 국가의 통화 잔치와 내 월급의 실종사건</li>
+                        <li><strong>[2편]</strong> 스태그플레이션의 공포: 경기는 차갑고 물가는 뜨거운 불쾌한 동거</li>
+                        <li><strong>[3편]</strong> 양적 완화와 긴축: 국가가 흔드는 돈의 파도</li>
+                        <li><strong>[15편]</strong> 한계 효용 체감의 법칙: 소비의 만족도가 줄어드는 시점</li>
+                    </ul>
+                </div>
+
+                <div class="bg-green-50 rounded-xl p-6 mb-6">
+                    <h3 class="font-bold text-green-800 mb-4">PART 2. 보이지 않는 손과 시장의 한계 (심화 분석)</h3>
+                    <ul class="space-y-2 text-slate-700">
+                        <li><strong>[10편]</strong> 시장 실패와 정부의 역할: 시장이 완벽하지 않을 때 일어나는 일</li>
+                        <li><strong>[11편]</strong> 공공재와 외부효과: 층간소음부터 기후 위기까지의 경제학</li>
+                        <li><strong>[12편]</strong> 정보의 비대칭성: 중고차 시장에서 속지 않는 법</li>
+                        <li><strong>[14편]</strong> 공유지의 비극: 주인 없는 자원이 황폐해지는 이유</li>
+                    </ul>
+                </div>
+
+                <div class="bg-yellow-50 rounded-xl p-6 mb-6">
+                    <h3 class="font-bold text-yellow-800 mb-4">PART 3. 부의 증식과 투자 전략 (실전 경제)</h3>
+                    <ul class="space-y-2 text-slate-700">
+                        <li><strong>[19편]</strong> 복리와 72의 법칙: 시간이 돈을 만드는 마법의 공식</li>
+                        <li><strong>[20편]</strong> 경제적 해자: 워런 버핏이 사랑하는 독점적 기업의 조건</li>
+                        <li><strong>[21편]</strong> 매몰비용과 기회비용: 합리적 포기가 부를 만든다</li>
+                        <li><strong>[22편]</strong> 공유 경제와 플랫폼: 소유에서 접속으로 변하는 산업 지도</li>
+                    </ul>
+                </div>
+
+                <div class="bg-purple-50 rounded-xl p-6 mb-6">
+                    <h3 class="font-bold text-purple-800 mb-4">PART 4. 인간의 심리와 노동 (현대 경제학)</h3>
+                    <ul class="space-y-2 text-slate-700">
+                        <li><strong>[18편]</strong> 행동경제학: 우리가 비합리적 소비를 반복하는 심리적 이유</li>
+                        <li><strong>[23편]</strong> 게임 이론: 경쟁과 협력 사이에서 찾는 최적의 한 수</li>
+                        <li><strong>[24편]</strong> 노동 경제학: 내 몸값(생산성)을 결정하는 보이지 않는 손</li>
+                    </ul>
+                </div>
+
+                <div class="bg-red-50 rounded-xl p-6 mb-6">
+                    <h3 class="font-bold text-red-800 mb-4">PART 5. 국가 시스템과 미래 (거시적 통찰)</h3>
+                    <ul class="space-y-2 text-slate-700">
+                        <li><strong>[13편]</strong> 비교우위와 무역: 국가 간 분업이 필요한 경제적 근거</li>
+                        <li><strong>[17편]</strong> 역전세와 전세 사기: 부동산 유동성과 정보 격차의 비극</li>
+                        <li><strong>[25편]</strong> 조세 정책과 형평성: 세금은 어떻게 쓰여야 하는가?</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">3. 마무리: 경제적 자유를 향한 여정</h2>
+                <p class="text-slate-700 leading-relaxed mb-4">경제학은 어렵고 복잡한 학문처럼 느껴지지만, 결국 우리의 일상과 떼려야 뗄 수 없는 실용적인 지식입니다.</p>
+                <p class="text-slate-700 leading-relaxed mb-4">이 시리즈를 통해 여러분이 경제 뉴스를 더 깊이 이해하고, 개인의 재정적 결정에서 더 현명한 선택을 하시길 바랍니다. 미시와 거시의 연결고리를 이해하는 순간, 당신은 더 이상 경제의 파도에 휩쓸리는 존재가 아니라, 그 파도를 타고 나아가는 현명한 항해자가 될 것입니다.</p>
+                <p class="text-slate-700 leading-relaxed">경제는 아는 만큼 보이고, 아는 만큼 지킬 수 있습니다. 당신의 경제적 자유를 응원합니다!</p>
+            </section>
+        `
     }
 ];
 
