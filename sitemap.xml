@@ -198,6 +198,7 @@
     <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/economy-quiz.html"/>
     <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/economy-quiz.html"/>
     <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/economy-quiz.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/economy-quiz.html"/>
   </url>
   <url>
     <loc>https://economyhelper.com/kr/economy-quiz.html</loc>
@@ -209,6 +210,7 @@
     <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/economy-quiz.html"/>
     <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/economy-quiz.html"/>
     <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/economy-quiz.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/economy-quiz.html"/>
   </url>
   <url>
     <loc>https://economyhelper.com/jp/economy-quiz.html</loc>
@@ -220,6 +222,7 @@
     <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/economy-quiz.html"/>
     <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/economy-quiz.html"/>
     <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/economy-quiz.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/economy-quiz.html"/>
   </url>
   <url>
     <loc>https://economyhelper.com/es/economy-quiz.html</loc>
@@ -231,6 +234,7 @@
     <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/economy-quiz.html"/>
     <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/economy-quiz.html"/>
     <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/economy-quiz.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/economy-quiz.html"/>
   </url>
   <url>
     <loc>https://economyhelper.com/pt/economy-quiz.html</loc>
@@ -242,6 +246,7 @@
     <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/economy-quiz.html"/>
     <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/economy-quiz.html"/>
     <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/economy-quiz.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/economy-quiz.html"/>
   </url>
 
   <!-- Investment Test Pages -->
@@ -255,6 +260,7 @@
     <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/investment-test.html"/>
     <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/investment-test.html"/>
     <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/investment-test.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/investment-test.html"/>
   </url>
   <url>
     <loc>https://economyhelper.com/kr/investment-test.html</loc>
@@ -266,6 +272,7 @@
     <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/investment-test.html"/>
     <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/investment-test.html"/>
     <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/investment-test.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/investment-test.html"/>
   </url>
   <url>
     <loc>https://economyhelper.com/jp/investment-test.html</loc>
@@ -277,6 +284,7 @@
     <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/investment-test.html"/>
     <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/investment-test.html"/>
     <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/investment-test.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/investment-test.html"/>
   </url>
   <url>
     <loc>https://economyhelper.com/es/investment-test.html</loc>
@@ -288,6 +296,7 @@
     <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/investment-test.html"/>
     <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/investment-test.html"/>
     <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/investment-test.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/investment-test.html"/>
   </url>
   <url>
     <loc>https://economyhelper.com/pt/investment-test.html</loc>
@@ -299,6 +308,7 @@
     <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/investment-test.html"/>
     <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/investment-test.html"/>
     <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/investment-test.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/investment-test.html"/>
   </url>
 
   <!-- Spending Test Pages -->
@@ -312,6 +322,7 @@
     <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/spending-test.html"/>
     <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/spending-test.html"/>
     <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/spending-test.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/spending-test.html"/>
   </url>
   <url>
     <loc>https://economyhelper.com/kr/spending-test.html</loc>
@@ -323,6 +334,7 @@
     <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/spending-test.html"/>
     <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/spending-test.html"/>
     <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/spending-test.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/spending-test.html"/>
   </url>
   <url>
     <loc>https://economyhelper.com/jp/spending-test.html</loc>
@@ -334,6 +346,7 @@
     <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/spending-test.html"/>
     <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/spending-test.html"/>
     <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/spending-test.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/spending-test.html"/>
   </url>
   <url>
     <loc>https://economyhelper.com/es/spending-test.html</loc>
@@ -345,6 +358,7 @@
     <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/spending-test.html"/>
     <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/spending-test.html"/>
     <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/spending-test.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/spending-test.html"/>
   </url>
   <url>
     <loc>https://economyhelper.com/pt/spending-test.html</loc>
@@ -356,6 +370,7 @@
     <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/spending-test.html"/>
     <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/spending-test.html"/>
     <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/spending-test.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/spending-test.html"/>
   </url>
 
   <!-- Compound Interest Calculator Pages -->
@@ -369,6 +384,7 @@
     <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/compound-interest-calculator.html"/>
     <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/compound-interest-calculator.html"/>
     <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/compound-interest-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/compound-interest-calculator.html"/>
   </url>
   <url>
     <loc>https://economyhelper.com/kr/compound-interest-calculator.html</loc>
@@ -380,6 +396,7 @@
     <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/compound-interest-calculator.html"/>
     <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/compound-interest-calculator.html"/>
     <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/compound-interest-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/compound-interest-calculator.html"/>
   </url>
   <url>
     <loc>https://economyhelper.com/jp/compound-interest-calculator.html</loc>
@@ -391,6 +408,7 @@
     <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/compound-interest-calculator.html"/>
     <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/compound-interest-calculator.html"/>
     <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/compound-interest-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/compound-interest-calculator.html"/>
   </url>
   <url>
     <loc>https://economyhelper.com/es/compound-interest-calculator.html</loc>
@@ -402,6 +420,7 @@
     <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/compound-interest-calculator.html"/>
     <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/compound-interest-calculator.html"/>
     <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/compound-interest-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/compound-interest-calculator.html"/>
   </url>
   <url>
     <loc>https://economyhelper.com/pt/compound-interest-calculator.html</loc>
@@ -413,6 +432,7 @@
     <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/compound-interest-calculator.html"/>
     <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/compound-interest-calculator.html"/>
     <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/compound-interest-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/compound-interest-calculator.html"/>
   </url>
 
   <!-- Savings Goal Calculator Pages -->
