@@ -4,7 +4,7 @@
   <!-- Main Pages -->
   <url>
     <loc>https://economyhelper.com/us/</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/"/>
@@ -16,7 +16,7 @@
   </url>
   <url>
     <loc>https://economyhelper.com/kr/</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/"/>
@@ -28,7 +28,7 @@
   </url>
   <url>
     <loc>https://economyhelper.com/jp/</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/"/>
@@ -40,7 +40,7 @@
   </url>
   <url>
     <loc>https://economyhelper.com/es/</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/"/>
@@ -52,7 +52,7 @@
   </url>
   <url>
     <loc>https://economyhelper.com/pt/</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/"/>
@@ -63,194 +63,443 @@
     <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/"/>
   </url>
 
+  <!-- Column List Pages (NEW - High Priority for SEO) -->
+  <url>
+    <loc>https://economyhelper.com/us/columns.html</loc>
+    <lastmod>2026-01-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/columns.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/columns.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/columns.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/columns.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/columns.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/columns.html"/>
+  </url>
+  <url>
+    <loc>https://economyhelper.com/kr/columns.html</loc>
+    <lastmod>2026-01-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/columns.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/columns.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/columns.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/columns.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/columns.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/columns.html"/>
+  </url>
+  <url>
+    <loc>https://economyhelper.com/jp/columns.html</loc>
+    <lastmod>2026-01-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/columns.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/columns.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/columns.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/columns.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/columns.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/columns.html"/>
+  </url>
+  <url>
+    <loc>https://economyhelper.com/es/columns.html</loc>
+    <lastmod>2026-01-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/columns.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/columns.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/columns.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/columns.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/columns.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/columns.html"/>
+  </url>
+  <url>
+    <loc>https://economyhelper.com/pt/columns.html</loc>
+    <lastmod>2026-01-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/columns.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/columns.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/columns.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/columns.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/columns.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/columns.html"/>
+  </url>
+
+  <!-- Column Detail Pages (NEW - High Priority for SEO) -->
+  <url>
+    <loc>https://economyhelper.com/us/column.html</loc>
+    <lastmod>2026-01-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/column.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/column.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/column.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/column.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/column.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/column.html"/>
+  </url>
+  <url>
+    <loc>https://economyhelper.com/kr/column.html</loc>
+    <lastmod>2026-01-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/column.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/column.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/column.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/column.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/column.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/column.html"/>
+  </url>
+  <url>
+    <loc>https://economyhelper.com/jp/column.html</loc>
+    <lastmod>2026-01-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/column.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/column.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/column.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/column.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/column.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/column.html"/>
+  </url>
+  <url>
+    <loc>https://economyhelper.com/es/column.html</loc>
+    <lastmod>2026-01-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/column.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/column.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/column.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/column.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/column.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/column.html"/>
+  </url>
+  <url>
+    <loc>https://economyhelper.com/pt/column.html</loc>
+    <lastmod>2026-01-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/column.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/column.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/column.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/column.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/column.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/column.html"/>
+  </url>
+
   <!-- Quiz Pages -->
   <url>
     <loc>https://economyhelper.com/us/economy-quiz.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/economy-quiz.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/economy-quiz.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/economy-quiz.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/economy-quiz.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/economy-quiz.html"/>
   </url>
   <url>
     <loc>https://economyhelper.com/kr/economy-quiz.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/economy-quiz.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/economy-quiz.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/economy-quiz.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/economy-quiz.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/economy-quiz.html"/>
   </url>
   <url>
     <loc>https://economyhelper.com/jp/economy-quiz.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/economy-quiz.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/economy-quiz.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/economy-quiz.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/economy-quiz.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/economy-quiz.html"/>
   </url>
   <url>
     <loc>https://economyhelper.com/es/economy-quiz.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/economy-quiz.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/economy-quiz.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/economy-quiz.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/economy-quiz.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/economy-quiz.html"/>
   </url>
   <url>
     <loc>https://economyhelper.com/pt/economy-quiz.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/economy-quiz.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/economy-quiz.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/economy-quiz.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/economy-quiz.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/economy-quiz.html"/>
   </url>
 
   <!-- Investment Test Pages -->
   <url>
     <loc>https://economyhelper.com/us/investment-test.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/investment-test.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/investment-test.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/investment-test.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/investment-test.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/investment-test.html"/>
   </url>
   <url>
     <loc>https://economyhelper.com/kr/investment-test.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/investment-test.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/investment-test.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/investment-test.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/investment-test.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/investment-test.html"/>
   </url>
   <url>
     <loc>https://economyhelper.com/jp/investment-test.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/investment-test.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/investment-test.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/investment-test.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/investment-test.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/investment-test.html"/>
   </url>
   <url>
     <loc>https://economyhelper.com/es/investment-test.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/investment-test.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/investment-test.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/investment-test.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/investment-test.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/investment-test.html"/>
   </url>
   <url>
     <loc>https://economyhelper.com/pt/investment-test.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/investment-test.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/investment-test.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/investment-test.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/investment-test.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/investment-test.html"/>
   </url>
 
   <!-- Spending Test Pages -->
   <url>
     <loc>https://economyhelper.com/us/spending-test.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/spending-test.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/spending-test.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/spending-test.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/spending-test.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/spending-test.html"/>
   </url>
   <url>
     <loc>https://economyhelper.com/kr/spending-test.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/spending-test.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/spending-test.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/spending-test.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/spending-test.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/spending-test.html"/>
   </url>
   <url>
     <loc>https://economyhelper.com/jp/spending-test.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/spending-test.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/spending-test.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/spending-test.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/spending-test.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/spending-test.html"/>
   </url>
   <url>
     <loc>https://economyhelper.com/es/spending-test.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/spending-test.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/spending-test.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/spending-test.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/spending-test.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/spending-test.html"/>
   </url>
   <url>
     <loc>https://economyhelper.com/pt/spending-test.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/spending-test.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/spending-test.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/spending-test.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/spending-test.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/spending-test.html"/>
   </url>
 
   <!-- Compound Interest Calculator Pages -->
   <url>
     <loc>https://economyhelper.com/us/compound-interest-calculator.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/compound-interest-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/compound-interest-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/compound-interest-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/compound-interest-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/compound-interest-calculator.html"/>
   </url>
   <url>
     <loc>https://economyhelper.com/kr/compound-interest-calculator.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/compound-interest-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/compound-interest-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/compound-interest-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/compound-interest-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/compound-interest-calculator.html"/>
   </url>
   <url>
     <loc>https://economyhelper.com/jp/compound-interest-calculator.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/compound-interest-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/compound-interest-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/compound-interest-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/compound-interest-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/compound-interest-calculator.html"/>
   </url>
   <url>
     <loc>https://economyhelper.com/es/compound-interest-calculator.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/compound-interest-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/compound-interest-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/compound-interest-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/compound-interest-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/compound-interest-calculator.html"/>
   </url>
   <url>
     <loc>https://economyhelper.com/pt/compound-interest-calculator.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/compound-interest-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/compound-interest-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/compound-interest-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/compound-interest-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/compound-interest-calculator.html"/>
   </url>
 
   <!-- Savings Goal Calculator Pages -->
   <url>
     <loc>https://economyhelper.com/us/savings-goal-calculator.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/savings-goal-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/savings-goal-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/savings-goal-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/savings-goal-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/savings-goal-calculator.html"/>
   </url>
   <url>
     <loc>https://economyhelper.com/kr/savings-goal-calculator.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/savings-goal-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/savings-goal-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/savings-goal-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/savings-goal-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/savings-goal-calculator.html"/>
   </url>
   <url>
     <loc>https://economyhelper.com/jp/savings-goal-calculator.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/savings-goal-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/savings-goal-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/savings-goal-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/savings-goal-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/savings-goal-calculator.html"/>
   </url>
   <url>
     <loc>https://economyhelper.com/es/savings-goal-calculator.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/savings-goal-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/savings-goal-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/savings-goal-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/savings-goal-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/savings-goal-calculator.html"/>
   </url>
   <url>
     <loc>https://economyhelper.com/pt/savings-goal-calculator.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/savings-goal-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/savings-goal-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/savings-goal-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/savings-goal-calculator.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/savings-goal-calculator.html"/>
   </url>
 
   <!-- Investment Results - US -->
   <url>
     <loc>https://economyhelper.com/us/results/investment/aggressive-bull.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/us/results/investment/safe-guard.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/us/results/investment/strategic-planner.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/us/results/investment/trend-follower.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/us/results/investment/value-seeker.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
@@ -258,31 +507,31 @@
   <!-- Investment Results - KR -->
   <url>
     <loc>https://economyhelper.com/kr/results/investment/aggressive-bull.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/kr/results/investment/safe-guard.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/kr/results/investment/strategic-planner.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/kr/results/investment/trend-follower.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/kr/results/investment/value-seeker.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
@@ -290,31 +539,31 @@
   <!-- Investment Results - JP -->
   <url>
     <loc>https://economyhelper.com/jp/results/investment/aggressive-bull.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/jp/results/investment/safe-guard.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/jp/results/investment/strategic-planner.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/jp/results/investment/trend-follower.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/jp/results/investment/value-seeker.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
@@ -322,31 +571,31 @@
   <!-- Investment Results - ES -->
   <url>
     <loc>https://economyhelper.com/es/results/investment/aggressive-bull.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/es/results/investment/safe-guard.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/es/results/investment/strategic-planner.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/es/results/investment/trend-follower.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/es/results/investment/value-seeker.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
@@ -354,31 +603,31 @@
   <!-- Investment Results - PT -->
   <url>
     <loc>https://economyhelper.com/pt/results/investment/aggressive-bull.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/pt/results/investment/safe-guard.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/pt/results/investment/strategic-planner.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/pt/results/investment/trend-follower.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/pt/results/investment/value-seeker.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
@@ -386,31 +635,31 @@
   <!-- Spending Results - US -->
   <url>
     <loc>https://economyhelper.com/us/results/spending/flex-master.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/us/results/spending/smart-spender.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/us/results/spending/ultra-saver.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/us/results/spending/value-consumer.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/us/results/spending/yoloer.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
@@ -418,31 +667,31 @@
   <!-- Spending Results - KR -->
   <url>
     <loc>https://economyhelper.com/kr/results/spending/flex-master.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/kr/results/spending/smart-spender.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/kr/results/spending/ultra-saver.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/kr/results/spending/value-consumer.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/kr/results/spending/yoloer.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
@@ -450,31 +699,31 @@
   <!-- Spending Results - JP -->
   <url>
     <loc>https://economyhelper.com/jp/results/spending/flex-master.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/jp/results/spending/smart-spender.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/jp/results/spending/ultra-saver.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/jp/results/spending/value-consumer.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/jp/results/spending/yoloer.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
@@ -482,31 +731,31 @@
   <!-- Spending Results - ES -->
   <url>
     <loc>https://economyhelper.com/es/results/spending/flex-master.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/es/results/spending/smart-spender.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/es/results/spending/ultra-saver.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/es/results/spending/value-consumer.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/es/results/spending/yoloer.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
@@ -514,31 +763,31 @@
   <!-- Spending Results - PT -->
   <url>
     <loc>https://economyhelper.com/pt/results/spending/flex-master.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/pt/results/spending/smart-spender.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/pt/results/spending/ultra-saver.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/pt/results/spending/value-consumer.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://economyhelper.com/pt/results/spending/yoloer.html</loc>
-    <lastmod>2025-01-09</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
