@@ -70,7 +70,12 @@
         function initColumnsPage() {
             // Apply i18n
             document.getElementById('page-title').textContent = COLUMNS_I18N.TITLE;
-            document.getElementById('page-subtitle').textContent = COLUMNS_I18N.SUBTITLE;
+            const subtitleEl = document.getElementById('page-subtitle');
+            if (COLUMNS_I18N.SUBTITLE) {
+                subtitleEl.textContent = COLUMNS_I18N.SUBTITLE;
+            } else {
+                subtitleEl.style.display = 'none';
+            }
             document.getElementById('page-description').textContent = COLUMNS_I18N.DESCRIPTION;
             document.getElementById('search-input').placeholder = COLUMNS_I18N.SEARCH_PLACEHOLDER;
 

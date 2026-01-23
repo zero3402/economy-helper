@@ -1,18 +1,32 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:xhtml="http://www.w3.org/1999/xhtml">
-  <!-- Main Pages -->
+  <!-- Root Page -->
   <url>
-    <loc>https://economyhelper.com/us/</loc>
-    <lastmod>2026-01-20</lastmod>
+    <loc>https://economyhelper.com/</loc>
+    <lastmod>2026-01-23</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/"/>
     <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/"/>
     <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/"/>
     <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/"/>
     <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/"/>
     <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/"/>
+  </url>
+
+  <!-- Main Pages -->
+  <url>
+    <loc>https://economyhelper.com/us/</loc>
+    <lastmod>2026-01-23</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/"/>
   </url>
   <url>
     <loc>https://economyhelper.com/kr/</loc>
@@ -810,5 +824,67 @@
     <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
+  </url>
+
+  <!-- About Pages -->
+  <url>
+    <loc>https://economyhelper.com/us/about.html</loc>
+    <lastmod>2026-01-23</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/about.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/about.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/about.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/about.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/about.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/about.html"/>
+  </url>
+  <url>
+    <loc>https://economyhelper.com/kr/about.html</loc>
+    <lastmod>2026-01-23</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/about.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/about.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/about.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/about.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/about.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/about.html"/>
+  </url>
+  <url>
+    <loc>https://economyhelper.com/jp/about.html</loc>
+    <lastmod>2026-01-23</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/about.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/about.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/about.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/about.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/about.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/about.html"/>
+  </url>
+  <url>
+    <loc>https://economyhelper.com/es/about.html</loc>
+    <lastmod>2026-01-23</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/about.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/about.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/about.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/about.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/about.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/about.html"/>
+  </url>
+  <url>
+    <loc>https://economyhelper.com/pt/about.html</loc>
+    <lastmod>2026-01-23</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://economyhelper.com/us/about.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://economyhelper.com/kr/about.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://economyhelper.com/jp/about.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://economyhelper.com/es/about.html"/>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://economyhelper.com/pt/about.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://economyhelper.com/us/about.html"/>
   </url>
 </urlset>

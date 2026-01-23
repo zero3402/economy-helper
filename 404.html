@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 - Page Not Found | Economy Helper</title>
+
+    <!-- Primary Meta Tags -->
+    <meta name="title" content="404 - Page Not Found | Economy Helper">
+    <meta name="description" content="The page you are looking for could not be found. Return to Economy Helper homepage.">
+    <meta name="robots" content="noindex, nofollow">
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="404 - Page Not Found | Economy Helper">
+    <meta property="og:description" content="The page you are looking for could not be found.">
+    <meta property="og:image" content="https://economyhelper.com/images/og.png">
+
+    <link rel="icon" type="image/png" href="./images/favicon.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <link rel="stylesheet" href="./styles.css">
+
+    <style>
+        .error-pattern {
+            background-color: #f8fafc;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%233b82f6' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+    </style>
+</head>
+
+<body class="error-pattern min-h-screen flex flex-col">
+    <!-- Header -->
+    <header class="bg-white/80 backdrop-blur-sm border-b border-slate-200 sticky top-0 z-50">
+        <div class="container mx-auto px-4">
+            <div class="navbar min-h-16 p-0">
+                <div class="navbar-start">
+                    <a href="./index.html" class="flex items-center gap-3 text-xl font-bold text-slate-800 hover:text-blue-600 transition-colors">
+                        <img src="./images/logo.png" alt="Economy Helper" class="h-8 w-8 object-contain scale-150">
+                        <span class="hidden sm:inline">Economy Helper</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-12 sm:py-20 flex-grow flex items-center justify-center">
+        <div class="text-center max-w-lg">
+            <div class="text-9xl font-bold text-blue-600 mb-6">404</div>
+            <h1 class="text-3xl sm:text-4xl font-bold text-slate-800 mb-4" id="error-title">Page Not Found</h1>
+            <p class="text-slate-500 text-lg mb-8" id="error-desc">The page you are looking for doesn't exist or has been moved.</p>
+
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <a href="./us/" id="home-link" class="btn btn-primary btn-lg rounded-xl">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                    </svg>
+                    <span id="home-btn-text">Go to Homepage</span>
+                </a>
+                <button onclick="history.back()" class="btn btn-outline btn-lg rounded-xl">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                    <span id="back-btn-text">Go Back</span>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200">
+        <div class="container mx-auto px-4 py-6">
+            <p class="text-center text-slate-500 text-sm">&copy; 2026 Economy Helper. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Detect user language and update content
+        const i18n = {
+            ko: {
+                title: '페이지를 찾을 수 없습니다',
+                desc: '요청하신 페이지가 존재하지 않거나 이동되었습니다.',
+                homeBtn: '홈으로 가기',
+                backBtn: '뒤로 가기',
+                homePath: './kr/'
+            },
+            ja: {
+                title: 'ページが見つかりません',
+                desc: 'お探しのページは存在しないか、移動されました。',
+                homeBtn: 'ホームへ戻る',
+                backBtn: '戻る',
+                homePath: './jp/'
+            },
+            es: {
+                title: 'Página no encontrada',
+                desc: 'La página que buscas no existe o ha sido movida.',
+                homeBtn: 'Ir al inicio',
+                backBtn: 'Volver',
+                homePath: './es/'
+            },
+            pt: {
+                title: 'Página não encontrada',
+                desc: 'A página que você está procurando não existe ou foi movida.',
+                homeBtn: 'Ir para o início',
+                backBtn: 'Voltar',
+                homePath: './pt/'
+            },
+            en: {
+                title: 'Page Not Found',
+                desc: "The page you are looking for doesn't exist or has been moved.",
+                homeBtn: 'Go to Homepage',
+                backBtn: 'Go Back',
+                homePath: './us/'
+            }
+        };
+
+        function detectLanguage() {
+            const savedLang = localStorage.getItem('preferredLanguage');
+            if (savedLang) {
+                if (savedLang === 'kr') return 'ko';
+                if (savedLang === 'us') return 'en';
+                if (savedLang === 'jp') return 'ja';
+                return savedLang;
+            }
+
+            const userLang = (navigator.language || navigator.userLanguage).toLowerCase();
+            if (userLang.startsWith('ko')) return 'ko';
+            if (userLang.startsWith('ja')) return 'ja';
+            if (userLang.startsWith('es')) return 'es';
+            if (userLang.startsWith('pt')) return 'pt';
+            return 'en';
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const lang = detectLanguage();
+            const content = i18n[lang] || i18n.en;
+
+            document.documentElement.lang = lang;
+            document.getElementById('error-title').textContent = content.title;
+            document.getElementById('error-desc').textContent = content.desc;
+            document.getElementById('home-btn-text').textContent = content.homeBtn;
+            document.getElementById('back-btn-text').textContent = content.backBtn;
+            document.getElementById('home-link').href = content.homePath;
+        });
+    </script>
+</body>
+
+</html>

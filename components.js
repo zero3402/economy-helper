@@ -297,33 +297,97 @@ const PAGE_META = {
     },
     columns: {
         kr: {
-            title: '경제 칼럼 - 미시에서 거시까지',
-            description: '실생활에서 바로 적용할 수 있는 경제 지식을 쉽고 재미있게 배워보세요. 미시경제부터 거시경제까지 26가지 핵심 주제를 다룹니다.',
-            keywords: '경제 칼럼, 경제 상식, 미시경제, 거시경제, 인플레이션, 금리, 투자, 재테크, 경제 공부',
+            title: '경제 칼럼 - 경제 도우미',
+            description: '실생활에서 바로 적용할 수 있는 경제 지식을 쉽고 재미있게 배워보세요.',
+            keywords: '경제 칼럼, 경제 상식, 미시경제, 거시경제, 자본시장, 인플레이션, 금리, 투자, 재테크, 경제 공부',
             siteName: '경제 도우미'
         },
         us: {
-            title: 'Economy Columns - From Micro to Macro',
-            description: 'Learn practical economic knowledge you can apply in everyday life. We cover 26 key topics from microeconomics to macroeconomics.',
-            keywords: 'economy columns, economic literacy, microeconomics, macroeconomics, inflation, interest rates, investment, finance education',
+            title: 'Economy Columns - Economy Helper',
+            description: 'Learn practical economic knowledge you can apply in everyday life.',
+            keywords: 'economy columns, economic literacy, microeconomics, macroeconomics, capital markets, inflation, interest rates, investment, finance education',
             siteName: 'Economy Helper'
         },
         jp: {
-            title: '経済コラム - ミクロからマクロまで',
-            description: '日常生活ですぐに活用できる経済知識を楽しく学びましょう。ミクロ経済からマクロ経済まで26の重要テーマを扱います。',
-            keywords: '経済コラム, 経済常識, ミクロ経済, マクロ経済, インフレ, 金利, 投資, 財テク, 経済学習',
+            title: '経済コラム - 経済ヘルパー',
+            description: '日常生活ですぐに活用できる経済知識を楽しく学びましょう。',
+            keywords: '経済コラム, 経済常識, ミクロ経済, マクロ経済, 資本市場, インフレ, 金利, 投資, 財テク, 経済学習',
             siteName: '経済ヘルパー'
         },
         es: {
-            title: 'Columnas de Economía - De lo Micro a lo Macro',
-            description: 'Aprende conocimientos económicos prácticos que puedes aplicar en la vida diaria. Cubrimos 26 temas clave desde microeconomía hasta macroeconomía.',
-            keywords: 'columnas de economía, educación económica, microeconomía, macroeconomía, inflación, tasas de interés, inversión, finanzas',
+            title: 'Columnas de Economía - Economy Helper',
+            description: 'Aprende conocimientos económicos prácticos que puedes aplicar en la vida diaria.',
+            keywords: 'columnas de economía, educación económica, microeconomía, macroeconomía, mercados de capitales, inflación, tasas de interés, inversión, finanzas',
             siteName: 'Economy Helper'
         },
         pt: {
-            title: 'Colunas de Economia - Do Micro ao Macro',
-            description: 'Aprenda conhecimentos econômicos práticos que você pode aplicar no dia a dia. Cobrimos 26 temas-chave da microeconomia à macroeconomia.',
-            keywords: 'colunas de economia, educação econômica, microeconomia, macroeconomia, inflação, taxas de juros, investimento, finanças',
+            title: 'Colunas de Economia - Economy Helper',
+            description: 'Aprenda conhecimentos econômicos práticos que você pode aplicar no dia a dia.',
+            keywords: 'colunas de economia, educação econômica, microeconomia, macroeconomia, mercados de capitais, inflação, taxas de juros, investimento, finanças',
+            siteName: 'Economy Helper'
+        }
+    },
+    privacy: {
+        kr: {
+            title: '개인정보처리방침 - 경제 도우미',
+            description: '경제 도우미의 개인정보처리방침입니다. 정보 수집, 이용 및 보호 방법에 대해 알아보세요.',
+            keywords: '개인정보처리방침, 개인정보보호, 경제 도우미',
+            siteName: '경제 도우미'
+        },
+        us: {
+            title: 'Privacy Policy - Economy Helper',
+            description: 'Privacy Policy for Economy Helper. Learn how we collect, use, and protect your information.',
+            keywords: 'privacy policy, data protection, Economy Helper',
+            siteName: 'Economy Helper'
+        },
+        jp: {
+            title: 'プライバシーポリシー - 経済ヘルパー',
+            description: '経済ヘルパーのプライバシーポリシーです。情報の収集、利用、保護方法についてご説明します。',
+            keywords: 'プライバシーポリシー, 個人情報保護, 経済ヘルパー',
+            siteName: '経済ヘルパー'
+        },
+        es: {
+            title: 'Política de Privacidad - Economy Helper',
+            description: 'Política de Privacidad de Economy Helper. Aprende cómo recopilamos, usamos y protegemos tu información.',
+            keywords: 'política de privacidad, protección de datos, Economy Helper',
+            siteName: 'Economy Helper'
+        },
+        pt: {
+            title: 'Política de Privacidade - Economy Helper',
+            description: 'Política de Privacidade do Economy Helper. Saiba como coletamos, usamos e protegemos suas informações.',
+            keywords: 'política de privacidade, proteção de dados, Economy Helper',
+            siteName: 'Economy Helper'
+        }
+    },
+    about: {
+        kr: {
+            title: '소개 - 경제 도우미',
+            description: '경제 도우미를 소개합니다 - 금융 교육과 경제 지식을 위한 무료 플랫폼.',
+            keywords: '경제 도우미 소개, 금융 교육, 경제 지식',
+            siteName: '경제 도우미'
+        },
+        us: {
+            title: 'About Us - Economy Helper',
+            description: 'Learn about Economy Helper - your free resource for financial literacy and economic education.',
+            keywords: 'about Economy Helper, financial education, economic literacy',
+            siteName: 'Economy Helper'
+        },
+        jp: {
+            title: 'サイト紹介 - 経済ヘルパー',
+            description: '経済ヘルパーについて - 金融教育と経済知識のための無料プラットフォーム。',
+            keywords: '経済ヘルパー紹介, 金融教育, 経済知識',
+            siteName: '経済ヘルパー'
+        },
+        es: {
+            title: 'Sobre Nosotros - Economy Helper',
+            description: 'Conoce Economy Helper - tu recurso gratuito para educación financiera y económica.',
+            keywords: 'sobre Economy Helper, educación financiera, conocimiento económico',
+            siteName: 'Economy Helper'
+        },
+        pt: {
+            title: 'Sobre Nós - Economy Helper',
+            description: 'Conheça o Economy Helper - seu recurso gratuito para educação financeira e econômica.',
+            keywords: 'sobre Economy Helper, educação financeira, conhecimento econômico',
             siteName: 'Economy Helper'
         }
     }
@@ -612,7 +676,17 @@ function renderHeader(activePageId) {
 function renderFooter() {
     const footer = document.getElementById('footer');
     if (!footer) return;
-    footer.innerHTML = '<div class="container mx-auto px-4 py-6"><p class="text-center text-slate-500 text-sm">&copy; ' + new Date().getFullYear() + ' Economy Helper. All rights reserved.</p></div>';
+
+    const footerI18n = {
+        kr: { privacy: '개인정보처리방침', about: '소개' },
+        us: { privacy: 'Privacy Policy', about: 'About' },
+        jp: { privacy: 'プライバシーポリシー', about: 'サイト紹介' },
+        es: { privacy: 'Privacidad', about: 'Nosotros' },
+        pt: { privacy: 'Privacidade', about: 'Sobre' }
+    };
+    const footerText = footerI18n[CURRENT_LANG] || footerI18n.us;
+
+    footer.innerHTML = '<div class="container mx-auto px-4 py-6"><div class="flex flex-col sm:flex-row items-center justify-center gap-4 text-sm text-slate-500"><p>&copy; ' + new Date().getFullYear() + ' Economy Helper. All rights reserved.</p><div class="flex gap-4"><a href="' + LANG_PATH + 'about.html" class="hover:text-blue-600 transition-colors">' + footerText.about + '</a></div></div></div>';
 }
 
 // Head 초기화 (html lang, meta tags, hreflang, JSON-LD)

@@ -2588,7 +2588,7 @@ const COLUMNS_DATA = [
 // Columns I18N
 const COLUMNS_I18N = {
     TITLE: 'Economy Columns',
-    SUBTITLE: 'From Micro to Macro',
+    SUBTITLE: '',
     DESCRIPTION: 'Learn practical economic knowledge you can apply in everyday life',
     SEARCH_PLACEHOLDER: 'Search columns...',
     READ_MORE: 'Read more',

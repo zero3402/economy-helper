@@ -1749,7 +1749,7 @@ const COLUMNS_DATA = [
 // コラムI18N
 const COLUMNS_I18N = {
     TITLE: '経済コラム',
-    SUBTITLE: 'ミクロからマクロまで',
+    SUBTITLE: '',
     DESCRIPTION: '日常生活ですぐに活用できる経済知識を楽しく学びましょう',
     SEARCH_PLACEHOLDER: 'コラム検索...',
     READ_MORE: '続きを読む',

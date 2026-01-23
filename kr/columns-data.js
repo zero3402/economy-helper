@@ -3148,7 +3148,7 @@ const COLUMNS_DATA = [
 // 칼럼 I18N
 const COLUMNS_I18N = {
     TITLE: '경제 칼럼',
-    SUBTITLE: '미시에서 거시까지',
+    SUBTITLE: '',
     DESCRIPTION: '실생활에서 바로 적용할 수 있는 경제 지식을 쉽고 재미있게 배워보세요',
     SEARCH_PLACEHOLDER: '칼럼 검색...',
     READ_MORE: '자세히 읽기',
