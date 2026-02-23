@@ -731,7 +731,7 @@ function initHead(activePageId) {
         'personality-investment': 'investment-test.html',
         'personality-spending': 'spending-test.html',
         compoundInterest: 'compound-interest-calculator.html',
-        savingsGoal: 'savings-goal-calculator.html'
+        savingsGoal: 'savings-goal-calculator.html',
     };
     const pageFile = pageFiles[activePageId] || 'index.html';
     const currentUrl = baseUrl + langPaths[lang] + (pageFile === 'index.html' ? '' : pageFile);
