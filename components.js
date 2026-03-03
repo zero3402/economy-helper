@@ -562,6 +562,10 @@ function handleLanguageChange(lang, activePageId) {
         targetUrl = langPath + 'economy-quiz.html';
     } else if (activePageId === 'columns') {
         targetUrl = langPath + 'columns.html';
+    } else if (activePageId === 'privacy') {
+        targetUrl = langPath + 'privacy.html';
+    } else if (activePageId === 'about') {
+        targetUrl = langPath + 'about.html';
     } else if (activePageId === 'columnDetail') {
         // 칼럼 상세 페이지에서 언어 변경 시 동일 칼럼의 다른 언어 버전으로 이동
         const urlParams = new URLSearchParams(window.location.search);
@@ -686,7 +690,7 @@ function renderFooter() {
     };
     const footerText = footerI18n[CURRENT_LANG] || footerI18n.us;
 
-    footer.innerHTML = '<div class="container mx-auto px-4 py-6"><div class="flex flex-col sm:flex-row items-center justify-center gap-4 text-sm text-slate-500"><p>&copy; ' + new Date().getFullYear() + ' Economy Helper. All rights reserved.</p><div class="flex gap-4"><a href="' + LANG_PATH + 'about.html" class="hover:text-blue-600 transition-colors">' + footerText.about + '</a></div></div></div>';
+    footer.innerHTML = '<div class="container mx-auto px-4 py-6"><div class="flex flex-col sm:flex-row items-center justify-center gap-4 text-sm text-slate-500"><p>&copy; ' + new Date().getFullYear() + ' Economy Helper. All rights reserved.</p><div class="flex gap-4"><a href="' + LANG_PATH + 'about.html" class="hover:text-blue-600 transition-colors">' + footerText.about + '</a><a href="' + LANG_PATH + 'privacy.html" class="hover:text-blue-600 transition-colors">' + footerText.privacy + '</a></div></div></div>';
 }
 
 // Head 초기화 (html lang, meta tags, hreflang, JSON-LD)
