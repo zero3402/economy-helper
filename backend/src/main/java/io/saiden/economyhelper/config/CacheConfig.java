@@ -3,6 +3,7 @@ package io.saiden.economyhelper.config;
 import io.saiden.economyhelper.config.EconomyHelperProperties.CacheTtl;
 import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.StockResolver.ResolvedStock;
+import io.saiden.economyhelper.market.data.MarketIndexApi.MarketIndex;
 import io.saiden.economyhelper.market.data.StockPriceApi.StockPrice;
 import io.saiden.economyhelper.market.upbit.UpbitApi.UpbitTicker;
 import io.saiden.economyhelper.market.upbit.UpbitMarket;
@@ -68,6 +69,9 @@ public class CacheConfig {
                 // 전일 종가라 자주 바뀌지 않는다 — 짧게 잡을 이유가 없다
                 .withCacheConfiguration("stock-price",
                         cache(ttl.stockPrice(), new TypeReference<List<StockPrice>>() {}))
+                // 지수는 담기는 타입이 달라 stock-price에 섞을 수 없다. 수명은 같다 — 같은 전일 종가다
+                .withCacheConfiguration("market-index",
+                        cache(ttl.stockPrice(), new TypeReference<MarketIndex>() {}))
                 .withCacheConfiguration("fx",
                         cache(ttl.fx(), new TypeReference<FxRate>() {}))
                 // 하루 1,000회 한도를 지키는 실질 방어다 — 1시간이면 하루 최대 24회

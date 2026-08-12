@@ -2,9 +2,12 @@ package io.saiden.economyhelper.telegram;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.saiden.economyhelper.market.StockQuote;
 import io.saiden.economyhelper.news.NewsItem;
 import io.saiden.economyhelper.news.NewsSource;
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -12,6 +15,8 @@ import org.junit.jupiter.api.Test;
 class MessageFormatterTest {
 
     private static final Instant NOW = Instant.parse("2026-08-11T00:00:00Z");
+    /** 공공데이터포털은 전일 종가를 준다 — 브리핑에 찍히는 날짜가 이것이다. */
+    private static final LocalDate BASIS = LocalDate.of(2026, 8, 11);
 
     @Test
     @DisplayName("매체명·제목·본문·링크를 담는다")
@@ -88,6 +93,62 @@ class MessageFormatterTest {
         assertThat(MessageFormatter.unknownCommand())
                 .contains("모르는 명령")
                 .contains("/news");
+    }
+
+    @Test
+    @DisplayName("증시 통은 지수를 먼저 놓고 빈 줄로 종목과 나눈다 — 지수에는 '원'을 붙이지 않는다")
+    void stockDigestSeparatesIndicesFromStocks() {
+        String message = MessageFormatter.formatStockDigest(List.of(
+                index("코스피", "6345.53", BASIS),
+                index("코스닥", "857.84", BASIS),
+                stock("삼성전자", "239500", BASIS)));
+
+        assertThat(message).isEqualTo("""
+                📈 증시 (08-11 종가)
+
+                코스피  6,345.53
+                코스닥  857.84
+
+                삼성전자  239,500원""");
+    }
+
+    @Test
+    @DisplayName("한쪽만 있으면 빈 줄도 하나뿐이다 — 없는 무리 자리에 구멍을 남기지 않는다")
+    void stockDigestOmitsEmptyGroup() {
+        assertThat(MessageFormatter.formatStockDigest(List.of(stock("삼성전자", "239500", BASIS))))
+                .isEqualTo("""
+                        📈 증시 (08-11 종가)
+
+                        삼성전자  239,500원""");
+
+        assertThat(MessageFormatter.formatStockDigest(List.of(index("코스피", "6345.53", BASIS))))
+                .isEqualTo("""
+                        📈 증시 (08-11 종가)
+
+                        코스피  6,345.53""");
+    }
+
+    @Test
+    @DisplayName("지수와 종목의 기준일이 어긋나면 묵은 줄에 날짜를 붙인다 — 조용히 섞으면 거짓말이 된다")
+    void stockDigestMarksStaleLines() {
+        String message = MessageFormatter.formatStockDigest(List.of(
+                index("코스피", "6345.53", BASIS.minusDays(1)),
+                stock("삼성전자", "239500", BASIS)));
+
+        assertThat(message)
+                .contains("📈 증시 (08-11 종가)")
+                .contains("코스피  6,345.53 (08-10)")
+                .contains("삼성전자  239,500원")
+                .doesNotContain("삼성전자  239,500원 (");
+    }
+
+    private static StockQuote index(String name, String price, LocalDate basis) {
+        return new StockQuote(null, name, "KOSPI시리즈", new BigDecimal(price), basis, BigDecimal.ZERO);
+    }
+
+    private static StockQuote stock(String name, String price, LocalDate basis) {
+        return new StockQuote("005930", name, "KOSPI", new BigDecimal(price), basis,
+                new BigDecimal("1400183726616000"));
     }
 
     private static NewsItem item(String title, String body, boolean translated) {

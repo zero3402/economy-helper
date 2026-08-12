@@ -150,9 +150,36 @@ class DailyDigestJobTest {
                 fx(false), stock(true), crypto(true)).run(false);
 
         assertThat(result.sent()).isTrue();
-        assertThat(result.delivered()).containsExactly("주식", "코인", "뉴스");
+        assertThat(result.delivered()).containsExactly("증시", "코인", "뉴스");
         assertThat(result.failed()).containsExactly("환율");
         assertThat(telegram.sent).hasSize(3);
+    }
+
+    @Test
+    @DisplayName("증시 통은 지수와 종목을 한 통에 담는다")
+    void stockMessageCarriesIndicesAndStocks() {
+        RecordingClient telegram = new RecordingClient();
+
+        job(telegram, new InMemoryHistory(), new CountingFacade(List.of()),
+                fx(false), stock(true), crypto(false)).run(false);
+
+        assertThat(telegram.sent).hasSize(1);
+        assertThat(telegram.sent.get(0))
+                .contains("📈 증시")
+                .contains("코스피")
+                .contains("삼성전자");
+    }
+
+    @Test
+    @DisplayName("지수만 죽어도 종목은 나간다 — 조회 API가 달라 따로 실패한다")
+    void stockMessageSurvivesIndexFailure() {
+        RecordingClient telegram = new RecordingClient();
+
+        DigestResult result = job(telegram, new InMemoryHistory(), new CountingFacade(List.of()),
+                fx(false), stock(false, true), crypto(false)).run(false);
+
+        assertThat(result.delivered()).containsExactly("증시");
+        assertThat(telegram.sent.get(0)).contains("삼성전자").doesNotContain("코스피");
     }
 
     @Test
@@ -164,10 +191,10 @@ class DailyDigestJobTest {
                 new CountingFacade(List.of(item("유가 상승"))),
                 fx(true), stock(true), crypto(true)).run(false);
 
-        assertThat(result.delivered()).containsExactly("환율", "주식", "코인", "뉴스");
+        assertThat(result.delivered()).containsExactly("환율", "증시", "코인", "뉴스");
         assertThat(telegram.sent).hasSize(4);
         assertThat(telegram.sent.get(0)).contains("원/달러 환율");
-        assertThat(telegram.sent.get(1)).contains("📈 주식").contains("삼성전자");
+        assertThat(telegram.sent.get(1)).contains("📈 증시").contains("삼성전자");
         assertThat(telegram.sent.get(2)).contains("🪙 코인").contains("비트코인");
         assertThat(telegram.sent.get(3)).contains("유가 상승");
     }
@@ -201,14 +228,26 @@ class DailyDigestJobTest {
     }
 
     private static StockService stock(boolean alive) {
+        return stock(alive, alive);
+    }
+
+    private static StockService stock(boolean indicesAlive, boolean stocksAlive) {
         return new StockService(
                 new StockPriceApi(RestClient.builder(), "https://example.invalid", "k",
                         Clock.fixed(NOW, ZoneOffset.UTC)),
                 new MarketIndexApi(RestClient.builder(), "https://example.invalid", "k",
                         Clock.fixed(NOW, ZoneOffset.UTC)), null) {
             @Override
+            public List<StockQuote> indicesOf(List<String> names) {
+                return indicesAlive
+                        ? List.of(new StockQuote(null, "코스피", "KOSPI시리즈", new BigDecimal("6345.53"),
+                                LocalDate.of(2026, 8, 11), BigDecimal.ZERO))
+                        : List.of();
+            }
+
+            @Override
             public List<StockQuote> quotesOf(List<String> codes) {
-                return alive
+                return stocksAlive
                         ? List.of(new StockQuote("005930", "삼성전자", "KOSPI", new BigDecimal("239500"),
                                 LocalDate.of(2026, 8, 11), new BigDecimal("1400183726616000")))
                         : List.of();
@@ -231,7 +270,7 @@ class DailyDigestJobTest {
         return new EconomyHelperProperties(Map.of(), null,
                 new EconomyHelperProperties.Digest(
                         "Asia/Seoul", "0 0 9 * * *", Duration.ofDays(3),
-                        List.of("005930"), List.of("KRW-BTC")),
+                        List.of("코스피"), List.of("005930"), List.of("KRW-BTC")),
                 null, null);
     }
 

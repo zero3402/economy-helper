@@ -45,9 +45,11 @@ public record EconomyHelperProperties(
     /**
      * @param sentHistoryTtl  발송 완료 표시를 남겨 두는 기간. 다음 슬롯(12시간 뒤)보다 넉넉히 길면
      *                        되고, 무한정 쌓이지 않게만 하면 된다.
+     * @param indices         브리핑에 넣을 지수명. 종목({@code stocks})은 코드로 박지만 지수에는
+     *                        코드가 없어 이름으로 쓴다 — {@code MarketIndexApi}가 이름으로만 찾는다
      */
     public record Digest(String zone, String cron, Duration sentHistoryTtl,
-                         List<String> stocks, List<String> cryptos) {}
+                         List<String> indices, List<String> stocks, List<String> cryptos) {}
 
     /**
      * 캐시별 만료 시간.

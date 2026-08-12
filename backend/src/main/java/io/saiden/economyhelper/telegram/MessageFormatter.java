@@ -8,8 +8,10 @@ import io.saiden.economyhelper.news.NewsItem;
 import java.math.BigDecimal;
 import java.text.NumberFormat;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
@@ -121,20 +123,48 @@ public final class MessageFormatter {
     }
 
     /**
-     * 아침 브리핑의 주식 통.
+     * 아침 브리핑의 증시 통 — <b>지수와 종목을 한 통에</b> 담는다.
      *
-     * <p>기준일을 <b>제목에 한 번만</b> 쓴다 — 종목마다 붙이면 같은 날짜가 다섯 번 반복된다.
-     * 전부 같은 조회에서 나오므로 날짜도 같다.
+     * <p>순서를 호출자에게 맡기지 않는다. {@link StockQuote#isIndex()}로 여기서 갈라
+     * 지수를 먼저 놓고 빈 줄로 종목과 나눈다 — 지수·종목은 조회 API가 달라 두 리스트로
+     * 들어오는데, 그 순서까지 지켜야 하는 계약을 만들면 언젠가 어긋난다.
+     *
+     * <p>기준일을 <b>제목에 한 번만</b> 쓴다 — 줄마다 붙이면 같은 날짜가 일곱 번 반복된다.
+     * 다만 지수와 종목은 엔드포인트가 달라 <b>기준일이 어긋날 수 있으므로</b>,
+     * 제목의 날짜와 다른 줄에만 날짜를 따로 붙인다. 낡은 값을 조용히 섞지 않는다.
      */
     public static String formatStockDigest(List<StockQuote> quotes) {
-        StringBuilder message = new StringBuilder("📈 주식");
-        quotes.stream().findFirst().ifPresent(first ->
-                message.append(" (").append(DATE.format(first.basisDate())).append(" 종가)"));
+        List<StockQuote> indices = quotes.stream().filter(StockQuote::isIndex).toList();
+        List<StockQuote> stocks = quotes.stream().filter(quote -> !quote.isIndex()).toList();
+
+        LocalDate basis = quotes.stream()
+                .map(StockQuote::basisDate)
+                .max(Comparator.naturalOrder())
+                .orElse(null);
+
+        StringBuilder message = new StringBuilder("📈 증시");
+        if (basis != null) {
+            message.append(" (").append(DATE.format(basis)).append(" 종가)");
+        }
+        appendQuotes(message, indices, basis);
+        appendQuotes(message, stocks, basis);
+        return message.toString();
+    }
+
+    /** 무리 하나를 빈 줄 뒤에 붙인다. 비어 있으면 빈 줄도 남기지 않는다. */
+    private static void appendQuotes(StringBuilder message, List<StockQuote> quotes, LocalDate basis) {
+        if (quotes.isEmpty()) {
+            return;
+        }
         message.append("\n");
         for (StockQuote quote : quotes) {
-            message.append("\n").append(quote.name()).append("  ").append(money(quote.price())).append("원");
+            // 지수는 통화 단위가 없다 — "원"을 붙이면 틀린 값이 된다
+            message.append("\n").append(quote.name()).append("  ")
+                    .append(money(quote.price())).append(quote.isIndex() ? "" : "원");
+            if (!quote.basisDate().equals(basis)) {
+                message.append(" (").append(DATE.format(quote.basisDate())).append(")");
+            }
         }
-        return message.toString();
     }
 
     /** 아침 브리핑의 코인 통. 24시간 거래되므로 기준일이 아니라 시각을 쓴다. */

@@ -63,7 +63,10 @@ public class MarketIndexApi {
      * @return 이름이 정확히 일치하는 지수. 없으면 부분일치 중 <b>이름이 가장 짧은 것</b> —
      *         파생 지수({@code 코스피 200 ESG 지수})보다 본 지수({@code 코스피})가 짧다
      */
-    @Cacheable(cacheNames = "stock-price", key = "'index:' + #name", unless = "#result == null")
+    // 캐시를 StockPriceApi와 나눠 쓸 수 없다. stock-price는 List<StockPrice>로 역직렬화하도록
+    // 못 박혀 있어 MarketIndex를 넣으면 쓰기는 되고 읽기에서 터진다 — 캐시 히트에서만 나는 버그라
+    // 실물에서야 드러났다(브리핑 지수 2개가 조용히 빠졌다). 캐시 이름 하나에 타입 하나다.
+    @Cacheable(cacheNames = "market-index", key = "#name", unless = "#result == null")
     @RateLimiter(name = "dataGo")
     @CircuitBreaker(name = "dataGo")
     public MarketIndex searchByName(String name) {

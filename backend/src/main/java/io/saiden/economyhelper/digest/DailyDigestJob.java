@@ -3,6 +3,7 @@ package io.saiden.economyhelper.digest;
 import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.market.CryptoService;
 import io.saiden.economyhelper.market.FxService;
+import io.saiden.economyhelper.market.StockQuote;
 import io.saiden.economyhelper.market.StockService;
 import io.saiden.economyhelper.news.NewsFacade;
 import io.saiden.economyhelper.news.NewsItem;
@@ -23,7 +24,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * 매일 오전 9시(KST) 아침 브리핑을 보낸다 — 환율·주식·코인·뉴스 <b>네 통</b>이다.
+ * 매일 오전 9시(KST) 아침 브리핑을 보낸다 — 환율·증시·코인·뉴스 <b>네 통</b>이다.
  *
  * <p>한 통에 다 담지 않는 이유는 성격이 다르기 때문이다. 시세는 한눈에 훑고 뉴스는 읽는다.
  * 게다가 넷을 합치면 텔레그램 한 통 상한(4,096자)에 닿을 수 있다.
@@ -61,6 +62,7 @@ public class DailyDigestJob {
     private final SendHistory history;
     private final Clock clock;
     private final ZoneId zone;
+    private final List<String> indexNames;
     private final List<String> stockCodes;
     private final List<String> cryptoMarkets;
 
@@ -80,6 +82,7 @@ public class DailyDigestJob {
         this.history = history;
         this.clock = clock;
         this.zone = ZoneId.of(properties.digest().zone());
+        this.indexNames = orEmpty(properties.digest().indices());
         this.stockCodes = orEmpty(properties.digest().stocks());
         this.cryptoMarkets = orEmpty(properties.digest().cryptos());
     }
@@ -118,7 +121,7 @@ public class DailyDigestJob {
         List<String> failed = new ArrayList<>();
 
         send("환율", this::fxMessage, delivered, failed);
-        send("주식", this::stockMessage, delivered, failed);
+        send("증시", this::stockMessage, delivered, failed);
         send("코인", this::cryptoMessage, delivered, failed);
         send("뉴스", this::newsMessage, delivered, failed);
 
@@ -161,8 +164,16 @@ public class DailyDigestJob {
         return fxService.usdToKrw().map(MessageFormatter::formatFx);
     }
 
+    /**
+     * 지수와 종목을 한 통에 담는다.
+     *
+     * <p>조회 API가 달라 두 번 부르지만 <b>같은 증시 이야기</b>다 — 따로 보내면 통이 다섯 개가 되고
+     * 통 사이 간격도 1초 더 는다. 한쪽이 통째로 죽어도 나머지만으로 통을 만든다.
+     */
     private Optional<String> stockMessage() {
-        return quotesOrEmpty(stockService.quotesOf(stockCodes), MessageFormatter::formatStockDigest);
+        List<StockQuote> quotes = new ArrayList<>(stockService.indicesOf(indexNames));
+        quotes.addAll(stockService.quotesOf(stockCodes));
+        return quotesOrEmpty(quotes, MessageFormatter::formatStockDigest);
     }
 
     private Optional<String> cryptoMessage() {

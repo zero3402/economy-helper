@@ -192,6 +192,47 @@ class StockServiceTest {
         };
     }
 
+    /** 이름별로 답을 달리하는 지수 API 스텁. {@code null}이면 못 찾은 것, 예외면 조회 실패다. */
+    private static MarketIndexApi indexApiOf(Map<String, MarketIndex> answers) {
+        return new MarketIndexApi(RestClient.builder(), "https://example.invalid", "k",
+                Clock.fixed(Instant.parse("2026-08-12T00:00:00Z"), ZoneOffset.UTC)) {
+            @Override
+            public MarketIndex searchByName(String name) {
+                if (!answers.containsKey(name)) {
+                    throw new IllegalStateException("지수 조회 실패 (basDt=20260811)");
+                }
+                return answers.get(name);
+            }
+        };
+    }
+
+    @Test
+    @DisplayName("브리핑용 지수는 설정 순서를 지킨다")
+    void indicesOfKeepsConfiguredOrder() {
+        MarketIndexApi api = indexApiOf(Map.of(
+                "코스피", new MarketIndex("20260811", "코스피", "KOSPI시리즈", "6345.53"),
+                "코스닥", new MarketIndex("20260811", "코스닥", "KOSDAQ시리즈", "857.84")));
+
+        assertThat(new StockService(new RecordingApi(Map.of()), api, noResolver())
+                .indicesOf(List.of("코스피", "코스닥")))
+                .extracting(StockQuote::name)
+                .containsExactly("코스피", "코스닥");
+    }
+
+    @Test
+    @DisplayName("지수 하나가 실패해도 나머지는 나온다 — 코스닥 때문에 코스피까지 빠지면 안 된다")
+    void indicesOfSurvivesPartialFailure() {
+        Map<String, MarketIndex> answers = new java.util.HashMap<>();
+        answers.put("코스피", new MarketIndex("20260811", "코스피", "KOSPI시리즈", "6345.53"));
+        answers.put("코스닥", null);   // 못 찾은 경우
+        MarketIndexApi api = indexApiOf(answers);
+
+        assertThat(new StockService(new RecordingApi(Map.of()), api, noResolver())
+                .indicesOf(List.of("코스피", "코스닥", "없는지수")))   // 없는지수는 예외를 던진다
+                .extracting(StockQuote::name)
+                .containsExactly("코스피");
+    }
+
     @Test
     @DisplayName("지수는 종목이 아니라 지수 API로 간다 — 종목코드도 통화 단위도 없다")
     void routesIndexToIndexApi() {

@@ -104,6 +104,26 @@ public class StockService {
                 .toList();
     }
 
+    /**
+     * 지수명을 이미 아는 경우 — 아침 브리핑처럼 설정에 박힌 지수들이 여기로 온다.
+     *
+     * <p>{@link #quotesOf}와 같은 모양으로 <b>이름마다 따로 실패한다</b> —
+     * 코스닥이 안 나온다고 코스피까지 빠질 이유가 없다.
+     */
+    public List<StockQuote> indicesOf(List<String> names) {
+        return names.stream()
+                .map(name -> {
+                    try {
+                        return Optional.ofNullable(indexApi.searchByName(name)).map(StockService::toQuote);
+                    } catch (RuntimeException e) {
+                        log.error("[index] {} 조회 실패: {}", name, e.toString());
+                        return Optional.<StockQuote>empty();
+                    }
+                })
+                .flatMap(Optional::stream)
+                .toList();
+    }
+
     /** 지수 하나. 함께 보여줄 후보가 없다 — 완전일치로 하나만 고르기 때문이다. */
     private Optional<StockMatch> indexQuote(String name) {
         MarketIndex index = indexApi.searchByName(name);
@@ -111,10 +131,7 @@ public class StockService {
             log.info("[stock] '{}' 지수를 찾지 못했습니다", name);
             return Optional.empty();
         }
-        return Optional.of(new StockMatch(
-                new StockQuote(null, index.idxNm(), index.idxCsf(), parse(index.clpr()),
-                        LocalDate.parse(index.basDt(), BAS_DT), BigDecimal.ZERO),
-                List.of()));
+        return Optional.of(new StockMatch(toQuote(index), List.of()));
     }
 
     /**
@@ -187,6 +204,12 @@ public class StockService {
     private static StockQuote toQuote(StockPrice price) {
         return new StockQuote(price.srtnCd(), price.itmsNm(), price.mrktCtg(),
                 parse(price.clpr()), LocalDate.parse(price.basDt(), BAS_DT), parse(price.mrktTotAmt()));
+    }
+
+    /** 지수는 종목코드가 없다 — {@code null}이 곧 {@link StockQuote#isIndex()}의 근거다. */
+    private static StockQuote toQuote(MarketIndex index) {
+        return new StockQuote(null, index.idxNm(), index.idxCsf(), parse(index.clpr()),
+                LocalDate.parse(index.basDt(), BAS_DT), BigDecimal.ZERO);
     }
 
     /** 값이 비거나 깨져 있어도 조회 전체를 실패시키지 않는다 — 0으로 보면 순위에서 뒤로 밀릴 뿐이다. */

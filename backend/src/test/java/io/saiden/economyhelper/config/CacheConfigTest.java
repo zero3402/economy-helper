@@ -2,15 +2,23 @@ package io.saiden.economyhelper.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.saiden.economyhelper.market.data.MarketIndexApi;
+import io.saiden.economyhelper.market.data.MarketIndexApi.MarketIndex;
+import io.saiden.economyhelper.market.data.StockPriceApi;
 import io.saiden.economyhelper.news.Article;
 import io.saiden.economyhelper.news.NewsSource;
 import io.saiden.economyhelper.translate.Translation;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.redis.serializer.JacksonJsonRedisSerializer;
 import tools.jackson.core.type.TypeReference;
 
@@ -58,6 +66,33 @@ class CacheConfigTest {
         Map<String, Integer> original = Map.of("example.com/a", 930, "example.com/b", 3);
 
         assertThat(serializer.deserialize(serializer.serialize(original))).isEqualTo(original);
+    }
+
+    @Test
+    @DisplayName("market-index 캐시 — MarketIndex가 그대로 돌아온다")
+    void roundTripsMarketIndex() {
+        JacksonJsonRedisSerializer<MarketIndex> serializer =
+                CacheConfig.serializer(new TypeReference<MarketIndex>() {});
+        MarketIndex original = new MarketIndex("20260811", "코스피", "KOSPI시리즈", "6345.53");
+
+        assertThat(serializer.deserialize(serializer.serialize(original))).isEqualTo(original);
+    }
+
+    @Test
+    @DisplayName("캐시 이름 하나에 타입 하나 — 지수를 stock-price에 섞으면 캐시 히트에서만 터진다")
+    void indexDoesNotShareStockPriceCache() {
+        assertThat(cacheNamesOf(MarketIndexApi.class))
+                .as("stock-price는 List<StockPrice>로 역직렬화하도록 못 박혀 있다. "
+                        + "MarketIndex를 같은 이름에 넣으면 쓰기는 되고 두 번째 조회에서 깨진다")
+                .doesNotContainAnyElementsOf(cacheNamesOf(StockPriceApi.class));
+    }
+
+    private static Set<String> cacheNamesOf(Class<?> type) {
+        return Arrays.stream(type.getDeclaredMethods())
+                .map(method -> method.getAnnotation(Cacheable.class))
+                .filter(Objects::nonNull)
+                .flatMap(cacheable -> Arrays.stream(cacheable.cacheNames()))
+                .collect(Collectors.toSet());
     }
 
     @Test
