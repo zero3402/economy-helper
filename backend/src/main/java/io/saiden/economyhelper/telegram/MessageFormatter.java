@@ -1,6 +1,7 @@
 package io.saiden.economyhelper.telegram;
 
 import io.saiden.economyhelper.market.CryptoQuote;
+import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.news.NewsItem;
 import java.math.BigDecimal;
 import java.text.NumberFormat;
@@ -22,6 +23,8 @@ public final class MessageFormatter {
     /** 시세는 "언제 값인지"가 값 자체만큼 중요하다. 사용자는 한국에 있으므로 KST로 보여준다. */
     private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
     private static final DateTimeFormatter TIMESTAMP = DateTimeFormatter.ofPattern("MM-dd HH:mm");
+    /** 하루 한 번 고시하는 값(수출입은행)에는 시각을 붙이지 않는다. */
+    private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("MM-dd");
 
     private MessageFormatter() {
     }
@@ -60,6 +63,26 @@ public final class MessageFormatter {
 
     public static String noResults(String query) {
         return "'" + query + "'에 해당하는 뉴스를 찾지 못했습니다.";
+    }
+
+    /**
+     * 원/달러 환율.
+     *
+     * <p><b>출처와 기준시각을 반드시 밝힌다.</b> 토스가 죽어 수출입은행으로 폴백하면
+     * 주말엔 며칠 전 값이 나가는데, 그걸 숨기면 고장이 아니라 거짓말이 된다.
+     * 하루 한 번 고시하는 값에 분 단위를 붙이면 실제보다 신선해 보이므로 표기도 달리한다.
+     */
+    public static String formatFx(FxRate rate) {
+        String when = rate.source().intraday()
+                ? timestamp(rate.asOf()) + " 기준"
+                : DATE.format(rate.asOf().atZone(SEOUL)) + " 고시";
+        return "💱 원/달러 환율\n"
+                + money(rate.rate()) + "원\n"
+                + "· " + rate.source().displayName() + " · " + when;
+    }
+
+    public static String fxUnavailable() {
+        return "환율을 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.";
     }
 
     /**

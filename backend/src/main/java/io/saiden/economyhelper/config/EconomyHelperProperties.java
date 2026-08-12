@@ -18,9 +18,13 @@ public record EconomyHelperProperties(
         Map<NewsSource, Feed> feeds, Ranking ranking, Digest digest, CacheTtl cacheTtl, Market market) {
 
     /** 시세 API들. 키는 여기 두지 않는다 — 환경변수로만 주입한다. */
-    public record Market(Upbit upbit) {}
+    public record Market(Upbit upbit, Toss toss, Kexim kexim) {}
 
     public record Upbit(String baseUrl) {}
+
+    public record Toss(String baseUrl, String clientId, String clientSecret) {}
+
+    public record Kexim(String baseUrl, String apiKey) {}
 
     /** {@code type}이 어느 파서를 쓸지 정한다 — Reuters만 GOOGLE_NEWS다. */
     public record Feed(String url, FeedType type) {}
@@ -48,5 +52,6 @@ public record EconomyHelperProperties(
      * @param query 한국어 검색어 → 영어 표현 대응. 이건 낡지 않으므로 길게 잡는다
      */
     public record CacheTtl(Duration feed, Duration translation, Duration buzz, Duration query,
-                           Duration upbitMarkets, Duration cryptoPrice) {}
+                           Duration upbitMarkets, Duration cryptoPrice,
+                           Duration fx, Duration fxKexim) {}
 }

@@ -1,6 +1,7 @@
 package io.saiden.economyhelper.config;
 
 import io.saiden.economyhelper.config.EconomyHelperProperties.CacheTtl;
+import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.upbit.UpbitApi.UpbitTicker;
 import io.saiden.economyhelper.market.upbit.UpbitMarket;
 import io.saiden.economyhelper.news.Article;
@@ -55,7 +56,12 @@ public class CacheConfig {
                 .withCacheConfiguration("upbit-markets",
                         cache(ttl.upbitMarkets(), new TypeReference<List<UpbitMarket>>() {}))
                 .withCacheConfiguration("crypto-price",
-                        cache(ttl.cryptoPrice(), new TypeReference<List<UpbitTicker>>() {}));
+                        cache(ttl.cryptoPrice(), new TypeReference<List<UpbitTicker>>() {}))
+                .withCacheConfiguration("fx",
+                        cache(ttl.fx(), new TypeReference<FxRate>() {}))
+                // 하루 1,000회 한도를 지키는 실질 방어다 — 1시간이면 하루 최대 24회
+                .withCacheConfiguration("fx-kexim",
+                        cache(ttl.fxKexim(), new TypeReference<FxRate>() {}));
     }
 
     private static RedisCacheConfiguration cache(Duration ttl, TypeReference<?> type) {

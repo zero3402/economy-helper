@@ -79,6 +79,8 @@ economy-helper:
     query: 30d             # '비트코인'→bitcoin 대응은 낡지 않는다. 토큰 단위라 적중률도 높다
     upbit-markets: 6h      # 신규 상장·상장폐지는 드물다. 이게 없으면 /crypto 한 번에 조회가 두 번 나간다
     crypto-price: 10s      # 시세다. 길게 잡으면 거짓말이 된다. 연타와 초당 10회 제한을 막는 정도만
+    fx: 1m                 # 토스는 1분 주기로 갱신된다(validUntil은 5분이지만 보수적으로)
+    fx-kexim: 1h           # 수출입은행 하루 1,000회 한도를 지키는 실질 방어다 (1h면 하루 최대 24회)
 
   digest:
     zone: Asia/Seoul
@@ -122,6 +124,19 @@ economy-helper:
       # 인증이 없다. 초당 10회/IP 제한만 지키면 된다 (resilience4j ratelimiter 'upbit')
       base-url: https://api.upbit.com
 
+    toss:
+      # OAuth2 client_credentials. 호출 IP를 허용 목록에 등록해야 동작한다 —
+      # 배포 때 호스팅 송신 IP를 다시 등록해야 한다.
+      base-url: https://openapi.tossinvest.com
+      client-id: ${TOSS_SECURITY_CLIENT_ID:}
+      client-secret: ${TOSS_SECURITY_SECRET_KEY:}
+
+    kexim:
+      # oapi 도메인을 쓴다. 구 www.koreaexim.go.kr은 2026-04-30에 지원이 끝나 연결되지 않는다.
+      # 이 API는 authkey를 쿼리 파라미터로만 받으므로 URL이 로그에 남지 않게 주의해야 한다.
+      base-url: https://oapi.koreaexim.go.kr
+      api-key: ${KEXIM_API_KEY:}
+
   telegram:
     bot-token: ${TELEGRAM_BOT_TOKEN:}
     chat-id: ${TELEGRAM_CHAT_ID:}
@@ -152,6 +167,16 @@ resilience4j:
         waitDurationInOpenState: 300s
       upbit:
         baseConfig: default
+      # 환율은 출처별로 따로 연다. 하나로 묶으면 토스 장애가 수출입은행까지 끊어
+      # CLAUDE.md가 요구한 이중화가 성립하지 않는다.
+      fxToss:
+        baseConfig: default
+      fxKexim:
+        baseConfig: default
+      # 토큰 발급이 계속 실패할 때 매 요청이 재발급을 시도하는 것을 막는다.
+      # (프로그래매틱으로 건다 — TossTokenProvider 주석 참조)
+      tossAuth:
+        baseConfig: default
   ratelimiter:
     instances:
       # Gemini 무료 티어는 보장된 한도가 아니다. 스스로 낮게 잡아 429를 피한다.
@@ -163,4 +188,16 @@ resilience4j:
       upbit:
         limitForPeriod: 8
         limitRefreshPeriod: 1s
+        timeoutDuration: 3s
+      # 토스는 그룹마다 한도가 다르다(overview.md + 응답 헤더로 실측).
+      # 하나로 묶으면 전부가 가장 빡빡한 그룹에 끌려간다.
+      tossMarketInfo:      # MARKET_INFO 초당 3회 (환율)
+        limitForPeriod: 2
+        limitRefreshPeriod: 1s
+        timeoutDuration: 3s
+      # 수출입은행은 하루 1,000회다 — 초 단위로는 지킬 수 없어 캐시(1h)가 실질 방어다.
+      # 이 리미터는 영업일 후퇴 루프가 폭주하는 것만 막는다.
+      kexim:
+        limitForPeriod: 5
+        limitRefreshPeriod: 60s
         timeoutDuration: 3s
