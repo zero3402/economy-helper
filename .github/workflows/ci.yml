@@ -60,6 +60,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # arm64 레이어를 amd64 러너에서 굽기 위한 에뮬레이터.
+      # Gradle 빌드는 Dockerfile의 --platform=$BUILDPLATFORM 덕에 네이티브로 도므로
+      # 여기서 에뮬레이션되는 건 런타임 스테이지의 useradd 정도다.
+      - uses: docker/setup-qemu-action@v4
+
       # 러너의 기본 buildx 드라이버는 'docker'이고 캐시 export를 지원하지 않는다
       # ("Cache export is not supported for the docker driver" — 첫 실행에서 실제로 터졌다).
       # 이 액션이 docker-container 드라이버를 만들어 아래 cache-to type=gha가 성립한다.
@@ -83,6 +88,10 @@ jobs:
       - uses: docker/build-push-action@v7
         with:
           context: backend
+          # 단일 아키로 구우면 러너 아키(amd64)만 나온다 — 첫 성공 실행에서 실제로 그랬고
+          # arm64 Mac에서 pull조차 안 됐다. CLAUDE.md의 Oracle Cloud Always Free는
+          # Ampere(ARM)라 amd64만 있으면 배포처가 정해지는 순간 다시 구워야 한다.
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

@@ -5,7 +5,10 @@
 # 호스트별 차이는 전부 환경변수로 흡수한다 — Dockerfile에 특정 PaaS 이야기를 넣지 않는다.
 
 # --- 빌드 ---------------------------------------------------------------
-FROM eclipse-temurin:17-jdk AS build
+# --platform=$BUILDPLATFORM: 멀티아키로 구울 때도 이 스테이지는 러너의 네이티브 아키에서
+# 한 번만 돈다. jar는 바이트코드라 아키와 무관하므로 arm64용 Gradle 빌드를 QEMU로
+# 에뮬레이션할 이유가 없다 — 안 하면 빌드가 10분대로 늘어난다.
+FROM --platform=$BUILDPLATFORM eclipse-temurin:17-jdk AS build
 WORKDIR /build
 
 # 래퍼와 빌드 스크립트를 먼저 넣어 의존성 해석을 캐시한다.
