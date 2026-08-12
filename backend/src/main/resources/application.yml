@@ -6,6 +6,13 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       timeout: 2s
+      # 관리형 Redis(Upstash·ElastiCache·Redis Cloud)는 전부 인증과 TLS를 요구한다.
+      # 여기가 비어 있으면 배포처가 정해지는 순간 코드를 고쳐야 하므로 미리 환경변수로 열어 둔다.
+      # 빈 값은 Spring이 "인증 없음"으로 처리해서 로컬 동작은 그대로다.
+      username: ${REDIS_USERNAME:}
+      password: ${REDIS_PASSWORD:}
+      ssl:
+        enabled: ${REDIS_SSL:false}
   cache:
     type: redis
   # 외부 호출(피드 5개·HN·Gemini·텔레그램)에 타임아웃을 건다. 없으면 응답 없는 상대를 만났을 때
