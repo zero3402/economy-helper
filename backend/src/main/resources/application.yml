@@ -41,7 +41,9 @@ economy-helper:
       url: https://feeds.bloomberg.com/markets/news.rss
       type: rss
     ft:
-      url: https://www.ft.com/rss/home
+      url: "https://www.ft.com/markets?format=rss"
+      # 홈 피드(rss/home)는 일반 뉴스가 섞여 8건뿐이었다. markets는 25건이고 전부 시장 기사다.
+      # Bloomberg는 이미 markets, Economist는 finance-and-economics인데 FT만 홈이었다
       type: rss
     economist:
       url: https://www.economist.com/finance-and-economics/rss.xml
@@ -59,6 +61,8 @@ economy-helper:
     weights:
       feed-rank: 0.35      # RSS 노출 순서 = 편집자가 매긴 우선순위
       recency: 0.25
+      # 네 항 중 유일하게 "주제"를 아는 항이다. 정기 발송에서는 LLM이 매긴 재테크 관련도,
+      # /news 검색에서는 검색어와의 매칭도가 여기 들어간다.
       keyword-match: 0.25
       buzz: 0.15           # Hacker News 실측 (points + num_comments)
     recency-half-life: 6h
@@ -77,6 +81,7 @@ economy-helper:
     translation: 7d        # 같은 기사를 두 번 번역하지 않는다 (무료 티어 절약)
     buzz: 1h               # HN 반응은 천천히 쌓인다. 매 랭킹마다 조회할 이유가 없다
     query: 30d             # '비트코인'→bitcoin 대응은 낡지 않는다. 토큰 단위라 적중률도 높다
+    relevance: 7d          # 기사는 바뀌지 않는다. 배치 단위로 캐시해 재트리거 때 Gemini를 또 부르지 않는다
     upbit-markets: 6h      # 신규 상장·상장폐지는 드물다. 이게 없으면 /crypto 한 번에 조회가 두 번 나간다
     crypto-price: 10s      # 시세다. 길게 잡으면 거짓말이 된다. 연타와 초당 10회 제한을 막는 정도만
     fx: 1m                 # 토스는 1분 주기로 갱신된다(validUntil은 5분이지만 보수적으로)
@@ -85,9 +90,15 @@ economy-helper:
   digest:
     zone: Asia/Seoul
     cron: "0 0 9,21 * * *"
+    # 매체별로 LLM에 넘길 후보 수. 전부 넣으면 무료 티어를 태우고, 너무 좁히면 진짜 기사가 빠진다
+    llm-candidates: 8
+    # 이 미만이면 재테크 뉴스가 아닌 것으로 보고 그 매체를 이번 발송에서 뺀다
+    relevance-threshold: 0.4
     sent-history-ttl: 3d   # 발송 완료 표시 보관 기간 (중복 발송 방지)
-    # 정기 발송에는 검색어가 없으므로 이 사전이 keywordMatch의 입력이 된다.
-    # "재테크에 꼭 필요한 뉴스"를 고르는 유일한 의미 신호다.
+    # **폴백 전용이다.** 재테크 관련도는 이제 LLM이 매기고(RelevanceScorer),
+    # Gemini가 죽었을 때만 이 사전으로 내려간다.
+    # 1순위가 아니게 됐으므로 완벽할 필요가 없다 — 새 주제(스테이블코인, AI 설비투자 등)를
+    # 여기 계속 추가하며 쫓아다닐 이유도 사라졌다.
     keywords:
       - fed
       - inflation

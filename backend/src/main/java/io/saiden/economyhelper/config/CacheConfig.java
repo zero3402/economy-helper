@@ -53,6 +53,9 @@ public class CacheConfig {
                         cache(ttl.buzz(), new TypeReference<Map<String, Integer>>() {}))
                 .withCacheConfiguration("query",
                         cache(ttl.query(), new TypeReference<List<String>>() {}))
+                // 배치 단위로 캐시한다 — 기사별로 쪼개면 배치가 깨져 Gemini 호출이 늘어난다
+                .withCacheConfiguration("relevance",
+                        cache(ttl.relevance(), new TypeReference<Map<String, Double>>() {}))
                 .withCacheConfiguration("upbit-markets",
                         cache(ttl.upbitMarkets(), new TypeReference<List<UpbitMarket>>() {}))
                 .withCacheConfiguration("crypto-price",

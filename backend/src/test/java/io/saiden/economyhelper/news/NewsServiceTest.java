@@ -13,11 +13,13 @@ import io.saiden.economyhelper.news.rank.HackerNewsBuzzClient;
 import io.saiden.economyhelper.news.rank.KeywordGroup;
 import io.saiden.economyhelper.news.rank.PopularityScorer;
 import io.saiden.economyhelper.news.rank.RankingWeights;
+import io.saiden.economyhelper.news.rank.RelevanceScorer;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +34,9 @@ class NewsServiceTest {
 
     private static final Instant NOW = Instant.parse("2026-08-11T00:00:00Z");
     private static final Clock CLOCK = Clock.fixed(NOW, ZoneOffset.UTC);
+
+    /** 예전 필터("키워드가 하나도 안 걸리면 제외")와 같은 뜻이 되도록 0보다 크게만 잡는다. */
+    private static final double RELEVANCE_THRESHOLD = 0.01;
 
     @Test
     @DisplayName("매체별로 1건씩 뽑는다")
@@ -145,11 +150,44 @@ class NewsServiceTest {
     }
 
     private static NewsService service(Map<NewsSource, List<Article>> bySource) {
+        return service(bySource, keywordFallbackScorer());
+    }
+
+    private static NewsService service(Map<NewsSource, List<Article>> bySource, RelevanceScorer relevance) {
         return new NewsService(
                 new StubFetcher(bySource),
                 new StubBuzzClient(),
                 new PopularityScorer(RankingWeights.defaults(), Duration.ofHours(6)),
-                CLOCK);
+                relevance,
+                CLOCK,
+                8,
+                RELEVANCE_THRESHOLD);
+    }
+
+    /**
+     * LLM 없이 예전과 같은 키워드 매칭으로 관련도를 매긴다.
+     *
+     * <p>이 클래스의 관심사는 "수집 → 후보 좁히기 → 임계값 → 랭킹" 흐름이지 채점 방식이 아니다.
+     * LLM 경로는 {@code RelevanceScorerTest}가 따로 본다.
+     */
+    private static RelevanceScorer keywordFallbackScorer() {
+        return new RelevanceScorer(null, null) {
+            @Override
+            public Map<String, Double> scoreAll(List<Article> candidates,
+                                                Collection<KeywordGroup> fallbackKeywords) {
+                // 사전이 비면 걸러낼 근거가 없다 — 전부 통과 (실제 폴백도 같은 규칙이다)
+                boolean noBasis = fallbackKeywords == null || fallbackKeywords.isEmpty();
+                return candidates.stream().collect(java.util.stream.Collectors.toMap(
+                        Article::link,
+                        a -> noBasis || matches(a, fallbackKeywords) ? 1.0 : 0.0,
+                        (x, y) -> x));
+            }
+
+            private boolean matches(Article article, Collection<KeywordGroup> keywords) {
+                String haystack = article.text().toLowerCase(java.util.Locale.ROOT);
+                return keywords.stream().anyMatch(group -> group.matches(haystack));
+            }
+        };
     }
 
     private static Article article(NewsSource source, String title, int feedRank) {

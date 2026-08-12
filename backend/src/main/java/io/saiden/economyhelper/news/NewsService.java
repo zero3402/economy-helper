@@ -4,6 +4,7 @@ import io.saiden.economyhelper.news.feed.FeedFetcher;
 import io.saiden.economyhelper.news.rank.HackerNewsBuzzClient;
 import io.saiden.economyhelper.news.rank.KeywordGroup;
 import io.saiden.economyhelper.news.rank.PopularityScorer;
+import io.saiden.economyhelper.news.rank.RelevanceScorer;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -15,6 +16,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
@@ -34,32 +36,46 @@ public class NewsService {
     private final FeedFetcher fetcher;
     private final HackerNewsBuzzClient buzzClient;
     private final PopularityScorer scorer;
+    private final RelevanceScorer relevanceScorer;
     private final Clock clock;
+    private final int llmCandidates;
+    private final double relevanceThreshold;
 
     public NewsService(FeedFetcher fetcher,
                        HackerNewsBuzzClient buzzClient,
                        PopularityScorer scorer,
-                       Clock clock) {
+                       RelevanceScorer relevanceScorer,
+                       Clock clock,
+                       @Value("${economy-helper.digest.llm-candidates:8}") int llmCandidates,
+                       @Value("${economy-helper.digest.relevance-threshold:0.4}") double relevanceThreshold) {
         this.fetcher = fetcher;
         this.buzzClient = buzzClient;
         this.scorer = scorer;
+        this.relevanceScorer = relevanceScorer;
         this.clock = clock;
+        this.llmCandidates = llmCandidates;
+        this.relevanceThreshold = relevanceThreshold;
     }
 
     /**
      * 매체별 1건 — 정기 발송용.
      *
-     * <p><b>재테크 키워드가 걸리는 기사만 후보로 삼는다.</b> 걸리는 게 하나도 없으면 그 매체는
-     * 이번 발송에서 빠진다. FT 홈 피드처럼 일반 뉴스가 섞여 오는 매체에서 필터 없이 순위만 매기면
-     * "EU 국경 검사로 공항 대기줄 두 배" 같은 기사가 1위로 뽑힌다(8단계에서 실제로 겪음) —
-     * 재테크 뉴스가 아닌 걸 채워 보내는 것보다 그 매체를 비우는 편이 낫다.
+     * <p><b>재테크 관련도가 임계값 이상인 기사만 후보로 삼는다.</b> 없으면 그 매체는 이번 발송에서
+     * 빠진다 — 재테크 뉴스가 아닌 걸 채워 보내는 것보다 낫다. 필터 없이 순위만 매기면
+     * "EU 국경 검사로 공항 대기줄 두 배" 같은 기사가 1위로 뽑힌다(8단계에서 실제로 겪음).
+     * 랭킹 네 항 중 셋({@code feedRank}·{@code recency}·{@code buzz})은 주제를 전혀 모르기 때문이다.
+     *
+     * <p>관련도를 <b>어떻게 재는지</b>는 {@link RelevanceScorer}가 정한다(LLM, 실패 시 키워드 사전).
+     * 여기서는 후보를 좁혀 넘기고 임계값으로 자를 뿐이다.
      *
      * <p>수집에 실패한 매체도 결과에서 빠질 뿐 나머지를 막지 않는다.
      * 이게 "한 소스가 죽어도 발송은 계속된다"의 실제 구현이다.
      */
     public Map<NewsSource, ScoredArticle> digest(Collection<KeywordGroup> keywords) {
         List<KeywordGroup> dictionary = usable(keywords);
+        Instant now = clock.instant();
         Map<NewsSource, ScoredArticle> top = new EnumMap<>(NewsSource.class);
+
         for (NewsSource source : NewsSource.values()) {
             List<Article> articles = fetcher.fetch(source);
             if (articles.isEmpty()) {
@@ -67,13 +83,31 @@ public class NewsService {
                 continue;
             }
 
-            List<Article> relevant = relevantTo(articles, dictionary);
+            Map<String, Integer> buzz = buzzClient.buzzByLink(articles, now);
+
+            // 1) 관련도 없이 먼저 줄을 세워 상위 몇 건만 남긴다 — LLM에 전부 넣으면 무료 티어를 태운다.
+            //    이 단계의 점수는 주제를 모르지만(노출 순서·최신성·반응) 후보를 좁히는 데는 충분하다
+            List<Article> candidates = scorer.rankByRelevance(articles, Map.of(), buzz, now).stream()
+                    .limit(llmCandidates)
+                    .map(ScoredArticle::article)
+                    .toList();
+
+            // 2) 후보들의 재테크 관련도를 한 번에 매긴다 (LLM 실패 시 키워드 사전으로 내려간다)
+            Map<String, Double> relevance = relevanceScorer.scoreAll(candidates, dictionary);
+
+            // 3) 임계값 미만은 버린다 — 예전의 키워드 필터가 하던 일을 점수가 대신한다
+            List<Article> relevant = candidates.stream()
+                    .filter(article -> relevance.getOrDefault(article.link(), 0.0) >= relevanceThreshold)
+                    .toList();
             if (relevant.isEmpty()) {
-                log.info("[{}] 재테크 키워드가 걸리는 기사가 없어 이번 발송에서 제외합니다 (수집 {}건)",
-                        source, articles.size());
+                log.info("[{}] 재테크 관련도가 {} 이상인 기사가 없어 이번 발송에서 제외합니다 (후보 {}건)",
+                        source, relevanceThreshold, candidates.size());
                 continue;
             }
-            rank(relevant, dictionary).stream().findFirst().ifPresent(article -> top.put(source, article));
+
+            scorer.rankByRelevance(relevant, relevance, buzz, now).stream()
+                    .findFirst()
+                    .ifPresent(article -> top.put(source, article));
         }
         return top;
     }
@@ -109,14 +143,6 @@ public class NewsService {
         // HN 조회는 여기서 한 번에 끝낸다 — PopularityScorer는 I/O를 모르는 순수 함수다
         Map<String, Integer> buzz = buzzClient.buzzByLink(articles, now);
         return scorer.rank(articles, keywords, buzz, now);
-    }
-
-    /** 사전이 비어 있으면 걸러낼 근거가 없으므로 전부 통과시킨다. */
-    private static List<Article> relevantTo(List<Article> articles, List<KeywordGroup> dictionary) {
-        if (dictionary.isEmpty()) {
-            return articles;
-        }
-        return articles.stream().filter(article -> matchesAny(article, dictionary)).toList();
     }
 
     private static List<KeywordGroup> usable(Collection<KeywordGroup> keywords) {

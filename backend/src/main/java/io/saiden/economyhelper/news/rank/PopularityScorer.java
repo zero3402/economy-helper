@@ -11,6 +11,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.ToDoubleFunction;
 
 /**
  * 기사 인기도 점수.
@@ -55,11 +56,36 @@ public class PopularityScorer {
                                     Collection<KeywordGroup> keywords,
                                     Map<String, Integer> buzzByLink,
                                     Instant now) {
+        return rankBy(articles, article -> keywordScore(article.text(), keywords), buzzByLink, now);
+    }
+
+    /**
+     * 관련도를 <b>밖에서 계산해</b> 넘기는 경로 — 정기 발송이 쓴다.
+     *
+     * <p>정기 발송에는 검색어가 없어 관련도의 근거가 필요한데, 그걸 무엇으로 재는지는
+     * 이 클래스가 알 바가 아니다. 지금은 LLM이 매긴 "재테크 관련도"가 들어오고
+     * (LLM이 죽으면 키워드 사전 매칭이 대신 들어온다) — 어느 쪽이든 여기는 그대로다.
+     *
+     * @param relevanceByLink 기사 링크 → 0~1. 없는 링크는 0으로 본다
+     */
+    public List<ScoredArticle> rankByRelevance(List<Article> articles,
+                                               Map<String, Double> relevanceByLink,
+                                               Map<String, Integer> buzzByLink,
+                                               Instant now) {
+        return rankBy(articles,
+                article -> relevanceByLink == null ? 0.0 : relevanceByLink.getOrDefault(article.link(), 0.0),
+                buzzByLink, now);
+    }
+
+    private List<ScoredArticle> rankBy(List<Article> articles,
+                                       ToDoubleFunction<Article> relevance,
+                                       Map<String, Integer> buzzByLink,
+                                       Instant now) {
         int feedSize = normalizingFeedSize(articles);
         List<ScoredArticle> scored = new ArrayList<>(articles.size());
         for (Article article : articles) {
             int buzz = buzzByLink == null ? 0 : buzzByLink.getOrDefault(article.link(), 0);
-            scored.add(score(article, feedSize, keywords, buzz, now));
+            scored.add(score(article, feedSize, relevance.applyAsDouble(article), buzz, now));
         }
         scored.sort(Comparator.comparingDouble(ScoredArticle::score).reversed());
         return List.copyOf(scored);
@@ -70,10 +96,22 @@ public class PopularityScorer {
                                Collection<KeywordGroup> keywords,
                                int buzzRaw,
                                Instant now) {
+        return score(article, feedSize, keywordScore(article.text(), keywords), buzzRaw, now);
+    }
+
+    /**
+     * @param relevance 0~1. {@code ScoreBreakdown}에서는 여전히 {@code keywordMatch} 자리에 들어간다 —
+     *                  가중치({@code keyword-match: 0.25})가 그 자리를 가리키기 때문이다
+     */
+    public ScoredArticle score(Article article,
+                               int feedSize,
+                               double relevance,
+                               int buzzRaw,
+                               Instant now) {
         ScoreBreakdown breakdown = new ScoreBreakdown(
                 feedRankScore(article.feedRank(), feedSize),
                 recencyScore(article.publishedAt(), now),
-                keywordScore(article.text(), keywords),
+                clamp(relevance),
                 buzzScore(buzzRaw));
 
         double weighted = breakdown.feedRank() * weights.feedRank()

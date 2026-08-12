@@ -52,6 +52,6 @@ public record EconomyHelperProperties(
      * @param query 한국어 검색어 → 영어 표현 대응. 이건 낡지 않으므로 길게 잡는다
      */
     public record CacheTtl(Duration feed, Duration translation, Duration buzz, Duration query,
-                           Duration upbitMarkets, Duration cryptoPrice,
+                           Duration relevance, Duration upbitMarkets, Duration cryptoPrice,
                            Duration fx, Duration fxKexim) {}
 }
