@@ -22,12 +22,12 @@ class FxServiceTest {
     @Test
     @DisplayName("1순위가 성공하면 폴백은 호출조차 하지 않는다")
     void doesNotCallFallbackWhenPrimarySucceeds() {
-        CountingClient toss = CountingClient.returning(FxSource.TOSS, "1414.7");
+        CountingClient toss = CountingClient.returning(FxSource.FRANKFURTER, "1414.7");
         CountingClient kexim = CountingClient.returning(FxSource.KEXIM, "1415");
 
         FxRate rate = new FxService(List.of(toss, kexim)).usdToKrw().orElseThrow();
 
-        assertThat(rate.source()).isEqualTo(FxSource.TOSS);
+        assertThat(rate.source()).isEqualTo(FxSource.FRANKFURTER);
         assertThat(toss.calls).hasValue(1);
         assertThat(kexim.calls).hasValue(0);
     }
@@ -35,7 +35,7 @@ class FxServiceTest {
     @Test
     @DisplayName("1순위가 죽으면 폴백이 받는다 — 이게 이중화가 하는 일이다")
     void fallsBackWhenPrimaryFails() {
-        CountingClient toss = CountingClient.failing(FxSource.TOSS);
+        CountingClient toss = CountingClient.failing(FxSource.FRANKFURTER);
         CountingClient kexim = CountingClient.returning(FxSource.KEXIM, "1415");
 
         FxRate rate = new FxService(List.of(toss, kexim)).usdToKrw().orElseThrow();
@@ -49,21 +49,21 @@ class FxServiceTest {
     @DisplayName("전부 실패하면 빈 결과 — 예외를 밖으로 던지지 않는다")
     void returnsEmptyWhenAllFail() {
         FxService service = new FxService(
-                List.of(CountingClient.failing(FxSource.TOSS), CountingClient.failing(FxSource.KEXIM)));
+                List.of(CountingClient.failing(FxSource.FRANKFURTER), CountingClient.failing(FxSource.KEXIM)));
 
         assertThat(service.usdToKrw()).isEmpty();
     }
 
     @Test
-    @DisplayName("주입 순서가 뒤바뀌어도 토스가 1순위다 — 빈 등록 순서에 이중화가 딸려 가면 안 된다")
+    @DisplayName("주입 순서가 뒤바뀌어도 Frankfurter가 1순위다 — 빈 등록 순서에 이중화가 딸려 가면 안 된다")
     void orderIsDeclaredNotInjected() {
-        CountingClient toss = CountingClient.returning(FxSource.TOSS, "1414.7");
+        CountingClient toss = CountingClient.returning(FxSource.FRANKFURTER, "1414.7");
         CountingClient kexim = CountingClient.returning(FxSource.KEXIM, "1415");
 
         // 수출입은행을 먼저 주입해도
         FxRate rate = new FxService(List.of(kexim, toss)).usdToKrw().orElseThrow();
 
-        assertThat(rate.source()).isEqualTo(FxSource.TOSS);
+        assertThat(rate.source()).isEqualTo(FxSource.FRANKFURTER);
         assertThat(kexim.calls).hasValue(0);
     }
 

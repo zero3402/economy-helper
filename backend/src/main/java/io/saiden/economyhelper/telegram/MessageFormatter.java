@@ -2,6 +2,8 @@ package io.saiden.economyhelper.telegram;
 
 import io.saiden.economyhelper.market.CryptoQuote;
 import io.saiden.economyhelper.market.FxRate;
+import io.saiden.economyhelper.market.StockQuote;
+import io.saiden.economyhelper.market.StockService.StockMatch;
 import io.saiden.economyhelper.news.NewsItem;
 import java.math.BigDecimal;
 import java.text.NumberFormat;
@@ -83,6 +85,34 @@ public final class MessageFormatter {
 
     public static String fxUnavailable() {
         return "환율을 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.";
+    }
+
+    /**
+     * 주식 시세.
+     *
+     * <p><b>기준일을 반드시 밝힌다.</b> 공공데이터포털은 전일 종가를 주므로, 날짜를 숨기면
+     * 장중에 물었을 때 실시간 현재가로 오해한다 — 환율에서 출처와 고시일을 밝히는 것과 같은 규칙이다.
+     *
+     * <p>함께 걸린 다른 후보를 한 줄로 덧붙인다. 되묻는 것보다 낫다 —
+     * 텔레그램에서 "어느 것입니까"를 물으면 대화가 두 번 오간다.
+     */
+    public static String formatStock(StockMatch match) {
+        StockQuote quote = match.quote();
+        StringBuilder message = new StringBuilder("📈 ")
+                .append(quote.name())
+                .append(" (").append(quote.code()).append(" · ").append(quote.market()).append(")\n")
+                .append(money(quote.price())).append("원\n")
+                .append("· 공공데이터포털 · ").append(DATE.format(quote.basisDate())).append(" 종가");
+
+        if (!match.alternatives().isEmpty()) {
+            message.append("\n다른 결과: ").append(String.join(", ", match.alternatives()));
+        }
+        return message.toString();
+    }
+
+    public static String stockNotFound(String query) {
+        return "'" + query + "'에 해당하는 종목을 찾지 못했습니다.\n"
+                + "국내 상장 종목만 조회할 수 있습니다. 예) /stock 삼성전자, /stock 005930";
     }
 
     /**

@@ -3,6 +3,7 @@ package io.saiden.economyhelper.telegram;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.saiden.economyhelper.market.CryptoService;
 import io.saiden.economyhelper.market.FxService;
+import io.saiden.economyhelper.market.StockService;
 import io.saiden.economyhelper.news.NewsFacade;
 import io.saiden.economyhelper.news.NewsItem;
 import java.util.Optional;
@@ -30,15 +31,18 @@ public class TelegramWebhookController {
     private final NewsFacade newsFacade;
     private final CryptoService cryptoService;
     private final FxService fxService;
+    private final StockService stockService;
     private final TelegramClient telegramClient;
 
     public TelegramWebhookController(NewsFacade newsFacade,
                                      CryptoService cryptoService,
                                      FxService fxService,
+                                     StockService stockService,
                                      TelegramClient telegramClient) {
         this.newsFacade = newsFacade;
         this.cryptoService = cryptoService;
         this.fxService = fxService;
+        this.stockService = stockService;
         this.telegramClient = telegramClient;
     }
 
@@ -95,9 +99,10 @@ public class TelegramWebhookController {
             case FX -> fxService.usdToKrw()
                     .map(MessageFormatter::formatFx)
                     .orElseGet(MessageFormatter::fxUnavailable);
+            case STOCK -> stockService.quote(command.argument())
+                    .map(MessageFormatter::formatStock)
+                    .orElseGet(() -> MessageFormatter.stockNotFound(command.argument()));
             case HELP -> MessageFormatter.help();
-            // TODO 6단계에서 채운다
-            case STOCK -> "아직 준비 중인 명령입니다.";
         };
     }
 

@@ -84,6 +84,8 @@ economy-helper:
     relevance: 7d          # 기사는 바뀌지 않는다. 배치 단위로 캐시해 재트리거 때 Gemini를 또 부르지 않는다
     upbit-markets: 6h      # 신규 상장·상장폐지는 드물다. 이게 없으면 /crypto 한 번에 조회가 두 번 나간다
     crypto-price: 10s      # 시세다. 길게 잡으면 거짓말이 된다. 연타와 초당 10회 제한을 막는 정도만
+    stock-resolve: 7d      # LLM 해석 결과. 같은 검색어에 Gemini를 두 번 태우지 않는다
+    stock-price: 1h        # 전일 종가라 자주 바뀌지 않는다. 일 1만회 한도도 이걸로 지킨다
     fx: 1m                 # 토스는 1분 주기로 갱신된다(validUntil은 5분이지만 보수적으로)
     fx-kexim: 1h           # 수출입은행 하루 1,000회 한도를 지키는 실질 방어다 (1h면 하루 최대 24회)
 
@@ -135,12 +137,17 @@ economy-helper:
       # 인증이 없다. 초당 10회/IP 제한만 지키면 된다 (resilience4j ratelimiter 'upbit')
       base-url: https://api.upbit.com
 
-    toss:
-      # OAuth2 client_credentials. 호출 IP를 허용 목록에 등록해야 동작한다 —
-      # 배포 때 호스팅 송신 IP를 다시 등록해야 한다.
-      base-url: https://openapi.tossinvest.com
-      client-id: ${TOSS_SECURITY_CLIENT_ID:}
-      client-secret: ${TOSS_SECURITY_SECRET_KEY:}
+    data-go:
+      # 공공데이터포털 — 금융위원회 주식시세정보. 국내(KOSPI·KOSDAQ·KONEX)만 다룬다.
+      # ⚠️ 발급된 키는 이미 URL 인코딩된 형태다. 다시 인코딩하면 403 "등록되지 않은 서비스키"가 난다
+      #    (StockPriceApi가 URI를 직접 조립하는 이유다).
+      base-url: https://apis.data.go.kr
+      api-key: ${DATA_API_KEY:}
+
+    frankfurter:
+      # 유럽중앙은행 고시 환율을 그대로 주는 무인증 공개 서비스.
+      # 인증도 IP 제한도 없어 배포 환경에서 그대로 돈다 — 토스를 떠난 이유가 그 IP 허용목록이었다.
+      base-url: https://api.frankfurter.dev
 
     kexim:
       # oapi 도메인을 쓴다. 구 www.koreaexim.go.kr은 2026-04-30에 지원이 끝나 연결되지 않는다.
@@ -180,13 +187,11 @@ resilience4j:
         baseConfig: default
       # 환율은 출처별로 따로 연다. 하나로 묶으면 토스 장애가 수출입은행까지 끊어
       # CLAUDE.md가 요구한 이중화가 성립하지 않는다.
-      fxToss:
+      fxFrankfurter:
         baseConfig: default
       fxKexim:
         baseConfig: default
-      # 토큰 발급이 계속 실패할 때 매 요청이 재발급을 시도하는 것을 막는다.
-      # (프로그래매틱으로 건다 — TossTokenProvider 주석 참조)
-      tossAuth:
+      dataGo:
         baseConfig: default
   ratelimiter:
     instances:
@@ -200,12 +205,11 @@ resilience4j:
         limitForPeriod: 8
         limitRefreshPeriod: 1s
         timeoutDuration: 3s
-      # 토스는 그룹마다 한도가 다르다(overview.md + 응답 헤더로 실측).
-      # 하나로 묶으면 전부가 가장 빡빡한 그룹에 끌려간다.
-      tossMarketInfo:      # MARKET_INFO 초당 3회 (환율)
-        limitForPeriod: 2
+      # 공공데이터포털은 일 1만회다. 캐시(1h)가 실질 방어이고 이건 폭주만 막는다.
+      dataGo:
+        limitForPeriod: 10
         limitRefreshPeriod: 1s
-        timeoutDuration: 3s
+        timeoutDuration: 5s
       # 수출입은행은 하루 1,000회다 — 초 단위로는 지킬 수 없어 캐시(1h)가 실질 방어다.
       # 이 리미터는 영업일 후퇴 루프가 폭주하는 것만 막는다.
       kexim:

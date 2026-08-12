@@ -2,6 +2,8 @@ package io.saiden.economyhelper.config;
 
 import io.saiden.economyhelper.config.EconomyHelperProperties.CacheTtl;
 import io.saiden.economyhelper.market.FxRate;
+import io.saiden.economyhelper.market.StockResolver.ResolvedStock;
+import io.saiden.economyhelper.market.data.StockPriceApi.StockPrice;
 import io.saiden.economyhelper.market.upbit.UpbitApi.UpbitTicker;
 import io.saiden.economyhelper.market.upbit.UpbitMarket;
 import io.saiden.economyhelper.news.Article;
@@ -60,6 +62,12 @@ public class CacheConfig {
                         cache(ttl.upbitMarkets(), new TypeReference<List<UpbitMarket>>() {}))
                 .withCacheConfiguration("crypto-price",
                         cache(ttl.cryptoPrice(), new TypeReference<List<UpbitTicker>>() {}))
+                // LLM 해석 결과 — 같은 검색어에 Gemini를 두 번 태우지 않는다
+                .withCacheConfiguration("stock-resolve",
+                        cache(ttl.stockResolve(), new TypeReference<java.util.Optional<ResolvedStock>>() {}))
+                // 전일 종가라 자주 바뀌지 않는다 — 짧게 잡을 이유가 없다
+                .withCacheConfiguration("stock-price",
+                        cache(ttl.stockPrice(), new TypeReference<List<StockPrice>>() {}))
                 .withCacheConfiguration("fx",
                         cache(ttl.fx(), new TypeReference<FxRate>() {}))
                 // 하루 1,000회 한도를 지키는 실질 방어다 — 1시간이면 하루 최대 24회
