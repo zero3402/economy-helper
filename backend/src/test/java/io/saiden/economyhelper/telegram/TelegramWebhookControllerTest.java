@@ -12,6 +12,7 @@ import io.saiden.economyhelper.market.StockQuote;
 import io.saiden.economyhelper.market.StockService;
 import io.saiden.economyhelper.market.StockResolver;
 import io.saiden.economyhelper.market.StockService.StockMatch;
+import io.saiden.economyhelper.market.data.MarketIndexApi;
 import io.saiden.economyhelper.market.data.StockPriceApi;
 import io.saiden.economyhelper.market.upbit.UpbitApi;
 import io.saiden.economyhelper.news.NewsFacade;
@@ -255,6 +256,7 @@ class TelegramWebhookControllerTest {
     private static StockService stock(Optional<StockMatch> result) {
         return new StockService(
                 new StockPriceApi(RestClient.builder(), "https://example.invalid", "k", CLOCK),
+                new MarketIndexApi(RestClient.builder(), "https://example.invalid", "k", CLOCK),
                 new StockResolver(null, null)) {
             @Override
             public Optional<StockMatch> quote(String query) {

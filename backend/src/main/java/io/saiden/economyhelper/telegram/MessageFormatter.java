@@ -98,10 +98,14 @@ public final class MessageFormatter {
      */
     public static String formatStock(StockMatch match) {
         StockQuote quote = match.quote();
-        StringBuilder message = new StringBuilder("📈 ")
-                .append(quote.name())
-                .append(" (").append(quote.code()).append(" · ").append(quote.market()).append(")\n")
-                .append(money(quote.price())).append("원\n")
+        // 지수는 종목코드도 통화 단위도 없다 — "원"을 붙이면 틀린 값이 된다
+        StringBuilder message = new StringBuilder(quote.isIndex() ? "📊 " : "📈 ")
+                .append(quote.name());
+        if (!quote.isIndex()) {
+            message.append(" (").append(quote.code()).append(" · ").append(quote.market()).append(")");
+        }
+        message.append("\n")
+                .append(money(quote.price())).append(quote.isIndex() ? "" : "원").append("\n")
                 .append("· 공공데이터포털 · ").append(DATE.format(quote.basisDate())).append(" 종가");
 
         if (!match.alternatives().isEmpty()) {
@@ -112,7 +116,8 @@ public final class MessageFormatter {
 
     public static String stockNotFound(String query) {
         return "'" + query + "'에 해당하는 종목을 찾지 못했습니다.\n"
-                + "국내 상장 종목만 조회할 수 있습니다. 예) /stock 삼성전자, /stock 005930";
+                + "국내 상장 종목과 지수만 조회할 수 있습니다.\n"
+                + "예) /stock 삼성전자, /stock 005930, /stock 코스피";
     }
 
     /**

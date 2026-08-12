@@ -37,12 +37,16 @@ public class StockResolver {
             사용자가 한국 주식 시세를 묻고 있습니다. 아래 입력에서 어떤 종목을 찾는지 판단하세요.
 
             규칙:
-            - **한국거래소(KOSPI·KOSDAQ) 상장 종목만** 다룹니다. 미국 등 해외 종목이면 null을 주세요.
+            - **한국거래소(KOSPI·KOSDAQ) 상장 종목과 국내 지수만** 다룹니다.
+              미국 등 해외 종목이면 전부 null을 주세요.
+            - 코스피·코스닥·코스피200 같은 **지수**를 물으면 kind를 "INDEX"로 하고
+              name에 정식 지수명을 주세요(예: 코스피, 코스닥, 코스피 200). code는 null입니다.
+            - 개별 종목이면 kind를 "STOCK"으로 하세요.
             - 약칭·통칭을 정식 종목으로 옮기세요. 예) 삼전 → 삼성전자, 하닉 → SK하이닉스
             - "주가", "얼마", "알려줘", "오늘" 같은 군더더기는 무시하세요.
             - code는 6자리 종목코드입니다. 확실하지 않으면 code만 null로 두고 name은 채우세요.
             - 종목을 특정할 수 없으면 둘 다 null로 두세요. **추측해서 지어내지 마세요.**
-            - 다른 말 없이 JSON만: {"code": "005930", "name": "삼성전자"}
+            - 다른 말 없이 JSON만: {"kind": "STOCK", "code": "005930", "name": "삼성전자"}
 
             입력: %s
             """;
@@ -71,7 +75,8 @@ public class StockResolver {
                 log.info("[stock] LLM이 '{}'를 특정하지 못했습니다", normalizedQuery);
                 return Optional.empty();
             }
-            log.info("[stock] '{}' → {} ({})", normalizedQuery, parsed.name(), parsed.code());
+            log.info("[stock] '{}' → {} ({}, {})", normalizedQuery, parsed.name(),
+                    parsed.code() == null ? "지수" : parsed.code(), parsed.kind());
             return Optional.of(parsed);
         } catch (Exception e) {
             // 원문 이름 검색으로 내려간다 — 호출자가 판단한다
@@ -86,11 +91,19 @@ public class StockResolver {
     }
 
     /**
-     * @param code 6자리 종목코드. LLM이 확신하지 못하면 {@code null}일 수 있다
-     * @param name 정식 종목명. code가 빗나갔을 때의 2차 단서다
+     * @param kind {@code "INDEX"}면 지수, 그 외는 개별 종목. 조회할 API가 갈린다
+     * @param code 6자리 종목코드. 지수이거나 LLM이 확신하지 못하면 {@code null}일 수 있다
+     * @param name 정식 종목명·지수명. code가 빗나갔을 때의 2차 단서이자 지수의 유일한 단서다
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record ResolvedStock(String code, String name) {
+    public record ResolvedStock(String kind, String code, String name) {
+
+        private static final String INDEX = "INDEX";
+
+        /** 지수는 종목코드가 없어 이름으로만 찾는다 — 조회 경로가 통째로 다르다. */
+        public boolean isIndex() {
+            return INDEX.equalsIgnoreCase(kind);
+        }
 
         boolean isEmpty() {
             return blank(code) && blank(name);

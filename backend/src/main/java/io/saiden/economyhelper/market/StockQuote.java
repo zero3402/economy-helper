@@ -16,4 +16,14 @@ import java.time.LocalDate;
  */
 public record StockQuote(String code, String name, String market,
                          BigDecimal price, LocalDate basisDate, BigDecimal marketCap) {
+
+    /**
+     * 지수인가 — 종목코드가 없다.
+     *
+     * <p>지수는 통화 단위가 없어 "원"을 붙이면 안 되고, 종목코드를 괄호에 넣을 수도 없다.
+     * 표기가 갈리는 지점이 여기 하나뿐이라 별도 타입을 만들지 않았다.
+     */
+    public boolean isIndex() {
+        return code == null || code.isBlank();
+    }
 }

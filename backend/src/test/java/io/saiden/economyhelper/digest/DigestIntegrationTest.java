@@ -244,6 +244,9 @@ class DigestIntegrationTest {
         return new io.saiden.economyhelper.market.StockService(
                 new io.saiden.economyhelper.market.data.StockPriceApi(
                         RestClient.builder(), "https://example.invalid", "k",
+                        Clock.fixed(NOW, ZoneOffset.UTC)),
+                new io.saiden.economyhelper.market.data.MarketIndexApi(
+                        RestClient.builder(), "https://example.invalid", "k",
                         Clock.fixed(NOW, ZoneOffset.UTC)), null) {
             @Override
             public List<io.saiden.economyhelper.market.StockQuote> quotesOf(List<String> codes) {

@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.saiden.economyhelper.market.StockResolver.ResolvedStock;
 import io.saiden.economyhelper.market.StockService.StockMatch;
+import io.saiden.economyhelper.market.data.MarketIndexApi;
+import io.saiden.economyhelper.market.data.MarketIndexApi.MarketIndex;
 import io.saiden.economyhelper.market.data.StockPriceApi;
 import io.saiden.economyhelper.market.data.StockPriceApi.StockPrice;
 import java.time.Clock;
@@ -44,7 +46,7 @@ class StockServiceTest {
     @Test
     @DisplayName("동명 후보를 시가총액으로 가른다 — 우선주·자회사가 1위가 되면 안 된다")
     void marketCapResolvesAmbiguity() {
-        StockService service = new StockService(new RecordingApi(Map.of("삼성", SAMSUNG)), noResolver());
+        StockService service = new StockService(new RecordingApi(Map.of("삼성", SAMSUNG)), indexApi(null), noResolver());
 
         StockMatch match = service.quote("삼성").orElseThrow();
 
@@ -55,7 +57,7 @@ class StockServiceTest {
     @Test
     @DisplayName("함께 걸린 후보를 알려준다 — 되묻지 않고 한 번에 끝낸다")
     void reportsAlternatives() {
-        StockService service = new StockService(new RecordingApi(Map.of("삼성", SAMSUNG)), noResolver());
+        StockService service = new StockService(new RecordingApi(Map.of("삼성", SAMSUNG)), indexApi(null), noResolver());
 
         StockMatch match = service.quote("삼성").orElseThrow();
 
@@ -65,7 +67,7 @@ class StockServiceTest {
     @Test
     @DisplayName("자회사가 모회사를 이기지 않는다")
     void parentBeatsSubsidiary() {
-        StockService service = new StockService(new RecordingApi(Map.of("카카오", KAKAO)), noResolver());
+        StockService service = new StockService(new RecordingApi(Map.of("카카오", KAKAO)), indexApi(null), noResolver());
 
         assertThat(service.quote("카카오").orElseThrow().quote().name()).isEqualTo("카카오");
     }
@@ -74,7 +76,7 @@ class StockServiceTest {
     @DisplayName("LLM이 준 종목코드로 먼저 조회한다 — 이름 검색을 태우지 않는다")
     void usesCodeFromLlmFirst() {
         RecordingApi api = new RecordingApi(Map.of("005930", SAMSUNG.subList(0, 1)));
-        StockService service = new StockService(api, resolver(new ResolvedStock("005930", "삼성전자")));
+        StockService service = new StockService(api, indexApi(null), resolver(new ResolvedStock("STOCK", "005930", "삼성전자")));
 
         assertThat(service.quote("삼전").orElseThrow().quote().name()).isEqualTo("삼성전자");
         assertThat(api.byCode).contains("005930");
@@ -86,7 +88,7 @@ class StockServiceTest {
     void resolvesCommonNameToListedName() {
         List<StockPrice> naver = List.of(price("035420", "NAVER", "KOSPI", "200000", "32000000000000"));
         RecordingApi api = new RecordingApi(Map.of("035420", naver));
-        StockService service = new StockService(api, resolver(new ResolvedStock("035420", "NAVER")));
+        StockService service = new StockService(api, indexApi(null), resolver(new ResolvedStock("STOCK", "035420", "NAVER")));
 
         assertThat(service.quote("네이버").orElseThrow().quote().name()).isEqualTo("NAVER");
     }
@@ -95,7 +97,7 @@ class StockServiceTest {
     @DisplayName("LLM이 없는 종목코드를 지어내면 이름으로 되돌아간다 — 환각을 그대로 믿지 않는다")
     void fallsBackToNameWhenLlmCodeIsBogus() {
         RecordingApi api = new RecordingApi(Map.of("삼성전자", SAMSUNG.subList(0, 1)));
-        StockService service = new StockService(api, resolver(new ResolvedStock("999999", "삼성전자")));
+        StockService service = new StockService(api, indexApi(null), resolver(new ResolvedStock("STOCK", "999999", "삼성전자")));
 
         assertThat(service.quote("삼전").orElseThrow().quote().name()).isEqualTo("삼성전자");
         assertThat(api.byCode).as("지어낸 코드로 한 번은 조회해 본다").contains("999999");
@@ -106,7 +108,7 @@ class StockServiceTest {
     @DisplayName("LLM이 죽어도 원문으로 찾는다 — Gemini 장애가 /stock 전면 중단이 되면 안 된다")
     void fallsBackToRawQueryWhenLlmFails() {
         RecordingApi api = new RecordingApi(Map.of("삼성전자", SAMSUNG.subList(0, 2)));
-        StockService service = new StockService(api, noResolver());
+        StockService service = new StockService(api, indexApi(null), noResolver());
 
         assertThat(service.quote("삼성전자").orElseThrow().quote().name()).isEqualTo("삼성전자");
         assertThat(api.byName).contains("삼성전자");
@@ -119,7 +121,7 @@ class StockServiceTest {
         List<StockPrice> mixed = List.of(
                 new StockPrice("20260810", "005935", "삼성전자우", "KOSPI", "180200", "9999999999999999"),
                 new StockPrice("20260811", "005930", "삼성전자", "KOSPI", "239500", "1400183726616000"));
-        StockService service = new StockService(new RecordingApi(Map.of("삼성", mixed)), noResolver());
+        StockService service = new StockService(new RecordingApi(Map.of("삼성", mixed)), indexApi(null), noResolver());
 
         StockMatch match = service.quote("삼성").orElseThrow();
 
@@ -130,7 +132,7 @@ class StockServiceTest {
     @Test
     @DisplayName("걸리는 종목이 없으면 빈 결과 — 아무거나 돌려주면 오해한다")
     void returnsEmptyWhenNothingMatches() {
-        StockService service = new StockService(new RecordingApi(Map.of()), noResolver());
+        StockService service = new StockService(new RecordingApi(Map.of()), indexApi(null), noResolver());
 
         assertThat(service.quote("없는종목zzz")).isEmpty();
         assertThat(service.quote("")).isEmpty();
@@ -151,7 +153,7 @@ class StockServiceTest {
                 throw new IllegalStateException("서킷브레이커 열림");
             }
         };
-        StockService service = new StockService(exploding, noResolver());
+        StockService service = new StockService(exploding, indexApi(null), noResolver());
 
         assertThat(service.quote("삼성전자")).isEmpty();
         assertThat(service.quotesOf(List.of("005930"))).isEmpty();
@@ -164,7 +166,7 @@ class StockServiceTest {
                 "005930", SAMSUNG.subList(0, 1),
                 "035720", KAKAO.subList(0, 1)));
 
-        assertThat(new StockService(api, noResolver()).quotesOf(List.of("005930", "035720")))
+        assertThat(new StockService(api, indexApi(null), noResolver()).quotesOf(List.of("005930", "035720")))
                 .extracting(StockQuote::name)
                 .containsExactly("삼성전자", "카카오");
     }
@@ -174,9 +176,46 @@ class StockServiceTest {
     void skipsUnknownConfiguredCodes() {
         RecordingApi api = new RecordingApi(Map.of("005930", SAMSUNG.subList(0, 1)));
 
-        assertThat(new StockService(api, noResolver()).quotesOf(List.of("005930", "999999")))
+        assertThat(new StockService(api, indexApi(null), noResolver()).quotesOf(List.of("005930", "999999")))
                 .extracting(StockQuote::name)
                 .containsExactly("삼성전자");
+    }
+
+    /** 지수 API 스텁. 정해진 지수 하나를 주거나 못 찾는다. */
+    private static MarketIndexApi indexApi(MarketIndex answer) {
+        return new MarketIndexApi(RestClient.builder(), "https://example.invalid", "k",
+                Clock.fixed(Instant.parse("2026-08-12T00:00:00Z"), ZoneOffset.UTC)) {
+            @Override
+            public MarketIndex searchByName(String name) {
+                return answer;
+            }
+        };
+    }
+
+    @Test
+    @DisplayName("지수는 종목이 아니라 지수 API로 간다 — 종목코드도 통화 단위도 없다")
+    void routesIndexToIndexApi() {
+        RecordingApi api = new RecordingApi(Map.of());
+        StockService service = new StockService(api,
+                indexApi(new MarketIndex("20260811", "코스피", "KOSPI시리즈", "6345.53")),
+                resolver(new ResolvedStock("INDEX", null, "코스피")));
+
+        StockMatch match = service.quote("코스피").orElseThrow();
+
+        assertThat(match.quote().name()).isEqualTo("코스피");
+        assertThat(match.quote().isIndex()).isTrue();
+        assertThat(match.quote().price()).isEqualByComparingTo("6345.53");
+        assertThat(api.byName).as("지수는 종목 검색을 태우지 않는다").isEmpty();
+        assertThat(api.byCode).isEmpty();
+    }
+
+    @Test
+    @DisplayName("지수를 못 찾으면 빈 결과 — 종목으로 되돌아가지 않는다")
+    void returnsEmptyWhenIndexNotFound() {
+        StockService service = new StockService(new RecordingApi(Map.of()), indexApi(null),
+                resolver(new ResolvedStock("INDEX", null, "없는지수")));
+
+        assertThat(service.quote("없는지수")).isEmpty();
     }
 
     /** LLM 대신 정해진 답을 준다. 프롬프트 품질은 실물 스모크에서 본다. */

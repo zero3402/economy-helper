@@ -1,5 +1,7 @@
 package io.saiden.economyhelper.market;
 
+import io.saiden.economyhelper.market.data.MarketIndexApi;
+import io.saiden.economyhelper.market.data.MarketIndexApi.MarketIndex;
 import io.saiden.economyhelper.market.data.StockPriceApi;
 import io.saiden.economyhelper.market.StockResolver.ResolvedStock;
 import io.saiden.economyhelper.market.data.StockPriceApi.StockPrice;
@@ -33,8 +35,10 @@ import org.springframework.stereotype.Service;
  * 안 걸린다. 그 자리를 {@link StockResolver}(LLM)가 메운다 — 약칭({@code 삼전})과
  * 자연어 군더더기({@code 오늘 삼성전자 주가})도 같은 장치가 처리한다.
  *
- * <p><b>이 API는 국내 종목만 다룬다.</b> 미국 주식은 지원하지 않는다 —
- * {@code /stock AAPL}은 "찾지 못했습니다"가 된다.
+ * <p><b>지수도 같은 명령으로 받는다.</b> {@code /stock 코스피}는 종목이 아니라 지수 API로 간다 —
+ * 별도 명령을 만들지 않은 건 사용자가 "주가"와 "지수"를 굳이 구분해 치지 않기 때문이다.
+ *
+ * <p><b>국내만 다룬다.</b> 미국 주식은 지원하지 않는다 — {@code /stock AAPL}은 "찾지 못했습니다"가 된다.
  */
 @Service
 public class StockService {
@@ -47,10 +51,12 @@ public class StockService {
     private static final int MAX_ALTERNATIVES = 3;
 
     private final StockPriceApi api;
+    private final MarketIndexApi indexApi;
     private final StockResolver resolver;
 
-    public StockService(StockPriceApi api, StockResolver resolver) {
+    public StockService(StockPriceApi api, MarketIndexApi indexApi, StockResolver resolver) {
         this.api = api;
+        this.indexApi = indexApi;
         this.resolver = resolver;
     }
 
@@ -64,7 +70,14 @@ public class StockService {
         }
 
         try {
-            List<StockPrice> found = lookup(query, key);
+            Optional<ResolvedStock> resolved = resolver.resolve(key);
+
+            // 지수는 조회 API가 통째로 다르다 — 종목코드가 없고 시가총액도 없다
+            if (resolved.filter(ResolvedStock::isIndex).isPresent()) {
+                return indexQuote(resolved.get().name());
+            }
+
+            List<StockPrice> found = lookup(resolved, key);
             if (found.isEmpty()) {
                 log.info("[stock] '{}'에 걸리는 종목이 없습니다", query);
                 return Optional.empty();
@@ -91,6 +104,19 @@ public class StockService {
                 .toList();
     }
 
+    /** 지수 하나. 함께 보여줄 후보가 없다 — 완전일치로 하나만 고르기 때문이다. */
+    private Optional<StockMatch> indexQuote(String name) {
+        MarketIndex index = indexApi.searchByName(name);
+        if (index == null) {
+            log.info("[stock] '{}' 지수를 찾지 못했습니다", name);
+            return Optional.empty();
+        }
+        return Optional.of(new StockMatch(
+                new StockQuote(null, index.idxNm(), index.idxCsf(), parse(index.clpr()),
+                        LocalDate.parse(index.basDt(), BAS_DT), BigDecimal.ZERO),
+                List.of()));
+    }
+
     /**
      * LLM이 판단한 종목코드 → 정식명 → 원문 순으로 시도한다.
      *
@@ -101,9 +127,7 @@ public class StockService {
      * {@code 삼성전자}·{@code 하이닉스}처럼 이름을 그대로 친 경우는 LLM 없이도 걸린다 —
      * Gemini가 죽었다고 {@code /stock} 전체가 멈추면 안 된다.
      */
-    private List<StockPrice> lookup(String query, String cacheKey) {
-        Optional<ResolvedStock> resolved = resolver.resolve(cacheKey);
-
+    private List<StockPrice> lookup(Optional<ResolvedStock> resolved, String cacheKey) {
         if (resolved.isPresent()) {
             ResolvedStock stock = resolved.get();
             if (stock.hasCode()) {

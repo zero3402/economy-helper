@@ -10,6 +10,7 @@ import io.saiden.economyhelper.market.FxService;
 import io.saiden.economyhelper.market.FxSource;
 import io.saiden.economyhelper.market.StockQuote;
 import io.saiden.economyhelper.market.StockService;
+import io.saiden.economyhelper.market.data.MarketIndexApi;
 import io.saiden.economyhelper.market.data.StockPriceApi;
 import io.saiden.economyhelper.market.upbit.UpbitApi;
 import io.saiden.economyhelper.news.NewsFacade;
@@ -200,8 +201,11 @@ class DailyDigestJobTest {
     }
 
     private static StockService stock(boolean alive) {
-        return new StockService(new StockPriceApi(RestClient.builder(), "https://example.invalid", "k",
-                Clock.fixed(NOW, ZoneOffset.UTC)), null) {
+        return new StockService(
+                new StockPriceApi(RestClient.builder(), "https://example.invalid", "k",
+                        Clock.fixed(NOW, ZoneOffset.UTC)),
+                new MarketIndexApi(RestClient.builder(), "https://example.invalid", "k",
+                        Clock.fixed(NOW, ZoneOffset.UTC)), null) {
             @Override
             public List<StockQuote> quotesOf(List<String> codes) {
                 return alive
