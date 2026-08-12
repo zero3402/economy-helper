@@ -1,0 +1,19 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: economy-helper-redis
+    ports:
+      - "6379:6379"
+    # AOF를 켠다 — 캐시뿐 아니라 발송 이력(중복 방지)도 여기 있어서
+    # 재시작 때 날아가면 같은 뉴스를 두 번 보낼 수 있다
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  redis-data:

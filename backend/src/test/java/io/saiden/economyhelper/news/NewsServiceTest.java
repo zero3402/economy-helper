@@ -1,0 +1,195 @@
+package io.saiden.economyhelper.news;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.saiden.economyhelper.config.EconomyHelperProperties;
+import io.saiden.economyhelper.config.EconomyHelperProperties.Feed;
+import io.saiden.economyhelper.config.EconomyHelperProperties.Ranking;
+import io.saiden.economyhelper.config.EconomyHelperProperties.Weights;
+import io.saiden.economyhelper.news.feed.FeedFetcher;
+import io.saiden.economyhelper.news.rank.HackerNewsApi;
+import io.saiden.economyhelper.news.rank.HackerNewsBuzzClient;
+import io.saiden.economyhelper.news.rank.KeywordGroup;
+import io.saiden.economyhelper.news.rank.PopularityScorer;
+import io.saiden.economyhelper.news.rank.RankingWeights;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.Arrays;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.web.client.RestClient;
+
+/** 수집 실패가 발송 전체를 막지 않는지, 그리고 두 진입점이 공유할 로직이 맞는지 고정한다. */
+class NewsServiceTest {
+
+    private static final Instant NOW = Instant.parse("2026-08-11T00:00:00Z");
+    private static final Clock CLOCK = Clock.fixed(NOW, ZoneOffset.UTC);
+
+    @Test
+    @DisplayName("매체별로 1건씩 뽑는다")
+    void digestPicksOnePerSource() {
+        NewsService service = service(Map.of(
+                NewsSource.BLOOMBERG, List.of(article(NewsSource.BLOOMBERG, "블룸버그 1위", 0),
+                        article(NewsSource.BLOOMBERG, "블룸버그 2위", 5)),
+                NewsSource.COINDESK, List.of(article(NewsSource.COINDESK, "코인데스크 1위", 0))));
+
+        Map<NewsSource, ScoredArticle> digest = service.digest(groups());
+
+        assertThat(digest).hasSize(2);
+        assertThat(digest.get(NewsSource.BLOOMBERG).article().title()).isEqualTo("블룸버그 1위");
+        assertThat(digest.get(NewsSource.COINDESK).article().title()).isEqualTo("코인데스크 1위");
+    }
+
+    @Test
+    @DisplayName("한 매체가 비어도 나머지는 그대로 발송된다 — 장애 격리의 최종 확인")
+    void digestSkipsFailedSourcesWithoutBlockingOthers() {
+        NewsService service = service(Map.of(
+                NewsSource.FT, List.of(),  // 403 등으로 수집 실패한 상태
+                NewsSource.ECONOMIST, List.of(article(NewsSource.ECONOMIST, "이코노미스트 기사", 0))));
+
+        Map<NewsSource, ScoredArticle> digest = service.digest(groups());
+
+        assertThat(digest).containsOnlyKeys(NewsSource.ECONOMIST);
+    }
+
+    @Test
+    @DisplayName("모든 매체가 죽어도 예외 없이 빈 결과를 준다")
+    void digestSurvivesTotalOutage() {
+        assertThat(service(Map.of()).digest(groups())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("재테크 키워드가 걸리는 기사가 없는 매체는 발송에서 빠진다")
+    void digestExcludesSourceWithNothingRelevant() {
+        NewsService service = service(Map.of(
+                // FT 홈 피드처럼 일반 뉴스만 온 상태
+                NewsSource.FT, List.of(
+                        article(NewsSource.FT, "EU border checks double queues at airports", 0),
+                        article(NewsSource.FT, "Museum reopens after renovation", 1)),
+                NewsSource.ECONOMIST, List.of(
+                        article(NewsSource.ECONOMIST, "Fed weighs another rate cut", 0))));
+
+        Map<NewsSource, ScoredArticle> digest = service.digest(groups("fed", "rate cut", "inflation"));
+
+        assertThat(digest)
+                .as("재테크 뉴스가 아닌 걸 채워 보내는 것보다 그 매체를 비우는 편이 낫다")
+                .containsOnlyKeys(NewsSource.ECONOMIST);
+    }
+
+    @Test
+    @DisplayName("피드 위쪽에 있어도 키워드가 안 걸리면 밀린다 — 걸리는 기사 중에서만 고른다")
+    void digestPicksRelevantArticleOverHigherRankedIrrelevantOne() {
+        NewsService service = service(Map.of(
+                NewsSource.BLOOMBERG, List.of(
+                        article(NewsSource.BLOOMBERG, "Airport queues double", 0),
+                        article(NewsSource.BLOOMBERG, "Oil rally revives inflation concerns", 9))));
+
+        Map<NewsSource, ScoredArticle> digest = service.digest(groups("oil", "inflation"));
+
+        assertThat(digest.get(NewsSource.BLOOMBERG).article().title())
+                .isEqualTo("Oil rally revives inflation concerns");
+    }
+
+    @Test
+    @DisplayName("사전이 비어 있으면 걸러낼 근거가 없으므로 전부 후보로 둔다")
+    void digestKeepsEverythingWhenDictionaryIsEmpty() {
+        NewsService service = service(Map.of(
+                NewsSource.FT, List.of(article(NewsSource.FT, "Museum reopens", 0))));
+
+        assertThat(service.digest(groups())).containsOnlyKeys(NewsSource.FT);
+        assertThat(service.digest(null)).containsOnlyKeys(NewsSource.FT);
+    }
+
+    @Test
+    @DisplayName("/news 검색은 검색어가 걸리는 기사 중에서만 1위를 고른다")
+    void searchFiltersByKeywordBeforeRanking() {
+        NewsService service = service(Map.of(
+                // 피드 맨 위라 다른 지표는 유리하지만 검색어와 무관하다
+                NewsSource.BLOOMBERG, List.of(article(NewsSource.BLOOMBERG, "Oil prices climb", 0)),
+                NewsSource.FT, List.of(article(NewsSource.FT, "Fed signals rate cut", 8))));
+
+        Optional<ScoredArticle> found = service.search(groups("rate"));
+
+        assertThat(found).isPresent();
+        assertThat(found.get().article().title()).isEqualTo("Fed signals rate cut");
+    }
+
+    @Test
+    @DisplayName("걸리는 기사가 없으면 빈 결과")
+    void searchReturnsEmptyWhenNothingMatches() {
+        NewsService service = service(Map.of(
+                NewsSource.BLOOMBERG, List.of(article(NewsSource.BLOOMBERG, "Oil prices climb", 0))));
+
+        assertThat(service.search(groups("비트코인"))).isEmpty();
+    }
+
+    @Test
+    @DisplayName("키워드가 비면 전체를 훑지 않고 곧바로 빈 결과 — 토큰화는 QueryExpander의 몫이다")
+    void searchRejectsEmptyKeywords() {
+        assertThat(service(Map.of()).search(groups())).isEmpty();
+        assertThat(service(Map.of()).search(null)).isEmpty();
+        assertThat(service(Map.of()).search(List.of(KeywordGroup.of()))).isEmpty();
+    }
+
+    /** 표현마다 1항목 묶음 — 재테크 사전이 이 모양이다. */
+    private static List<KeywordGroup> groups(String... terms) {
+        return Arrays.stream(terms).map(KeywordGroup::of).toList();
+    }
+
+    private static NewsService service(Map<NewsSource, List<Article>> bySource) {
+        return new NewsService(
+                new StubFetcher(bySource),
+                new StubBuzzClient(),
+                new PopularityScorer(RankingWeights.defaults(), Duration.ofHours(6)),
+                CLOCK);
+    }
+
+    private static Article article(NewsSource source, String title, int feedRank) {
+        return new Article(source, title, null,
+                "https://example.com/" + source + "/" + title.hashCode(), NOW, feedRank);
+    }
+
+    /** 실제 HTTP 없이 소스별 결과를 정해 준다. */
+    private static final class StubFetcher extends FeedFetcher {
+        private final Map<NewsSource, List<Article>> bySource;
+
+        private StubFetcher(Map<NewsSource, List<Article>> bySource) {
+            super(RestClient.builder(),
+                    new EconomyHelperProperties(
+                            new EnumMap<NewsSource, Feed>(NewsSource.class),
+                            new Ranking(new Weights(1, 1, 1, 1), Duration.ofHours(6)),
+                            null,
+                            null,
+                            null),
+                    CircuitBreakerRegistry.ofDefaults(),
+                    List.of());
+            this.bySource = bySource;
+        }
+
+        @Override
+        public List<Article> fetch(NewsSource source) {
+            return bySource.getOrDefault(source, List.of());
+        }
+    }
+
+    /** HN을 타지 않는다 — buzz가 0이어도 랭킹이 성립하는지 함께 확인하는 셈이다. */
+    private static final class StubBuzzClient extends HackerNewsBuzzClient {
+        private StubBuzzClient() {
+            super(new HackerNewsApi(RestClient.builder(), "https://example.invalid", 100),
+                    Duration.ofDays(7));
+        }
+
+        @Override
+        public Map<String, Integer> buzzByLink(List<Article> articles, Instant now) {
+            return Map.of();
+        }
+    }
+}

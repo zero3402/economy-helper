@@ -1,0 +1,166 @@
+spring:
+  application:
+    name: economy-helper
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2s
+  cache:
+    type: redis
+  # 외부 호출(피드 5개·HN·Gemini·텔레그램)에 타임아웃을 건다. 없으면 응답 없는 상대를 만났을 때
+  # 정기 발송이 무한히 멈추고 그 사이 ShedLock을 lockAtMostFor(20분)까지 쥐고 있는다.
+  # Boot 4.0부터 단수 spring.http.client.*는 deprecated다 — clients(복수)를 쓴다.
+  http:
+    clients:
+      connect-timeout: 5s
+      read-timeout: 15s
+
+server:
+  port: 8080
+
+management:
+  # 액추에이터를 애플리케이션 포트에서 분리한다. /actuator/digest는 텔레그램 전체 발송을
+  # 즉시 일으키므로 8080에 함께 노출하면 외부 누구나 방송을 트리거할 수 있다.
+  # (Phase 3에서 k8s 프로브도 8081을 보게 맞춘다)
+  server:
+    port: 8081
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,digest
+  endpoint:
+    health:
+      show-details: when-authorized
+
+economy-helper:
+  feeds:
+    # Reuters는 공식 RSS를 폐지했다(401/404). Google News 검색 피드를 프록시로 쓴다.
+    # 이 피드는 description이 링크 마크업뿐이라 제목만 신뢰한다.
+    bloomberg:
+      url: https://feeds.bloomberg.com/markets/news.rss
+      type: rss
+    ft:
+      url: https://www.ft.com/rss/home
+      type: rss
+    economist:
+      url: https://www.economist.com/finance-and-economics/rss.xml
+      type: rss
+    coindesk:
+      url: https://www.coindesk.com/arc/outboundfeeds/rss/
+      type: rss
+    reuters:
+      url: "https://news.google.com/rss/search?q=when:24h+site:reuters.com&hl=en-US&gl=US&ceid=US:en"
+      type: google-news
+
+  ranking:
+    # 어느 매체도 조회수/댓글 수를 공개하지 않아 공개 신호로 인기도를 근사한다.
+    # 합이 1.0이 되도록 유지할 것.
+    weights:
+      feed-rank: 0.35      # RSS 노출 순서 = 편집자가 매긴 우선순위
+      recency: 0.25
+      keyword-match: 0.25
+      buzz: 0.15           # Hacker News 실측 (points + num_comments)
+    recency-half-life: 6h
+    hacker-news:
+      # 매체가 조회수·댓글을 공개하지 않고 Most Read 페이지도 전부 403/404라,
+      # HN이 무료로 얻을 수 있는 유일한 실측 반응이다.
+      # 커버리지는 매체당 하루 ~4건(피드는 12~25건)이고 CoinDesk는 사실상 0이다.
+      base-url: https://hn.algolia.com
+      window: 7d
+      hits-per-page: 100
+
+  cache-ttl:
+    # 값을 주지 않으면 Redis 캐시는 만료 없이 저장한다. 특히 feed가 영구 캐시되면
+    # 09시와 21시 발송이 같은 기사로 나간다 — 반드시 명시할 것.
+    feed: 10m
+    translation: 7d        # 같은 기사를 두 번 번역하지 않는다 (무료 티어 절약)
+    buzz: 1h               # HN 반응은 천천히 쌓인다. 매 랭킹마다 조회할 이유가 없다
+    query: 30d             # '비트코인'→bitcoin 대응은 낡지 않는다. 토큰 단위라 적중률도 높다
+    upbit-markets: 6h      # 신규 상장·상장폐지는 드물다. 이게 없으면 /crypto 한 번에 조회가 두 번 나간다
+    crypto-price: 10s      # 시세다. 길게 잡으면 거짓말이 된다. 연타와 초당 10회 제한을 막는 정도만
+
+  digest:
+    zone: Asia/Seoul
+    cron: "0 0 9,21 * * *"
+    sent-history-ttl: 3d   # 발송 완료 표시 보관 기간 (중복 발송 방지)
+    # 정기 발송에는 검색어가 없으므로 이 사전이 keywordMatch의 입력이 된다.
+    # "재테크에 꼭 필요한 뉴스"를 고르는 유일한 의미 신호다.
+    keywords:
+      - fed
+      - inflation
+      - interest rate
+      - rate cut
+      - bond
+      - yield
+      - stocks
+      - equities
+      - dollar
+      - oil
+      - gold
+      - bitcoin
+      - crypto
+      - earnings
+      - recession
+      - tariff
+      - housing
+
+  # 시크릿은 환경변수로만 주입한다. 로컬은 backend/.env(gitignore), Phase 3는 k8s Secret.
+  # 저장소에 값을 넣으면 지운 뒤에도 git 이력에 영원히 남는다.
+  translation:
+    gemini:
+      api-key: ${GEMINI_API_KEY:}
+      # 버전을 고정하지 않고 별칭을 쓴다. gemini-2.5-flash-lite로 고정했다가
+      # "no longer available to new users" 404를 맞았다(8단계에서 실제로 겪음) —
+      # 무료 티어 모델은 조용히 은퇴한다. 별칭은 품질이 조금 바뀔 수 있지만 죽지는 않고,
+      # 바뀌어도 폴백(원문 그대로)이 받쳐 준다.
+      model: gemini-flash-lite-latest
+      base-url: https://generativelanguage.googleapis.com
+
+  market:
+    upbit:
+      # 인증이 없다. 초당 10회/IP 제한만 지키면 된다 (resilience4j ratelimiter 'upbit')
+      base-url: https://api.upbit.com
+
+  telegram:
+    bot-token: ${TELEGRAM_BOT_TOKEN:}
+    chat-id: ${TELEGRAM_CHAT_ID:}
+    base-url: https://api.telegram.org
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 60s
+        permittedNumberOfCallsInHalfOpenState: 3
+    instances:
+      # 피드 소스별로 따로 연다 — 한 매체가 죽어도 나머지는 발송된다
+      feed:
+        baseConfig: default
+      translation:
+        baseConfig: default
+        waitDurationInOpenState: 120s
+      telegram:
+        baseConfig: default
+      # buzz는 랭킹의 부속 신호다. 끊겨도 나머지 세 지표로 순위가 매겨지므로
+      # 빨리 열고 오래 닫아 둔다.
+      hackerNews:
+        baseConfig: default
+        failureRateThreshold: 30
+        waitDurationInOpenState: 300s
+      upbit:
+        baseConfig: default
+  ratelimiter:
+    instances:
+      # Gemini 무료 티어는 보장된 한도가 아니다. 스스로 낮게 잡아 429를 피한다.
+      gemini:
+        limitForPeriod: 12
+        limitRefreshPeriod: 60s
+        timeoutDuration: 5s
+      # 업비트는 초당 10회/IP(quotation 그룹 공유)를 명시한다. 8로 낮춰 경계에서 429를 피한다.
+      upbit:
+        limitForPeriod: 8
+        limitRefreshPeriod: 1s
+        timeoutDuration: 3s

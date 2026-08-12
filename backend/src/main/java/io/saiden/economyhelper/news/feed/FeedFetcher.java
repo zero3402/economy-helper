@@ -1,0 +1,89 @@
+package io.saiden.economyhelper.news.feed;
+
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.saiden.economyhelper.config.EconomyHelperProperties;
+import io.saiden.economyhelper.config.EconomyHelperProperties.Feed;
+import io.saiden.economyhelper.news.Article;
+import io.saiden.economyhelper.news.FeedType;
+import io.saiden.economyhelper.news.NewsSource;
+import java.io.StringReader;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
+
+/**
+ * 매체 하나의 피드를 받아 파싱한다.
+ *
+ * <p><b>서킷브레이커를 애노테이션이 아니라 프로그래매틱 API로 건다.</b>
+ * {@code @CircuitBreaker(name = "feed")}는 이름이 컴파일 타임에 고정이라 5개 매체가
+ * 브레이커 하나를 공유하게 된다 — Bloomberg가 죽으면 CoinDesk 호출까지 끊긴다.
+ * 소스별로 이름을 달리하려면 런타임에 레지스트리에서 꺼내야 한다.
+ *
+ * <p>실패는 예외가 아니라 빈 리스트다. 한 매체가 죽어도 나머지 매체 발송은 계속돼야 한다.
+ */
+@Component
+public class FeedFetcher {
+
+    private static final Logger log = LoggerFactory.getLogger(FeedFetcher.class);
+
+    /** 기본 UA로는 막는 매체가 있다. */
+    private static final String USER_AGENT =
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+                    + "(KHTML, like Gecko) Chrome/120 Safari/537.36";
+
+    private final RestClient restClient;
+    private final EconomyHelperProperties properties;
+    private final CircuitBreakerRegistry circuitBreakers;
+    private final Map<FeedType, FeedClient> parsers = new EnumMap<>(FeedType.class);
+
+    public FeedFetcher(RestClient.Builder builder,
+                       EconomyHelperProperties properties,
+                       CircuitBreakerRegistry circuitBreakers,
+                       List<FeedClient> feedClients) {
+        this.restClient = builder.defaultHeader("User-Agent", USER_AGENT).build();
+        this.properties = properties;
+        this.circuitBreakers = circuitBreakers;
+        for (FeedClient client : feedClients) {
+            parsers.put(client.type(), client);
+        }
+    }
+
+    /**
+     * 실패 시 빈 리스트. 빈 결과는 캐시하지 않는다 — 일시적 장애를 10분간 굳히면
+     * 그 사이 정기 발송이 통째로 그 매체를 빠뜨린다.
+     */
+    @Cacheable(cacheNames = "feed", key = "#source", unless = "#result.isEmpty()")
+    public List<Article> fetch(NewsSource source) {
+        Feed feed = properties.feeds().get(source);
+        if (feed == null) {
+            log.warn("[{}] 피드 설정이 없습니다", source);
+            return List.of();
+        }
+
+        CircuitBreaker breaker = circuitBreakers.circuitBreaker("feed-" + source);
+        try {
+            return breaker.executeCallable(() -> download(source, feed));
+        } catch (Exception e) {
+            log.warn("[{}] 피드 수집 실패 — 이 매체는 건너뜁니다: {}", source, e.toString());
+            return List.of();
+        }
+    }
+
+    private List<Article> download(NewsSource source, Feed feed) {
+        FeedClient parser = parsers.get(feed.type());
+        if (parser == null) {
+            throw new IllegalStateException("파서가 없는 피드 형식입니다: " + feed.type());
+        }
+        String body = restClient.get().uri(feed.url()).retrieve().body(String.class);
+        if (body == null || body.isBlank()) {
+            throw new FeedParseException(source, "응답 본문이 비어 있습니다", null);
+        }
+        return parser.parse(source, new StringReader(body));
+    }
+}

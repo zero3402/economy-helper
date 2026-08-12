@@ -1,1 +1,17 @@
 .claude
+
+# 시크릿 — TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID / GEMINI_API_KEY
+.env
+.env.*
+!.env.example
+
+# Node (Phase 2 프론트엔드)
+node_modules/
+dist/
+.vite/
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+*.log

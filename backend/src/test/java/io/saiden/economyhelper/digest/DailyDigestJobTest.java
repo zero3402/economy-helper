@@ -1,0 +1,201 @@
+package io.saiden.economyhelper.digest;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import io.saiden.economyhelper.config.EconomyHelperProperties;
+import io.saiden.economyhelper.news.NewsFacade;
+import io.saiden.economyhelper.news.NewsItem;
+import io.saiden.economyhelper.news.NewsSource;
+import io.saiden.economyhelper.telegram.TelegramClient;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.web.client.RestClient;
+
+/**
+ * 발송 잡의 분기를 Redis 없이 고정한다.
+ *
+ * <p>실제 분산 환경에서 한 번만 나가는지는 {@link DigestIntegrationTest}가 진짜 Redis로 본다.
+ */
+class DailyDigestJobTest {
+
+    /** UTC 00:00 = KST 09:00 — 정기 발송 시각 중 하나다. */
+    private static final Instant NOW = Instant.parse("2026-08-11T00:00:00Z");
+    private static final String SLOT = "2026-08-11T09";
+
+    @Test
+    @DisplayName("슬롯을 선점하면 발송하고, 슬롯 키는 KST 기준으로 매긴다")
+    void sendsAndKeysSlotInSeoulTime() {
+        RecordingClient telegram = new RecordingClient();
+        InMemoryHistory history = new InMemoryHistory();
+
+        DigestResult result = job(telegram, history, List.of(item("유가 상승"))).run(false);
+
+        assertThat(result.sent()).isTrue();
+        assertThat(result.slot()).isEqualTo(SLOT);
+        assertThat(result.itemCount()).isEqualTo(1);
+        assertThat(telegram.sent).hasSize(1);
+        assertThat(telegram.sent.get(0)).contains("유가 상승");
+    }
+
+    @Test
+    @DisplayName("이미 발송된 슬롯이면 수집조차 하지 않는다")
+    void skipsAlreadySentSlot() {
+        RecordingClient telegram = new RecordingClient();
+        InMemoryHistory history = new InMemoryHistory();
+        history.claim(SLOT);
+
+        CountingFacade facade = new CountingFacade(List.of(item("기사")));
+        DigestResult result = job(telegram, history, facade).run(false);
+
+        assertThat(result.sent()).isFalse();
+        assertThat(result.reason()).contains("이미 발송");
+        assertThat(telegram.sent).isEmpty();
+        assertThat(facade.calls)
+                .as("건너뛸 슬롯인데 수집·번역 비용을 치르면 안 된다")
+                .isZero();
+    }
+
+    @Test
+    @DisplayName("force면 이미 보낸 슬롯도 다시 보낸다 — 수동 점검용")
+    void forceResendsSentSlot() {
+        RecordingClient telegram = new RecordingClient();
+        InMemoryHistory history = new InMemoryHistory();
+        history.claim(SLOT);
+
+        assertThat(job(telegram, history, List.of(item("기사"))).run(true).sent()).isTrue();
+        assertThat(telegram.sent).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("가져온 뉴스가 없으면 발송도 안 하고 슬롯 선점도 되돌린다")
+    void releasesSlotWhenNothingCollected() {
+        RecordingClient telegram = new RecordingClient();
+        InMemoryHistory history = new InMemoryHistory();
+
+        DigestResult result = job(telegram, history, List.of()).run(false);
+
+        assertThat(result.sent()).isFalse();
+        assertThat(telegram.sent).isEmpty();
+        assertThat(history.claimed)
+                .as("전 매체 수집 실패를 '발송함'으로 남기면 이 시간대는 복구 후에도 영영 비어 있다")
+                .isEmpty();
+    }
+
+    @Test
+    @DisplayName("텔레그램이 실패하면 슬롯을 되돌리고, 예외 대신 실패 결과를 돌려준다")
+    void releasesSlotWhenSendFails() {
+        InMemoryHistory history = new InMemoryHistory();
+        TelegramClient exploding = new RecordingClient() {
+            @Override
+            public void send(String text) {
+                throw new IllegalStateException("Bot API 502");
+            }
+        };
+
+        DigestResult result = job(exploding, history, List.of(item("기사"))).run(false);
+
+        assertThat(result.sent()).isFalse();
+        assertThat(result.reason()).contains("발송 실패");
+        assertThat(history.claimed).isEmpty();
+    }
+
+    @Test
+    @DisplayName("force로 남의 선점을 지나쳤다면 실패해도 그 선점을 지우지 않는다")
+    void forceDoesNotReleaseSomeoneElsesClaim() {
+        InMemoryHistory history = new InMemoryHistory();
+        history.claim(SLOT);
+        TelegramClient exploding = new RecordingClient() {
+            @Override
+            public void send(String text) {
+                throw new IllegalStateException("Bot API 502");
+            }
+        };
+
+        job(exploding, history, List.of(item("기사"))).run(true);
+
+        assertThat(history.claimed)
+                .as("내가 잡지 않은 선점을 지우면 다른 인스턴스가 같은 슬롯을 또 보낸다")
+                .containsExactly(SLOT);
+    }
+
+    private static DailyDigestJob job(TelegramClient telegram, SendHistory history,
+                                      List<NewsItem> items) {
+        return job(telegram, history, new CountingFacade(items));
+    }
+
+    private static DailyDigestJob job(TelegramClient telegram, SendHistory history,
+                                      NewsFacade facade) {
+        return new DailyDigestJob(facade, telegram, history,
+                Clock.fixed(NOW, ZoneOffset.UTC), properties());
+    }
+
+    static EconomyHelperProperties properties() {
+        return new EconomyHelperProperties(Map.of(), null,
+                new EconomyHelperProperties.Digest(
+                        "Asia/Seoul", "0 0 9,21 * * *", List.of(), Duration.ofDays(3)),
+                null, null);
+    }
+
+    static NewsItem item(String title) {
+        return new NewsItem(NewsSource.BLOOMBERG, "Bloomberg", title, "본문",
+                "https://example.com/" + title.hashCode(), NOW, true, 0.9);
+    }
+
+    /** 수집 호출 횟수까지 세어 "건너뛸 때는 수집도 안 한다"를 확인한다. */
+    private static final class CountingFacade extends NewsFacade {
+        private final List<NewsItem> items;
+        private int calls;
+
+        private CountingFacade(List<NewsItem> items) {
+            super(null, null, null, properties());
+            this.items = items;
+        }
+
+        @Override
+        public List<NewsItem> digest() {
+            calls++;
+            return items;
+        }
+    }
+
+    /** Redis 없이 슬롯 선점만 흉내 낸다. */
+    static class InMemoryHistory extends SendHistory {
+        final Set<String> claimed = ConcurrentHashMap.newKeySet();
+
+        InMemoryHistory() {
+            super(null, properties());
+        }
+
+        @Override
+        public boolean claim(String slot) {
+            return claimed.add(slot);
+        }
+
+        @Override
+        public void release(String slot) {
+            claimed.remove(slot);
+        }
+    }
+
+    static class RecordingClient extends TelegramClient {
+        final List<String> sent = new ArrayList<>();
+
+        RecordingClient() {
+            super(RestClient.builder(), "https://example.invalid", "token", "chat");
+        }
+
+        @Override
+        public void send(String text) {
+            sent.add(text);
+        }
+    }
+}
