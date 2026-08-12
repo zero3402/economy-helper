@@ -247,7 +247,7 @@ class TelegramWebhookControllerTest {
     private static EconomyHelperProperties properties() {
         return new EconomyHelperProperties(Map.of(), null,
                 new EconomyHelperProperties.Digest(
-                        "Asia/Seoul", "0 0 9 * * *", Duration.ofDays(3)),
+                        "Asia/Seoul", "0 0 9 * * *", Duration.ofDays(3), List.of(), List.of()),
                 null, null);
     }
 

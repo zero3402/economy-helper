@@ -225,8 +225,42 @@ class DigestIntegrationTest {
             throw new IllegalStateException(e);
         }
         SendHistory history = new SendHistory(redisTemplate, DailyDigestJobTest.properties());
-        return new DailyDigestJob(fixedFacade(), telegram, history,
-                Clock.fixed(NOW, ZoneOffset.UTC), DailyDigestJobTest.properties()).run(false);
+        // 시세 셋은 죽여 둔다 — 이 테스트의 관심사는 "동시 실행해도 한 번만 나가는가"다
+        return new DailyDigestJob(fixedFacade(), deadFx(), deadStock(), deadCrypto(),
+                telegram, history, Clock.fixed(NOW, ZoneOffset.UTC),
+                DailyDigestJobTest.properties()).run(false);
+    }
+
+    private static io.saiden.economyhelper.market.FxService deadFx() {
+        return new io.saiden.economyhelper.market.FxService(List.of()) {
+            @Override
+            public java.util.Optional<io.saiden.economyhelper.market.FxRate> usdToKrw() {
+                return java.util.Optional.empty();
+            }
+        };
+    }
+
+    private static io.saiden.economyhelper.market.StockService deadStock() {
+        return new io.saiden.economyhelper.market.StockService(
+                new io.saiden.economyhelper.market.data.StockPriceApi(
+                        RestClient.builder(), "https://example.invalid", "k",
+                        Clock.fixed(NOW, ZoneOffset.UTC)), null) {
+            @Override
+            public List<io.saiden.economyhelper.market.StockQuote> quotesOf(List<String> codes) {
+                return List.of();
+            }
+        };
+    }
+
+    private static io.saiden.economyhelper.market.CryptoService deadCrypto() {
+        return new io.saiden.economyhelper.market.CryptoService(
+                new io.saiden.economyhelper.market.upbit.UpbitApi(
+                        RestClient.builder(), "https://example.invalid")) {
+            @Override
+            public List<io.saiden.economyhelper.market.CryptoQuote> quotesOf(List<String> markets) {
+                return List.of();
+            }
+        };
     }
 
     private static NewsFacade fixedFacade() {

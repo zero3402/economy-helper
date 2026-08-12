@@ -3,17 +3,29 @@ package io.saiden.economyhelper.digest;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.saiden.economyhelper.config.EconomyHelperProperties;
+import io.saiden.economyhelper.market.CryptoQuote;
+import io.saiden.economyhelper.market.CryptoService;
+import io.saiden.economyhelper.market.FxRate;
+import io.saiden.economyhelper.market.FxService;
+import io.saiden.economyhelper.market.FxSource;
+import io.saiden.economyhelper.market.StockQuote;
+import io.saiden.economyhelper.market.StockService;
+import io.saiden.economyhelper.market.data.StockPriceApi;
+import io.saiden.economyhelper.market.upbit.UpbitApi;
 import io.saiden.economyhelper.news.NewsFacade;
 import io.saiden.economyhelper.news.NewsItem;
 import io.saiden.economyhelper.news.NewsSource;
 import io.saiden.economyhelper.telegram.TelegramClient;
 import java.time.Clock;
 import java.time.Duration;
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import org.junit.jupiter.api.DisplayName;
@@ -41,7 +53,7 @@ class DailyDigestJobTest {
 
         assertThat(result.sent()).isTrue();
         assertThat(result.slot()).isEqualTo(SLOT);
-        assertThat(result.itemCount()).isEqualTo(1);
+        assertThat(result.delivered()).containsExactly("뉴스");
         assertThat(telegram.sent).hasSize(1);
         assertThat(telegram.sent.get(0)).contains("유가 상승");
     }
@@ -76,7 +88,7 @@ class DailyDigestJobTest {
     }
 
     @Test
-    @DisplayName("가져온 뉴스가 없으면 발송도 안 하고 슬롯 선점도 되돌린다")
+    @DisplayName("네 종류가 모두 실패하면 발송도 안 하고 슬롯 선점도 되돌린다")
     void releasesSlotWhenNothingCollected() {
         RecordingClient telegram = new RecordingClient();
         InMemoryHistory history = new InMemoryHistory();
@@ -104,7 +116,7 @@ class DailyDigestJobTest {
         DigestResult result = job(exploding, history, List.of(item("기사"))).run(false);
 
         assertThat(result.sent()).isFalse();
-        assertThat(result.reason()).contains("발송 실패");
+        assertThat(result.failed()).contains("뉴스");
         assertThat(history.claimed).isEmpty();
     }
 
@@ -127,21 +139,95 @@ class DailyDigestJobTest {
                 .containsExactly(SLOT);
     }
 
+    @Test
+    @DisplayName("넷 중 하나가 죽어도 나머지는 나간다 — 환율이 안 된다고 뉴스까지 막을 이유가 없다")
+    void partialFailureStillSends() {
+        RecordingClient telegram = new RecordingClient();
+        InMemoryHistory history = new InMemoryHistory();
+
+        DigestResult result = job(telegram, history, new CountingFacade(List.of(item("유가 상승"))),
+                fx(false), stock(true), crypto(true)).run(false);
+
+        assertThat(result.sent()).isTrue();
+        assertThat(result.delivered()).containsExactly("주식", "코인", "뉴스");
+        assertThat(result.failed()).containsExactly("환율");
+        assertThat(telegram.sent).hasSize(3);
+    }
+
+    @Test
+    @DisplayName("네 종류가 다 살아 있으면 네 통을 순서대로 보낸다")
+    void sendsFourMessagesInOrder() {
+        RecordingClient telegram = new RecordingClient();
+
+        DigestResult result = job(telegram, new InMemoryHistory(),
+                new CountingFacade(List.of(item("유가 상승"))),
+                fx(true), stock(true), crypto(true)).run(false);
+
+        assertThat(result.delivered()).containsExactly("환율", "주식", "코인", "뉴스");
+        assertThat(telegram.sent).hasSize(4);
+        assertThat(telegram.sent.get(0)).contains("원/달러 환율");
+        assertThat(telegram.sent.get(1)).contains("📈 주식").contains("삼성전자");
+        assertThat(telegram.sent.get(2)).contains("🪙 코인").contains("비트코인");
+        assertThat(telegram.sent.get(3)).contains("유가 상승");
+    }
+
     private static DailyDigestJob job(TelegramClient telegram, SendHistory history,
                                       List<NewsItem> items) {
         return job(telegram, history, new CountingFacade(items));
     }
 
+    /** 뉴스만 살아 있고 시세 셋은 전부 죽은 상태 — 예전 동작(뉴스 한 통)과 같아진다. */
     private static DailyDigestJob job(TelegramClient telegram, SendHistory history,
                                       NewsFacade facade) {
-        return new DailyDigestJob(facade, telegram, history,
+        return job(telegram, history, facade, fx(false), stock(false), crypto(false));
+    }
+
+    private static DailyDigestJob job(TelegramClient telegram, SendHistory history, NewsFacade facade,
+                                      FxService fx, StockService stock, CryptoService crypto) {
+        return new DailyDigestJob(facade, fx, stock, crypto, telegram, history,
                 Clock.fixed(NOW, ZoneOffset.UTC), properties());
+    }
+
+    private static FxService fx(boolean alive) {
+        return new FxService(List.of()) {
+            @Override
+            public Optional<FxRate> usdToKrw() {
+                return alive
+                        ? Optional.of(new FxRate("USD", "KRW", new BigDecimal("1415"), FxSource.KEXIM, NOW))
+                        : Optional.empty();
+            }
+        };
+    }
+
+    private static StockService stock(boolean alive) {
+        return new StockService(new StockPriceApi(RestClient.builder(), "https://example.invalid", "k",
+                Clock.fixed(NOW, ZoneOffset.UTC)), null) {
+            @Override
+            public List<StockQuote> quotesOf(List<String> codes) {
+                return alive
+                        ? List.of(new StockQuote("005930", "삼성전자", "KOSPI", new BigDecimal("239500"),
+                                LocalDate.of(2026, 8, 11), new BigDecimal("1400183726616000")))
+                        : List.of();
+            }
+        };
+    }
+
+    private static CryptoService crypto(boolean alive) {
+        return new CryptoService(new UpbitApi(RestClient.builder(), "https://example.invalid")) {
+            @Override
+            public List<CryptoQuote> quotesOf(List<String> markets) {
+                return alive
+                        ? List.of(new CryptoQuote("KRW-BTC", "비트코인", new BigDecimal("89848000"), NOW))
+                        : List.of();
+            }
+        };
     }
 
     static EconomyHelperProperties properties() {
         return new EconomyHelperProperties(Map.of(), null,
                 new EconomyHelperProperties.Digest(
-                        "Asia/Seoul", "0 0 9 * * *", Duration.ofDays(3)),
+                        "Asia/Seoul", "0 0 9 * * *", Duration.ofDays(3),
+                        List.of("005930"), List.of("KRW-BTC")),
                 null, null);
     }
 

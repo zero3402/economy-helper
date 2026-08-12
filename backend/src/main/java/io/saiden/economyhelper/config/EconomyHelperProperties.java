@@ -46,7 +46,8 @@ public record EconomyHelperProperties(
      * @param sentHistoryTtl  발송 완료 표시를 남겨 두는 기간. 다음 슬롯(12시간 뒤)보다 넉넉히 길면
      *                        되고, 무한정 쌓이지 않게만 하면 된다.
      */
-    public record Digest(String zone, String cron, Duration sentHistoryTtl) {}
+    public record Digest(String zone, String cron, Duration sentHistoryTtl,
+                         List<String> stocks, List<String> cryptos) {}
 
     /**
      * 캐시별 만료 시간.

@@ -116,6 +116,36 @@ public final class MessageFormatter {
     }
 
     /**
+     * 아침 브리핑의 주식 통.
+     *
+     * <p>기준일을 <b>제목에 한 번만</b> 쓴다 — 종목마다 붙이면 같은 날짜가 다섯 번 반복된다.
+     * 전부 같은 조회에서 나오므로 날짜도 같다.
+     */
+    public static String formatStockDigest(List<StockQuote> quotes) {
+        StringBuilder message = new StringBuilder("📈 주식");
+        quotes.stream().findFirst().ifPresent(first ->
+                message.append(" (").append(DATE.format(first.basisDate())).append(" 종가)"));
+        message.append("\n");
+        for (StockQuote quote : quotes) {
+            message.append("\n").append(quote.name()).append("  ").append(money(quote.price())).append("원");
+        }
+        return message.toString();
+    }
+
+    /** 아침 브리핑의 코인 통. 24시간 거래되므로 기준일이 아니라 시각을 쓴다. */
+    public static String formatCryptoDigest(List<CryptoQuote> quotes) {
+        StringBuilder message = new StringBuilder("🪙 코인");
+        quotes.stream().findFirst().ifPresent(first ->
+                message.append(" (").append(timestamp(first.at())).append(" 기준)"));
+        message.append("\n");
+        for (CryptoQuote quote : quotes) {
+            message.append("\n").append(quote.koreanName()).append("  ")
+                    .append(money(quote.price())).append("원");
+        }
+        return message.toString();
+    }
+
+    /**
      * 코인 현재가.
      *
      * <p>등락률을 넣지 않는다 — 토스가 주식 등락률을 주지 않아, 코인에만 붙이면
