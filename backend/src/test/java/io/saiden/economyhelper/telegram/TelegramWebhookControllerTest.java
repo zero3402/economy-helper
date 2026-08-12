@@ -211,7 +211,7 @@ class TelegramWebhookControllerTest {
     @Test
     @DisplayName("처리 중 예외가 나도 200 — 텔레그램의 재시도 폭풍을 막는다")
     void alwaysReturnsOkEvenOnFailure() {
-        NewsFacade exploding = new NewsFacade(null, null, null, properties()) {
+        NewsFacade exploding = new NewsFacade(null, null, null) {
             @Override
             public Optional<NewsItem> search(String query) {
                 throw new IllegalStateException("수집 전체 실패");
@@ -247,7 +247,7 @@ class TelegramWebhookControllerTest {
     private static EconomyHelperProperties properties() {
         return new EconomyHelperProperties(Map.of(), null,
                 new EconomyHelperProperties.Digest(
-                        "Asia/Seoul", "0 0 9,21 * * *", List.of(), Duration.ofDays(3)),
+                        "Asia/Seoul", "0 0 9 * * *", Duration.ofDays(3)),
                 null, null);
     }
 
@@ -284,7 +284,7 @@ class TelegramWebhookControllerTest {
     }
 
     private static NewsFacade facade(Optional<NewsItem> result) {
-        return new NewsFacade(null, null, null, properties()) {
+        return new NewsFacade(null, null, null) {
             @Override
             public Optional<NewsItem> search(String query) {
                 return result;

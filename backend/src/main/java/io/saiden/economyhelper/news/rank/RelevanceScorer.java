@@ -3,7 +3,6 @@ package io.saiden.economyhelper.news.rank;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.saiden.economyhelper.news.Article;
 import io.saiden.economyhelper.translate.GeminiApi;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,9 +28,8 @@ import tools.jackson.databind.ObjectMapper;
  * 매체당 1회, 하루 5회다. 정기 발송이 하루 한 번이라 이걸로 충분하다.
  * {@code /crypto}에서 후보를 좁혀 거래대금으로 가른 것과 같은 발상이다.
  *
- * <p><b>실패하면 키워드 사전으로 내려간다.</b> 이 신호가 통째로 사라지면 일반 뉴스가 1위로
- * 뽑히므로(Phase 1에서 실제로 겪었다) 폴백이 필수다. {@code TranslationService}가 번역 실패 시
- * 원문으로 강등하는 것과 같은 구조다.
+ * <p><b>실패하면 전부 통과시킨다.</b> 예전에는 키워드 사전으로 내려갔지만, 피드를 전부
+ * 금융 섹션으로 좁힌 뒤로는 후보 자체가 이미 재테크 기사라 걸러낼 필요가 없어졌다.
  */
 @Component
 public class RelevanceScorer {
@@ -71,20 +69,18 @@ public class RelevanceScorer {
      * 그 안에 발송을 다시 트리거해도 Gemini를 또 부르지 않는다. 기사별로 캐시하면
      * 배치가 쪼개져 호출 수가 늘어난다.
      *
-     * @param fallbackKeywords Gemini가 실패했을 때 쓸 재테크 키워드 사전
      * @return 기사 링크 → 0~1. 실패해도 예외를 던지지 않는다 — 발송이 멈추면 안 된다
      */
     @Cacheable(cacheNames = "relevance", key = "#candidates.![link]", unless = "#result.isEmpty()")
-    public Map<String, Double> scoreAll(List<Article> candidates,
-                                        Collection<KeywordGroup> fallbackKeywords) {
+    public Map<String, Double> scoreAll(List<Article> candidates) {
         if (candidates.isEmpty()) {
             return Map.of();
         }
         try {
             return byLlm(candidates);
         } catch (Exception e) {
-            log.error("[relevance] LLM 채점 실패 — 키워드 사전으로 내려갑니다: {}", e.toString());
-            return byKeywords(candidates, fallbackKeywords);
+            log.error("[relevance] LLM 채점 실패 — 전부 통과시킵니다: {}", e.toString());
+            return passAll(candidates);
         }
     }
 
@@ -112,20 +108,20 @@ public class RelevanceScorer {
     }
 
     /**
-     * 폴백 — 예전 방식 그대로 키워드 매칭 점수를 쓴다.
+     * 폴백 — <b>전부 통과시킨다.</b>
      *
-     * <p><b>사전까지 비어 있으면 전부 1.0을 준다.</b> 걸러낼 근거가 하나도 없는데 0을 주면
-     * 임계값 필터가 모든 매체를 비워 발송 자체가 사라진다 — LLM도 죽고 사전도 없다는 이유로
-     * 아침 브리핑이 통째로 안 나가는 건 과하다. 예전 필터도 같은 판단이었다
-     * ("사전이 비어 있으면 걸러낼 근거가 없으므로 전부 통과시킨다").
+     * <p>예전에는 키워드 사전으로 내려갔지만 그 사전을 없앴다. <b>피드를 전부 금융 섹션으로
+     * 좁혔기 때문</b>이다(Bloomberg markets · FT markets · Economist finance-and-economics ·
+     * CoinDesk · Reuters /markets). 후보 자체가 이미 재테크 기사이므로, 걸러내지 않아도
+     * "EU 국경 검사로 공항 대기줄" 같은 기사가 1위가 되지 않는다.
+     *
+     * <p>하류에서 단어로 거르는 것보다 <b>상류에서 소스를 좁히는 편이 근본적이다</b> —
+     * 손으로 관리할 목록이 사라지고, 새 주제(스테이블코인·AI 설비투자)를 쫓아다닐 이유도 없다.
      */
-    private static Map<String, Double> byKeywords(List<Article> candidates,
-                                                  Collection<KeywordGroup> keywords) {
-        boolean noBasis = keywords == null || keywords.isEmpty();
+    private static Map<String, Double> passAll(List<Article> candidates) {
         Map<String, Double> byLink = new HashMap<>();
         for (Article article : candidates) {
-            byLink.put(article.link(),
-                    noBasis ? 1.0 : PopularityScorer.keywordScore(article.text(), keywords));
+            byLink.put(article.link(), 1.0);
         }
         return byLink;
     }

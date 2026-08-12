@@ -65,14 +65,13 @@ public class NewsService {
      * "EU 국경 검사로 공항 대기줄 두 배" 같은 기사가 1위로 뽑힌다(8단계에서 실제로 겪음).
      * 랭킹 네 항 중 셋({@code feedRank}·{@code recency}·{@code buzz})은 주제를 전혀 모르기 때문이다.
      *
-     * <p>관련도를 <b>어떻게 재는지</b>는 {@link RelevanceScorer}가 정한다(LLM, 실패 시 키워드 사전).
+     * <p>관련도를 <b>어떻게 재는지</b>는 {@link RelevanceScorer}가 정한다.
      * 여기서는 후보를 좁혀 넘기고 임계값으로 자를 뿐이다.
      *
      * <p>수집에 실패한 매체도 결과에서 빠질 뿐 나머지를 막지 않는다.
      * 이게 "한 소스가 죽어도 발송은 계속된다"의 실제 구현이다.
      */
-    public Map<NewsSource, ScoredArticle> digest(Collection<KeywordGroup> keywords) {
-        List<KeywordGroup> dictionary = usable(keywords);
+    public Map<NewsSource, ScoredArticle> digest() {
         Instant now = clock.instant();
         Map<NewsSource, ScoredArticle> top = new EnumMap<>(NewsSource.class);
 
@@ -92,8 +91,8 @@ public class NewsService {
                     .map(ScoredArticle::article)
                     .toList();
 
-            // 2) 후보들의 재테크 관련도를 한 번에 매긴다 (LLM 실패 시 키워드 사전으로 내려간다)
-            Map<String, Double> relevance = relevanceScorer.scoreAll(candidates, dictionary);
+            // 2) 후보들의 재테크 관련도를 한 번에 매긴다 (LLM 실패 시 전부 통과 — 피드가 이미 금융 전용이다)
+            Map<String, Double> relevance = relevanceScorer.scoreAll(candidates);
 
             // 3) 임계값 미만은 버린다 — 예전의 키워드 필터가 하던 일을 점수가 대신한다
             List<Article> relevant = candidates.stream()

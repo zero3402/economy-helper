@@ -20,8 +20,8 @@ import tools.jackson.databind.json.JsonMapper;
  *
  * <ol>
  *   <li><b>호출을 한 번으로 묶는다</b> — 기사마다 물으면 무료 티어를 태운다
- *   <li><b>실패하면 키워드 사전으로 내려간다</b> — 이 신호가 사라지면 일반 뉴스가 1위로 뽑힌다
- *       (Phase 1의 8단계에서 실제로 겪은 버그다)
+ *   <li><b>실패해도 발송을 막지 않는다</b> — 전부 통과시킨다. 예전에는 키워드 사전으로
+ *       내려갔지만, 피드를 전부 금융 섹션으로 좁힌 뒤로는 후보 자체가 재테크 기사다
  * </ol>
  */
 class RelevanceScorerTest {
@@ -43,7 +43,7 @@ class RelevanceScorerTest {
     void scoresWholeBatchInOneCall() {
         RecordingApi api = new RecordingApi("{\"scores\":[0.95,0.1,0.8]}");
 
-        Map<String, Double> scores = new RelevanceScorer(api, MAPPER).scoreAll(CANDIDATES, List.of());
+        Map<String, Double> scores = new RelevanceScorer(api, MAPPER).scoreAll(CANDIDATES);
 
         assertThat(api.calls).hasValue(1);
         assertThat(scores).hasSize(3);
@@ -56,27 +56,24 @@ class RelevanceScorerTest {
     void mapsScoresInInputOrder() {
         RecordingApi api = new RecordingApi("{\"scores\":[0.1,0.2,0.9]}");
 
-        Map<String, Double> scores = new RelevanceScorer(api, MAPPER).scoreAll(CANDIDATES, List.of());
+        Map<String, Double> scores = new RelevanceScorer(api, MAPPER).scoreAll(CANDIDATES);
 
         assertThat(scores.get("https://example.com/2")).isEqualTo(0.9);
     }
 
     @Test
-    @DisplayName("응답 개수가 다르면 폴백한다 — 짝을 잘못 맞추느니 키워드가 낫다")
+    @DisplayName("응답 개수가 다르면 폴백한다 — 짝을 잘못 맞추면 엉뚱한 기사가 1위가 된다")
     void fallsBackWhenCountMismatches() {
         RecordingApi api = new RecordingApi("{\"scores\":[0.9,0.1]}");   // 3개인데 2개만 왔다
 
-        Map<String, Double> scores =
-                new RelevanceScorer(api, MAPPER).scoreAll(CANDIDATES, List.of(KeywordGroup.of("rate")));
+        Map<String, Double> scores = new RelevanceScorer(api, MAPPER).scoreAll(CANDIDATES);
 
-        // 키워드 'rate'가 걸리는 1번 기사만 점수를 받는다
-        assertThat(scores.get("https://example.com/0")).isGreaterThan(0.0);
-        assertThat(scores.get("https://example.com/1")).isEqualTo(0.0);
+        assertThat(scores).hasSize(3).allSatisfy((link, score) -> assertThat(score).isEqualTo(1.0));
     }
 
     @Test
-    @DisplayName("Gemini가 죽으면 키워드 사전으로 내려간다 — 발송이 멈추면 안 된다")
-    void fallsBackToKeywordsWhenLlmFails() {
+    @DisplayName("Gemini가 죽으면 전부 통과시킨다 — 피드가 이미 금융 전용이라 걸러낼 필요가 없다")
+    void passesAllWhenLlmFails() {
         GeminiApi exploding = new RecordingApi(null) {
             @Override
             public String generate(String prompt) {
@@ -84,12 +81,10 @@ class RelevanceScorerTest {
             }
         };
 
-        Map<String, Double> scores = new RelevanceScorer(exploding, MAPPER)
-                .scoreAll(CANDIDATES, List.of(KeywordGroup.of("dollar")));
+        Map<String, Double> scores = new RelevanceScorer(exploding, MAPPER).scoreAll(CANDIDATES);
 
-        assertThat(scores).hasSize(3);
-        assertThat(scores.get("https://example.com/2")).isGreaterThan(0.0);   // dollar가 걸린다
-        assertThat(scores.get("https://example.com/1")).isEqualTo(0.0);       // 공항 기사는 안 걸린다
+        // 임계값(0.4)을 넘겨 발송이 멈추지 않아야 한다. 후보 자체가 금융 섹션 피드에서 왔다
+        assertThat(scores).hasSize(3).allSatisfy((link, score) -> assertThat(score).isEqualTo(1.0));
     }
 
     @Test
@@ -97,7 +92,7 @@ class RelevanceScorerTest {
     void fallsBackOnGarbageResponse() {
         RecordingApi api = new RecordingApi("죄송합니다, 채점할 수 없습니다");
 
-        assertThat(new RelevanceScorer(api, MAPPER).scoreAll(CANDIDATES, List.of()))
+        assertThat(new RelevanceScorer(api, MAPPER).scoreAll(CANDIDATES))
                 .hasSize(3);
     }
 
@@ -106,7 +101,7 @@ class RelevanceScorerTest {
     void clampsOutOfRangeScores() {
         RecordingApi api = new RecordingApi("{\"scores\":[1.7,-0.5,0.5]}");
 
-        Map<String, Double> scores = new RelevanceScorer(api, MAPPER).scoreAll(CANDIDATES, List.of());
+        Map<String, Double> scores = new RelevanceScorer(api, MAPPER).scoreAll(CANDIDATES);
 
         assertThat(scores.get("https://example.com/0")).isEqualTo(1.0);
         assertThat(scores.get("https://example.com/1")).isEqualTo(0.0);
@@ -117,7 +112,7 @@ class RelevanceScorerTest {
     void skipsCallWhenNoCandidates() {
         RecordingApi api = new RecordingApi("{\"scores\":[]}");
 
-        assertThat(new RelevanceScorer(api, MAPPER).scoreAll(List.of(), List.of())).isEmpty();
+        assertThat(new RelevanceScorer(api, MAPPER).scoreAll(List.of())).isEmpty();
         assertThat(api.calls).hasValue(0);
     }
 

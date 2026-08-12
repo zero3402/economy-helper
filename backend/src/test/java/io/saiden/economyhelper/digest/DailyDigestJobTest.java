@@ -141,7 +141,7 @@ class DailyDigestJobTest {
     static EconomyHelperProperties properties() {
         return new EconomyHelperProperties(Map.of(), null,
                 new EconomyHelperProperties.Digest(
-                        "Asia/Seoul", "0 0 9,21 * * *", List.of(), Duration.ofDays(3)),
+                        "Asia/Seoul", "0 0 9 * * *", Duration.ofDays(3)),
                 null, null);
     }
 
@@ -156,7 +156,7 @@ class DailyDigestJobTest {
         private int calls;
 
         private CountingFacade(List<NewsItem> items) {
-            super(null, null, null, properties());
+            super(null, null, null);
             this.items = items;
         }
 

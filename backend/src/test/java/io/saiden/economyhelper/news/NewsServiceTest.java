@@ -46,7 +46,7 @@ class NewsServiceTest {
                         article(NewsSource.BLOOMBERG, "블룸버그 2위", 5)),
                 NewsSource.COINDESK, List.of(article(NewsSource.COINDESK, "코인데스크 1위", 0))));
 
-        Map<NewsSource, ScoredArticle> digest = service.digest(groups());
+        Map<NewsSource, ScoredArticle> digest = service.digest();
 
         assertThat(digest).hasSize(2);
         assertThat(digest.get(NewsSource.BLOOMBERG).article().title()).isEqualTo("블룸버그 1위");
@@ -60,7 +60,7 @@ class NewsServiceTest {
                 NewsSource.FT, List.of(),  // 403 등으로 수집 실패한 상태
                 NewsSource.ECONOMIST, List.of(article(NewsSource.ECONOMIST, "이코노미스트 기사", 0))));
 
-        Map<NewsSource, ScoredArticle> digest = service.digest(groups());
+        Map<NewsSource, ScoredArticle> digest = service.digest();
 
         assertThat(digest).containsOnlyKeys(NewsSource.ECONOMIST);
     }
@@ -68,21 +68,22 @@ class NewsServiceTest {
     @Test
     @DisplayName("모든 매체가 죽어도 예외 없이 빈 결과를 준다")
     void digestSurvivesTotalOutage() {
-        assertThat(service(Map.of()).digest(groups())).isEmpty();
+        assertThat(service(Map.of()).digest()).isEmpty();
     }
 
     @Test
-    @DisplayName("재테크 키워드가 걸리는 기사가 없는 매체는 발송에서 빠진다")
+    @DisplayName("재테크 관련도가 임계값에 못 미치는 매체는 발송에서 빠진다")
     void digestExcludesSourceWithNothingRelevant() {
         NewsService service = service(Map.of(
-                // FT 홈 피드처럼 일반 뉴스만 온 상태
+                // 일반 뉴스만 온 상태
                 NewsSource.FT, List.of(
                         article(NewsSource.FT, "EU border checks double queues at airports", 0),
                         article(NewsSource.FT, "Museum reopens after renovation", 1)),
                 NewsSource.ECONOMIST, List.of(
-                        article(NewsSource.ECONOMIST, "Fed weighs another rate cut", 0))));
+                        article(NewsSource.ECONOMIST, "Fed weighs another rate cut", 0))),
+                scorerMatching("rate"));
 
-        Map<NewsSource, ScoredArticle> digest = service.digest(groups("fed", "rate cut", "inflation"));
+        Map<NewsSource, ScoredArticle> digest = service.digest();
 
         assertThat(digest)
                 .as("재테크 뉴스가 아닌 걸 채워 보내는 것보다 그 매체를 비우는 편이 낫다")
@@ -90,27 +91,28 @@ class NewsServiceTest {
     }
 
     @Test
-    @DisplayName("피드 위쪽에 있어도 키워드가 안 걸리면 밀린다 — 걸리는 기사 중에서만 고른다")
+    @DisplayName("피드 위쪽에 있어도 관련도가 낮으면 밀린다 — 임계값을 넘는 기사 중에서만 고른다")
     void digestPicksRelevantArticleOverHigherRankedIrrelevantOne() {
         NewsService service = service(Map.of(
                 NewsSource.BLOOMBERG, List.of(
                         article(NewsSource.BLOOMBERG, "Airport queues double", 0),
-                        article(NewsSource.BLOOMBERG, "Oil rally revives inflation concerns", 9))));
+                        article(NewsSource.BLOOMBERG, "Oil rally revives inflation concerns", 9))),
+                scorerMatching("inflation"));
 
-        Map<NewsSource, ScoredArticle> digest = service.digest(groups("oil", "inflation"));
+        Map<NewsSource, ScoredArticle> digest = service.digest();
 
         assertThat(digest.get(NewsSource.BLOOMBERG).article().title())
                 .isEqualTo("Oil rally revives inflation concerns");
     }
 
     @Test
-    @DisplayName("사전이 비어 있으면 걸러낼 근거가 없으므로 전부 후보로 둔다")
-    void digestKeepsEverythingWhenDictionaryIsEmpty() {
+    @DisplayName("채점이 전부 통과시켜도 발송은 계속된다 — LLM이 죽었을 때의 동작이다")
+    void digestStillSendsWhenScorerPassesEverything() {
+        // RelevanceScorer는 LLM 실패 시 전부 1.0을 준다. 피드가 이미 금융 섹션이라 안전하다
         NewsService service = service(Map.of(
-                NewsSource.FT, List.of(article(NewsSource.FT, "Museum reopens", 0))));
+                NewsSource.FT, List.of(article(NewsSource.FT, "Fed weighs another rate cut", 0))));
 
-        assertThat(service.digest(groups())).containsOnlyKeys(NewsSource.FT);
-        assertThat(service.digest(null)).containsOnlyKeys(NewsSource.FT);
+        assertThat(service.digest()).containsOnlyKeys(NewsSource.FT);
     }
 
     @Test
@@ -150,7 +152,7 @@ class NewsServiceTest {
     }
 
     private static NewsService service(Map<NewsSource, List<Article>> bySource) {
-        return service(bySource, keywordFallbackScorer());
+        return service(bySource, scorerMatching());
     }
 
     private static NewsService service(Map<NewsSource, List<Article>> bySource, RelevanceScorer relevance) {
@@ -165,27 +167,25 @@ class NewsServiceTest {
     }
 
     /**
-     * LLM 없이 예전과 같은 키워드 매칭으로 관련도를 매긴다.
+     * 주어진 단어가 걸리는 기사에만 1.0을 준다 — LLM 대신 결정적으로 동작한다.
      *
      * <p>이 클래스의 관심사는 "수집 → 후보 좁히기 → 임계값 → 랭킹" 흐름이지 채점 방식이 아니다.
-     * LLM 경로는 {@code RelevanceScorerTest}가 따로 본다.
+     * 실제 LLM 경로는 {@code RelevanceScorerTest}가 따로 본다.
      */
-    private static RelevanceScorer keywordFallbackScorer() {
+    private static RelevanceScorer scorerMatching(String... terms0) {
+        List<String> terms = List.of(terms0);
         return new RelevanceScorer(null, null) {
             @Override
-            public Map<String, Double> scoreAll(List<Article> candidates,
-                                                Collection<KeywordGroup> fallbackKeywords) {
-                // 사전이 비면 걸러낼 근거가 없다 — 전부 통과 (실제 폴백도 같은 규칙이다)
-                boolean noBasis = fallbackKeywords == null || fallbackKeywords.isEmpty();
+            public Map<String, Double> scoreAll(List<Article> candidates) {
                 return candidates.stream().collect(java.util.stream.Collectors.toMap(
                         Article::link,
-                        a -> noBasis || matches(a, fallbackKeywords) ? 1.0 : 0.0,
+                        a -> matches(a, terms) ? 1.0 : 0.0,
                         (x, y) -> x));
             }
 
-            private boolean matches(Article article, Collection<KeywordGroup> keywords) {
+            private boolean matches(Article article, List<String> keywords) {
                 String haystack = article.text().toLowerCase(java.util.Locale.ROOT);
-                return keywords.stream().anyMatch(group -> group.matches(haystack));
+                return keywords.isEmpty() || keywords.stream().anyMatch(haystack::contains);
             }
         };
     }

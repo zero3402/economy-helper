@@ -230,7 +230,7 @@ class DigestIntegrationTest {
     }
 
     private static NewsFacade fixedFacade() {
-        return new NewsFacade(null, null, null, DailyDigestJobTest.properties()) {
+        return new NewsFacade(null, null, null) {
             @Override
             public List<NewsItem> digest() {
                 return List.of(DailyDigestJobTest.item("동시 실행 테스트"));

@@ -43,12 +43,10 @@ public record EconomyHelperProperties(
     public record Weights(double feedRank, double recency, double keywordMatch, double buzz) {}
 
     /**
-     * @param keywords        정기 발송에는 검색어가 없으므로 이 사전이 {@code keywordMatch}의 입력이 된다 —
-     *                        "재테크에 꼭 필요한 뉴스"를 고르는 유일한 의미 신호다.
      * @param sentHistoryTtl  발송 완료 표시를 남겨 두는 기간. 다음 슬롯(12시간 뒤)보다 넉넉히 길면
      *                        되고, 무한정 쌓이지 않게만 하면 된다.
      */
-    public record Digest(String zone, String cron, List<String> keywords, Duration sentHistoryTtl) {}
+    public record Digest(String zone, String cron, Duration sentHistoryTtl) {}
 
     /**
      * 캐시별 만료 시간.
