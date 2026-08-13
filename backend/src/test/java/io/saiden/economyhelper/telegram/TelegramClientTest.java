@@ -8,6 +8,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
 import org.junit.jupiter.api.AfterEach;
@@ -40,7 +41,7 @@ class TelegramClientTest {
     @Test
     @DisplayName("봇 토큰을 경로에 넣고 chat_id·text를 스네이크케이스로 보낸다")
     void postsSendMessageWithSnakeCaseFields() {
-        client().send("12345", "안녕하세요");
+        client().send("12345", null, "안녕하세요");
 
         server.verify(postRequestedFor(urlPathEqualTo("/bottest-token/sendMessage"))
                 .withRequestBody(equalToJson("""
@@ -48,13 +49,49 @@ class TelegramClientTest {
     }
 
     @Test
-    @DisplayName("chat_id를 생략하면 설정된 기본 채팅방으로 간다 — 정기 발송 경로")
-    void usesDefaultChatIdForDigest() {
+    @DisplayName("토픽을 주면 message_thread_id로 실어 보낸다 — 포럼에서 그 토픽에 뜬다")
+    void carriesForumTopicId() {
+        client().send("12345", 7, "안녕하세요");
+
+        server.verify(postRequestedFor(anyUrl())
+                .withRequestBody(equalToJson("""
+                        {"chat_id":"12345","message_thread_id":7,"text":"안녕하세요",\
+                        "parse_mode":"HTML","disable_web_page_preview":true}""")));
+    }
+
+    @Test
+    @DisplayName("토픽이 없으면 필드 자체를 뺀다 — null을 실으면 포럼이 아닌 방에서 거절당한다")
+    void omitsThreadIdEntirelyWhenAbsent() {
+        client().send("12345", null, "안녕하세요");
+
+        server.verify(postRequestedFor(anyUrl())
+                .withRequestBody(equalToJson("""
+                        {"chat_id":"12345","text":"안녕하세요","parse_mode":"HTML","disable_web_page_preview":true}""")));
+        assertThat(server.getAllServeEvents().get(0).getRequest().getBodyAsString())
+                .as("키가 null로라도 남아 있으면 안 된다").doesNotContain("message_thread_id");
+    }
+
+    @Test
+    @DisplayName("chat_id를 생략하면 설정된 기본 채팅방의 Notice 토픽으로 간다 — 정기 발송 경로")
+    void usesDefaultChatIdAndNoticeTopicForDigest() {
         client().send("정기 발송");
 
         server.verify(postRequestedFor(anyUrl())
                 .withRequestBody(equalToJson("""
-                        {"chat_id":"default-chat","text":"정기 발송","parse_mode":"HTML","disable_web_page_preview":true}""")));
+                        {"chat_id":"default-chat","message_thread_id":3,"text":"정기 발송",\
+                        "parse_mode":"HTML","disable_web_page_preview":true}""")));
+    }
+
+    @Test
+    @DisplayName("토픽 ID가 숫자가 아니면 기동에서 실패한다 — 발송 때 터지면 그날 브리핑을 통째로 잃는다")
+    void rejectsNonNumericTopicIdAtStartup() {
+        assertThatThrownBy(() -> new TelegramClient(
+                RestClient.builder(), server.baseUrl(), "test-token", "default-chat", "토픽3"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("토픽3");
+
+        assertThat(TelegramClient.topicId("")).as("비면 지정하지 않는다").isNull();
+        assertThat(TelegramClient.topicId(" 12 ")).as("붙여 넣은 공백은 다듬는다").isEqualTo(12);
     }
 
     @Test
@@ -70,7 +107,7 @@ class TelegramClientTest {
 
     private TelegramClient client() {
         return new TelegramClient(
-                RestClient.builder(), server.baseUrl(), "test-token", "default-chat");
+                RestClient.builder(), server.baseUrl(), "test-token", "default-chat", "3");
     }
 
     @Test

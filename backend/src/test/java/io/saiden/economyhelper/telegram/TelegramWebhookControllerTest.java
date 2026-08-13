@@ -339,6 +339,71 @@ class TelegramWebhookControllerTest {
         assertThat(client.sent).hasSize(1);
     }
 
+    // --- 포럼 토픽: 명령은 Search 토픽에서만 받고 그 토픽으로 답한다 ---
+
+    @Test
+    @DisplayName("지정한 토픽의 명령은 처리하고 그 토픽으로 답한다 — 다른 토픽에 답이 뜨면 대화가 어긋난다")
+    void servesTheSearchTopicAndRepliesIntoIt() {
+        RecordingClient client = new RecordingClient();
+        var controller = guarded("", "777", "42", client);
+
+        controller.onUpdate(null, update(777, 42, "/news 유가"));
+
+        assertThat(client.sent).hasSize(1);
+        assertThat(client.sent.get(0).topicId()).as("물어본 토픽으로 되돌아가야 한다").isEqualTo(42);
+        assertThat(client.sent.get(0).text()).contains("유가 상승");
+    }
+
+    @Test
+    @DisplayName("다른 토픽의 명령은 무시한다 — Notice 토픽은 브리핑만 받는 곳이다")
+    void ignoresCommandsFromOtherTopics() {
+        RecordingClient client = new RecordingClient();
+        var controller = guarded("", "777", "42", client);
+
+        var response = controller.onUpdate(null, update(777, 9, "/news 유가"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(client.sent).isEmpty();
+    }
+
+    @Test
+    @DisplayName("General 토픽은 message_thread_id가 아예 없어 자연히 걸러진다")
+    void ignoresCommandsFromTheGeneralTopic() {
+        RecordingClient client = new RecordingClient();
+        var controller = guarded("", "777", "42", client);
+
+        controller.onUpdate(null, update(777, null, "/news 유가"));
+
+        assertThat(client.sent).isEmpty();
+    }
+
+    @Test
+    @DisplayName("토픽을 지정하지 않으면 검사하지 않는다 — 번호를 잘못 넣어 봇이 막혀도 비우면 되살아난다")
+    void acceptsAnyTopicWhenSearchTopicUnset() {
+        RecordingClient client = new RecordingClient();
+        var controller = guarded("", "777", "", client);
+
+        controller.onUpdate(null, update(777, 9, "/news 유가"));
+        controller.onUpdate(null, update(777, null, "/news 유가"));
+
+        assertThat(client.sent).hasSize(2);
+        assertThat(client.sent.get(0).topicId()).as("들어온 토픽은 그대로 되돌려준다").isEqualTo(9);
+        assertThat(client.sent.get(1).topicId()).isNull();
+    }
+
+    @Test
+    @DisplayName("사용법·모르는 명령 안내도 물어본 토픽으로 간다")
+    void sendsGuidanceIntoTheAskingTopic() {
+        RecordingClient client = new RecordingClient();
+        var controller = guarded("", "777", "42", client);
+
+        controller.onUpdate(null, update(777, 42, "/stock"));
+        controller.onUpdate(null, update(777, 42, "/exchange"));
+
+        assertThat(client.sent).hasSize(2);
+        assertThat(client.sent).allSatisfy(s -> assertThat(s.topicId()).isEqualTo(42));
+    }
+
     /** secret·허용 채팅을 설정하지 않은 컨트롤러. 나머지 테스트는 라우팅만 보므로 이쪽을 쓴다. */
     private static TelegramWebhookController defaultController(NewsFacade newsFacade,
                                                                CryptoService cryptoService,
@@ -346,18 +411,28 @@ class TelegramWebhookControllerTest {
                                                                StockService stockService,
                                                                TelegramClient telegramClient) {
         return new TelegramWebhookController(
-                newsFacade, cryptoService, fxService, stockService, telegramClient, "", "");
+                newsFacade, cryptoService, fxService, stockService, telegramClient, "", "", "");
     }
 
     /** 방어를 켠 컨트롤러. {@code /news 유가}가 항상 결과를 내도록 고정해 둔다. */
     private static TelegramWebhookController guarded(String secret, String allowedChatId, TelegramClient client) {
-        return new TelegramWebhookController(
-                facade(Optional.of(item("유가 상승"))), crypto(Optional.empty()), fx(Optional.empty()),
-                stock(Optional.empty()), client, secret, allowedChatId);
+        return guarded(secret, allowedChatId, "", client);
     }
 
+    private static TelegramWebhookController guarded(
+            String secret, String allowedChatId, String searchTopicId, TelegramClient client) {
+        return new TelegramWebhookController(
+                facade(Optional.of(item("유가 상승"))), crypto(Optional.empty()), fx(Optional.empty()),
+                stock(Optional.empty()), client, secret, allowedChatId, searchTopicId);
+    }
+
+    /** 토픽 없는 메시지 — 포럼이 아닌 방과 General 토픽이 이 모양이다. */
     private static Update update(long chatId, String text) {
-        return new Update(new Message(new Chat(chatId), text));
+        return update(chatId, null, text);
+    }
+
+    private static Update update(long chatId, Integer topicId, String text) {
+        return new Update(new Message(new Chat(chatId), text, topicId));
     }
 
     private static NewsItem item(String title) {
@@ -421,19 +496,19 @@ class TelegramWebhookControllerTest {
         private final List<Sent> sent = new ArrayList<>();
 
         private RecordingClient() {
-            super(RestClient.builder(), "https://example.invalid", "token", "default-chat");
+            super(RestClient.builder(), "https://example.invalid", "token", "default-chat", "");
         }
 
         @Override
-        public void send(String chatId, String text) {
-            sent.add(new Sent(chatId, text));
+        public void send(String chatId, Integer topicId, String text) {
+            sent.add(new Sent(chatId, topicId, text));
         }
 
         @Override
         public void send(String text) {
-            sent.add(new Sent("default-chat", text));
+            sent.add(new Sent("default-chat", null, text));
         }
     }
 
-    private record Sent(String chatId, String text) {}
+    private record Sent(String chatId, Integer topicId, String text) {}
 }

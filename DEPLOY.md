@@ -52,6 +52,7 @@ CI가 구운 것이고, 그쪽이 빌드 시간을 아낀다. 무료 빌더에�
 | `REDIS_PASSWORD` · `REDIS_SSL` | 필요 시 | 관리형 Redis는 대개 요구한다 |
 | `TZ` | `Asia/Seoul` | 이미지 기본값이지만 명시해 둔다 |
 | `TELEGRAM_WEBHOOK_SECRET` | `openssl rand -hex 32` | **웹훅 엔드포인트의 유일한 자물쇠.** 아래 참조 |
+| `TELEGRAM_NOTICE_TOPIC_ID` · `TELEGRAM_SEARCH_TOPIC_ID` | 토픽 번호 | 포럼(토픽) 그룹일 때만. 아래 참조 |
 | 시크릿 6개 | `.env.example` 참조 | `TELEGRAM_*` · `GEMINI_API_KEY` · `KEXIM_API_KEY` · `DATA_API_KEY` · `FMP_API_KEY` |
 
 그리고 GitHub 저장소에 **변수** `SERVICE_URL`을 넣는다(Settings → Secrets and variables →
@@ -141,9 +142,42 @@ POST $SERVICE_URL/telegram/webhook
 둘 다 **비어 있으면 검증하지 않는다** — 로컬과 CI가 설정 없이 돌아야 하기 때문이다.
 배포 환경에서 비면 기동 로그에 WARN이 찍힌다.
 
+### 포럼(토픽) 그룹
+
+토픽을 쓰면 **보낼 때도 받을 때도 토픽 번호가 필요하다.** 안 주면 브리핑이 General 토픽으로
+떨어지고 명령은 토픽 구분 없이 받는다.
+
+```
+TELEGRAM_NOTICE_TOPIC_ID   브리핑을 보낼 토픽
+TELEGRAM_SEARCH_TOPIC_ID   명령을 받을 토픽 — 다른 토픽의 명령은 무시한다
+```
+
+번호는 토픽의 아무 메시지 → 우클릭(모바일은 길게) → **Copy Message Link**에서 읽는다.
+
+```
+https://t.me/c/2334455667/12/34
+              └─ 채팅 ─┘ └토픽┘ └메시지┘
+  TELEGRAM_CHAT_ID = -1002334455667      ← 앞에 -100 을 붙인다
+  토픽 ID          = 12
+```
+
+> ⚠️ **일반 그룹이 슈퍼그룹(=토픽 가능)으로 승격되면 채팅 ID가 바뀐다.** 토픽을 켠 뒤에는
+> `TELEGRAM_CHAT_ID`를 반드시 다시 확인한다. 옛날 번호로는 아무것도 오지 않는다.
+
+번호를 잘못 넣어 봇이 통째로 막히면 **`TELEGRAM_SEARCH_TOPIC_ID`를 비우는 것만으로 되살아난다** —
+비면 토픽 검사를 하지 않는다. 거절될 때마다 실제 채팅·토픽 번호가 로그에 찍히므로 거기서 읽으면 된다.
+
+> ⚠️ **봇을 그룹 관리자로 올린다.** privacy mode(기본 켜짐)에서 봇이 받는 것은
+> `/명령@봇이름`과, "the bot was the last bot to send a message to the group"일 때의 일반 명령뿐이다.
+> 그냥 `/stock`은 **가끔 씹힌다.** 문서: "bot admins always receive all messages".
+> privacy mode를 끄는 방법도 있지만 그러면 그룹의 모든 대화가 서버로 흘러든다.
+
 ### 확인
 
 ```bash
+# 채팅 ID가 그 방이 맞는가 — 포럼이면 is_forum: true
+curl -s "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/getChat?chat_id=$TELEGRAM_CHAT_ID"
+
 # 등록됐는가 — url이 차 있고 last_error_message가 없어야 한다
 curl -s "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/getWebhookInfo"
 

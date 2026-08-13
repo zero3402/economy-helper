@@ -355,7 +355,7 @@ class DailyDigestJobTest {
         final List<String> sent = new ArrayList<>();
 
         RecordingClient() {
-            super(RestClient.builder(), "https://example.invalid", "token", "chat");
+            super(RestClient.builder(), "https://example.invalid", "token", "chat", "");
         }
 
         @Override

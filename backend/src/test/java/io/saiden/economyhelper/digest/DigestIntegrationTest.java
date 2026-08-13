@@ -151,7 +151,7 @@ class DigestIntegrationTest {
         int before = circuitBreakerRegistry.circuitBreaker("telegram")
                 .getMetrics().getNumberOfFailedCalls();
 
-        assertThatThrownBy(() -> telegramClient.send("1", "연결 거부될 주소"))
+        assertThatThrownBy(() -> telegramClient.send("1", null, "연결 거부될 주소"))
                 .isInstanceOf(Exception.class);
 
         assertThat(circuitBreakerRegistry.circuitBreaker("telegram")

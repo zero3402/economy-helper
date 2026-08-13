@@ -182,8 +182,13 @@ economy-helper:
 
   telegram:
     bot-token: ${TELEGRAM_BOT_TOKEN:}
-    # 정기 발송 대상이자 명령을 받아 줄 유일한 채팅방이다 — 다른 곳에서 온 명령은 무시한다
+    # 정기 발송 대상이자 명령을 받아 줄 유일한 채팅방이다 — 다른 곳에서 온 명령은 무시한다.
+    # 포럼(토픽) 슈퍼그룹이면 -100으로 시작한다
     chat-id: ${TELEGRAM_CHAT_ID:}
+    # 포럼 토픽을 쓸 때만 채운다. 비우면 토픽을 지정하지 않는다(General 토픽 / 모든 토픽 허용).
+    # 잘못된 번호를 넣어 봇이 통째로 막히면 이 값을 비우는 것만으로 되살릴 수 있다.
+    notice-topic-id: ${TELEGRAM_NOTICE_TOPIC_ID:}   # 브리핑을 보낼 토픽
+    search-topic-id: ${TELEGRAM_SEARCH_TOPIC_ID:}   # 명령을 받을 토픽
     # setWebhook에 준 것과 같은 값. 텔레그램이 X-Telegram-Bot-Api-Secret-Token 헤더로 되돌려준다.
     # 비어 있으면 검증하지 않는다 — 로컬·테스트용이고, 배포 환경에서는 반드시 채운다
     webhook-secret: ${TELEGRAM_WEBHOOK_SECRET:}

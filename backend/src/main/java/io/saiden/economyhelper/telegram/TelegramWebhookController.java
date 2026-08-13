@@ -1,6 +1,7 @@
 package io.saiden.economyhelper.telegram;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.saiden.economyhelper.market.CryptoService;
 import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.FxService;
@@ -53,6 +54,7 @@ public class TelegramWebhookController {
     private final TelegramClient telegramClient;
     private final String webhookSecret;
     private final String allowedChatId;
+    private final Integer searchTopicId;
 
     public TelegramWebhookController(NewsFacade newsFacade,
                                      CryptoService cryptoService,
@@ -60,7 +62,8 @@ public class TelegramWebhookController {
                                      StockService stockService,
                                      TelegramClient telegramClient,
                                      @Value("${economy-helper.telegram.webhook-secret:}") String webhookSecret,
-                                     @Value("${economy-helper.telegram.chat-id:}") String allowedChatId) {
+                                     @Value("${economy-helper.telegram.chat-id:}") String allowedChatId,
+                                     @Value("${economy-helper.telegram.search-topic-id:}") String searchTopicId) {
         this.newsFacade = newsFacade;
         this.cryptoService = cryptoService;
         this.fxService = fxService;
@@ -70,6 +73,7 @@ public class TelegramWebhookController {
         // 그러면 비교가 조용히 어긋나 모든 요청이 403이 된다
         this.webhookSecret = webhookSecret == null ? "" : webhookSecret.trim();
         this.allowedChatId = allowedChatId == null ? "" : allowedChatId.trim();
+        this.searchTopicId = TelegramClient.topicId(searchTopicId);
 
         // 비어 있으면 열어 둔다 — 로컬 실행과 테스트가 설정 없이 돌아야 하기 때문이다.
         // 대신 열려 있다는 사실을 기동 로그에 남긴다. 조용히 무방비인 것보다 낫다
@@ -124,10 +128,19 @@ public class TelegramWebhookController {
         Message message = update.message();
         String chatId = String.valueOf(message.chat().id());
         String text = message.text();
+        // 포럼이 아닌 방과 General 토픽에서는 이 필드가 아예 오지 않는다 → null
+        Integer topicId = message.messageThreadId();
 
-        // 답하지 않고 조용히 끝낸다. 답하면 봇이 살아 있다는 걸 확인해 주고 발송 한 번을 쓴다
+        // 걸러낸 것은 답하지 않고 조용히 끝낸다. 답하면 봇이 살아 있다는 걸 확인해 주고
+        // 발송 한 번을 쓴다. 대신 번호를 로그에 남긴다 — 설정할 값을 여기서 그대로 읽는다
         if (!allowedChatId.isBlank() && !allowedChatId.equals(chatId)) {
-            log.info("[webhook] 허용되지 않은 채팅 {} — 무시합니다", chatId);
+            log.info("[webhook] 허용되지 않은 채팅 {} (토픽 {}) — 무시합니다. TELEGRAM_CHAT_ID를 확인하세요",
+                    chatId, topicId);
+            return;
+        }
+        if (searchTopicId != null && !searchTopicId.equals(topicId)) {
+            log.info("[webhook] 채팅 {}의 토픽 {}은 명령을 받지 않습니다 — TELEGRAM_SEARCH_TOPIC_ID를 확인하세요",
+                    chatId, topicId);
             return;
         }
 
@@ -135,18 +148,19 @@ public class TelegramWebhookController {
         if (parsed.isEmpty()) {
             // '/'로 시작하는 오타에만 안내한다. 일반 대화는 조용히 무시해 그룹 채팅을 오염시키지 않는다
             if (CommandParser.isUnknownCommand(text)) {
-                telegramClient.send(chatId, MessageFormatter.unknownCommand());
+                telegramClient.send(chatId, topicId, MessageFormatter.unknownCommand());
             }
             return;
         }
 
         ParsedCommand command = parsed.get();
         if (command.missingRequiredArgument()) {
-            telegramClient.send(chatId, MessageFormatter.usage(command.command()));
+            telegramClient.send(chatId, topicId, MessageFormatter.usage(command.command()));
             return;
         }
 
-        telegramClient.send(chatId, reply(command));
+        // 물어본 토픽으로 답한다 — 다른 토픽에 답이 뜨면 대화가 어긋난다
+        telegramClient.send(chatId, topicId, reply(command));
     }
 
     /**
@@ -190,8 +204,16 @@ public class TelegramWebhookController {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Update(Message message) {}
 
+    /**
+     * {@code message_thread_id}는 <b>선택 필드다</b> — 포럼 슈퍼그룹의 토픽 메시지에만 붙고
+     * General 토픽과 일반 방에서는 오지 않는다.
+     *
+     * <p>{@code @JsonProperty}가 필요하다. 이 프로젝트는 전역 snake_case 전략을 쓰지 않아
+     * 이름이 다른 필드는 하나씩 짚어 줘야 한다.
+     */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Message(Chat chat, String text) {}
+    public record Message(Chat chat, String text,
+                          @JsonProperty("message_thread_id") Integer messageThreadId) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Chat(long id) {}

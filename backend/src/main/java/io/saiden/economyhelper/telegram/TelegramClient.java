@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.telegram;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import org.slf4j.Logger;
@@ -20,27 +21,56 @@ public class TelegramClient {
     private final RestClient restClient;
     private final String botToken;
     private final String defaultChatId;
+    private final Integer noticeTopicId;
 
     public TelegramClient(RestClient.Builder builder,
                           @Value("${economy-helper.telegram.base-url}") String baseUrl,
                           @Value("${economy-helper.telegram.bot-token:}") String botToken,
-                          @Value("${economy-helper.telegram.chat-id:}") String defaultChatId) {
+                          @Value("${economy-helper.telegram.chat-id:}") String defaultChatId,
+                          @Value("${economy-helper.telegram.notice-topic-id:}") String noticeTopicId) {
         this.restClient = builder.baseUrl(baseUrl).build();
         this.botToken = botToken;
         this.defaultChatId = defaultChatId;
+        this.noticeTopicId = topicId(noticeTopicId);
     }
 
-    /** 정기 발송 대상(설정된 기본 채팅방)으로 보낸다. */
+    /**
+     * 설정값을 토픽 번호로 읽는다. 비어 있으면 {@code null} — 토픽을 지정하지 않는다는 뜻이고,
+     * 포럼이 아닌 방이거나 General 토픽으로 보내는 경우다.
+     *
+     * <p>숫자가 아니면 <b>기동을 실패시킨다.</b> 발송 시점까지 미루면 다음 날 아침 브리핑을
+     * 통째로 잃고, 그때는 아무도 안 보고 있다.
+     */
+    static Integer topicId(String configured) {
+        if (configured == null || configured.isBlank()) {
+            return null;
+        }
+        try {
+            return Integer.valueOf(configured.trim());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(
+                    "텔레그램 토픽 ID가 숫자가 아닙니다: '" + configured + "'", e);
+        }
+    }
+
+    /** 정기 발송 — 설정된 방의 Notice 토픽으로. */
     @CircuitBreaker(name = "telegram")
     public void send(String text) {
-        send(defaultChatId, text);
+        send(defaultChatId, noticeTopicId, text);
     }
 
+    /**
+     * 토픽을 지정해 보낸다. {@code topicId}가 {@code null}이면 토픽 없이 — 포럼이라면
+     * General 토픽으로 간다.
+     *
+     * <p>토픽을 뺀 2-인자 오버로드는 두지 않는다. 있으면 토픽을 깜빡한 호출이 조용히 General로
+     * 떨어지고, 그건 아무 오류도 내지 않아 발견이 늦다.
+     */
     @CircuitBreaker(name = "telegram")
-    public void send(String chatId, String text) {
+    public void send(String chatId, Integer topicId, String text) {
         restClient.post()
                 .uri("/bot{token}/sendMessage", botToken)
-                .body(new SendMessage(chatId, truncate(text), "HTML", true))
+                .body(new SendMessage(chatId, topicId, truncate(text), "HTML", true))
                 .retrieve()
                 .toBodilessEntity();
     }
@@ -90,9 +120,15 @@ public class TelegramClient {
     /**
      * 링크 미리보기를 끈다 — 매체별 1건씩 묶어 보내면 미리보기 카드가 줄줄이 붙어
      * 정작 본문이 밀린다.
+     *
+     * <p><b>{@code NON_NULL}이 필요하다.</b> {@code message_thread_id}는 "for forum supergroups
+     * only"라 토픽이 없을 때는 필드 자체가 없어야 한다 — {@code null}을 실어 보내면 포럼이
+     * 아닌 방에서 거절당할 수 있다.
      */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     record SendMessage(
             @JsonProperty("chat_id") String chatId,
+            @JsonProperty("message_thread_id") Integer messageThreadId,
             String text,
             @JsonProperty("parse_mode") String parseMode,
             @JsonProperty("disable_web_page_preview") boolean disableWebPagePreview) {}
