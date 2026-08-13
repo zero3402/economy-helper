@@ -7,12 +7,17 @@ import io.saiden.economyhelper.market.FxService;
 import io.saiden.economyhelper.market.StockService;
 import io.saiden.economyhelper.news.NewsFacade;
 import io.saiden.economyhelper.news.NewsItem;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -22,6 +27,18 @@ import org.springframework.web.bind.annotation.RestController;
  * <p><b>어떤 경우에도 200을 돌려준다.</b> 텔레그램은 비-200을 받으면 같은 업데이트를
  * 계속 재전송하는데, 우리 쪽 오류로 재시도 폭풍이 나면 복구가 더 어려워진다.
  * 실패는 사용자에게 메시지로 알리고 로그에 남긴다.
+ *
+ * <p><b>이 주소는 공개된다</b> — 텔레그램이 부르려면 인터넷에서 닿아야 한다. 그래서 두 겹으로 막는다.
+ *
+ * <ol>
+ *   <li><b>{@code secret_token}</b> — {@code setWebhook}에 준 비밀값을 텔레그램이 헤더로
+ *       되돌려준다. 없거나 다르면 403이다. 남이 우리 주소에 직접 쏘는 걸 막는다.
+ *   <li><b>{@code chat_id} 허용</b> — 봇 이름을 아는 제3자는 <b>정상 경로로</b> 명령을 칠 수 있고
+ *       그건 진짜 텔레그램이 보내는 요청이라 1번을 통과한다. 설정된 채팅방이 아니면 무시한다.
+ * </ol>
+ *
+ * FMP 무료 한도가 하루 250회라 남이 몇 분만 두드리면 그날 미국 시세가 죽는다 —
+ * 막지 않으면 한도가 곧 가용성이 된다.
  */
 @RestController
 @RequestMapping("/telegram")
@@ -34,27 +51,70 @@ public class TelegramWebhookController {
     private final FxService fxService;
     private final StockService stockService;
     private final TelegramClient telegramClient;
+    private final String webhookSecret;
+    private final String allowedChatId;
 
     public TelegramWebhookController(NewsFacade newsFacade,
                                      CryptoService cryptoService,
                                      FxService fxService,
                                      StockService stockService,
-                                     TelegramClient telegramClient) {
+                                     TelegramClient telegramClient,
+                                     @Value("${economy-helper.telegram.webhook-secret:}") String webhookSecret,
+                                     @Value("${economy-helper.telegram.chat-id:}") String allowedChatId) {
         this.newsFacade = newsFacade;
         this.cryptoService = cryptoService;
         this.fxService = fxService;
         this.stockService = stockService;
         this.telegramClient = telegramClient;
+        // 다듬어 둔다. 대시보드에 붙여 넣은 값은 끝에 줄바꿈이나 공백이 붙기 쉽고,
+        // 그러면 비교가 조용히 어긋나 모든 요청이 403이 된다
+        this.webhookSecret = webhookSecret == null ? "" : webhookSecret.trim();
+        this.allowedChatId = allowedChatId == null ? "" : allowedChatId.trim();
+
+        // 비어 있으면 열어 둔다 — 로컬 실행과 테스트가 설정 없이 돌아야 하기 때문이다.
+        // 대신 열려 있다는 사실을 기동 로그에 남긴다. 조용히 무방비인 것보다 낫다
+        if (this.webhookSecret.isBlank()) {
+            log.warn("[webhook] webhook-secret이 비어 있습니다 — 엔드포인트가 인증 없이 열립니다");
+        }
+        if (this.allowedChatId.isBlank()) {
+            log.warn("[webhook] chat-id가 비어 있습니다 — 어느 채팅방에서든 명령이 동작합니다");
+        }
     }
 
     @PostMapping("/webhook")
-    public ResponseEntity<Void> onUpdate(@RequestBody Update update) {
+    public ResponseEntity<Void> onUpdate(
+            @RequestHeader(value = "X-Telegram-Bot-Api-Secret-Token", required = false) String presentedSecret,
+            @RequestBody Update update) {
+        // 200-always 규약보다 먼저다. 그 규약은 *텔레그램이 보낸* 업데이트를 재시도 폭풍 없이
+        // 소화하기 위한 것이고, secret이 틀린 요청은 정의상 텔레그램이 보낸 게 아니다.
+        // 오히려 403이어야 getWebhookInfo의 last_error_message에 찍혀 설정이 어긋난 걸 눈으로 본다
+        if (!secretMatches(presentedSecret)) {
+            log.warn("[webhook] secret이 맞지 않는 요청을 거절했습니다");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         try {
             handle(update);
         } catch (Exception e) {
             log.error("웹훅 처리 실패: {}", e.toString(), e);
         }
         return ResponseEntity.ok().build();
+    }
+
+    /**
+     * 헤더로 돌아온 비밀값이 우리가 등록한 것과 같은가.
+     *
+     * <p>{@link MessageDigest#isEqual}을 쓴다 — {@code equals}는 첫 불일치에서 즉시 빠져나와
+     * 비교 시간이 "몇 글자가 맞았는지"를 흘린다.
+     */
+    private boolean secretMatches(String presented) {
+        if (webhookSecret.isBlank()) {
+            return true;
+        }
+        if (presented == null) {
+            return false;
+        }
+        return MessageDigest.isEqual(
+                presented.getBytes(StandardCharsets.UTF_8), webhookSecret.getBytes(StandardCharsets.UTF_8));
     }
 
     private void handle(Update update) {
@@ -64,6 +124,12 @@ public class TelegramWebhookController {
         Message message = update.message();
         String chatId = String.valueOf(message.chat().id());
         String text = message.text();
+
+        // 답하지 않고 조용히 끝낸다. 답하면 봇이 살아 있다는 걸 확인해 주고 발송 한 번을 쓴다
+        if (!allowedChatId.isBlank() && !allowedChatId.equals(chatId)) {
+            log.info("[webhook] 허용되지 않은 채팅 {} — 무시합니다", chatId);
+            return;
+        }
 
         Optional<ParsedCommand> parsed = CommandParser.parse(text);
         if (parsed.isEmpty()) {

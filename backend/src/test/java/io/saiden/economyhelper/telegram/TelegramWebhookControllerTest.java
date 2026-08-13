@@ -49,10 +49,10 @@ class TelegramWebhookControllerTest {
     @DisplayName("검색 결과를 요청한 채팅방으로 보낸다")
     void repliesToRequestingChat() {
         RecordingClient client = new RecordingClient();
-        var controller = new TelegramWebhookController(
+        var controller = defaultController(
                 facade(Optional.of(item("유가 상승"))), crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
 
-        controller.onUpdate(update(777, "/news 유가"));
+        controller.onUpdate(null,update(777, "/news 유가"));
 
         assertThat(client.sent).hasSize(1);
         assertThat(client.sent.get(0).chatId()).isEqualTo("777");
@@ -63,9 +63,9 @@ class TelegramWebhookControllerTest {
     @DisplayName("결과가 없으면 없다고 알린다")
     void tellsUserWhenNothingFound() {
         RecordingClient client = new RecordingClient();
-        var controller = new TelegramWebhookController(facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
+        var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
 
-        controller.onUpdate(update(1, "/news 비트코인"));
+        controller.onUpdate(null,update(1, "/news 비트코인"));
 
         assertThat(client.sent.get(0).text()).contains("찾지 못했습니다");
     }
@@ -74,9 +74,9 @@ class TelegramWebhookControllerTest {
     @DisplayName("검색어가 빠지면 사용법을 안내한다")
     void repliesWithUsageWhenQueryMissing() {
         RecordingClient client = new RecordingClient();
-        var controller = new TelegramWebhookController(facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
+        var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
 
-        controller.onUpdate(update(1, "/news"));
+        controller.onUpdate(null,update(1, "/news"));
 
         assertThat(client.sent.get(0).text()).contains("/news 금리");
     }
@@ -85,10 +85,10 @@ class TelegramWebhookControllerTest {
     @DisplayName("일반 대화에는 반응하지 않는다 — 그룹 채팅을 오염시키지 않는다")
     void ignoresPlainConversation() {
         RecordingClient client = new RecordingClient();
-        var controller = new TelegramWebhookController(facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
+        var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
 
-        controller.onUpdate(update(1, "안녕하세요"));
-        controller.onUpdate(update(1, "환율 알려줘"));
+        controller.onUpdate(null,update(1, "안녕하세요"));
+        controller.onUpdate(null,update(1, "환율 알려줘"));
 
         assertThat(client.sent).isEmpty();
     }
@@ -97,9 +97,9 @@ class TelegramWebhookControllerTest {
     @DisplayName("'/'로 시작하는 모르는 명령에만 안내한다 — 오타가 고장으로 보이면 안 된다")
     void guidesOnUnknownCommandOnly() {
         RecordingClient client = new RecordingClient();
-        var controller = new TelegramWebhookController(facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
+        var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
 
-        controller.onUpdate(update(1, "/exchange"));
+        controller.onUpdate(null,update(1, "/exchange"));
 
         assertThat(client.sent).hasSize(1);
         assertThat(client.sent.get(0).text()).contains("모르는 명령").contains("/fx");
@@ -110,9 +110,9 @@ class TelegramWebhookControllerTest {
     void routesCryptoCommand() {
         RecordingClient client = new RecordingClient();
         CryptoQuote btc = new CryptoQuote("KRW-BTC", "비트코인", new BigDecimal("89848000"), NOW);
-        var controller = new TelegramWebhookController(facade(Optional.empty()), crypto(Optional.of(btc)), fx(Optional.empty()), stock(Optional.empty()), client);
+        var controller = defaultController(facade(Optional.empty()), crypto(Optional.of(btc)), fx(Optional.empty()), stock(Optional.empty()), client);
 
-        controller.onUpdate(update(1, "/crypto 비트코인"));
+        controller.onUpdate(null,update(1, "/crypto 비트코인"));
 
         assertThat(client.sent.get(0).text()).contains("비트코인").contains("89,848,000");
     }
@@ -121,9 +121,9 @@ class TelegramWebhookControllerTest {
     @DisplayName("못 찾은 코인은 찾지 못했다고 알린다 — 무응답이면 고장으로 보인다")
     void tellsUserWhenCryptoNotFound() {
         RecordingClient client = new RecordingClient();
-        var controller = new TelegramWebhookController(facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
+        var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
 
-        controller.onUpdate(update(1, "/crypto 없는코인zzz"));
+        controller.onUpdate(null,update(1, "/crypto 없는코인zzz"));
 
         assertThat(client.sent.get(0).text()).contains("찾지 못했습니다");
     }
@@ -133,11 +133,11 @@ class TelegramWebhookControllerTest {
     void routesFxCommandWithSource() {
         RecordingClient client = new RecordingClient();
         FxRate kexim = new FxRate("USD", "KRW", new BigDecimal("1415"), FxSource.KEXIM, NOW);
-        var controller = new TelegramWebhookController(
+        var controller = defaultController(
                 facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.of(kexim)),
                 stock(Optional.empty()), client);
 
-        controller.onUpdate(update(1, "/fx"));
+        controller.onUpdate(null,update(1, "/fx"));
 
         assertThat(client.sent.get(0).text())
                 .contains("1,415").contains("수출입은행").contains("고시");
@@ -147,10 +147,10 @@ class TelegramWebhookControllerTest {
     @DisplayName("두 출처가 다 죽으면 못 가져왔다고 알린다")
     void tellsUserWhenFxUnavailable() {
         RecordingClient client = new RecordingClient();
-        var controller = new TelegramWebhookController(
+        var controller = defaultController(
                 facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
 
-        controller.onUpdate(update(1, "/fx"));
+        controller.onUpdate(null,update(1, "/fx"));
 
         assertThat(client.sent.get(0).text()).contains("환율을 가져오지 못했습니다");
     }
@@ -166,10 +166,10 @@ class TelegramWebhookControllerTest {
                                 .atStartOfDay(java.time.ZoneId.of("Asia/Seoul")).toInstant(),
                         false, false, new BigDecimal("1400183726616000")),
                 List.of("삼성전자우", "삼성물산"));
-        var controller = new TelegramWebhookController(facade(Optional.empty()), crypto(Optional.empty()),
+        var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()),
                 fx(Optional.empty()), stock(Optional.of(match)), client);
 
-        controller.onUpdate(update(1, "/stock 삼성"));
+        controller.onUpdate(null,update(1, "/stock 삼성"));
 
         assertThat(client.sent.get(0).text())
                 .contains("삼성전자").contains("005930").contains("239,500 KRW")
@@ -181,10 +181,10 @@ class TelegramWebhookControllerTest {
     @DisplayName("못 찾은 종목은 국내만 조회된다는 것까지 알린다")
     void tellsUserWhenStockNotFound() {
         RecordingClient client = new RecordingClient();
-        var controller = new TelegramWebhookController(facade(Optional.empty()), crypto(Optional.empty()),
+        var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()),
                 fx(Optional.empty()), stock(Optional.empty()), client);
 
-        controller.onUpdate(update(1, "/stock AAPL"));
+        controller.onUpdate(null,update(1, "/stock AAPL"));
 
         assertThat(client.sent.get(0).text()).contains("찾지 못했습니다").contains("국내");
     }
@@ -193,9 +193,9 @@ class TelegramWebhookControllerTest {
     @DisplayName("/help는 명령 목록을 준다")
     void repliesToHelp() {
         RecordingClient client = new RecordingClient();
-        var controller = new TelegramWebhookController(facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
+        var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
 
-        controller.onUpdate(update(1, "/help"));
+        controller.onUpdate(null,update(1, "/help"));
 
         assertThat(client.sent.get(0).text()).contains("/news").contains("/stock").contains("/crypto");
     }
@@ -204,10 +204,10 @@ class TelegramWebhookControllerTest {
     @DisplayName("인자가 필요한 명령마다 그 명령의 사용법을 준다")
     void repliesWithPerCommandUsage() {
         RecordingClient client = new RecordingClient();
-        var controller = new TelegramWebhookController(facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
+        var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
 
-        controller.onUpdate(update(1, "/stock"));
-        controller.onUpdate(update(1, "/crypto"));
+        controller.onUpdate(null,update(1, "/stock"));
+        controller.onUpdate(null,update(1, "/crypto"));
 
         assertThat(client.sent.get(0).text()).contains("/stock 삼성전자");
         assertThat(client.sent.get(1).text()).contains("/crypto 비트코인");
@@ -223,9 +223,9 @@ class TelegramWebhookControllerTest {
             }
         };
         var controller =
-                new TelegramWebhookController(exploding, crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), new RecordingClient());
+                defaultController(exploding, crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), new RecordingClient());
 
-        var response = controller.onUpdate(update(1, "/news 금리"));
+        var response = controller.onUpdate(null,update(1, "/news 금리"));
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     }
@@ -233,11 +233,127 @@ class TelegramWebhookControllerTest {
     @Test
     @DisplayName("message가 없는 업데이트(채널 글 등)도 200으로 넘긴다")
     void toleratesUpdatesWithoutMessage() {
-        var controller = new TelegramWebhookController(
+        var controller = defaultController(
                 facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), new RecordingClient());
 
-        assertThat(controller.onUpdate(new Update(null)).getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(controller.onUpdate(null).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(controller.onUpdate(null,new Update(null)).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(controller.onUpdate(null,null).getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
+    // --- secret_token: 우리 주소로 직접 쏘는 사칭을 막는다 ---
+
+    @Test
+    @DisplayName("secret이 맞으면 지금까지와 똑같이 동작한다 — 진짜 텔레그램 요청을 막으면 안 된다")
+    void servesRequestsCarryingTheRegisteredSecret() {
+        RecordingClient client = new RecordingClient();
+        var controller = guarded("s3cr3t", "", client);
+
+        var response = controller.onUpdate("s3cr3t", update(777, "/news 유가"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(client.sent).hasSize(1);
+        assertThat(client.sent.get(0).text()).contains("유가 상승");
+    }
+
+    @Test
+    @DisplayName("secret이 다르면 403이고 아무것도 하지 않는다 — 200으로 삼키면 사칭이 조용히 성공한다")
+    void rejectsRequestsWithWrongSecret() {
+        RecordingClient client = new RecordingClient();
+        var controller = guarded("s3cr3t", "", client);
+
+        var response = controller.onUpdate("틀린값", update(777, "/news 유가"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(client.sent).as("사이드이펙트가 하나도 없어야 한다").isEmpty();
+    }
+
+    @Test
+    @DisplayName("헤더가 아예 없으면 거절한다 — 누락이 통과하면 방어가 없는 것과 같다")
+    void rejectsRequestsWithoutSecretHeader() {
+        RecordingClient client = new RecordingClient();
+        var controller = guarded("s3cr3t", "", client);
+
+        assertThat(controller.onUpdate(null, update(777, "/news 유가")).getStatusCode())
+                .isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(client.sent).isEmpty();
+    }
+
+    @Test
+    @DisplayName("secret을 설정하지 않으면 검증하지 않는다 — 로컬 실행과 CI가 설정 없이 돌아야 한다")
+    void skipsVerificationWhenSecretUnset() {
+        RecordingClient client = new RecordingClient();
+        var controller = guarded("", "", client);
+
+        assertThat(controller.onUpdate(null, update(777, "/news 유가")).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+        assertThat(client.sent).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("앞뒤 공백은 다듬는다 — 대시보드에 붙여 넣은 값의 줄바꿈 하나로 전부 403이 되면 안 된다")
+    void trimsConfiguredValues() {
+        RecordingClient client = new RecordingClient();
+        var controller = guarded("  s3cr3t\n", " 777 ", client);
+
+        assertThat(controller.onUpdate("s3cr3t", update(777, "/news 유가")).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+        assertThat(client.sent).hasSize(1);
+    }
+
+    // --- chat_id 허용: 봇을 찾은 제3자를 막는다 (secret은 통과한다) ---
+
+    @Test
+    @DisplayName("허용된 채팅방의 명령은 처리한다")
+    void servesTheAllowedChat() {
+        RecordingClient client = new RecordingClient();
+        var controller = guarded("", "777", client);
+
+        controller.onUpdate(null, update(777, "/news 유가"));
+
+        assertThat(client.sent).hasSize(1);
+        assertThat(client.sent.get(0).chatId()).isEqualTo("777");
+    }
+
+    @Test
+    @DisplayName("다른 채팅방은 무시한다 — 답하면 봇의 존재를 확인해 주고 FMP 한도를 남이 쓴다")
+    void ignoresOtherChats() {
+        RecordingClient client = new RecordingClient();
+        var controller = guarded("", "777", client);
+
+        var response = controller.onUpdate(null, update(999, "/news 유가"));
+
+        assertThat(response.getStatusCode())
+                .as("무응답이지 오류가 아니다 — 비-200이면 텔레그램이 계속 재전송한다")
+                .isEqualTo(HttpStatus.OK);
+        assertThat(client.sent).isEmpty();
+    }
+
+    @Test
+    @DisplayName("chat-id를 설정하지 않으면 어디서든 받는다 — 기존 테스트가 그대로 통과해야 한다")
+    void acceptsAnyChatWhenAllowListUnset() {
+        RecordingClient client = new RecordingClient();
+        var controller = guarded("", "", client);
+
+        controller.onUpdate(null, update(12345, "/news 유가"));
+
+        assertThat(client.sent).hasSize(1);
+    }
+
+    /** secret·허용 채팅을 설정하지 않은 컨트롤러. 나머지 테스트는 라우팅만 보므로 이쪽을 쓴다. */
+    private static TelegramWebhookController defaultController(NewsFacade newsFacade,
+                                                               CryptoService cryptoService,
+                                                               FxService fxService,
+                                                               StockService stockService,
+                                                               TelegramClient telegramClient) {
+        return new TelegramWebhookController(
+                newsFacade, cryptoService, fxService, stockService, telegramClient, "", "");
+    }
+
+    /** 방어를 켠 컨트롤러. {@code /news 유가}가 항상 결과를 내도록 고정해 둔다. */
+    private static TelegramWebhookController guarded(String secret, String allowedChatId, TelegramClient client) {
+        return new TelegramWebhookController(
+                facade(Optional.of(item("유가 상승"))), crypto(Optional.empty()), fx(Optional.empty()),
+                stock(Optional.empty()), client, secret, allowedChatId);
     }
 
     private static Update update(long chatId, String text) {

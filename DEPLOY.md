@@ -29,7 +29,11 @@ Dockerfile이 저장소 루트가 아니라 `backend/`에 있다.
 | Language / Runtime | **Docker** |
 | Root Directory | `backend` |
 | Dockerfile Path | `./Dockerfile` (Root Directory 기준) |
-| Health Check Path | `/actuator/health` |
+| Health Check Path | **`/actuator/health/liveness`** |
+
+**`/actuator/health`를 헬스체크로 쓰면 안 된다.** 거기엔 Redis가 포함돼 있어 Redis가 끊기면
+503이 나가고, Render는 그걸 죽은 인스턴스로 보고 재시작한다 — **Redis 장애가 재시작 루프가 된다.**
+`liveness` 그룹에는 Redis가 없어 앱이 살아 있는지만 본다. Redis 상태는 `/actuator/health`로 따로 본다.
 
 GHCR 이미지(`ghcr.io/zero3402/economy-helper`)를 그대로 당겨 쓸 수도 있다 — 같은 Dockerfile로
 CI가 구운 것이고, 그쪽이 빌드 시간을 아낀다. 무료 빌더에서 Gradle 빌드는 몇 분 걸린다.
@@ -47,6 +51,7 @@ CI가 구운 것이고, 그쪽이 빌드 시간을 아낀다. 무료 빌더에�
 | `REDIS_HOST` · `REDIS_PORT` | Key Value의 내부 주소 | |
 | `REDIS_PASSWORD` · `REDIS_SSL` | 필요 시 | 관리형 Redis는 대개 요구한다 |
 | `TZ` | `Asia/Seoul` | 이미지 기본값이지만 명시해 둔다 |
+| `TELEGRAM_WEBHOOK_SECRET` | `openssl rand -hex 32` | **웹훅 엔드포인트의 유일한 자물쇠.** 아래 참조 |
 | 시크릿 6개 | `.env.example` 참조 | `TELEGRAM_*` · `GEMINI_API_KEY` · `KEXIM_API_KEY` · `DATA_API_KEY` · `FMP_API_KEY` |
 
 그리고 GitHub 저장소에 **변수** `SERVICE_URL`을 넣는다(Settings → Secrets and variables →
@@ -101,10 +106,51 @@ FMP가 250회를 넘으면 거절하는 것이 최종 방어다.
 
 ## 텔레그램 웹훅
 
-배포 후 한 번 등록한다.
+**등록하지 않으면 봇은 아무 반응도 하지 않는다.** 배포가 성공하고 `/actuator/health`가 UP이어도
+그렇다 — 텔레그램은 우리 주소를 모르고 명령을 자기 큐에 쌓아 둘 뿐이다. 배포 후 한 번 등록한다.
 
 ```bash
-curl -s "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook?url=$SERVICE_URL/telegram/webhook"
+set -a && . ./backend/.env && set +a
+curl -s "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
+  -d "url=$SERVICE_URL/telegram/webhook" \
+  -d "secret_token=$TELEGRAM_WEBHOOK_SECRET" \
+  -d "drop_pending_updates=true"
+```
+
+`secret_token`은 **Render의 `TELEGRAM_WEBHOOK_SECRET`과 반드시 같아야 한다.** 다르면 모든
+명령이 403으로 죽는다. 어긋났는지는 `getWebhookInfo`의 `last_error_message`로 바로 보인다.
+
+`drop_pending_updates=true`는 그동안 큐에 쌓인 명령을 버린다. 빼면 밀린 것들이 한꺼번에
+쏟아져 0.1 CPU에서 외부 API 호출이 동시에 터지고 지난 답장이 뭉치로 날아온다.
+
+### 엔드포인트를 두 겹으로 막는다
+
+이 주소는 텔레그램이 부를 수 있어야 하므로 인터넷에 열린다. 인증이 없으면 아무나 아래를 쏴
+봇을 대신 부릴 수 있고, **FMP 무료 한도가 하루 250회**라 몇 분이면 그날 미국 시세가 죽는다.
+
+```
+POST $SERVICE_URL/telegram/webhook
+{"message":{"chat":{"id":아무거나},"text":"/stock AAPL"}}
+```
+
+| | 막는 것 |
+|---|---|
+| `TELEGRAM_WEBHOOK_SECRET` | 우리 주소로 직접 쏘는 사칭 → **403** |
+| `TELEGRAM_CHAT_ID` | 텔레그램에서 봇을 찾은 제3자. 정상 경로라 secret은 통과한다 → **무시(200)** |
+
+둘 다 **비어 있으면 검증하지 않는다** — 로컬과 CI가 설정 없이 돌아야 하기 때문이다.
+배포 환경에서 비면 기동 로그에 WARN이 찍힌다.
+
+### 확인
+
+```bash
+# 등록됐는가 — url이 차 있고 last_error_message가 없어야 한다
+curl -s "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/getWebhookInfo"
+
+# 위조가 막히는가 — secret 없이 직접 쏜다
+curl -s -o /dev/null -w "%{http_code}\n" -X POST "$SERVICE_URL/telegram/webhook" \
+  -H 'Content-Type: application/json' -d '{"message":{"chat":{"id":1},"text":"/fx"}}'
+#   기대: 403, 그리고 텔레그램에 아무것도 오지 않음
 ```
 
 ### 단일 포트 구성 실물 확인

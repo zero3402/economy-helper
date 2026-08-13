@@ -43,5 +43,8 @@ jobs:
           fi
           # 잠들어 있었다면 재기동에 ~1분 걸린다. 깨우는 것이 목적이므로
           # 응답이 늦거나 실패해도 워크플로를 깨뜨리지 않는다.
-          curl -fsS --max-time 180 "$SERVICE_URL/actuator/health" \
+          #
+          # liveness를 친다 — /actuator/health는 Redis를 포함해 Redis가 끊기면 503이다.
+          # 깨우는 게 목적이라 앱이 살아 있는지만 보면 되고, 여기서 실패로 시끄러울 이유가 없다.
+          curl -fsS --max-time 180 "$SERVICE_URL/actuator/health/liveness" \
             || echo "health 응답을 못 받았습니다 — 깨어나는 중일 수 있습니다."

@@ -182,7 +182,11 @@ economy-helper:
 
   telegram:
     bot-token: ${TELEGRAM_BOT_TOKEN:}
+    # 정기 발송 대상이자 명령을 받아 줄 유일한 채팅방이다 — 다른 곳에서 온 명령은 무시한다
     chat-id: ${TELEGRAM_CHAT_ID:}
+    # setWebhook에 준 것과 같은 값. 텔레그램이 X-Telegram-Bot-Api-Secret-Token 헤더로 되돌려준다.
+    # 비어 있으면 검증하지 않는다 — 로컬·테스트용이고, 배포 환경에서는 반드시 채운다
+    webhook-secret: ${TELEGRAM_WEBHOOK_SECRET:}
     base-url: https://api.telegram.org
 
 resilience4j:
