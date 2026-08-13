@@ -281,6 +281,56 @@ class DailyDigestJobTest {
         };
     }
 
+    @Test
+    @DisplayName("브리핑 코인 통에 바이낸스와 원화 환산이 함께 나간다")
+    void cryptoMessageCarriesBinanceWithKrw() {
+        RecordingClient telegram = new RecordingClient();
+
+        job(telegram, new InMemoryHistory(), new CountingFacade(List.of()),
+                fx(false), stock(false, false), cryptoWithBinance(new BigDecimal("1384"))).run(false);
+
+        assertThat(telegram.sent).hasSize(1);
+        assertThat(telegram.sent.get(0))
+                .contains("🪙 <b>코인</b>")
+                .contains("업비트").contains("89,848,000 KRW")
+                .contains("바이낸스").contains("63,703.69 USDT")
+                // 63,703.69 × 1,384 = 88,165,906.96 → 88,165,907
+                .as("잡이 usdtKrw를 넘기지 않으면 USDT만 나오고 원화가 빠진다")
+                .contains("88,165,907 KRW");
+    }
+
+    @Test
+    @DisplayName("USDT 원화값을 못 가져오면 USDT만 나간다 — 환산 실패가 코인 통을 통째로 막지 않는다")
+    void cryptoMessageSurvivesMissingUsdtRate() {
+        RecordingClient telegram = new RecordingClient();
+
+        DigestResult result = job(telegram, new InMemoryHistory(), new CountingFacade(List.of()),
+                fx(false), stock(false, false), cryptoWithBinance(null)).run(false);
+
+        assertThat(result.delivered()).containsExactly("코인");
+        assertThat(telegram.sent.get(0))
+                .contains("63,703.69 USDT")
+                .doesNotContain("88,165,907");
+    }
+
+    /** 바이낸스 값이 붙은 코인 하나. {@code usdtKrw}가 {@code null}이면 환산 실패 상황이다. */
+    private static CryptoService cryptoWithBinance(BigDecimal usdtKrw) {
+        return new CryptoService(new UpbitApi(RestClient.builder(), "https://example.invalid"),
+                new io.saiden.economyhelper.market.binance.BinanceApi(
+                        RestClient.builder(), "https://example.invalid")) {
+            @Override
+            public List<CryptoQuote> quotesOf(List<String> markets) {
+                return List.of(new CryptoQuote("KRW-BTC", "비트코인", new BigDecimal("89848000"), NOW,
+                        new BigDecimal("63703.69")));
+            }
+
+            @Override
+            public Optional<BigDecimal> usdtKrw() {
+                return Optional.ofNullable(usdtKrw);
+            }
+        };
+    }
+
     private static CryptoService crypto(boolean alive) {
         return new CryptoService(new UpbitApi(RestClient.builder(), "https://example.invalid"),
                 new io.saiden.economyhelper.market.binance.BinanceApi(
