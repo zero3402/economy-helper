@@ -20,11 +20,29 @@ Redis까지 함께 뜬다. 액추에이터(8081)는 `127.0.0.1`에만 묶여 있
 
 ## Render (Web Service + Key Value, 둘 다 무료)
 
-이미지를 그대로 쓴다. **환경변수만 다르다.**
+### 빌드 설정
+
+Dockerfile이 저장소 루트가 아니라 `backend/`에 있다.
+
+| 항목 | 값 |
+|---|---|
+| Language / Runtime | **Docker** |
+| Root Directory | `backend` |
+| Dockerfile Path | `./Dockerfile` (Root Directory 기준) |
+| Health Check Path | `/actuator/health` |
+
+GHCR 이미지(`ghcr.io/zero3402/economy-helper`)를 그대로 당겨 쓸 수도 있다 — 같은 Dockerfile로
+CI가 구운 것이고, 그쪽이 빌드 시간을 아낀다. 무료 빌더에서 Gradle 빌드는 몇 분 걸린다.
+
+### 환경변수
+
+**포트가 핵심이다.** Render는 포트를 하나만 노출하는데 우리는 앱(8080)과 액추에이터(8081)를
+나눠 쓴다. `PORT`와 `MANAGEMENT_PORT`를 **같은 값**으로 주면 한 포트로 합쳐진다.
 
 | 변수 | 값 | 이유 |
 |---|---|---|
-| `MANAGEMENT_SERVER_PORT` | `8080` | Render는 포트를 하나만 노출한다 |
+| `PORT` | `8080` | Render 기본값은 10000이고 덮어쓸 수 있다. 앱은 `${PORT:8080}`을 읽는다 |
+| `MANAGEMENT_PORT` | `8080` | **`PORT`와 같게.** 액추에이터가 같은 포트로 합쳐져 `/actuator/health`가 열린다 — keep-warm과 Render 헬스체크가 이걸 친다 |
 | `MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE` | `health,info,metrics` | **`digest`를 뺀다.** 포트를 합치면 공개되므로 시크릿으로 막는 대신 엔드포인트 자체를 없앤다 |
 | `REDIS_HOST` · `REDIS_PORT` | Key Value의 내부 주소 | |
 | `REDIS_PASSWORD` · `REDIS_SSL` | 필요 시 | 관리형 Redis는 대개 요구한다 |
@@ -87,4 +105,16 @@ FMP가 250회를 넘으면 거절하는 것이 최종 방어다.
 
 ```bash
 curl -s "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook?url=$SERVICE_URL/telegram/webhook"
+```
+
+### 단일 포트 구성 실물 확인
+
+위 환경변수 그대로 로컬에서 띄워 확인한 결과다.
+
+```
+Tomcat started on port 8080          ← 8081 커넥터가 뜨지 않는다
+GET  /actuator/health   → 200 {"status":"UP"}
+POST /actuator/digest   → 404        ← 노출 목록에서 빠져 존재하지 않는다
+:8081                   → 연결 없음
+POST /telegram/webhook  → 200
 ```

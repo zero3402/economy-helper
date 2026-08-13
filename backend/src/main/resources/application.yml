@@ -24,14 +24,18 @@ spring:
       read-timeout: 15s
 
 server:
-  port: 8080
+  # PORT를 읽는다 — PaaS는 대개 포트를 주입하고 거기로만 트래픽을 보낸다(Render 기본값 10000).
+  # 없으면 8080이라 로컬·compose 동작은 그대로다. 특정 벤더 이름이 설정에 들어가지 않는다.
+  port: ${PORT:8080}
 
 management:
   # 액추에이터를 애플리케이션 포트에서 분리한다. /actuator/digest는 텔레그램 전체 발송을
   # 즉시 일으키므로 8080에 함께 노출하면 외부 누구나 방송을 트리거할 수 있다.
-  # (Phase 3에서 k8s 프로브도 8081을 보게 맞춘다)
+  #
+  # 포트를 하나만 노출하는 호스트(Render 등)에서는 MANAGEMENT_PORT를 PORT와 같게 줘
+  # 한 포트로 합친다. 그때는 digest를 exposure에서 빼는 것이 방어다 — DEPLOY.md 참조.
   server:
-    port: 8081
+    port: ${MANAGEMENT_PORT:8081}
   endpoints:
     web:
       exposure:
