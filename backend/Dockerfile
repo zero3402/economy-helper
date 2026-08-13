@@ -51,7 +51,7 @@ EXPOSE 8080 8081
 
 # -Xmx를 박지 않는다. 숫자를 박는 순간 그게 특정 호스트에 대한 종속이 된다 —
 # MaxRAMPercentage면 512MB 호스트든 4GB 호스트든 컨테이너 한도를 보고 알아서 맞춘다.
-ENV JAVA_OPTS="-XX:MaxRAMPercentage=75"
+ENV JAVA_OPTS="-XX:MaxRAMPercentage=70 -XX:TieredStopAtLevel=1 -XX:+UseSerialGC -Xss512k"
 
 # 코드가 ZoneId.of("Asia/Seoul")을 명시하므로 동작은 TZ와 무관하지만,
 # 로그 타임스탬프가 KST여야 발송 시각을 눈으로 대조할 수 있다.
