@@ -44,7 +44,7 @@ class TelegramClientTest {
 
         server.verify(postRequestedFor(urlPathEqualTo("/bottest-token/sendMessage"))
                 .withRequestBody(equalToJson("""
-                        {"chat_id":"12345","text":"안녕하세요","disable_web_page_preview":true}""")));
+                        {"chat_id":"12345","text":"안녕하세요","parse_mode":"HTML","disable_web_page_preview":true}""")));
     }
 
     @Test
@@ -54,7 +54,7 @@ class TelegramClientTest {
 
         server.verify(postRequestedFor(anyUrl())
                 .withRequestBody(equalToJson("""
-                        {"chat_id":"default-chat","text":"정기 발송","disable_web_page_preview":true}""")));
+                        {"chat_id":"default-chat","text":"정기 발송","parse_mode":"HTML","disable_web_page_preview":true}""")));
     }
 
     @Test
@@ -72,4 +72,27 @@ class TelegramClientTest {
         return new TelegramClient(
                 RestClient.builder(), server.baseUrl(), "test-token", "default-chat");
     }
+
+    @Test
+    @DisplayName("자를 때 태그를 깨뜨리지 않는다 — HTML 모드에서는 메시지 전체가 거절된다")
+    void truncationNeverBreaksTags() {
+        // 상한 근처에서 <b>가 열린 채 끊기고, 그 뒤에 태그 조각이 남는 모양
+        String longBody = "가".repeat(4090);
+        String truncated = TelegramClient.truncate("<b>" + longBody + "</b><a href=\"x\">링크</a>");
+
+        assertThat(truncated).endsWith("…</b>");
+        assertThat(count(truncated, "<b>")).as("여는 태그와 닫는 태그 수가 맞아야 한다")
+                .isEqualTo(count(truncated, "</b>"));
+        assertThat(truncated.lastIndexOf('<')).as("태그 조각이 남으면 파싱이 깨진다")
+                .isLessThan(truncated.lastIndexOf('>'));
+    }
+
+    private static int count(String text, String needle) {
+        int n = 0;
+        for (int i = text.indexOf(needle); i >= 0; i = text.indexOf(needle, i + needle.length())) {
+            n++;
+        }
+        return n;
+    }
+
 }

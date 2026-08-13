@@ -4,6 +4,7 @@ import io.saiden.economyhelper.config.EconomyHelperProperties.CacheTtl;
 import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.StockResolver.ResolvedStock;
 import io.saiden.economyhelper.market.data.MarketIndexApi.MarketIndex;
+import io.saiden.economyhelper.market.fmp.FmpApi.FmpQuote;
 import io.saiden.economyhelper.market.data.StockPriceApi.StockPrice;
 import io.saiden.economyhelper.market.upbit.UpbitApi.UpbitTicker;
 import io.saiden.economyhelper.market.upbit.UpbitMarket;
@@ -69,6 +70,9 @@ public class CacheConfig {
                 // 전일 종가라 자주 바뀌지 않는다 — 짧게 잡을 이유가 없다
                 .withCacheConfiguration("stock-price",
                         cache(ttl.stockPrice(), new TypeReference<List<StockPrice>>() {}))
+                // 미국은 현재가라 1분이 상한이다. 하루 250회는 캐시가 아니라 FmpQuotaGuard가 지킨다
+                .withCacheConfiguration("us-quote",
+                        cache(ttl.usQuote(), new TypeReference<FmpQuote>() {}))
                 // 지수는 담기는 타입이 달라 stock-price에 섞을 수 없다. 수명은 같다 — 같은 전일 종가다
                 .withCacheConfiguration("market-index",
                         cache(ttl.stockPrice(), new TypeReference<MarketIndex>() {}))

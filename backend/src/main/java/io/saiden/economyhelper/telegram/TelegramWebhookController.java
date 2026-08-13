@@ -2,6 +2,7 @@ package io.saiden.economyhelper.telegram;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.saiden.economyhelper.market.CryptoService;
+import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.FxService;
 import io.saiden.economyhelper.market.StockService;
 import io.saiden.economyhelper.news.NewsFacade;
@@ -99,11 +100,23 @@ public class TelegramWebhookController {
             case FX -> fxService.usdToKrw()
                     .map(MessageFormatter::formatFx)
                     .orElseGet(MessageFormatter::fxUnavailable);
+            // 미국 종목이면 원화도 함께 보여준다. 환율 조회가 실패하면 달러만 나간다 —
+            // 환산을 못 한다고 시세 자체를 막을 이유가 없다.
             case STOCK -> stockService.quote(command.argument())
-                    .map(MessageFormatter::formatStock)
+                    .map(match -> MessageFormatter.formatStock(match, currentFx()))
                     .orElseGet(() -> MessageFormatter.stockNotFound(command.argument()));
             case HELP -> MessageFormatter.help();
         };
+    }
+
+    /** 환율은 원화 환산에만 쓰인다 — 실패해도 시세는 나가야 하므로 {@code null}로 떨어뜨린다. */
+    private FxRate currentFx() {
+        try {
+            return fxService.usdToKrw().orElse(null);
+        } catch (RuntimeException e) {
+            log.warn("[stock] 환율 조회 실패 — 원화 환산 없이 답합니다: {}", e.toString());
+            return null;
+        }
     }
 
     // --- 텔레그램 Update 스키마 (필요한 필드만) ---

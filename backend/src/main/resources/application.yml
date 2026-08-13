@@ -95,6 +95,8 @@ economy-helper:
     crypto-price: 10s      # 시세다. 길게 잡으면 거짓말이 된다. 연타와 초당 10회 제한을 막는 정도만
     stock-resolve: 7d      # LLM 해석 결과. 같은 검색어에 Gemini를 두 번 태우지 않는다
     stock-price: 1h        # 전일 종가라 자주 바뀌지 않는다. 일 1만회 한도도 이걸로 지킨다
+    us-quote: 1m           # 미국은 현재가다. 이보다 길게 잡으면 '현재가'가 아니게 된다 —
+                           # 대신 하루 250회 한도는 캐시가 아니라 FmpQuotaGuard가 지킨다
     fx: 1m                 # 토스는 1분 주기로 갱신된다(validUntil은 5분이지만 보수적으로)
     fx-kexim: 1h           # 수출입은행 하루 1,000회 한도를 지키는 실질 방어다 (1h면 하루 최대 24회)
 
@@ -115,6 +117,10 @@ economy-helper:
     # 코인은 순위로 뽑을 수 없다 — 업비트가 유통량을 주지 않아 시가총액을 만들 수 없고,
     # 24시간 거래대금으로 정렬하면 상위가 테더·댑오에스·캡이 된다(비트코인 5위, 이더리움은 8위 밖).
     cryptos: ["KRW-BTC", "KRW-ETH", "KRW-USDT"]
+    # 미국 지수와 종목. FMP는 둘을 같은 엔드포인트로 주므로 한 목록이다.
+    # 시총 1·2위(NVDA·AAPL)를 고정한 이유는 순위 조회(company-screener)가 유료라서다.
+    # 국내를 삼성전자·SK하이닉스로 고정한 것과 같은 판단이다.
+    us-symbols: ["^IXIC", "^GSPC", "NVDA", "AAPL"]
     # 매체별로 LLM에 넘길 후보 수. 전부 넣으면 무료 티어를 태우고, 너무 좁히면 진짜 기사가 빠진다
     llm-candidates: 8
     # 이 미만이면 재테크 뉴스가 아닌 것으로 보고 그 매체를 이번 발송에서 뺀다
@@ -144,6 +150,16 @@ economy-helper:
       #    (StockPriceApi가 URI를 직접 조립하는 이유다).
       base-url: https://apis.data.go.kr
       api-key: ${DATA_API_KEY:}
+
+    fmp:
+      # Financial Modeling Prep — 미국 주식·지수 현재가.
+      # ⚠️ /api/v3는 legacy로 죽었다(403). /stable만 쓴다.
+      # 무료는 미국 거래소 전용이라 한국 심볼·환율·스크리너는 402다 — 국내는 공공데이터포털 그대로.
+      base-url: https://financialmodelingprep.com
+      api-key: ${FMP_API_KEY:}
+      # 무료 한도가 하루 250회인데 응답에 레이트리밋 헤더가 없어 우리가 센다.
+      # 여유를 두고 240에서 멈춘다.
+      daily-limit: 240
 
     frankfurter:
       # 유럽중앙은행 고시 환율을 그대로 주는 무인증 공개 서비스.
@@ -194,6 +210,8 @@ resilience4j:
         baseConfig: default
       dataGo:
         baseConfig: default
+      fmp:
+        baseConfig: default
   ratelimiter:
     instances:
       # Gemini 무료 티어는 보장된 한도가 아니다. 스스로 낮게 잡아 429를 피한다.
@@ -211,6 +229,12 @@ resilience4j:
         limitForPeriod: 10
         limitRefreshPeriod: 1s
         timeoutDuration: 5s
+      # FMP는 하루 250회다 — 일 단위 총량이라 이 리미터로는 못 지킨다(FmpQuotaGuard가 센다).
+      # 여기서는 연타로 초당 여러 번 나가는 것만 막는다.
+      fmp:
+        limitForPeriod: 5
+        limitRefreshPeriod: 1s
+        timeoutDuration: 3s
       # 수출입은행은 하루 1,000회다 — 초 단위로는 지킬 수 없어 캐시(1h)가 실질 방어다.
       # 이 리미터는 영업일 후퇴 루프가 폭주하는 것만 막는다.
       kexim:

@@ -14,6 +14,7 @@ import io.saiden.economyhelper.market.StockResolver;
 import io.saiden.economyhelper.market.StockService.StockMatch;
 import io.saiden.economyhelper.market.data.MarketIndexApi;
 import io.saiden.economyhelper.market.data.StockPriceApi;
+import io.saiden.economyhelper.market.fmp.FmpApi;
 import io.saiden.economyhelper.market.upbit.UpbitApi;
 import io.saiden.economyhelper.news.NewsFacade;
 import io.saiden.economyhelper.news.NewsItem;
@@ -160,7 +161,10 @@ class TelegramWebhookControllerTest {
         RecordingClient client = new RecordingClient();
         StockMatch match = new StockMatch(
                 new StockQuote("005930", "삼성전자", "KOSPI", new BigDecimal("239500"),
-                        java.time.LocalDate.of(2026, 8, 11), new BigDecimal("1400183726616000")),
+                        StockQuote.Money.KRW,
+                        java.time.LocalDate.of(2026, 8, 11)
+                                .atStartOfDay(java.time.ZoneId.of("Asia/Seoul")).toInstant(),
+                        false, false, new BigDecimal("1400183726616000")),
                 List.of("삼성전자우", "삼성물산"));
         var controller = new TelegramWebhookController(facade(Optional.empty()), crypto(Optional.empty()),
                 fx(Optional.empty()), stock(Optional.of(match)), client);
@@ -168,8 +172,8 @@ class TelegramWebhookControllerTest {
         controller.onUpdate(update(1, "/stock 삼성"));
 
         assertThat(client.sent.get(0).text())
-                .contains("삼성전자").contains("005930").contains("239,500")
-                .contains("08-11 종가")
+                .contains("삼성전자").contains("005930").contains("239,500 KRW")
+                .contains("2026년 8월 11일 (종가)")
                 .as("함께 걸린 후보를 알려 되묻기를 피한다").contains("삼성전자우");
     }
 
@@ -249,7 +253,7 @@ class TelegramWebhookControllerTest {
         return new EconomyHelperProperties(Map.of(), null,
                 new EconomyHelperProperties.Digest(
                         "Asia/Seoul", "0 0 9 * * *", Duration.ofDays(3),
-                        List.of(), List.of(), List.of()),
+                        List.of(), List.of(), List.of(), List.of()),
                 null, null);
     }
 
@@ -258,6 +262,7 @@ class TelegramWebhookControllerTest {
         return new StockService(
                 new StockPriceApi(RestClient.builder(), "https://example.invalid", "k", CLOCK),
                 new MarketIndexApi(RestClient.builder(), "https://example.invalid", "k", CLOCK),
+                new FmpApi(RestClient.builder(), "https://example.invalid", "", null),
                 new StockResolver(null, null)) {
             @Override
             public Optional<StockMatch> quote(String query) {

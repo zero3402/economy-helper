@@ -3,10 +3,14 @@ package io.saiden.economyhelper.market;
 import io.saiden.economyhelper.market.data.MarketIndexApi;
 import io.saiden.economyhelper.market.data.MarketIndexApi.MarketIndex;
 import io.saiden.economyhelper.market.data.StockPriceApi;
+import io.saiden.economyhelper.market.fmp.FmpApi;
+import io.saiden.economyhelper.market.fmp.FmpApi.FmpQuote;
 import io.saiden.economyhelper.market.StockResolver.ResolvedStock;
 import io.saiden.economyhelper.market.data.StockPriceApi.StockPrice;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
@@ -46,17 +50,21 @@ public class StockService {
     private static final Logger log = LoggerFactory.getLogger(StockService.class);
 
     private static final DateTimeFormatter BAS_DT = DateTimeFormatter.ofPattern("yyyyMMdd");
+    private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
 
     /** 함께 보여줄 다른 후보 수. 너무 많으면 메시지가 지저분해진다. */
     private static final int MAX_ALTERNATIVES = 3;
 
     private final StockPriceApi api;
     private final MarketIndexApi indexApi;
+    private final FmpApi fmpApi;
     private final StockResolver resolver;
 
-    public StockService(StockPriceApi api, MarketIndexApi indexApi, StockResolver resolver) {
+    public StockService(StockPriceApi api, MarketIndexApi indexApi, FmpApi fmpApi,
+                        StockResolver resolver) {
         this.api = api;
         this.indexApi = indexApi;
+        this.fmpApi = fmpApi;
         this.resolver = resolver;
     }
 
@@ -72,7 +80,12 @@ public class StockService {
         try {
             Optional<ResolvedStock> resolved = resolver.resolve(key);
 
-            // 지수는 조회 API가 통째로 다르다 — 종목코드가 없고 시가총액도 없다
+            // 미국은 종목과 지수가 같은 엔드포인트다 — AAPL도 ^IXIC도 /stable/quote로 간다
+            if (resolved.filter(ResolvedStock::isUs).isPresent()) {
+                return usQuote(resolved.get());
+            }
+
+            // 국내 지수는 조회 API가 통째로 다르다 — 종목코드가 없고 시가총액도 없다
             if (resolved.filter(ResolvedStock::isIndex).isPresent()) {
                 return indexQuote(resolved.get().name());
             }
@@ -124,7 +137,45 @@ public class StockService {
                 .toList();
     }
 
-    /** 지수 하나. 함께 보여줄 후보가 없다 — 완전일치로 하나만 고르기 때문이다. */
+    /**
+     * 미국 심볼을 이미 아는 경우 — 아침 브리핑의 나스닥·S&amp;P500·시총 상위가 여기로 온다.
+     *
+     * <p>{@link #quotesOf}·{@link #indicesOf}와 같은 모양으로 심볼마다 따로 실패한다.
+     */
+    public List<StockQuote> usQuotesOf(List<String> symbols) {
+        return symbols.stream()
+                .map(symbol -> {
+                    try {
+                        return Optional.ofNullable(fmpApi.quote(symbol)).map(StockService::toQuote);
+                    } catch (RuntimeException e) {
+                        log.error("[fmp] {} 조회 실패: {}", symbol, e.toString());
+                        return Optional.<StockQuote>empty();
+                    }
+                })
+                .flatMap(Optional::stream)
+                .toList();
+    }
+
+    /**
+     * 미국 종목·지수 하나.
+     *
+     * <p>함께 보여줄 후보가 없다 — 심볼이 정확히 하나를 가리키기 때문이다.
+     * <b>LLM이 지어낸 심볼은 FMP가 빈 배열을 줘서 자연히 걸러진다</b>(국내와 같은 방어).
+     */
+    private Optional<StockMatch> usQuote(ResolvedStock resolved) {
+        if (!resolved.hasCode()) {
+            // 미국은 이름으로 되짚을 경로가 없다 — search-name은 프랑크푸르트 상장이 먼저 걸린다
+            log.info("[fmp] '{}'의 티커를 특정하지 못했습니다", resolved.name());
+            return Optional.empty();
+        }
+        FmpQuote quote = fmpApi.quote(resolved.code());
+        if (quote == null) {
+            return Optional.empty();
+        }
+        return Optional.of(new StockMatch(toQuote(quote), List.of()));
+    }
+
+    /** 국내 지수 하나. 함께 보여줄 후보가 없다 — 완전일치로 하나만 고르기 때문이다. */
     private Optional<StockMatch> indexQuote(String name) {
         MarketIndex index = indexApi.searchByName(name);
         if (index == null) {
@@ -201,15 +252,38 @@ public class StockService {
         return parse(price.mrktTotAmt());
     }
 
+    /** 국내 종목 — <b>전일 종가</b>다. {@code realtime=false}가 메시지에서 "종가"로 드러난다. */
     private static StockQuote toQuote(StockPrice price) {
         return new StockQuote(price.srtnCd(), price.itmsNm(), price.mrktCtg(),
-                parse(price.clpr()), LocalDate.parse(price.basDt(), BAS_DT), parse(price.mrktTotAmt()));
+                parse(price.clpr()), StockQuote.Money.KRW,
+                atSeoulMidnight(price.basDt()), false, false, parse(price.mrktTotAmt()));
     }
 
-    /** 지수는 종목코드가 없다 — {@code null}이 곧 {@link StockQuote#isIndex()}의 근거다. */
+    /** 국내 지수 — 종목코드가 없고 통화도 없다. */
     private static StockQuote toQuote(MarketIndex index) {
         return new StockQuote(null, index.idxNm(), index.idxCsf(), parse(index.clpr()),
-                LocalDate.parse(index.basDt(), BAS_DT), BigDecimal.ZERO);
+                StockQuote.Money.NONE,
+                atSeoulMidnight(index.basDt()), false, true, BigDecimal.ZERO);
+    }
+
+    /**
+     * 미국 종목·지수 — <b>현재가</b>다.
+     *
+     * <p>지수 판별을 {@code ^} 접두로 한다. FMP가 종목과 지수를 같은 엔드포인트로 주고
+     * 응답에 구분 필드가 없어서, 심볼 관례가 유일한 단서다({@code ^IXIC}·{@code ^GSPC}·{@code ^DJI}).
+     */
+    private static StockQuote toQuote(FmpQuote quote) {
+        boolean index = quote.symbol() != null && quote.symbol().startsWith("^");
+        Instant at = quote.timestamp() == null ? Instant.now() : Instant.ofEpochSecond(quote.timestamp());
+        return new StockQuote(quote.symbol(), quote.name(), quote.exchange(),
+                quote.price(), index ? StockQuote.Money.NONE : StockQuote.Money.USD,
+                at, true, index,
+                quote.marketCap() == null ? BigDecimal.ZERO : quote.marketCap());
+    }
+
+    /** 종가일을 시각으로 옮긴다. 그날 장이 끝난 값이므로 KST 자정으로 두고 표기는 날짜만 쓴다. */
+    private static Instant atSeoulMidnight(String basDt) {
+        return LocalDate.parse(basDt, BAS_DT).atStartOfDay(SEOUL).toInstant();
     }
 
     /** 값이 비거나 깨져 있어도 조회 전체를 실패시키지 않는다 — 0으로 보면 순위에서 뒤로 밀릴 뿐이다. */

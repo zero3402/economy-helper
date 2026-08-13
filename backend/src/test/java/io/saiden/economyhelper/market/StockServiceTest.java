@@ -8,6 +8,8 @@ import io.saiden.economyhelper.market.data.MarketIndexApi;
 import io.saiden.economyhelper.market.data.MarketIndexApi.MarketIndex;
 import io.saiden.economyhelper.market.data.StockPriceApi;
 import io.saiden.economyhelper.market.data.StockPriceApi.StockPrice;
+import io.saiden.economyhelper.market.fmp.FmpApi;
+import io.saiden.economyhelper.market.fmp.FmpApi.FmpQuote;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -46,7 +48,7 @@ class StockServiceTest {
     @Test
     @DisplayName("동명 후보를 시가총액으로 가른다 — 우선주·자회사가 1위가 되면 안 된다")
     void marketCapResolvesAmbiguity() {
-        StockService service = new StockService(new RecordingApi(Map.of("삼성", SAMSUNG)), indexApi(null), noResolver());
+        StockService service = new StockService(new RecordingApi(Map.of("삼성", SAMSUNG)), indexApi(null), noFmp(), noResolver());
 
         StockMatch match = service.quote("삼성").orElseThrow();
 
@@ -57,7 +59,7 @@ class StockServiceTest {
     @Test
     @DisplayName("함께 걸린 후보를 알려준다 — 되묻지 않고 한 번에 끝낸다")
     void reportsAlternatives() {
-        StockService service = new StockService(new RecordingApi(Map.of("삼성", SAMSUNG)), indexApi(null), noResolver());
+        StockService service = new StockService(new RecordingApi(Map.of("삼성", SAMSUNG)), indexApi(null), noFmp(), noResolver());
 
         StockMatch match = service.quote("삼성").orElseThrow();
 
@@ -67,7 +69,7 @@ class StockServiceTest {
     @Test
     @DisplayName("자회사가 모회사를 이기지 않는다")
     void parentBeatsSubsidiary() {
-        StockService service = new StockService(new RecordingApi(Map.of("카카오", KAKAO)), indexApi(null), noResolver());
+        StockService service = new StockService(new RecordingApi(Map.of("카카오", KAKAO)), indexApi(null), noFmp(), noResolver());
 
         assertThat(service.quote("카카오").orElseThrow().quote().name()).isEqualTo("카카오");
     }
@@ -76,7 +78,7 @@ class StockServiceTest {
     @DisplayName("LLM이 준 종목코드로 먼저 조회한다 — 이름 검색을 태우지 않는다")
     void usesCodeFromLlmFirst() {
         RecordingApi api = new RecordingApi(Map.of("005930", SAMSUNG.subList(0, 1)));
-        StockService service = new StockService(api, indexApi(null), resolver(new ResolvedStock("STOCK", "005930", "삼성전자")));
+        StockService service = new StockService(api, indexApi(null), noFmp(), resolver(new ResolvedStock("KR", "STOCK", "005930", "삼성전자")));
 
         assertThat(service.quote("삼전").orElseThrow().quote().name()).isEqualTo("삼성전자");
         assertThat(api.byCode).contains("005930");
@@ -88,7 +90,7 @@ class StockServiceTest {
     void resolvesCommonNameToListedName() {
         List<StockPrice> naver = List.of(price("035420", "NAVER", "KOSPI", "200000", "32000000000000"));
         RecordingApi api = new RecordingApi(Map.of("035420", naver));
-        StockService service = new StockService(api, indexApi(null), resolver(new ResolvedStock("STOCK", "035420", "NAVER")));
+        StockService service = new StockService(api, indexApi(null), noFmp(), resolver(new ResolvedStock("KR", "STOCK", "035420", "NAVER")));
 
         assertThat(service.quote("네이버").orElseThrow().quote().name()).isEqualTo("NAVER");
     }
@@ -97,7 +99,7 @@ class StockServiceTest {
     @DisplayName("LLM이 없는 종목코드를 지어내면 이름으로 되돌아간다 — 환각을 그대로 믿지 않는다")
     void fallsBackToNameWhenLlmCodeIsBogus() {
         RecordingApi api = new RecordingApi(Map.of("삼성전자", SAMSUNG.subList(0, 1)));
-        StockService service = new StockService(api, indexApi(null), resolver(new ResolvedStock("STOCK", "999999", "삼성전자")));
+        StockService service = new StockService(api, indexApi(null), noFmp(), resolver(new ResolvedStock("KR", "STOCK", "999999", "삼성전자")));
 
         assertThat(service.quote("삼전").orElseThrow().quote().name()).isEqualTo("삼성전자");
         assertThat(api.byCode).as("지어낸 코드로 한 번은 조회해 본다").contains("999999");
@@ -108,7 +110,7 @@ class StockServiceTest {
     @DisplayName("LLM이 죽어도 원문으로 찾는다 — Gemini 장애가 /stock 전면 중단이 되면 안 된다")
     void fallsBackToRawQueryWhenLlmFails() {
         RecordingApi api = new RecordingApi(Map.of("삼성전자", SAMSUNG.subList(0, 2)));
-        StockService service = new StockService(api, indexApi(null), noResolver());
+        StockService service = new StockService(api, indexApi(null), noFmp(), noResolver());
 
         assertThat(service.quote("삼성전자").orElseThrow().quote().name()).isEqualTo("삼성전자");
         assertThat(api.byName).contains("삼성전자");
@@ -121,18 +123,19 @@ class StockServiceTest {
         List<StockPrice> mixed = List.of(
                 new StockPrice("20260810", "005935", "삼성전자우", "KOSPI", "180200", "9999999999999999"),
                 new StockPrice("20260811", "005930", "삼성전자", "KOSPI", "239500", "1400183726616000"));
-        StockService service = new StockService(new RecordingApi(Map.of("삼성", mixed)), indexApi(null), noResolver());
+        StockService service = new StockService(new RecordingApi(Map.of("삼성", mixed)), indexApi(null), noFmp(), noResolver());
 
         StockMatch match = service.quote("삼성").orElseThrow();
 
         assertThat(match.quote().name()).isEqualTo("삼성전자");
-        assertThat(match.quote().basisDate()).hasToString("2026-08-11");
+        assertThat(match.quote().at()).isEqualTo(java.time.LocalDate.of(2026, 8, 11)
+                .atStartOfDay(java.time.ZoneId.of("Asia/Seoul")).toInstant());
     }
 
     @Test
     @DisplayName("걸리는 종목이 없으면 빈 결과 — 아무거나 돌려주면 오해한다")
     void returnsEmptyWhenNothingMatches() {
-        StockService service = new StockService(new RecordingApi(Map.of()), indexApi(null), noResolver());
+        StockService service = new StockService(new RecordingApi(Map.of()), indexApi(null), noFmp(), noResolver());
 
         assertThat(service.quote("없는종목zzz")).isEmpty();
         assertThat(service.quote("")).isEmpty();
@@ -153,7 +156,7 @@ class StockServiceTest {
                 throw new IllegalStateException("서킷브레이커 열림");
             }
         };
-        StockService service = new StockService(exploding, indexApi(null), noResolver());
+        StockService service = new StockService(exploding, indexApi(null), noFmp(), noResolver());
 
         assertThat(service.quote("삼성전자")).isEmpty();
         assertThat(service.quotesOf(List.of("005930"))).isEmpty();
@@ -166,7 +169,7 @@ class StockServiceTest {
                 "005930", SAMSUNG.subList(0, 1),
                 "035720", KAKAO.subList(0, 1)));
 
-        assertThat(new StockService(api, indexApi(null), noResolver()).quotesOf(List.of("005930", "035720")))
+        assertThat(new StockService(api, indexApi(null), noFmp(), noResolver()).quotesOf(List.of("005930", "035720")))
                 .extracting(StockQuote::name)
                 .containsExactly("삼성전자", "카카오");
     }
@@ -176,9 +179,101 @@ class StockServiceTest {
     void skipsUnknownConfiguredCodes() {
         RecordingApi api = new RecordingApi(Map.of("005930", SAMSUNG.subList(0, 1)));
 
-        assertThat(new StockService(api, indexApi(null), noResolver()).quotesOf(List.of("005930", "999999")))
+        assertThat(new StockService(api, indexApi(null), noFmp(), noResolver()).quotesOf(List.of("005930", "999999")))
                 .extracting(StockQuote::name)
                 .containsExactly("삼성전자");
+    }
+
+    @Test
+    @DisplayName("미국 종목은 FMP로 간다 — 공공데이터포털을 태우지 않는다")
+    void routesUsStockToFmp() {
+        RecordingApi api = new RecordingApi(Map.of());
+        StockService service = new StockService(api, indexApi(null),
+                fmp(new FmpQuote("AAPL", "Apple Inc.", new java.math.BigDecimal("302.25"),
+                        "NASDAQ", new java.math.BigDecimal("4439253351000"), 1786564801L)),
+                resolver(new ResolvedStock("US", "STOCK", "AAPL", "Apple Inc.")));
+
+        StockMatch match = service.quote("애플").orElseThrow();
+
+        assertThat(match.quote().code()).isEqualTo("AAPL");
+        assertThat(match.quote().currency()).isEqualTo(StockQuote.Money.USD);
+        assertThat(match.quote().realtime()).as("미국은 현재가다").isTrue();
+        assertThat(api.byName).as("미국인데 국내 검색을 태우면 안 된다").isEmpty();
+        assertThat(api.byCode).isEmpty();
+    }
+
+    @Test
+    @DisplayName("^로 시작하면 지수로 본다 — FMP는 종목과 지수를 구분해 주지 않는다")
+    void treatsCaretSymbolAsIndex() {
+        StockService service = new StockService(new RecordingApi(Map.of()), indexApi(null),
+                fmp(new FmpQuote("^IXIC", "NASDAQ Composite", new java.math.BigDecimal("26588.49"),
+                        "", null, 1786564801L)),
+                resolver(new ResolvedStock("US", "INDEX", "^IXIC", "나스닥")));
+
+        StockQuote quote = service.quote("나스닥").orElseThrow().quote();
+
+        assertThat(quote.index()).isTrue();
+        assertThat(quote.currency())
+                .as("지수는 통화가 없다 — 원화 환산 대상이 아니다")
+                .isEqualTo(StockQuote.Money.NONE);
+    }
+
+    @Test
+    @DisplayName("LLM이 지어낸 미국 티커는 FMP가 빈 결과를 줘서 걸러진다")
+    void dropsHallucinatedUsSymbol() {
+        StockService service = new StockService(new RecordingApi(Map.of()), indexApi(null),
+                fmp(null), resolver(new ResolvedStock("US", "STOCK", "ZZZZ", "없는회사")));
+
+        assertThat(service.quote("없는회사")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("미국인데 티커가 없으면 포기한다 — 이름으로 되짚을 경로가 없다")
+    void givesUpWhenUsTickerMissing() {
+        StockService service = new StockService(new RecordingApi(Map.of()), indexApi(null),
+                noFmp(), resolver(new ResolvedStock("US", "STOCK", null, "무언가")));
+
+        assertThat(service.quote("무언가")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("브리핑용 미국 심볼은 하나가 죽어도 나머지가 나온다")
+    void usQuotesOfSurvivesPartialFailure() {
+        FmpApi api = new FmpApi(RestClient.builder(), "https://example.invalid", "k", null) {
+            @Override
+            public FmpQuote quote(String symbol) {
+                if ("BAD".equals(symbol)) {
+                    throw new IllegalStateException("서킷브레이커 열림");
+                }
+                return new FmpQuote(symbol, symbol, new java.math.BigDecimal("1"), "NASDAQ", null, 1L);
+            }
+        };
+        StockService service = new StockService(new RecordingApi(Map.of()), indexApi(null),
+                api, noResolver());
+
+        assertThat(service.usQuotesOf(List.of("AAPL", "BAD", "NVDA")))
+                .extracting(StockQuote::code)
+                .containsExactly("AAPL", "NVDA");
+    }
+
+    /** 정해진 한 건을 주는 FMP 스텁. {@code null}이면 없는 심볼이다. */
+    private static FmpApi fmp(FmpQuote answer) {
+        return new FmpApi(RestClient.builder(), "https://example.invalid", "k", null) {
+            @Override
+            public FmpQuote quote(String symbol) {
+                return answer;
+            }
+        };
+    }
+
+    /** FMP 스텁 — 국내 경로만 보는 테스트에서는 미국 조회가 일어나면 안 된다. */
+    private static FmpApi noFmp() {
+        return new FmpApi(RestClient.builder(), "https://example.invalid", "k", null) {
+            @Override
+            public FmpQuote quote(String symbol) {
+                throw new AssertionError("국내 경로인데 FMP를 불렀습니다: " + symbol);
+            }
+        };
     }
 
     /** 지수 API 스텁. 정해진 지수 하나를 주거나 못 찾는다. */
@@ -213,7 +308,7 @@ class StockServiceTest {
                 "코스피", new MarketIndex("20260811", "코스피", "KOSPI시리즈", "6345.53"),
                 "코스닥", new MarketIndex("20260811", "코스닥", "KOSDAQ시리즈", "857.84")));
 
-        assertThat(new StockService(new RecordingApi(Map.of()), api, noResolver())
+        assertThat(new StockService(new RecordingApi(Map.of()), api, noFmp(), noResolver())
                 .indicesOf(List.of("코스피", "코스닥")))
                 .extracting(StockQuote::name)
                 .containsExactly("코스피", "코스닥");
@@ -227,7 +322,7 @@ class StockServiceTest {
         answers.put("코스닥", null);   // 못 찾은 경우
         MarketIndexApi api = indexApiOf(answers);
 
-        assertThat(new StockService(new RecordingApi(Map.of()), api, noResolver())
+        assertThat(new StockService(new RecordingApi(Map.of()), api, noFmp(), noResolver())
                 .indicesOf(List.of("코스피", "코스닥", "없는지수")))   // 없는지수는 예외를 던진다
                 .extracting(StockQuote::name)
                 .containsExactly("코스피");
@@ -239,12 +334,12 @@ class StockServiceTest {
         RecordingApi api = new RecordingApi(Map.of());
         StockService service = new StockService(api,
                 indexApi(new MarketIndex("20260811", "코스피", "KOSPI시리즈", "6345.53")),
-                resolver(new ResolvedStock("INDEX", null, "코스피")));
+                noFmp(), resolver(new ResolvedStock("KR", "INDEX", null, "코스피")));
 
         StockMatch match = service.quote("코스피").orElseThrow();
 
         assertThat(match.quote().name()).isEqualTo("코스피");
-        assertThat(match.quote().isIndex()).isTrue();
+        assertThat(match.quote().index()).isTrue();
         assertThat(match.quote().price()).isEqualByComparingTo("6345.53");
         assertThat(api.byName).as("지수는 종목 검색을 태우지 않는다").isEmpty();
         assertThat(api.byCode).isEmpty();
@@ -254,7 +349,7 @@ class StockServiceTest {
     @DisplayName("지수를 못 찾으면 빈 결과 — 종목으로 되돌아가지 않는다")
     void returnsEmptyWhenIndexNotFound() {
         StockService service = new StockService(new RecordingApi(Map.of()), indexApi(null),
-                resolver(new ResolvedStock("INDEX", null, "없는지수")));
+                noFmp(), resolver(new ResolvedStock("KR", "INDEX", null, "없는지수")));
 
         assertThat(service.quote("없는지수")).isEmpty();
     }

@@ -1,29 +1,41 @@
 package io.saiden.economyhelper.market;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
+import java.time.Instant;
 
 /**
- * 종목 시세 한 건.
+ * 종목·지수 시세 한 건. 국내(공공데이터포털)와 미국(FMP)이 같은 타입으로 들어온다.
  *
- * <p><b>{@code basisDate}가 값의 일부다.</b> 공공데이터포털은 <b>전일 종가</b>를 준다 —
- * 오늘 날짜로 조회하면 결과가 0건이다. 기준일을 숨기면 사용자가 실시간 현재가로 오해하므로
- * 메시지에 반드시 드러낸다({@code FxRate}가 출처와 고시일을 담는 것과 같은 이유다).
+ * <p><b>{@code realtime}이 값의 신선도를 말한다.</b> 미국은 FMP가 현재가를 주지만
+ * 국내는 공공데이터포털이 <b>전일 종가</b>만 준다 — 무료로 국내 현재가를 주는 곳이
+ * 증권사 API(계좌 필요)뿐이라 어쩔 수 없다. 그 차이를 값에 담아 메시지에서 밝힌다
+ * ({@code FxRate.source().intraday()}가 하는 일과 같다). 낡은 값을 숨기면 거짓말이 된다.
  *
- * @param marketCap 시가총액. <b>화면용이 아니라</b> 동명 후보를 가르는 내부 신호다 —
+ * @param code      {@code 005930} · {@code AAPL} · {@code ^IXIC}. 국내 지수는 코드가 없어 {@code null}
+ * @param market    {@code KOSPI} · {@code NASDAQ} · {@code KOSPI시리즈}
+ * @param currency  가격의 통화. 지수는 통화가 없으므로 {@link Money#NONE}
+ * @param at        이 값의 시각 — {@code realtime}이면 조회 시각, 아니면 종가일 00시(KST)
+ * @param realtime  현재가면 true, 종가면 false
+ * @param index     지수인가. 통화 단위도 원화 환산도 붙이지 않는다
+ * @param marketCap 시가총액. 화면용이 아니라 동명 후보를 가르는 내부 신호다 —
  *                  {@code 삼성}은 26건이 걸리는데 시총 1위가 삼성전자다
- *                  ({@code CryptoQuote}에서 거래대금이 하는 역할과 같다)
  */
 public record StockQuote(String code, String name, String market,
-                         BigDecimal price, LocalDate basisDate, BigDecimal marketCap) {
+                         BigDecimal price, Money currency,
+                         Instant at, boolean realtime,
+                         boolean index, BigDecimal marketCap) {
 
     /**
-     * 지수인가 — 종목코드가 없다.
+     * 가격의 통화.
      *
-     * <p>지수는 통화 단위가 없어 "원"을 붙이면 안 되고, 종목코드를 괄호에 넣을 수도 없다.
-     * 표기가 갈리는 지점이 여기 하나뿐이라 별도 타입을 만들지 않았다.
+     * <p>지수를 {@link #NONE}으로 따로 두는 이유는 <b>환산 대상이 아니기 때문</b>이다.
+     * 코스피 6,345.53에 "원"을 붙이거나 나스닥 26,588에 원화를 병기하면 틀린 값이 된다.
      */
-    public boolean isIndex() {
-        return code == null || code.isBlank();
+    public enum Money {
+        KRW, USD, NONE;
+
+        public boolean convertible() {
+            return this == USD;
+        }
     }
 }

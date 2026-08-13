@@ -12,6 +12,7 @@ import io.saiden.economyhelper.market.StockQuote;
 import io.saiden.economyhelper.market.StockService;
 import io.saiden.economyhelper.market.data.MarketIndexApi;
 import io.saiden.economyhelper.market.data.StockPriceApi;
+import io.saiden.economyhelper.market.fmp.FmpApi;
 import io.saiden.economyhelper.market.upbit.UpbitApi;
 import io.saiden.economyhelper.news.NewsFacade;
 import io.saiden.economyhelper.news.NewsItem;
@@ -43,6 +44,9 @@ class DailyDigestJobTest {
     /** UTC 00:00 = KST 09:00 — 정기 발송 시각 중 하나다. */
     private static final Instant NOW = Instant.parse("2026-08-11T00:00:00Z");
     private static final String SLOT = "2026-08-11T09";
+    /** 국내 전일 종가의 기준 시각 — KST 자정이다. */
+    private static final Instant BASIS = LocalDate.of(2026, 8, 11)
+            .atStartOfDay(java.time.ZoneId.of("Asia/Seoul")).toInstant();
 
     @Test
     @DisplayName("슬롯을 선점하면 발송하고, 슬롯 키는 KST 기준으로 매긴다")
@@ -165,7 +169,7 @@ class DailyDigestJobTest {
 
         assertThat(telegram.sent).hasSize(1);
         assertThat(telegram.sent.get(0))
-                .contains("📈 증시")
+                .contains("📈 <b>증시</b>")
                 .contains("코스피")
                 .contains("삼성전자");
     }
@@ -193,9 +197,9 @@ class DailyDigestJobTest {
 
         assertThat(result.delivered()).containsExactly("환율", "증시", "코인", "뉴스");
         assertThat(telegram.sent).hasSize(4);
-        assertThat(telegram.sent.get(0)).contains("원/달러 환율");
-        assertThat(telegram.sent.get(1)).contains("📈 증시").contains("삼성전자");
-        assertThat(telegram.sent.get(2)).contains("🪙 코인").contains("비트코인");
+        assertThat(telegram.sent.get(0)).contains("💱 <b>환율</b>").contains("1 USD =");
+        assertThat(telegram.sent.get(1)).contains("📈 <b>증시</b>").contains("삼성전자");
+        assertThat(telegram.sent.get(2)).contains("🪙 <b>코인</b>").contains("비트코인");
         assertThat(telegram.sent.get(3)).contains("유가 상승");
     }
 
@@ -236,12 +240,12 @@ class DailyDigestJobTest {
                 new StockPriceApi(RestClient.builder(), "https://example.invalid", "k",
                         Clock.fixed(NOW, ZoneOffset.UTC)),
                 new MarketIndexApi(RestClient.builder(), "https://example.invalid", "k",
-                        Clock.fixed(NOW, ZoneOffset.UTC)), null) {
+                        Clock.fixed(NOW, ZoneOffset.UTC)), noFmp(), null) {
             @Override
             public List<StockQuote> indicesOf(List<String> names) {
                 return indicesAlive
                         ? List.of(new StockQuote(null, "코스피", "KOSPI시리즈", new BigDecimal("6345.53"),
-                                LocalDate.of(2026, 8, 11), BigDecimal.ZERO))
+                                StockQuote.Money.NONE, BASIS, false, true, BigDecimal.ZERO))
                         : List.of();
             }
 
@@ -249,7 +253,8 @@ class DailyDigestJobTest {
             public List<StockQuote> quotesOf(List<String> codes) {
                 return stocksAlive
                         ? List.of(new StockQuote("005930", "삼성전자", "KOSPI", new BigDecimal("239500"),
-                                LocalDate.of(2026, 8, 11), new BigDecimal("1400183726616000")))
+                                StockQuote.Money.KRW, BASIS, false, false,
+                                new BigDecimal("1400183726616000")))
                         : List.of();
             }
         };
@@ -266,11 +271,21 @@ class DailyDigestJobTest {
         };
     }
 
+    /** FMP 스텁 — 미국 조회가 필요 없는 테스트에서 실수로 나가면 바로 드러나게 한다. */
+    private static FmpApi noFmp() {
+        return new FmpApi(RestClient.builder(), "https://example.invalid", "k", null) {
+            @Override
+            public FmpApi.FmpQuote quote(String symbol) {
+                return null;
+            }
+        };
+    }
+
     static EconomyHelperProperties properties() {
         return new EconomyHelperProperties(Map.of(), null,
                 new EconomyHelperProperties.Digest(
                         "Asia/Seoul", "0 0 9 * * *", Duration.ofDays(3),
-                        List.of("코스피"), List.of("005930"), List.of("KRW-BTC")),
+                        List.of("코스피"), List.of("005930"), List.of("KRW-BTC"), List.of()),
                 null, null);
     }
 

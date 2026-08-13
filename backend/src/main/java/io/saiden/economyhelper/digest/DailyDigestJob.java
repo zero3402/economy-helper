@@ -2,6 +2,7 @@ package io.saiden.economyhelper.digest;
 
 import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.market.CryptoService;
+import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.FxService;
 import io.saiden.economyhelper.market.StockQuote;
 import io.saiden.economyhelper.market.StockService;
@@ -65,6 +66,7 @@ public class DailyDigestJob {
     private final List<String> indexNames;
     private final List<String> stockCodes;
     private final List<String> cryptoMarkets;
+    private final List<String> usSymbols;
 
     public DailyDigestJob(NewsFacade facade,
                           FxService fxService,
@@ -85,6 +87,7 @@ public class DailyDigestJob {
         this.indexNames = orEmpty(properties.digest().indices());
         this.stockCodes = orEmpty(properties.digest().stocks());
         this.cryptoMarkets = orEmpty(properties.digest().cryptos());
+        this.usSymbols = orEmpty(properties.digest().usSymbols());
     }
 
     private static List<String> orEmpty(List<String> values) {
@@ -120,8 +123,13 @@ public class DailyDigestJob {
         List<String> delivered = new ArrayList<>();
         List<String> failed = new ArrayList<>();
 
-        send("환율", this::fxMessage, delivered, failed);
-        send("증시", this::stockMessage, delivered, failed);
+        // 환율을 여기서 한 번만 조회해 증시 통까지 들고 간다. 포매터가 스스로 조회하면
+        // 환율 통에 찍힌 값과 미국 종목의 원화 환산이 서로 다를 수 있다 — 같은 발송 안에서
+        // 두 숫자가 어긋나면 어느 쪽도 못 믿는다.
+        Optional<FxRate> fx = currentFx();
+
+        send("환율", () -> fx.map(MessageFormatter::formatFx), delivered, failed);
+        send("증시", () -> stockMessage(fx.orElse(null)), delivered, failed);
         send("코인", this::cryptoMessage, delivered, failed);
         send("뉴스", this::newsMessage, delivered, failed);
 
@@ -160,20 +168,30 @@ public class DailyDigestJob {
         }
     }
 
-    private Optional<String> fxMessage() {
-        return fxService.usdToKrw().map(MessageFormatter::formatFx);
+    /** 환율 조회가 실패해도 나머지 통은 나가야 한다 — 예외를 밖으로 내보내지 않는다. */
+    private Optional<FxRate> currentFx() {
+        try {
+            return fxService.usdToKrw();
+        } catch (RuntimeException e) {
+            log.error("[digest] 환율 조회 실패 — 원화 환산 없이 보냅니다: {}", e.toString());
+            return Optional.empty();
+        }
     }
 
     /**
-     * 지수와 종목을 한 통에 담는다.
+     * 국내·미국 지수와 종목을 한 통에 담는다.
      *
-     * <p>조회 API가 달라 두 번 부르지만 <b>같은 증시 이야기</b>다 — 따로 보내면 통이 다섯 개가 되고
-     * 통 사이 간격도 1초 더 는다. 한쪽이 통째로 죽어도 나머지만으로 통을 만든다.
+     * <p>조회 API가 셋으로 갈리지만 <b>같은 증시 이야기</b>다 — 따로 보내면 통이 여섯 개가 되고
+     * 통 사이 간격도 그만큼 는다. 일부가 죽어도 나머지만으로 통을 만든다.
+     *
+     * @param fx 미국 종목의 원화 환산에 쓸 환율. {@code null}이면 달러로만 나간다
      */
-    private Optional<String> stockMessage() {
+    private Optional<String> stockMessage(FxRate fx) {
         List<StockQuote> quotes = new ArrayList<>(stockService.indicesOf(indexNames));
         quotes.addAll(stockService.quotesOf(stockCodes));
-        return quotesOrEmpty(quotes, MessageFormatter::formatStockDigest);
+        quotes.addAll(stockService.usQuotesOf(usSymbols));
+        return quotes.isEmpty() ? Optional.empty()
+                : Optional.of(MessageFormatter.formatStockDigest(quotes, fx));
     }
 
     private Optional<String> cryptoMessage() {
