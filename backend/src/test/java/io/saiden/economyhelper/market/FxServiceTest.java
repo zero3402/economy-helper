@@ -22,27 +22,27 @@ class FxServiceTest {
     @Test
     @DisplayName("1순위가 성공하면 폴백은 호출조차 하지 않는다")
     void doesNotCallFallbackWhenPrimarySucceeds() {
-        CountingClient toss = CountingClient.returning(FxSource.FRANKFURTER, "1414.7");
+        CountingClient frankfurter = CountingClient.returning(FxSource.FRANKFURTER, "1414.7");
         CountingClient kexim = CountingClient.returning(FxSource.KEXIM, "1415");
 
-        FxRate rate = new FxService(List.of(toss, kexim)).usdToKrw().orElseThrow();
+        FxRate rate = new FxService(List.of(frankfurter, kexim)).usdToKrw().orElseThrow();
 
-        assertThat(rate.source()).isEqualTo(FxSource.FRANKFURTER);
-        assertThat(toss.calls).hasValue(1);
-        assertThat(kexim.calls).hasValue(0);
+        assertThat(rate.source()).isEqualTo(FxSource.KEXIM);
+        assertThat(kexim.calls).hasValue(1);
+        assertThat(frankfurter.calls).hasValue(0);
     }
 
     @Test
-    @DisplayName("1순위가 죽으면 폴백이 받는다 — 이게 이중화가 하는 일이다")
+    @DisplayName("수출입은행이 비면 유럽중앙은행이 받는다 — 주말·공휴일에 실제로 밟는 길이다")
     void fallsBackWhenPrimaryFails() {
-        CountingClient toss = CountingClient.failing(FxSource.FRANKFURTER);
-        CountingClient kexim = CountingClient.returning(FxSource.KEXIM, "1415");
+        CountingClient kexim = CountingClient.failing(FxSource.KEXIM);
+        CountingClient frankfurter = CountingClient.returning(FxSource.FRANKFURTER, "1414.7");
 
-        FxRate rate = new FxService(List.of(toss, kexim)).usdToKrw().orElseThrow();
+        FxRate rate = new FxService(List.of(kexim, frankfurter)).usdToKrw().orElseThrow();
 
-        assertThat(rate.source()).isEqualTo(FxSource.KEXIM);
-        assertThat(rate.rate()).isEqualByComparingTo("1415");
-        assertThat(kexim.calls).hasValue(1);
+        assertThat(rate.source()).isEqualTo(FxSource.FRANKFURTER);
+        assertThat(rate.rate()).isEqualByComparingTo("1414.7");
+        assertThat(frankfurter.calls).hasValue(1);
     }
 
     @Test
@@ -55,16 +55,18 @@ class FxServiceTest {
     }
 
     @Test
-    @DisplayName("주입 순서가 뒤바뀌어도 Frankfurter가 1순위다 — 빈 등록 순서에 이중화가 딸려 가면 안 된다")
+    @DisplayName("주입 순서가 뒤바뀌어도 수출입은행이 1순위다 — 빈 등록 순서에 이중화가 딸려 가면 안 된다")
     void orderIsDeclaredNotInjected() {
-        CountingClient toss = CountingClient.returning(FxSource.FRANKFURTER, "1414.7");
+        CountingClient frankfurter = CountingClient.returning(FxSource.FRANKFURTER, "1414.7");
         CountingClient kexim = CountingClient.returning(FxSource.KEXIM, "1415");
 
-        // 수출입은행을 먼저 주입해도
-        FxRate rate = new FxService(List.of(kexim, toss)).usdToKrw().orElseThrow();
+        // 유럽중앙은행을 먼저 주입해도
+        FxRate rate = new FxService(List.of(frankfurter, kexim)).usdToKrw().orElseThrow();
 
-        assertThat(rate.source()).isEqualTo(FxSource.FRANKFURTER);
-        assertThat(kexim.calls).hasValue(0);
+        assertThat(rate.source())
+                .as("원/달러는 한국 공식 고시환율이 기준이다")
+                .isEqualTo(FxSource.KEXIM);
+        assertThat(frankfurter.calls).hasValue(0);
     }
 
     private static final class CountingClient implements FxRateClient {

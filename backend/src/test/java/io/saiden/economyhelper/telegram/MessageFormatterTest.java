@@ -200,6 +200,75 @@ class MessageFormatterTest {
                 StockQuote.Money.USD, US_AT, true, false, new BigDecimal("4439253351000"));
     }
 
+    // --- 뉴스 날짜 ---------------------------------------------------------
+
+    @Test
+    @DisplayName("기사에 발행 일시를 붙인다 — 없으면 어제 것인지 방금 것인지 알 수 없다")
+    void showsArticlePublishedTime() {
+        // NOW = 2026-08-11T00:00:00Z → KST 09:00
+        assertThat(MessageFormatter.format(item("유가 상승", "본문", true)))
+                .contains("2026년 8월 11일 09:00:00");
+    }
+
+    @Test
+    @DisplayName("브리핑의 뉴스에도 같은 일시가 붙는다 — 두 채널이 다른 모양이 되면 안 된다")
+    void showsPublishedTimeInDigestToo() {
+        assertThat(MessageFormatter.formatDigest(List.of(item("유가 상승", "본문", true))))
+                .contains("2026년 8월 11일 09:00:00");
+    }
+
+    // --- 코인: 업비트 + 바이낸스 -------------------------------------------
+
+    @Test
+    @DisplayName("업비트 다음에 바이낸스, 그 옆에 원화 환산")
+    void showsBothExchangesInOrder() {
+        String message = MessageFormatter.formatCrypto(
+                btc(new BigDecimal("63703.69")), new BigDecimal("1384"));
+
+        assertThat(message.indexOf("업비트")).isLessThan(message.indexOf("바이낸스"));
+        assertThat(message)
+                .contains("89,848,000 KRW")
+                .contains("63,703.69 USDT")
+                // 63,703.69 × 1,384 = 88,165,906.96 → 88,165,907
+                .contains("88,165,907 KRW");
+    }
+
+    @Test
+    @DisplayName("바이낸스 값이 없으면 그 줄을 아예 뺀다 — 0이나 -로 채우면 '시세 0'과 구분이 안 된다")
+    void omitsBinanceLineWhenMissing() {
+        String message = MessageFormatter.formatCrypto(btc(null), new BigDecimal("1384"));
+
+        assertThat(message).contains("업비트").contains("89,848,000 KRW").doesNotContain("바이낸스");
+    }
+
+    @Test
+    @DisplayName("USDT 원화값을 모르면 USDT만 적는다 — 환산을 못 한다고 시세를 빼지 않는다")
+    void showsUsdtOnlyWhenRateUnknown() {
+        String message = MessageFormatter.formatCrypto(btc(new BigDecimal("63703.69")), null);
+
+        assertThat(message).contains("63,703.69 USDT").doesNotContain("88,165,907");
+    }
+
+    @Test
+    @DisplayName("브리핑 코인 통도 코인마다 두 거래소를 보여준다")
+    void showsBothExchangesInDigest() {
+        String message = MessageFormatter.formatCryptoDigest(
+                List.of(btc(new BigDecimal("63703.69")),
+                        new io.saiden.economyhelper.market.CryptoQuote(
+                                "KRW-USDT", "테더", new BigDecimal("1384"), NOW, null)),
+                new BigDecimal("1384"));
+
+        assertThat(message).contains("비트코인").contains("바이낸스").contains("63,703.69 USDT");
+        assertThat(message.substring(message.indexOf("테더")))
+                .as("테더는 바이낸스에 USDTUSDT가 없어 업비트만 나온다")
+                .doesNotContain("바이낸스");
+    }
+
+    private static io.saiden.economyhelper.market.CryptoQuote btc(BigDecimal binanceUsdt) {
+        return new io.saiden.economyhelper.market.CryptoQuote(
+                "KRW-BTC", "비트코인", new BigDecimal("89848000"), NOW, binanceUsdt);
+    }
+
     private static NewsItem item(String title, String body, boolean translated) {
         return new NewsItem(NewsSource.BLOOMBERG, "Bloomberg", title, body,
                 "https://example.com/a", NOW, translated, 0.9);

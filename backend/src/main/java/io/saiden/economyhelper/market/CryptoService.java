@@ -1,10 +1,14 @@
 package io.saiden.economyhelper.market;
 
+import io.saiden.economyhelper.market.binance.BinanceApi;
+import io.saiden.economyhelper.market.binance.BinanceApi.BinancePrice;
+import io.saiden.economyhelper.market.binance.BinanceSymbol;
 import io.saiden.economyhelper.market.upbit.UpbitApi;
 import io.saiden.economyhelper.market.upbit.UpbitApi.UpbitTicker;
 import io.saiden.economyhelper.market.upbit.UpbitMarket;
 import io.saiden.economyhelper.market.upbit.UpbitMarketIndex;
 import io.saiden.economyhelper.text.QueryNormalizer;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
@@ -40,10 +44,64 @@ public class CryptoService {
 
     private static final Logger log = LoggerFactory.getLogger(CryptoService.class);
 
-    private final UpbitApi upbitApi;
+    /** 업비트 원화 마켓의 USDT. 바이낸스 USDT 가격을 원화로 옮길 때 쓴다. */
+    private static final String USDT_MARKET = "KRW-USDT";
 
-    public CryptoService(UpbitApi upbitApi) {
+    private final UpbitApi upbitApi;
+    private final BinanceApi binanceApi;
+
+    public CryptoService(UpbitApi upbitApi, BinanceApi binanceApi) {
         this.upbitApi = upbitApi;
+        this.binanceApi = binanceApi;
+    }
+
+    /**
+     * USDT 1개의 원화값 — 바이낸스 시세를 원화로 옮기는 기준.
+     *
+     * <p><b>USD/KRW 환율이 아니라 업비트 실거래가를 쓴다.</b> 한국에서 실제로 바꿀 수 있는 값이
+     * 이쪽이고 김치 프리미엄이 반영돼 있다. 환율로 환산하면 "USDT는 1달러"라는 가정이 들어가
+     * 국내 시세와 나란히 놓았을 때 차이가 실제보다 커 보인다.
+     */
+    public Optional<BigDecimal> usdtKrw() {
+        try {
+            return upbitApi.tickers(List.of(USDT_MARKET)).stream()
+                    .map(UpbitTicker::tradePrice)
+                    .filter(java.util.Objects::nonNull)
+                    .findFirst();
+        } catch (RuntimeException e) {
+            log.warn("[crypto] USDT 원화 시세 조회 실패 — 바이낸스는 USDT로만 표시합니다: {}", e.toString());
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * 업비트 결과에 바이낸스 USDT 가격을 붙인다.
+     *
+     * <p><b>바이낸스가 죽어도 업비트 값은 그대로 나가야 한다.</b> 지역 차단(451)·타임아웃·
+     * 브레이커 열림을 전부 같게 다뤄 {@code binanceUsdt}만 비우고 원래 목록을 돌려준다 —
+     * 거래소 하나를 더 붙였다고 되던 것이 안 되면 개악이다.
+     */
+    private List<CryptoQuote> withBinance(List<CryptoQuote> quotes) {
+        Map<String, String> symbolByMarket = quotes.stream()
+                .flatMap(quote -> BinanceSymbol.of(quote.market())
+                        .map(symbol -> Map.entry(quote.market(), symbol)).stream())
+                .collect(java.util.stream.Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        if (symbolByMarket.isEmpty()) {
+            return quotes;
+        }
+
+        Map<String, BigDecimal> priceBySymbol;
+        try {
+            priceBySymbol = binanceApi.prices(symbolByMarket.values().stream().sorted().toList()).stream()
+                    .collect(java.util.stream.Collectors.toMap(BinancePrice::symbol, BinancePrice::price));
+        } catch (RuntimeException e) {
+            log.warn("[crypto] 바이낸스 조회 실패 — 업비트 시세만 내보냅니다: {}", e.toString());
+            return quotes;
+        }
+
+        return quotes.stream()
+                .map(quote -> quote.withBinance(priceBySymbol.get(symbolByMarket.get(quote.market()))))
+                .toList();
     }
 
     /**
@@ -62,7 +120,8 @@ public class CryptoService {
                 log.info("[crypto] '{}'에 걸리는 마켓이 없습니다", query);
                 return Optional.empty();
             }
-            return pickAndQuote(candidates);
+            return pickAndQuote(candidates)
+                    .map(quote -> withBinance(List.of(quote)).get(0));
         } catch (RuntimeException e) {
             // 브레이커가 열렸거나 업비트가 응답하지 않는다. 사용자에게는 "못 가져왔다"로 나간다
             log.error("[crypto] '{}' 조회 실패: {}", query, e.toString());
@@ -83,9 +142,9 @@ public class CryptoService {
                 log.warn("[crypto] 설정된 마켓이 업비트 목록에 없습니다: {}", markets);
                 return List.of();
             }
-            return upbitApi.tickers(known).stream()
+            return withBinance(upbitApi.tickers(known).stream()
                     .map(ticker -> toQuote(byCode.get(ticker.market()), ticker))
-                    .toList();
+                    .toList());
         } catch (RuntimeException e) {
             log.error("[crypto] 시세 조회 실패 {}: {}", markets, e.toString());
             return List.of();
@@ -117,6 +176,7 @@ public class CryptoService {
         Instant at = ticker.tradeTimestamp() == null
                 ? Instant.now()
                 : Instant.ofEpochMilli(ticker.tradeTimestamp());
-        return new CryptoQuote(market.market(), market.koreanName(), ticker.tradePrice(), at);
+        // 바이낸스 값은 withBinance가 나중에 채운다 — 업비트 조회와 별개 호출이다
+        return new CryptoQuote(market.market(), market.koreanName(), ticker.tradePrice(), at, null);
     }
 }

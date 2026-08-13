@@ -97,6 +97,7 @@ economy-helper:
     relevance: 7d          # 기사는 바뀌지 않는다. 배치 단위로 캐시해 재트리거 때 Gemini를 또 부르지 않는다
     upbit-markets: 6h      # 신규 상장·상장폐지는 드물다. 이게 없으면 /crypto 한 번에 조회가 두 번 나간다
     crypto-price: 10s      # 시세다. 길게 잡으면 거짓말이 된다. 연타와 초당 10회 제한을 막는 정도만
+    binance-price: 10s     # 업비트와 같은 급. 두 거래소 값의 시각이 어긋나면 비교가 무의미해진다
     stock-resolve: 7d      # LLM 해석 결과. 같은 검색어에 Gemini를 두 번 태우지 않는다
     stock-price: 1h        # 전일 종가라 자주 바뀌지 않는다. 일 1만회 한도도 이걸로 지킨다
     us-quote: 1m           # 미국은 현재가다. 이보다 길게 잡으면 '현재가'가 아니게 된다 —
@@ -151,6 +152,13 @@ economy-helper:
     upbit:
       # 인증이 없다. 초당 10회/IP 제한만 지키면 된다 (resilience4j ratelimiter 'upbit')
       base-url: https://api.upbit.com
+
+    binance:
+      # 글로벌 시세(USDT 마켓). 인증이 없고 한도가 분당 1200 weight/IP라 넉넉하다 —
+      # 실측한 응답 헤더가 x-mbx-used-weight-1m: 8이었다.
+      # ⚠️ 미국 IP는 451로 차단된다. 이 서비스가 Singapore 리전이라 쓸 수 있는 것이고,
+      #    리전을 옮기면 가장 먼저 깨질 연동이다.
+      base-url: https://api.binance.com
 
     data-go:
       # 공공데이터포털 — 금융위원회 주식시세정보. 국내(KOSPI·KOSDAQ·KONEX)만 다룬다.
@@ -219,6 +227,13 @@ resilience4j:
         waitDurationInOpenState: 300s
       upbit:
         baseConfig: default
+      # 바이낸스는 4xx를 실패로 세지 않는다. 상장 안 된 심볼을 물으면 400인데
+      # (실측: USDTUSDT → -1121 Invalid symbol) 그건 우리 잘못이지 거래소 장애가 아니다.
+      # 실패로 세면 멀쩡한 거래소에 브레이커가 열려 다른 코인까지 막힌다.
+      binance:
+        baseConfig: default
+        ignoreExceptions:
+          - org.springframework.web.client.HttpClientErrorException
       # 환율은 출처별로 따로 연다. 하나로 묶으면 토스 장애가 수출입은행까지 끊어
       # CLAUDE.md가 요구한 이중화가 성립하지 않는다.
       fxFrankfurter:
@@ -239,6 +254,12 @@ resilience4j:
       # 업비트는 초당 10회/IP(quotation 그룹 공유)를 명시한다. 8로 낮춰 경계에서 429를 피한다.
       upbit:
         limitForPeriod: 8
+        limitRefreshPeriod: 1s
+        timeoutDuration: 3s
+      # 바이낸스는 분당 1200 weight/IP다 — /ticker/price 한 번이 2~4라 우리 사용량으로는
+      # 닿을 일이 없다. 넉넉하다고 안 걸면 버그로 폭주할 때 IP가 밴된다.
+      binance:
+        limitForPeriod: 10
         limitRefreshPeriod: 1s
         timeoutDuration: 3s
       # 공공데이터포털은 일 1만회다. 캐시(1h)가 실질 방어이고 이건 폭주만 막는다.

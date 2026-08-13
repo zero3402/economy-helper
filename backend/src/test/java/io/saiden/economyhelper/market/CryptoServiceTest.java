@@ -2,6 +2,8 @@ package io.saiden.economyhelper.market;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.saiden.economyhelper.market.binance.BinanceApi;
+import io.saiden.economyhelper.market.binance.BinanceApi.BinancePrice;
 import io.saiden.economyhelper.market.upbit.UpbitApi;
 import io.saiden.economyhelper.market.upbit.UpbitApi.UpbitTicker;
 import io.saiden.economyhelper.market.upbit.UpbitMarket;
@@ -50,7 +52,7 @@ class CryptoServiceTest {
     @DisplayName("이름만으로는 오답이 앞에 오는 약칭을 거래대금이 가른다")
     void volumeResolvesAmbiguity() {
         RecordingApi api = new RecordingApi();
-        CryptoService service = new CryptoService(api);
+        CryptoService service = cryptoService(api);
 
         // 이름 매칭만 하면 각각 비트코인캐시·이더파이·리플유에스디가 걸렸던 것들이다
         assertThat(service.quote("비트")).get().extracting(CryptoQuote::market).isEqualTo("KRW-BTC");
@@ -61,7 +63,7 @@ class CryptoServiceTest {
     @Test
     @DisplayName("정확한 이름·심볼·영문명은 어느 쪽으로 쳐도 같은 답")
     void resolvesExactNamesInAnyLanguage() {
-        CryptoService service = new CryptoService(new RecordingApi());
+        CryptoService service = cryptoService(new RecordingApi());
 
         for (String query : List.of("비트코인", "BTC", "btc", "bitcoin", "비트코인 얼마")) {
             assertThat(service.quote(query))
@@ -74,7 +76,7 @@ class CryptoServiceTest {
     @DisplayName("후보 전부를 한 번에 조회한다 — 후보마다 부르면 초당 10회 제한에 닿는다")
     void fetchesAllCandidatesInOneCall() {
         RecordingApi api = new RecordingApi();
-        new CryptoService(api).quote("비트");
+        cryptoService(api).quote("비트");
 
         assertThat(api.tickerCalls).hasSize(1);
         assertThat(api.tickerCalls.get(0)).hasSizeGreaterThan(1);
@@ -83,7 +85,7 @@ class CryptoServiceTest {
     @Test
     @DisplayName("현재가와 체결 시각을 그대로 옮긴다")
     void carriesPriceAndTimestamp() {
-        CryptoQuote quote = new CryptoService(new RecordingApi()).quote("비트코인").orElseThrow();
+        CryptoQuote quote = cryptoService(new RecordingApi()).quote("비트코인").orElseThrow();
 
         assertThat(quote.koreanName()).isEqualTo("비트코인");
         assertThat(quote.price()).isEqualByComparingTo("89848000");
@@ -93,7 +95,7 @@ class CryptoServiceTest {
     @Test
     @DisplayName("걸리는 코인이 없으면 빈 결과 — 아무거나 돌려주면 사용자가 오해한다")
     void returnsEmptyWhenNothingMatches() {
-        CryptoService service = new CryptoService(new RecordingApi());
+        CryptoService service = cryptoService(new RecordingApi());
 
         assertThat(service.quote("없는코인zzz")).isEmpty();
         assertThat(service.quote("")).isEmpty();
@@ -110,15 +112,15 @@ class CryptoServiceTest {
             }
         };
 
-        assertThat(new CryptoService(exploding).quote("비트코인")).isEmpty();
-        assertThat(new CryptoService(exploding).quotesOf(List.of("KRW-BTC"))).isEmpty();
+        assertThat(cryptoService(exploding).quote("비트코인")).isEmpty();
+        assertThat(cryptoService(exploding).quotesOf(List.of("KRW-BTC"))).isEmpty();
     }
 
     @Test
     @DisplayName("설정에 박힌 마켓 코드로도 조회한다 — 아침 브리핑이 이 경로를 쓴다")
     void quotesConfiguredMarkets() {
         List<CryptoQuote> quotes =
-                new CryptoService(new RecordingApi()).quotesOf(List.of("KRW-BTC", "KRW-ETH"));
+                cryptoService(new RecordingApi()).quotesOf(List.of("KRW-BTC", "KRW-ETH"));
 
         assertThat(quotes).extracting(CryptoQuote::market)
                 .containsExactlyInAnyOrder("KRW-BTC", "KRW-ETH");
@@ -129,9 +131,103 @@ class CryptoServiceTest {
     void skipsUnknownConfiguredMarkets() {
         RecordingApi api = new RecordingApi();
 
-        assertThat(new CryptoService(api).quotesOf(List.of("KRW-BTC", "KRW-없는것")))
+        assertThat(cryptoService(api).quotesOf(List.of("KRW-BTC", "KRW-없는것")))
                 .extracting(CryptoQuote::market).containsExactly("KRW-BTC");
-        assertThat(new CryptoService(api).quotesOf(List.of("KRW-전부없음"))).isEmpty();
+        assertThat(cryptoService(api).quotesOf(List.of("KRW-전부없음"))).isEmpty();
+    }
+
+    // --- 바이낸스 ---------------------------------------------------------
+
+    @Test
+    @DisplayName("바이낸스가 터져도 업비트 시세는 그대로 나간다 — 거래소를 더했다고 되던 게 안 되면 개악이다")
+    void keepsUpbitWhenBinanceIsDown() {
+        CryptoService service = cryptoServiceWithDeadBinance(new RecordingApi());
+
+        CryptoQuote quote = service.quote("비트코인").orElseThrow();
+
+        assertThat(quote.price()).isEqualByComparingTo(BigDecimal.valueOf(89_848_000));
+        assertThat(quote.binanceUsdt()).as("모른다는 것을 0이 아니라 null로 남긴다").isNull();
+        assertThat(service.quotesOf(List.of("KRW-BTC", "KRW-ETH")))
+                .hasSize(2)
+                .allSatisfy(each -> assertThat(each.binanceUsdt()).isNull());
+    }
+
+    @Test
+    @DisplayName("바이낸스 값이 있으면 마켓별로 제자리에 붙는다")
+    void attachesBinancePriceToMatchingMarket() {
+        CryptoService service = cryptoService(new RecordingApi(),
+                Map.of("BTCUSDT", "63703.69", "ETHUSDT", "1886.36"));
+
+        assertThat(service.quotesOf(List.of("KRW-BTC", "KRW-ETH")))
+                .extracting(CryptoQuote::market, CryptoQuote::binanceUsdt)
+                .containsExactly(
+                        org.assertj.core.api.Assertions.tuple("KRW-BTC", new BigDecimal("63703.69")),
+                        org.assertj.core.api.Assertions.tuple("KRW-ETH", new BigDecimal("1886.36")));
+    }
+
+    @Test
+    @DisplayName("바이낸스에 없는 코인은 그 자리만 비운다 — 다른 코인까지 잃지 않는다")
+    void leavesUnlistedCoinsEmpty() {
+        CryptoService service = cryptoService(new RecordingApi(), Map.of("BTCUSDT", "63703.69"));
+
+        assertThat(service.quotesOf(List.of("KRW-BTC", "KRW-ETH")))
+                .extracting(CryptoQuote::binanceUsdt)
+                .containsExactly(new BigDecimal("63703.69"), null);
+    }
+
+    @Test
+    @DisplayName("USDT 원화값은 업비트 KRW-USDT를 쓴다 — 환율이 아니라 실제로 바꿀 수 있는 값이다")
+    void readsUsdtPriceFromUpbit() {
+        assertThat(cryptoService(new RecordingApi()).usdtKrw()).isEmpty();
+
+        UpbitApi withUsdt = new RecordingApi() {
+            @Override
+            public List<UpbitTicker> tickers(List<String> markets) {
+                return List.of(new UpbitTicker("KRW-USDT", BigDecimal.valueOf(1_384), null, null));
+            }
+        };
+        assertThat(cryptoService(withUsdt).usdtKrw())
+                .contains(BigDecimal.valueOf(1_384));
+    }
+
+    @Test
+    @DisplayName("업비트가 죽으면 USDT 환산도 포기한다 — 예외를 위로 던지면 시세 전체가 막힌다")
+    void returnsEmptyUsdtWhenUpbitFails() {
+        UpbitApi exploding = new RecordingApi() {
+            @Override
+            public List<UpbitTicker> tickers(List<String> markets) {
+                throw new IllegalStateException("업비트 502");
+            }
+        };
+
+        assertThat(cryptoService(exploding).usdtKrw()).isEmpty();
+    }
+
+    /** 바이낸스가 아무것도 못 주는 상태. 기존 단언은 업비트만 보므로 이게 기본값이다. */
+    private static CryptoService cryptoService(UpbitApi upbit) {
+        return cryptoService(upbit, Map.of());
+    }
+
+    private static CryptoService cryptoService(UpbitApi upbit, Map<String, String> binancePrices) {
+        return new CryptoService(upbit, new BinanceApi(RestClient.builder(), "https://example.invalid") {
+            @Override
+            public List<BinancePrice> prices(List<String> symbols) {
+                return symbols.stream()
+                        .filter(binancePrices::containsKey)
+                        .map(symbol -> new BinancePrice(symbol, new BigDecimal(binancePrices.get(symbol))))
+                        .toList();
+            }
+        });
+    }
+
+    /** 바이낸스가 죽은 상태 — 지역 차단·타임아웃·브레이커 열림을 모두 대표한다. */
+    private static CryptoService cryptoServiceWithDeadBinance(UpbitApi upbit) {
+        return new CryptoService(upbit, new BinanceApi(RestClient.builder(), "https://example.invalid") {
+            @Override
+            public List<BinancePrice> prices(List<String> symbols) {
+                throw new IllegalStateException("451 지역 차단");
+            }
+        });
     }
 
     /** HTTP는 {@code UpbitApiTest}가 따로 본다. 여기서는 해석 규칙만 본다. */

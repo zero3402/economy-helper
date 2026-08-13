@@ -282,11 +282,13 @@ class DailyDigestJobTest {
     }
 
     private static CryptoService crypto(boolean alive) {
-        return new CryptoService(new UpbitApi(RestClient.builder(), "https://example.invalid")) {
+        return new CryptoService(new UpbitApi(RestClient.builder(), "https://example.invalid"),
+                new io.saiden.economyhelper.market.binance.BinanceApi(
+                        RestClient.builder(), "https://example.invalid")) {
             @Override
             public List<CryptoQuote> quotesOf(List<String> markets) {
                 return alive
-                        ? List.of(new CryptoQuote("KRW-BTC", "비트코인", new BigDecimal("89848000"), NOW))
+                        ? List.of(new CryptoQuote("KRW-BTC", "비트코인", new BigDecimal("89848000"), NOW, null))
                         : List.of();
             }
         };

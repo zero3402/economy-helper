@@ -1,6 +1,7 @@
 package io.saiden.economyhelper.digest;
 
 import io.saiden.economyhelper.config.EconomyHelperProperties;
+import io.saiden.economyhelper.market.CryptoQuote;
 import io.saiden.economyhelper.market.CryptoService;
 import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.FxService;
@@ -10,6 +11,7 @@ import io.saiden.economyhelper.news.NewsFacade;
 import io.saiden.economyhelper.news.NewsItem;
 import io.saiden.economyhelper.telegram.MessageFormatter;
 import io.saiden.economyhelper.telegram.TelegramClient;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.ZoneId;
@@ -203,7 +205,15 @@ public class DailyDigestJob {
     }
 
     private Optional<String> cryptoMessage() {
-        return quotesOrEmpty(cryptoService.quotesOf(cryptoMarkets), MessageFormatter::formatCryptoDigest);
+        List<CryptoQuote> quotes = cryptoService.quotesOf(cryptoMarkets);
+        if (quotes.isEmpty()) {
+            return Optional.empty();
+        }
+        // 바이낸스가 하나도 안 붙었으면 USDT 환율을 물을 이유가 없다 — 호출 한 번을 아낀다
+        BigDecimal usdtKrw = quotes.stream().anyMatch(quote -> quote.binanceUsdt() != null)
+                ? cryptoService.usdtKrw().orElse(null)
+                : null;
+        return Optional.of(MessageFormatter.formatCryptoDigest(quotes, usdtKrw));
     }
 
     private Optional<String> newsMessage() {

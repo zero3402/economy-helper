@@ -109,7 +109,7 @@ class TelegramWebhookControllerTest {
     @DisplayName("/crypto는 코인 시세로 답한다 — 뉴스와 다른 서비스로 간다")
     void routesCryptoCommand() {
         RecordingClient client = new RecordingClient();
-        CryptoQuote btc = new CryptoQuote("KRW-BTC", "비트코인", new BigDecimal("89848000"), NOW);
+        CryptoQuote btc = new CryptoQuote("KRW-BTC", "비트코인", new BigDecimal("89848000"), NOW, new BigDecimal("63703.69"));
         var controller = defaultController(facade(Optional.empty()), crypto(Optional.of(btc)), fx(Optional.empty()), stock(Optional.empty()), client);
 
         controller.onUpdate(null,update(1, "/crypto 비트코인"));
@@ -474,7 +474,9 @@ class TelegramWebhookControllerTest {
 
     /** 해석 규칙은 {@code CryptoServiceTest}가 본다. 여기서는 라우팅만 본다. */
     private static CryptoService crypto(Optional<CryptoQuote> result) {
-        return new CryptoService(new UpbitApi(RestClient.builder(), "https://example.invalid")) {
+        return new CryptoService(new UpbitApi(RestClient.builder(), "https://example.invalid"),
+                new io.saiden.economyhelper.market.binance.BinanceApi(
+                        RestClient.builder(), "https://example.invalid")) {
             @Override
             public Optional<CryptoQuote> quote(String query) {
                 return result;

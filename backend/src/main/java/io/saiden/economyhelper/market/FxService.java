@@ -25,8 +25,17 @@ public class FxService {
 
     private static final Logger log = LoggerFactory.getLogger(FxService.class);
 
-    /** 시도 순서. 앞이 1순위다. */
-    private static final List<FxSource> ORDER = List.of(FxSource.FRANKFURTER, FxSource.KEXIM);
+    /**
+     * 시도 순서. 앞이 1순위다.
+     *
+     * <p><b>수출입은행이 먼저다.</b> 원/달러는 한국 공식 고시환율이 기준이고, 유럽중앙은행 값은
+     * 참고용이다 — 국내 사용자가 은행 창구에서 마주치는 숫자와 맞아야 한다.
+     *
+     * <p>수출입은행은 영업일·고시 시각에만 값이 있어(주말·공휴일·이른 아침에는 비어 온다)
+     * 그때는 프랑크푸르터로 넘어간다. 1순위가 자주 비는 것은 문제가 아니다 —
+     * 그러라고 있는 것이 이중화다.
+     */
+    private static final List<FxSource> ORDER = List.of(FxSource.KEXIM, FxSource.FRANKFURTER);
 
     private final List<FxRateClient> clients;
 

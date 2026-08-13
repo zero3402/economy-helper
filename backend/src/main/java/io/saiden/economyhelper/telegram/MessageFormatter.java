@@ -50,16 +50,28 @@ public final class MessageFormatter {
     private static final int NAME_COLUMNS = 11;
     private static final int VALUE_COLUMNS = 15;
     private static final int KRW_COLUMNS = 15;
+    /** 거래소 이름 칸. {@code 바이낸스}가 8칸이라 한 칸 띄우면 값이 세로로 떨어진다. */
+    private static final int EXCHANGE_COLUMNS = 9;
 
     private MessageFormatter() {
     }
 
     // --- 뉴스 ---------------------------------------------------------------
 
-    /** 기사 한 건. <b>제목이 곧 링크</b>가 되어 토막난 URL 줄이 사라진다. */
+    /**
+     * 기사 한 건. <b>제목이 곧 링크</b>가 되어 토막난 URL 줄이 사라진다.
+     *
+     * <p>발행 일시를 매체명 옆에 붙인다 — 없으면 어제 기사인지 방금 것인지 알 수 없고,
+     * 아침 브리핑처럼 여러 건이 묶일 때 특히 그렇다.
+     *
+     * <p>{@code publishedAt}에 {@code null} 방어를 두지 않는다. {@code Article}이 생성 시점에
+     * 강제하고({@code "publishedAt is required"}) {@code RssFeedClient}는 날짜 없는 항목을
+     * 아예 버리므로, 여기까지 온 값에는 날짜가 반드시 있다.
+     */
     public static String format(NewsItem item) {
         StringBuilder message = new StringBuilder();
-        message.append("<b>").append(Html.escape(item.sourceName())).append("</b>\n")
+        message.append("<b>").append(Html.escape(item.sourceName())).append("</b>")
+                .append(" · ").append(DATE_TIME.format(item.publishedAt().atZone(SEOUL))).append("\n")
                 .append("<a href=\"").append(Html.escape(item.link())).append("\">")
                 .append(Html.escape(item.title())).append("</a>");
 
@@ -250,15 +262,15 @@ public final class MessageFormatter {
      * <p>등락률을 넣지 않는다 — {@code CLAUDE.md}가 요구하는 것은 "현재 가격"이고,
      * 명령마다 정보 밀도가 달라지는 것도 피한다.
      */
-    public static String formatCrypto(CryptoQuote quote) {
-        return "🪙 <b>" + Html.escape(quote.koreanName()) + "</b>\n\n"
-                + "<code>" + money(quote.price()) + " KRW</code>\n\n"
-                + Html.escape(quote.market()) + " · 업비트\n"
+    public static String formatCrypto(CryptoQuote quote, BigDecimal usdtKrw) {
+        return "🪙 <b>" + Html.escape(quote.koreanName()) + "</b>\n"
+                + "<pre>" + exchangeLines(quote, usdtKrw) + "</pre>\n"
+                + Html.escape(quote.market()) + "\n"
                 + DATE_TIME.format(quote.at().atZone(SEOUL));
     }
 
     /** 아침 브리핑의 코인 통. 24시간 거래되므로 기준일이 아니라 시각을 쓴다. */
-    public static String formatCryptoDigest(List<CryptoQuote> quotes) {
+    public static String formatCryptoDigest(List<CryptoQuote> quotes, BigDecimal usdtKrw) {
         StringBuilder message = new StringBuilder("🪙 <b>코인</b>");
         quotes.stream().findFirst().ifPresent(first ->
                 message.append("  ").append(DATE_TIME.format(first.at().atZone(SEOUL))));
@@ -270,10 +282,35 @@ public final class MessageFormatter {
                 message.append("\n");
             }
             first = false;
-            message.append(Html.pad(Html.escape(quote.koreanName()), NAME_COLUMNS))
-                    .append(Html.padLeft(money(quote.price()) + " KRW", VALUE_COLUMNS));
+            message.append(Html.escape(quote.koreanName())).append("\n")
+                    .append(exchangeLines(quote, usdtKrw));
         }
         return message.append("</pre>").toString();
+    }
+
+    /**
+     * 거래소별 한 줄씩 — <b>업비트 먼저, 바이낸스 다음.</b>
+     *
+     * <p>이름을 위에 두고 거래소를 들여쓰는 이유는 폭이다. 한 줄에 이름·거래소·값·환산을 다 넣으면
+     * 50칸을 넘어 휴대폰에서 가로로 밀린다. 이렇게 두면 주식 통과 같은 42칸 안에 들어온다.
+     *
+     * <p>바이낸스 값이 없으면 그 줄을 <b>아예 뺀다</b> — {@code 0}이나 {@code -}로 채우면
+     * "시세가 0"과 "모른다"가 구분되지 않는다. {@code usdtKrw}가 없으면 USDT만 적는다.
+     */
+    private static String exchangeLines(CryptoQuote quote, BigDecimal usdtKrw) {
+        StringBuilder lines = new StringBuilder(" ")
+                .append(Html.pad("업비트", EXCHANGE_COLUMNS))
+                .append(Html.padLeft(money(quote.price()) + " KRW", VALUE_COLUMNS));
+        if (quote.binanceUsdt() == null) {
+            return lines.toString();
+        }
+        lines.append("\n ").append(Html.pad("바이낸스", EXCHANGE_COLUMNS))
+                .append(Html.padLeft(money(quote.binanceUsdt()) + " USDT", VALUE_COLUMNS));
+        if (usdtKrw != null) {
+            BigDecimal krw = quote.binanceUsdt().multiply(usdtKrw).setScale(0, RoundingMode.HALF_UP);
+            lines.append(Html.padLeft(money(krw) + " KRW", KRW_COLUMNS));
+        }
+        return lines.toString();
     }
 
     public static String cryptoNotFound(String query) {
