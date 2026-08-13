@@ -42,9 +42,15 @@ public class DailyDigestJob {
 
     private static final Logger log = LoggerFactory.getLogger(DailyDigestJob.class);
 
-    /** 슬롯 = KST 날짜 + 시. 하루 한 번이지만 시각을 남겨 수동 트리거와 구분한다. */
-    private static final DateTimeFormatter SLOT_FORMAT =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH");
+    /**
+     * 슬롯 = <b>KST 날짜</b>. 요구사항이 "하루 한 번"이므로 키도 하루 단위여야 한다.
+     *
+     * <p>예전에는 시각까지 넣었다({@code 2026-08-13T09}). 09시와 21시에 보내던 때의 흔적인데,
+     * 21시가 빠진 뒤로는 <b>재시도를 막는 족쇄</b>가 됐다 — 09시에 못 보내고 09:10에 보내면
+     * 다른 슬롯이 되어 같은 브리핑이 두 번 나간다. 날짜로 바꾸면 창 안에서 몇 번을 재시도해도
+     * 한 번만 나가고, "정확히 09시에 깨어 있어야 한다"는 요구 자체가 사라진다.
+     */
+    private static final DateTimeFormatter SLOT_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     /**
      * 통 사이 간격.
@@ -116,8 +122,10 @@ public class DailyDigestJob {
 
         boolean claimed = history.claim(slot);
         if (!claimed && !force) {
-            log.info("[digest] {} 슬롯은 이미 발송됐습니다 — 건너뜁니다", slot);
-            return DigestResult.skipped(slot, "이미 발송된 시간대입니다");
+            // 발송 창 안에서 10분마다 도는 구조라 이 분기가 하루에 열 번 넘게 지나간다.
+            // info로 두면 정상 동작이 로그를 덮는다
+            log.debug("[digest] {} 슬롯은 이미 발송됐습니다 — 건너뜁니다", slot);
+            return DigestResult.skipped(slot, "오늘은 이미 발송했습니다");
         }
 
         List<String> delivered = new ArrayList<>();

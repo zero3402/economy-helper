@@ -43,13 +43,13 @@ class DailyDigestJobTest {
 
     /** UTC 00:00 = KST 09:00 — 정기 발송 시각 중 하나다. */
     private static final Instant NOW = Instant.parse("2026-08-11T00:00:00Z");
-    private static final String SLOT = "2026-08-11T09";
+    private static final String SLOT = "2026-08-11";
     /** 국내 전일 종가의 기준 시각 — KST 자정이다. */
     private static final Instant BASIS = LocalDate.of(2026, 8, 11)
             .atStartOfDay(java.time.ZoneId.of("Asia/Seoul")).toInstant();
 
     @Test
-    @DisplayName("슬롯을 선점하면 발송하고, 슬롯 키는 KST 기준으로 매긴다")
+    @DisplayName("슬롯 키는 KST 날짜다 — 시각이 들어가면 재시도가 중복 발송이 된다")
     void sendsAndKeysSlotInSeoulTime() {
         RecordingClient telegram = new RecordingClient();
         InMemoryHistory history = new InMemoryHistory();
@@ -201,6 +201,27 @@ class DailyDigestJobTest {
         assertThat(telegram.sent.get(1)).contains("📈 <b>증시</b>").contains("삼성전자");
         assertThat(telegram.sent.get(2)).contains("🪙 <b>코인</b>").contains("비트코인");
         assertThat(telegram.sent.get(3)).contains("유가 상승");
+    }
+
+    @Test
+    @DisplayName("같은 날이면 시각이 달라도 같은 슬롯이다 — 09시에 놓쳐 10시에 보내도 한 번뿐")
+    void sameDayIsOneSlotRegardlessOfHour() {
+        InMemoryHistory history = new InMemoryHistory();
+        RecordingClient telegram = new RecordingClient();
+
+        // 09:00(KST)에 발송
+        job(telegram, history, List.of(item("기사"))).run(false);
+        assertThat(telegram.sent).hasSize(1);
+
+        // 같은 날 10:30 — 스핀다운에서 늦게 깨어난 상황
+        Clock later = Clock.fixed(NOW.plus(java.time.Duration.ofMinutes(90)), ZoneOffset.UTC);
+        DigestResult second = new DailyDigestJob(new CountingFacade(List.of(item("기사"))),
+                fx(false), stock(false), crypto(false), telegram, history, later, properties())
+                .run(false);
+
+        assertThat(second.sent()).isFalse();
+        assertThat(telegram.sent).as("같은 날 두 번 나가면 구독자가 같은 브리핑을 두 번 받는다")
+                .hasSize(1);
     }
 
     private static DailyDigestJob job(TelegramClient telegram, SendHistory history,

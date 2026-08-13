@@ -1,0 +1,47 @@
+# 인스턴스를 깨워 둔다 — /news·/stock이 언제 쳐도 즉답해야 한다.
+#
+# Render 무료는 "15분 무활동 시 스핀다운"이고 재기동에 ~1분 걸린다. 그냥 두면 하루 대부분
+# 첫 요청이 1분씩 걸린다. 인바운드 트래픽이 깨우므로 health를 주기적으로 치면 된다.
+#
+# ⚠️ 왜 완전 24/7이 아닌가 — 산수 때문이다.
+#   무료 한도는 워크스페이스당 월 750 인스턴스-시간이고, 넘기면 Render가 그 달 내내
+#   모든 무료 웹 서비스를 정지시킨다("suspends all of your Free web services").
+#   24시간 x 31일 = 744시간이라 여유가 6시간뿐이다. 무료 웹 서비스를 하나만 더 붙이거나
+#   배포가 잦으면 한도를 넘겨 한 달을 통째로 잃는다.
+#   KST 04:00~06:00 두 시간을 재우면 682시간이 되어 여유가 68시간이 된다 —
+#   그 시간대 첫 요청만 ~1분 늦고, 연간 가동률은 오히려 이쪽이 높다.
+#
+# 발송 엔드포인트가 아니라 health를 친다. 공개돼도 무해하므로 시크릿이 필요 없고,
+# 앱에는 배포처를 아는 코드가 한 줄도 없다 — 항상 켜져 있는 호스트로 옮기면 이 파일만 지운다.
+
+name: Keep warm
+
+on:
+  schedule:
+    # UTC. KST = UTC+9 이므로 UTC 19·20시를 빼면 KST 04:00~05:59가 빈다.
+    # 정각을 피해 2분 오프셋을 준다 — GitHub 예약 실행은 정시에 몰려 지연된다.
+    - cron: "2,12,22,32,42,52 0-18,21-23 * * *"
+  workflow_dispatch:
+
+# 앞선 실행이 재기동을 기다리는 중이면 겹치지 않게 한다
+concurrency:
+  group: keep-warm
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: health 핑
+        env:
+          # 시크릿이 아니라 변수다. Settings → Secrets and variables → Actions → Variables
+          SERVICE_URL: ${{ vars.SERVICE_URL }}
+        run: |
+          if [ -z "$SERVICE_URL" ]; then
+            echo "SERVICE_URL 변수가 없습니다 — 배포 전이면 정상입니다."
+            exit 0
+          fi
+          # 잠들어 있었다면 재기동에 ~1분 걸린다. 깨우는 것이 목적이므로
+          # 응답이 늦거나 실패해도 워크플로를 깨뜨리지 않는다.
+          curl -fsS --max-time 180 "$SERVICE_URL/actuator/health" \
+            || echo "health 응답을 못 받았습니다 — 깨어나는 중일 수 있습니다."
