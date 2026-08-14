@@ -61,7 +61,7 @@ class FeedFetcherTest {
                 NewsSource.CNBC, feed("/bloomberg", FeedType.RSS)))
                 .fetch(NewsSource.CNBC);
 
-        assertThat(articles).hasSize(20);
+        assertThat(articles).hasSize(30);
         assertThat(articles.get(0).source()).isEqualTo(NewsSource.CNBC);
     }
 
