@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market;
 
+import io.saiden.economyhelper.config.EconomyHelperProperties.UsSymbol;
 import io.saiden.economyhelper.market.data.MarketIndexApi;
 import io.saiden.economyhelper.market.data.MarketIndexApi.MarketIndex;
 import io.saiden.economyhelper.market.data.StockPriceApi;
@@ -172,11 +173,13 @@ public class StockService {
      *
      * <p>{@link #quotesOf}·{@link #indicesOf}와 같은 모양으로 심볼마다 따로 실패한다.
      */
-    public List<StockQuote> usQuotesOf(List<String> symbols) {
+    public List<StockQuote> usQuotesOf(List<UsSymbol> symbols) {
         return symbols.stream()
-                .map(symbol -> {
+                .map(configured -> {
+                    String symbol = configured.symbol();
                     try {
-                        return Optional.ofNullable(fmpApi.quote(symbol)).map(StockService::toQuote);
+                        return Optional.ofNullable(fmpApi.quote(symbol))
+                                .map(quote -> toQuote(quote, configured.name()));
                     } catch (RuntimeException e) {
                         log.error("[fmp] {} 조회 실패: {}", symbol, e.toString());
                         return Optional.<StockQuote>empty();

@@ -169,7 +169,17 @@ economy-helper:
     # 미국 지수와 종목. FMP는 둘을 같은 엔드포인트로 주므로 한 목록이다.
     # 시총 1·2위(NVDA·AAPL)를 고정한 이유는 순위 조회(company-screener)가 유료라서다.
     # 국내를 삼성전자·SK하이닉스로 고정한 것과 같은 판단이다.
-    us-symbols: ["^IXIC", "^GSPC", "NVDA", "AAPL"]
+    # 이름을 함께 박는다 — FMP는 'Apple Inc.' 같은 영문명을 주는데 국내 종목·코인은 한글이라
+    # 한 화면에서 표기가 갈린다. /stock 검색은 LLM이 한국어 이름을 주지만 여기는 LLM을 타지 않는다.
+    us-symbols:
+      - symbol: "^IXIC"
+        name: "나스닥"
+      - symbol: "^GSPC"
+        name: "S&P 500"
+      - symbol: "NVDA"
+        name: "엔비디아"
+      - symbol: "AAPL"
+        name: "애플"
     # 매체별로 LLM에 넘길 후보 수. 전부 넣으면 무료 티어를 태우고, 너무 좁히면 진짜 기사가 빠진다
     # /news 검색이 보여줄 건수. 1건이던 것을 늘렸다 — 1위가 늘 원하던 기사는 아닌데
     # 한 건뿐이면 사용자가 할 수 있는 일이 검색어를 바꿔 다시 치는 것밖에 없었다.

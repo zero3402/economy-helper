@@ -118,6 +118,22 @@ class FeedFetcherTest {
     }
 
     @Test
+    @DisplayName("컷오프가 전부 걸러내도 빈 리스트일 뿐 터지지 않는다 — 연휴에 브리핑이 죽으면 안 된다")
+    void survivesWhenEverythingIsTooOld() throws IOException {
+        // 픽스처 기준 시각에서 한 달을 흘려보낸 시계
+        FeedFetcher stale = new FeedFetcher(RestClient.builder(),
+                properties(Map.of(NewsSource.CNBC, feed("/cnbc", FeedType.RSS))),
+                CircuitBreakerRegistry.ofDefaults(),
+                java.time.Clock.fixed(CLOCK.instant().plus(Duration.ofDays(30)),
+                        java.time.ZoneOffset.UTC),
+                MAX_AGE,
+                List.of(new RssFeedClient(), new GoogleNewsFeedClient()));
+        stubFeed("/cnbc", 200, fixture("cnbc.xml"));
+
+        assertThat(stale.fetch(NewsSource.CNBC)).isEmpty();
+    }
+
+    @Test
     @DisplayName("403이면 예외가 아니라 빈 리스트 — 호출자가 나머지 매체를 계속 돌 수 있다")
     void returnsEmptyOnForbidden() {
         stubFeed("/blocked", 403, "<html>Access Denied</html>");
@@ -194,18 +210,20 @@ class FeedFetcherTest {
         return fetcher(feeds, CircuitBreakerRegistry.ofDefaults());
     }
 
-    private FeedFetcher fetcher(Map<NewsSource, Feed> feeds, CircuitBreakerRegistry registry) {
+    private EconomyHelperProperties properties(Map<NewsSource, Feed> feeds) {
         Map<NewsSource, Feed> copy = new EnumMap<>(NewsSource.class);
         copy.putAll(feeds);
-        EconomyHelperProperties properties = new EconomyHelperProperties(
+        return new EconomyHelperProperties(
                 copy,
                 new Ranking(new Weights(0.35, 0.25, 0.25, 0.15), Duration.ofHours(6)),
                 null,   // 수집은 digest 설정을 쓰지 않는다
                 null);  // 캐시 TTL도 마찬가지 (여기선 @Cacheable이 프록시 없이 지나간다)
+    }
 
+    private FeedFetcher fetcher(Map<NewsSource, Feed> feeds, CircuitBreakerRegistry registry) {
         return new FeedFetcher(
                 RestClient.builder(),
-                properties,
+                properties(feeds),
                 registry,
                 CLOCK,
                 MAX_AGE,

@@ -29,14 +29,27 @@ public record EconomyHelperProperties(
     /**
      * @param sentHistoryTtl  발송 완료 표시를 남겨 두는 기간. 다음 슬롯(12시간 뒤)보다 넉넉히 길면
      *                        되고, 무한정 쌓이지 않게만 하면 된다.
-     * @param usSymbols       브리핑에 넣을 미국 심볼. 지수(^IXIC·^GSPC)와 종목(NVDA·AAPL)이
-     *                        같은 엔드포인트라 한 목록으로 둔다
+     * @param usSymbols       브리핑에 넣을 미국 심볼과 화면에 쓸 이름. 지수(^IXIC·^GSPC)와
+     *                        종목(NVDA·AAPL)이 같은 엔드포인트라 한 목록으로 둔다
      * @param indices         브리핑에 넣을 지수명. 종목({@code stocks})은 코드로 박지만 지수에는
      *                        코드가 없어 이름으로 쓴다 — {@code MarketIndexApi}가 이름으로만 찾는다
      */
     public record Digest(String zone, String cron, Duration sentHistoryTtl,
                          List<String> indices, List<String> stocks, List<String> cryptos,
-                         List<String> usSymbols) {}
+                         List<UsSymbol> usSymbols) {}
+
+    /**
+     * 브리핑용 미국 심볼 하나.
+     *
+     * <p><b>이름을 설정에 둔다.</b> FMP는 {@code Apple Inc.}·{@code NASDAQ Composite}처럼
+     * 영문명을 주는데, 국내 종목은 공공데이터포털이 한글명을 주고 코인은 업비트가 준다 —
+     * 한 화면에서 표기가 갈린다. {@code /stock} 검색은 LLM이 해석한 한국어 이름을 쓰지만
+     * 브리핑은 심볼이 설정에 박혀 있어 LLM을 타지 않으므로, 그 자리를 여기서 채운다.
+     *
+     * <p><b>{@code Map}이 아니라 목록이다.</b> 키에 {@code ^}가 들어가는데 relaxed binding이
+     * Map 키에서 그런 문자를 걸러낸다.
+     */
+    public record UsSymbol(String symbol, String name) {}
 
     /**
      * 캐시별 만료 시간.

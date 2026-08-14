@@ -253,7 +253,8 @@ class StockServiceTest {
         StockService service = new StockService(new RecordingApi(Map.of()), indexApi(null),
                 api, noResolver());
 
-        assertThat(service.usQuotesOf(List.of("AAPL", "BAD", "NVDA")))
+        assertThat(service.usQuotesOf(List.of(
+                usSymbol("AAPL", "애플"), usSymbol("BAD", "없는것"), usSymbol("NVDA", "엔비디아"))))
                 .extracting(StockQuote::code)
                 .containsExactly("AAPL", "NVDA");
     }
@@ -405,4 +406,10 @@ class StockServiceTest {
             return byQuery.getOrDefault(code, List.of());
         }
     }
+
+    private static io.saiden.economyhelper.config.EconomyHelperProperties.UsSymbol usSymbol(
+            String symbol, String name) {
+        return new io.saiden.economyhelper.config.EconomyHelperProperties.UsSymbol(symbol, name);
+    }
+
 }

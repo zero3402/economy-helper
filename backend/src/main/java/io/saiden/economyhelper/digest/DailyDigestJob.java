@@ -1,6 +1,7 @@
 package io.saiden.economyhelper.digest;
 
 import io.saiden.economyhelper.config.EconomyHelperProperties;
+import io.saiden.economyhelper.config.EconomyHelperProperties.UsSymbol;
 import io.saiden.economyhelper.market.CryptoQuote;
 import io.saiden.economyhelper.market.CryptoService;
 import io.saiden.economyhelper.market.FxRate;
@@ -76,7 +77,7 @@ public class DailyDigestJob {
     private final List<String> indexNames;
     private final List<String> stockCodes;
     private final List<String> cryptoMarkets;
-    private final List<String> usSymbols;
+    private final List<UsSymbol> usSymbols;
 
     public DailyDigestJob(NewsFacade facade,
                           FxService fxService,
@@ -100,7 +101,8 @@ public class DailyDigestJob {
         this.usSymbols = orEmpty(properties.digest().usSymbols());
     }
 
-    private static List<String> orEmpty(List<String> values) {
+    /** 설정 목록이 비어 있어도 브리핑이 죽지 않게 한다 — 그 통만 빠진다. */
+    private static <T> List<T> orEmpty(List<T> values) {
         return values == null ? List.of() : List.copyOf(values);
     }
 
