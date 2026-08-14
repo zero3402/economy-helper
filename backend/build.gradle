@@ -9,7 +9,11 @@ version = '0.0.1-SNAPSHOT'
 
 java {
 	toolchain {
-		languageVersion = JavaLanguageVersion.of(17)
+		// 21이어야 하는 이유는 가상 스레드다. 외부 호출(피드 5 + HN + Gemini 10)이 전부
+		// 순차라 브리핑 한 번이 1분을 넘었는데, 이 호출들은 계산이 아니라 기다림이라
+		// 스레드를 늘리는 것만으로 줄어든다. 플랫폼 스레드 풀을 손으로 관리하는 대신
+		// Executors.newVirtualThreadPerTaskExecutor()를 쓴다.
+		languageVersion = JavaLanguageVersion.of(21)
 	}
 }
 

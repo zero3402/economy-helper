@@ -1,5 +1,7 @@
 package io.saiden.economyhelper.news;
 
+import io.saiden.economyhelper.support.Concurrently;
+import io.saiden.economyhelper.translate.Translation;
 import io.saiden.economyhelper.translate.TranslationService;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,13 +34,24 @@ public class NewsFacade {
     /** 매체별 1건 — 정기 발송과 프론트 첫 화면이 같은 목록을 쓴다. */
     public List<NewsItem> digest() {
         Map<NewsSource, ScoredArticle> top = newsService.digest();
-        List<NewsItem> items = new ArrayList<>(top.size());
         // NewsSource 선언 순서를 따라 매체 순서를 고정한다 — 발송할 때마다 순서가 바뀌면 읽기 불편하다
+        List<ScoredArticle> ordered = new ArrayList<>(top.size());
         for (NewsSource source : NewsSource.values()) {
             ScoredArticle scored = top.get(source);
             if (scored != null) {
-                items.add(NewsItem.of(scored, translationService.translate(scored.article())));
+                ordered.add(scored);
             }
+        }
+
+        // 번역을 겹친다. 기사당 Gemini 한 번이고 서로 무관한데 줄줄이 기다렸다 —
+        // 다섯 매체면 그것만으로 10~25초였다. 한 번에 묶어 보내지 않는 이유는 캐시다:
+        // 링크 단위로 캐시해야 이미 번역한 기사를 다시 태우지 않는다
+        List<Translation> translations =
+                Concurrently.map(ordered, scored -> translationService.translate(scored.article()));
+
+        List<NewsItem> items = new ArrayList<>(ordered.size());
+        for (int i = 0; i < ordered.size(); i++) {
+            items.add(NewsItem.of(ordered.get(i), translations.get(i)));
         }
         return List.copyOf(items);
     }

@@ -1,6 +1,7 @@
 package io.saiden.economyhelper.news;
 
 import io.saiden.economyhelper.news.feed.FeedFetcher;
+import io.saiden.economyhelper.support.Concurrently;
 import io.saiden.economyhelper.news.rank.HackerNewsBuzzClient;
 import io.saiden.economyhelper.news.rank.KeywordGroup;
 import io.saiden.economyhelper.news.rank.PopularityScorer;
@@ -73,42 +74,53 @@ public class NewsService {
      */
     public Map<NewsSource, ScoredArticle> digest() {
         Instant now = clock.instant();
+
+        // 매체끼리는 서로를 기다릴 이유가 없다. 예전에는 다섯 매체를 줄줄이 돌아
+        // (피드 + HN + Gemini) × 5가 전부 더해졌다 — 이제 가장 느린 매체 하나 만큼만 걸린다.
+        // 매체 <b>안에서는</b> 순차를 유지한다. 피드가 있어야 후보가 나오고 후보가 있어야 관련도다
+        List<ScoredArticle> best = Concurrently.map(List.of(NewsSource.values()), this::topOf).stream()
+                .flatMap(Optional::stream)
+                .toList();
+
         Map<NewsSource, ScoredArticle> top = new EnumMap<>(NewsSource.class);
-
-        for (NewsSource source : NewsSource.values()) {
-            List<Article> articles = fetcher.fetch(source);
-            if (articles.isEmpty()) {
-                log.warn("[{}] 수집 결과가 없어 이번 발송에서 제외합니다", source);
-                continue;
-            }
-
-            Map<String, Integer> buzz = buzzClient.buzzByLink(articles, now);
-
-            // 1) 관련도 없이 먼저 줄을 세워 상위 몇 건만 남긴다 — LLM에 전부 넣으면 무료 티어를 태운다.
-            //    이 단계의 점수는 주제를 모르지만(노출 순서·최신성·반응) 후보를 좁히는 데는 충분하다
-            List<Article> candidates = scorer.rankByRelevance(articles, Map.of(), buzz, now).stream()
-                    .limit(llmCandidates)
-                    .map(ScoredArticle::article)
-                    .toList();
-
-            // 2) 후보들의 재테크 관련도를 한 번에 매긴다 (LLM 실패 시 전부 통과 — 피드가 이미 금융 전용이다)
-            Map<String, Double> relevance = relevanceScorer.scoreAll(candidates);
-
-            // 3) 임계값 미만은 버린다 — 예전의 키워드 필터가 하던 일을 점수가 대신한다
-            List<Article> relevant = candidates.stream()
-                    .filter(article -> relevance.getOrDefault(article.link(), 0.0) >= relevanceThreshold)
-                    .toList();
-            if (relevant.isEmpty()) {
-                log.info("[{}] 재테크 관련도가 {} 이상인 기사가 없어 이번 발송에서 제외합니다 (후보 {}건)",
-                        source, relevanceThreshold, candidates.size());
-                continue;
-            }
-
-            scorer.rankByRelevance(relevant, relevance, buzz, now).stream()
-                    .findFirst()
-                    .ifPresent(article -> top.put(source, article));
+        for (ScoredArticle article : best) {
+            top.put(article.article().source(), article);
         }
         return top;
+    }
+
+    /** 매체 하나에서 1건. 그 매체가 죽거나 재테크 기사가 없으면 비어 있다. */
+    private Optional<ScoredArticle> topOf(NewsSource source) {
+        Instant now = clock.instant();
+        List<Article> articles = fetcher.fetch(source);
+        if (articles.isEmpty()) {
+            log.warn("[{}] 수집 결과가 없어 이번 발송에서 제외합니다", source);
+            return Optional.empty();
+        }
+
+        Map<String, Integer> buzz = buzzClient.buzzByLink(articles, now);
+
+        // 1) 관련도 없이 먼저 줄을 세워 상위 몇 건만 남긴다 — LLM에 전부 넣으면 무료 티어를 태운다.
+        //    이 단계의 점수는 주제를 모르지만(노출 순서·최신성·반응) 후보를 좁히는 데는 충분하다
+        List<Article> candidates = scorer.rankByRelevance(articles, Map.of(), buzz, now).stream()
+                .limit(llmCandidates)
+                .map(ScoredArticle::article)
+                .toList();
+
+        // 2) 후보들의 재테크 관련도를 한 번에 매긴다 (LLM 실패 시 전부 통과 — 피드가 이미 금융 전용이다)
+        Map<String, Double> relevance = relevanceScorer.scoreAll(candidates);
+
+        // 3) 임계값 미만은 버린다 — 예전의 키워드 필터가 하던 일을 점수가 대신한다
+        List<Article> relevant = candidates.stream()
+                .filter(article -> relevance.getOrDefault(article.link(), 0.0) >= relevanceThreshold)
+                .toList();
+        if (relevant.isEmpty()) {
+            log.info("[{}] 재테크 관련도가 {} 이상인 기사가 없어 이번 발송에서 제외합니다 (후보 {}건)",
+                    source, relevanceThreshold, candidates.size());
+            return Optional.empty();
+        }
+
+        return scorer.rankByRelevance(relevant, relevance, buzz, now).stream().findFirst();
     }
 
     /**
@@ -123,14 +135,12 @@ public class NewsService {
             return Optional.empty();
         }
 
-        List<Article> matching = new ArrayList<>();
-        for (NewsSource source : NewsSource.values()) {
-            for (Article article : fetcher.fetch(source)) {
-                if (matchesAny(article, groups)) {
-                    matching.add(article);
-                }
-            }
-        }
+        // 매체 다섯을 동시에 긁는다 — 검색은 사용자가 화면을 보고 기다리는 자리라
+        // 순차로 도는 시간이 그대로 체감된다
+        List<Article> matching = Concurrently.map(List.of(NewsSource.values()), fetcher::fetch).stream()
+                .flatMap(List::stream)
+                .filter(article -> matchesAny(article, groups))
+                .toList();
         return rank(matching, groups).stream().findFirst();
     }
 

@@ -9,6 +9,7 @@ import io.saiden.economyhelper.market.StockQuote;
 import io.saiden.economyhelper.market.StockService;
 import io.saiden.economyhelper.news.NewsFacade;
 import io.saiden.economyhelper.news.NewsItem;
+import io.saiden.economyhelper.support.Concurrently;
 import io.saiden.economyhelper.telegram.MessageFormatter;
 import io.saiden.economyhelper.telegram.TelegramClient;
 import java.math.BigDecimal;
@@ -167,15 +168,22 @@ public class DailyDigestJob {
         List<String> delivered = new ArrayList<>();
         List<DigestResult.Failure> failed = new ArrayList<>();
 
-        // 환율을 여기서 한 번만 조회해 증시 통까지 들고 간다. 포매터가 스스로 조회하면
-        // 환율 통에 찍힌 값과 미국 종목의 원화 환산이 서로 다를 수 있다 — 같은 발송 안에서
-        // 두 숫자가 어긋나면 어느 쪽도 못 믿는다.
+        // 환율은 두 통이 함께 쓴다 — 여기서 한 번만 조회해 증시 통까지 들고 간다. 포매터가
+        // 스스로 조회하면 환율 통에 찍힌 값과 미국 종목의 원화 환산이 서로 다를 수 있다.
         Optional<FxRate> fx = currentFx();
 
-        send("환율", () -> fx.map(MessageFormatter::formatFx), delivered, failed);
-        send("증시", () -> stockMessage(fx.orElse(null)), delivered, failed);
-        send("코인", this::cryptoMessage, delivered, failed);
-        send("뉴스", this::newsMessage, delivered, failed);
+        // 네 통의 수집을 겹친다. 서로 무관한 외부 호출인데 줄줄이 기다렸고, 그중 뉴스 하나가
+        // (피드 5 + Gemini 10) 대부분을 차지했다.
+        List<Section> sections = Concurrently.map(List.of(
+                section("환율", () -> fx.map(MessageFormatter::formatFx)),
+                section("증시", () -> stockMessage(fx.orElse(null))),
+                section("코인", this::cryptoMessage),
+                section("뉴스", this::newsMessage)), Supplier::get);
+
+        // 발송은 순서대로 — 텔레그램이 같은 방에 초당 한 통을 권고한다(BETWEEN_MESSAGES)
+        for (Section section : sections) {
+            send(section, delivered, failed);
+        }
 
         if (delivered.isEmpty()) {
             // 넷 다 실패했다. "보냈다"로 남기면 이 시간대는 복구 후에도 영영 비어 있다
@@ -189,31 +197,61 @@ public class DailyDigestJob {
     }
 
     /**
-     * 통 하나를 만들어 보낸다. <b>실패해도 예외를 밖으로 내보내지 않는다</b> —
+     * 통 하나의 수집 결과.
+     *
+     * @param text    보낼 본문. 비어 있으면 {@code failure}에 이유가 있다
+     * @param failure 실패 사유. 성공이면 {@code null}
+     */
+    private record Section(String name, Optional<String> text, String failure) {}
+
+    /**
+     * 수집을 <b>예외 없이</b> 끝낸다.
+     *
+     * <p>동시에 도는 자리라 예외가 그대로 올라가면 <b>다른 통까지 함께 죽는다</b> —
+     * "넷 중 하나가 실패해도 나머지는 나간다"가 여기서 깨진다. 사유를 값으로 바꿔 들고 간다.
+     */
+    private Supplier<Section> section(String name, Supplier<Optional<String>> message) {
+        return () -> {
+            try {
+                Optional<String> text = message.get();
+                if (text.isEmpty()) {
+                    log.info("[digest] {} 통에 보낼 내용이 없습니다", name);
+                    return new Section(name, Optional.empty(), "보낼 내용이 없습니다");
+                }
+                return new Section(name, text, null);
+            } catch (RuntimeException e) {
+                log.error("[digest] {} 통 수집 실패: {}", name, e.toString());
+                return new Section(name, Optional.empty(), reasonOf(e));
+            }
+        };
+    }
+
+    /**
+     * 통 하나를 보낸다. <b>실패해도 예외를 밖으로 내보내지 않는다</b> —
      * 다음 통이 계속 나가야 하기 때문이다.
      *
      * <p>다만 <b>사유는 버리지 않는다.</b> 이름만 남기면 "환율 실패"까지만 알 수 있어
      * 설정이 틀린 것인지 외부 API가 죽은 것인지 구분하려면 배포처 로그를 뒤져야 한다.
      */
-    private void send(String section, Supplier<Optional<String>> message,
-                      List<String> delivered, List<DigestResult.Failure> failed) {
+    private void send(Section section, List<String> delivered, List<DigestResult.Failure> failed) {
+        if (section.failure() != null) {
+            failed.add(new DigestResult.Failure(section.name(), section.failure()));
+            return;
+        }
         try {
-            Optional<String> text = message.get();
-            if (text.isEmpty()) {
-                log.info("[digest] {} 통에 보낼 내용이 없습니다", section);
-                failed.add(new DigestResult.Failure(section, "보낼 내용이 없습니다"));
-                return;
-            }
             if (!delivered.isEmpty()) {
                 pause();
             }
-            telegram.send(text.get());
-            delivered.add(section);
+            telegram.send(section.text().orElseThrow());
+            delivered.add(section.name());
         } catch (RuntimeException e) {
-            log.error("[digest] {} 통 발송 실패: {}", section, e.toString());
-            failed.add(new DigestResult.Failure(section, e.getMessage() == null
-                    ? e.toString() : e.getMessage()));
+            log.error("[digest] {} 통 발송 실패: {}", section.name(), e.toString());
+            failed.add(new DigestResult.Failure(section.name(), reasonOf(e)));
         }
+    }
+
+    private static String reasonOf(RuntimeException e) {
+        return e.getMessage() == null ? e.toString() : e.getMessage();
     }
 
     /** 환율 조회가 실패해도 나머지 통은 나가야 한다 — 예외를 밖으로 내보내지 않는다. */

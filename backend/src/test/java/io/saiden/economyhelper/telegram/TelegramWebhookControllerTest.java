@@ -43,6 +43,13 @@ import org.springframework.web.client.RestClient;
 class TelegramWebhookControllerTest {
 
     private static final Instant NOW = Instant.parse("2026-08-11T00:00:00Z");
+    /**
+     * 답을 같은 스레드에서 만든다.
+     *
+     * <p>운영에서는 가상 스레드로 옮겨 실어 텔레그램에 200을 먼저 준다(늦으면 같은 업데이트를
+     * 다시 보낸다). 여기서는 "보냈다"를 곧바로 단언해야 하므로 갈아 끼운다.
+     */
+    private static final java.util.concurrent.Executor SAME_THREAD = Runnable::run;
     private static final java.time.Clock CLOCK = java.time.Clock.fixed(NOW, java.time.ZoneOffset.UTC);
 
     @Test
@@ -79,6 +86,24 @@ class TelegramWebhookControllerTest {
         controller.onUpdate(null,update(1, "/news"));
 
         assertThat(client.sent.get(0).text()).contains("/news 금리");
+    }
+
+    @Test
+    @DisplayName("답을 기다리지 않고 200을 준다 — 늦으면 텔레그램이 같은 명령을 다시 보낸다")
+    void answersBeforeBuildingTheReply() {
+        RecordingClient client = new RecordingClient();
+        List<Runnable> deferred = new ArrayList<>();
+        var controller = new TelegramWebhookController(
+                facade(Optional.of(item("유가 상승"))), crypto(Optional.empty()), fx(Optional.empty()),
+                stock(Optional.empty()), client, deferred::add, "", "", "");
+
+        var response = controller.onUpdate(null, update(1, "/news 유가"));
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(client.sent).as("답은 아직 만들지도 않았다").isEmpty();
+
+        deferred.forEach(Runnable::run);
+        assertThat(client.sent).hasSize(1);
     }
 
     @Test
@@ -413,7 +438,7 @@ class TelegramWebhookControllerTest {
                                                                StockService stockService,
                                                                TelegramClient telegramClient) {
         return new TelegramWebhookController(
-                newsFacade, cryptoService, fxService, stockService, telegramClient, "", "", "");
+                newsFacade, cryptoService, fxService, stockService, telegramClient, SAME_THREAD, "", "", "");
     }
 
     /** 방어를 켠 컨트롤러. {@code /news 유가}가 항상 결과를 내도록 고정해 둔다. */
@@ -425,7 +450,7 @@ class TelegramWebhookControllerTest {
             String secret, String allowedChatId, String searchTopicId, TelegramClient client) {
         return new TelegramWebhookController(
                 facade(Optional.of(item("유가 상승"))), crypto(Optional.empty()), fx(Optional.empty()),
-                stock(Optional.empty()), client, secret, allowedChatId, searchTopicId);
+                stock(Optional.empty()), client, SAME_THREAD, secret, allowedChatId, searchTopicId);
     }
 
     /** 토픽 없는 메시지 — 포럼이 아닌 방과 General 토픽이 이 모양이다. */

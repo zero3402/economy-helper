@@ -8,7 +8,7 @@
 # --platform=$BUILDPLATFORM: 멀티아키로 구울 때도 이 스테이지는 러너의 네이티브 아키에서
 # 한 번만 돈다. jar는 바이트코드라 아키와 무관하므로 arm64용 Gradle 빌드를 QEMU로
 # 에뮬레이션할 이유가 없다 — 안 하면 빌드가 10분대로 늘어난다.
-FROM --platform=$BUILDPLATFORM eclipse-temurin:17-jdk AS build
+FROM --platform=$BUILDPLATFORM eclipse-temurin:21-jdk AS build
 WORKDIR /build
 
 # 래퍼와 빌드 스크립트를 먼저 넣어 의존성 해석을 캐시한다.
@@ -29,7 +29,7 @@ RUN java -Djarmode=tools -jar build/libs/*-SNAPSHOT.jar extract --layers --launc
 # alpine을 쓰지 않는다. temurin의 alpine 태그는 amd64 전용이라(실측: 17-jre-alpine → amd64만,
 # 17-jre → amd64·arm·arm64·ppc64le·s390x) Apple Silicon에서 빌드가 아예 안 되고
 # arm 서버에도 못 올린다. 이미지 100MB를 아끼려고 아키텍처 종속을 만들 이유가 없다.
-FROM eclipse-temurin:17-jre
+FROM eclipse-temurin:21-jre
 WORKDIR /app
 
 # 비루트로 돌린다. 컨테이너가 뚫려도 호스트로 번지는 경로를 하나 줄인다

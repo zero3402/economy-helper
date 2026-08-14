@@ -11,8 +11,10 @@ import io.saiden.economyhelper.news.NewsItem;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Optional;
+import java.util.concurrent.Executor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -56,14 +58,27 @@ public class TelegramWebhookController {
     private final String allowedChatId;
     private final Integer searchTopicId;
 
+    /**
+     * 명령 처리를 옮겨 실을 곳.
+     *
+     * <p><b>텔레그램은 웹훅 응답을 기다린다.</b> {@code /news}는 피드 수집과 Gemini 번역을
+     * 거쳐 수 초가 걸리는데, 그동안 200을 주지 않으면 텔레그램이 <b>같은 업데이트를 재전송</b>해
+     * 답이 두 번 간다. 받자마자 200을 주고 답은 여기서 따로 보낸다.
+     *
+     * <p>테스트는 같은 스레드로 도는 실행기({@code Runnable::run})를 넣어 순서를 고정한다.
+     */
+    private final Executor replyExecutor;
+
     public TelegramWebhookController(NewsFacade newsFacade,
                                      CryptoService cryptoService,
                                      FxService fxService,
                                      StockService stockService,
                                      TelegramClient telegramClient,
+                                     @Qualifier("replyExecutor") Executor replyExecutor,
                                      @Value("${economy-helper.telegram.webhook-secret:}") String webhookSecret,
                                      @Value("${economy-helper.telegram.chat-id:}") String allowedChatId,
                                      @Value("${economy-helper.telegram.search-topic-id:}") String searchTopicId) {
+        this.replyExecutor = replyExecutor;
         this.newsFacade = newsFacade;
         this.cryptoService = cryptoService;
         this.fxService = fxService;
@@ -96,11 +111,15 @@ public class TelegramWebhookController {
             log.warn("[webhook] secret이 맞지 않는 요청을 거절했습니다");
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
-        try {
-            handle(update);
-        } catch (Exception e) {
-            log.error("웹훅 처리 실패: {}", e.toString(), e);
-        }
+        // 답을 만드는 데 몇 초가 걸릴 수 있다. 여기서 기다리면 텔레그램이 타임아웃 후
+        // 같은 업데이트를 다시 보내 답이 두 번 나간다 — 받았다는 사실만 먼저 알린다
+        replyExecutor.execute(() -> {
+            try {
+                handle(update);
+            } catch (Exception e) {
+                log.error("웹훅 처리 실패: {}", e.toString(), e);
+            }
+        });
         return ResponseEntity.ok().build();
     }
 
