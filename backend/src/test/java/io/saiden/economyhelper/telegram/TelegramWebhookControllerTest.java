@@ -95,7 +95,7 @@ class TelegramWebhookControllerTest {
         List<Runnable> deferred = new ArrayList<>();
         var controller = new TelegramWebhookController(
                 facade(Optional.of(item("유가 상승"))), crypto(Optional.empty()), fx(Optional.empty()),
-                stock(Optional.empty()), client, deferred::add, "", "", "");
+                stock(Optional.empty()), client, new LogoCatalog(), deferred::add, "", "", "");
 
         var response = controller.onUpdate(null, update(1, "/news 유가"));
 
@@ -142,6 +142,34 @@ class TelegramWebhookControllerTest {
         controller.onUpdate(null,update(1, "/crypto 비트코인"));
 
         assertThat(client.sent.get(0).text()).contains("비트코인").contains("89,848,000");
+    }
+
+    @Test
+    @DisplayName("시총 상위 코인은 제 아이콘, 나머지는 공용 아이콘 — 283개를 다 채우면 목록을 쫓아다녀야 한다")
+    void attachesLogoToCryptoReply() {
+        RecordingClient client = new RecordingClient();
+        CryptoQuote btc = new CryptoQuote("비트코인", "KRW-BTC", NOW,
+                CryptoQuote.Quote.of(new BigDecimal("89848000")), CryptoQuote.Quote.NOT_LISTED);
+        CryptoQuote unlisted = new CryptoQuote("이름없는코인", "KRW-ZZZ", NOW,
+                CryptoQuote.Quote.of(new BigDecimal("100")), CryptoQuote.Quote.NOT_LISTED);
+
+        defaultController(facade(Optional.empty()), crypto(Optional.of(btc)), fx(Optional.empty()),
+                stock(Optional.empty()), client).onUpdate(null, update(1, "/crypto 비트코인"));
+        defaultController(facade(Optional.empty()), crypto(Optional.of(unlisted)), fx(Optional.empty()),
+                stock(Optional.empty()), client).onUpdate(null, update(1, "/crypto zzz"));
+
+        assertThat(client.sent).extracting(Sent::logo).containsExactly("btc", LogoCatalog.FALLBACK);
+    }
+
+    @Test
+    @DisplayName("찾지 못한 답에는 아이콘을 붙이지 않는다 — 붙일 대상이 없다")
+    void sendsNotFoundWithoutLogo() {
+        RecordingClient client = new RecordingClient();
+
+        defaultController(facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.empty()),
+                stock(Optional.empty()), client).onUpdate(null, update(1, "/fx"));
+
+        assertThat(client.sent).extracting(Sent::logo).containsExactly((String) null);
     }
 
     @Test
@@ -438,7 +466,7 @@ class TelegramWebhookControllerTest {
                                                                StockService stockService,
                                                                TelegramClient telegramClient) {
         return new TelegramWebhookController(
-                newsFacade, cryptoService, fxService, stockService, telegramClient, SAME_THREAD, "", "", "");
+                newsFacade, cryptoService, fxService, stockService, telegramClient, new LogoCatalog(), SAME_THREAD, "", "", "");
     }
 
     /** 방어를 켠 컨트롤러. {@code /news 유가}가 항상 결과를 내도록 고정해 둔다. */
@@ -450,7 +478,7 @@ class TelegramWebhookControllerTest {
             String secret, String allowedChatId, String searchTopicId, TelegramClient client) {
         return new TelegramWebhookController(
                 facade(Optional.of(item("유가 상승"))), crypto(Optional.empty()), fx(Optional.empty()),
-                stock(Optional.empty()), client, SAME_THREAD, secret, allowedChatId, searchTopicId);
+                stock(Optional.empty()), client, new LogoCatalog(), SAME_THREAD, secret, allowedChatId, searchTopicId);
     }
 
     /** 토픽 없는 메시지 — 포럼이 아닌 방과 General 토픽이 이 모양이다. */
@@ -531,14 +559,20 @@ class TelegramWebhookControllerTest {
 
         @Override
         public void send(String chatId, Integer topicId, String text) {
-            sent.add(new Sent(chatId, topicId, text));
+            sent.add(new Sent(chatId, topicId, text, null));
         }
 
         @Override
         public void send(String text) {
-            sent.add(new Sent("default-chat", null, text));
+            sent.add(new Sent("default-chat", null, text, null));
+        }
+
+        @Override
+        public void sendPhoto(String chatId, Integer topicId, String caption, LogoCatalog.Logo logo) {
+            sent.add(new Sent(chatId, topicId, caption, logo == null ? null : logo.name()));
         }
     }
 
-    private record Sent(String chatId, Integer topicId, String text) {}
+    /** @param logo 붙은 아이콘 이름. 글로만 보냈으면 {@code null} */
+    private record Sent(String chatId, Integer topicId, String text, String logo) {}
 }

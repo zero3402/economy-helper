@@ -8,9 +8,13 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClientException;
 
 /**
@@ -28,6 +32,9 @@ public class TelegramClient {
 
     /** Bot API 메시지 길이 상한. 넘기면 400이 떨어져 발송 자체가 실패한다. */
     private static final int MAX_MESSAGE_LENGTH = 4096;
+
+    /** 사진 캡션 상한. 본문(4096)의 4분의 1이라 긴 답에는 아이콘을 붙일 수 없다. */
+    static final int MAX_CAPTION_LENGTH = 1024;
 
     private final RestClient restClient;
     private final String botToken;
@@ -84,6 +91,45 @@ public class TelegramClient {
     }
 
     /**
+     * 아이콘을 붙여 보낸다. 붙일 수 없으면 <b>글로 보낸다</b>.
+     *
+     * <p><b>캡션 상한이 1024자다.</b> 본문보다 훨씬 짧아, 넘치는 걸 사진 통 + 본문 통으로 쪼개면
+     * 텔레그램 초당 1통 권고에 걸려 답이 더 늦어진다. 아이콘은 장식이고 시세가 본체이므로
+     * 상한을 넘으면 아이콘을 포기한다.
+     *
+     * <p><b>{@code file_id} 캐시를 두지 않는다.</b> 아이콘이 2~8KB라 매번 올려도 10ms 남짓이고,
+     * 캐시를 두면 사진 배열 파싱과 무효화가 붙는다 — 아끼는 것보다 들이는 것이 크다.
+     */
+    @CircuitBreaker(name = "telegram")
+    public void sendPhoto(String chatId, Integer topicId, String caption, LogoCatalog.Logo logo) {
+        if (logo == null || caption.length() > MAX_CAPTION_LENGTH) {
+            send(chatId, topicId, caption);
+            return;
+        }
+        MultiValueMap<String, Object> form = new LinkedMultiValueMap<>();
+        form.add("chat_id", chatId);
+        if (topicId != null) {
+            form.add("message_thread_id", topicId);
+        }
+        form.add("caption", caption);
+        form.add("parse_mode", "HTML");
+        form.add("photo", new ByteArrayResource(logo.bytes()) {
+            @Override
+            public String getFilename() {
+                return logo.fileName();
+            }
+        });
+
+        try {
+            call("sendPhoto", form, MediaType.MULTIPART_FORM_DATA, SendAck.class);
+        } catch (TelegramException e) {
+            // 사진이 거절돼도 시세는 나가야 한다. 아이콘 때문에 답을 통째로 잃는 건 개악이다
+            log.warn("[telegram] 사진 발송 실패 — 글로 다시 보냅니다: {}", e.getMessage());
+            send(chatId, topicId, caption);
+        }
+    }
+
+    /**
      * 설정된 채팅방의 정보 — 기동 시 자가진단에만 쓴다.
      *
      * <p>여기서 예외를 던지지 않는다. 진단이 앱을 죽이면 진단하려던 문제보다 큰 문제가 된다.
@@ -109,10 +155,16 @@ public class TelegramClient {
      * {@code message thread not found}인지).
      */
     private <T extends Ack> T call(String method, Object body, Class<T> responseType) {
+        return call(method, body, MediaType.APPLICATION_JSON, responseType);
+    }
+
+    private <T extends Ack> T call(String method, Object body, MediaType contentType,
+                                   Class<T> responseType) {
         T response;
         try {
             response = restClient.post()
                     .uri("/bot{token}/" + method, botToken)
+                    .contentType(contentType)
                     .body(body)
                     .retrieve()
                     .onStatus(HttpStatusCode::isError, (request, res) -> { })
