@@ -8,6 +8,7 @@ import io.saiden.economyhelper.market.FxService;
 import io.saiden.economyhelper.market.StockService;
 import io.saiden.economyhelper.news.NewsFacade;
 import io.saiden.economyhelper.news.NewsItem;
+import java.util.List;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Optional;
@@ -221,9 +222,12 @@ public class TelegramWebhookController {
         return switch (command.command()) {
             // 답이 기사 한 건이라 미리보기 카드가 하나만 붙는다 — 브리핑 뉴스 통은
             // 다섯을 묶어 보내므로 거기서는 계속 끈다
-            case NEWS -> newsFacade.search(command.argument())
-                    .map(item -> new Reply(MessageFormatter.format(item), true))
-                    .orElseGet(() -> Reply.plain(MessageFormatter.noResults(command.argument())));
+            case NEWS -> {
+                List<NewsItem> found = newsFacade.search(command.argument());
+                yield found.isEmpty()
+                        ? Reply.plain(MessageFormatter.noResults(command.argument()))
+                        : new Reply(MessageFormatter.formatNews(found), true);
+            }
             case CRYPTO -> cryptoService.quote(command.argument())
                     // 바이낸스가 붙었을 때만 USDT 환율을 묻는다 — 안 쓸 값을 미리 부르지 않는다
                     .map(quote -> Reply.plain(MessageFormatter.formatCrypto(quote,

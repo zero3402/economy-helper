@@ -55,7 +55,29 @@ class NewsServiceTest {
                 NewsSource.CNBC, List.of(article(NewsSource.CNBC, "Fed signals rate cut", 0))),
                 rejectingSearchScorer());
 
-        assertThat(service.search(groups("rate"))).isPresent();
+        assertThat(service.search(groups("rate"))).isNotEmpty();
+    }
+
+    @Test
+    @DisplayName("상위 몇 건까지만 준다 — 걸린 게 많다고 다 쏟아내지 않는다")
+    void capsSearchResults() {
+        NewsService service = service(Map.of(NewsSource.CNBC, List.of(
+                article(NewsSource.CNBC, "Fed signals rate cut", 0),
+                article(NewsSource.CNBC, "Rate hike is off the table", 1),
+                article(NewsSource.CNBC, "Traders price in a rate move", 2),
+                article(NewsSource.CNBC, "Rate outlook shifts again", 3),
+                article(NewsSource.CNBC, "Another rate story", 4))));
+
+        assertThat(service.search(groups("rate"), "금리")).hasSize(3);
+    }
+
+    @Test
+    @DisplayName("걸린 게 상한보다 적으면 그만큼만 — 자리를 채우려 관련 없는 기사를 끌어오지 않는다")
+    void returnsFewerThanTheCapWhenThatIsAllThereIs() {
+        NewsService service = service(Map.of(NewsSource.CNBC, List.of(
+                article(NewsSource.CNBC, "Fed signals rate cut", 0))));
+
+        assertThat(service.search(groups("rate"), "금리")).hasSize(1);
     }
 
     @Test
@@ -109,7 +131,8 @@ class NewsServiceTest {
                 relevance,
                 CLOCK,
                 8,
-                RELEVANCE_THRESHOLD);
+                RELEVANCE_THRESHOLD,
+                3);
     }
 
     /**

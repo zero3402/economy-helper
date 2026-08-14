@@ -82,7 +82,7 @@ class MessageFormatterTest {
     @Test
     @DisplayName("정기 발송은 매체별 1건을 제목 아래로 묶는다")
     void joinsDigestWithSeparator() {
-        String message = MessageFormatter.formatDigest(List.of(
+        String message = MessageFormatter.formatNews(List.of(
                 item("첫 번째", "본문1", true),
                 item("두 번째", "본문2", true)));
 
@@ -92,7 +92,7 @@ class MessageFormatterTest {
     @Test
     @DisplayName("수집 결과가 하나도 없으면 그 사실을 알린다")
     void tellsUserWhenDigestIsEmpty() {
-        assertThat(MessageFormatter.formatDigest(List.of())).contains("가져올 수 있는 뉴스가 없습니다");
+        assertThat(MessageFormatter.formatNews(List.of())).contains("가져올 수 있는 뉴스가 없습니다");
     }
 
     @Test
@@ -339,7 +339,7 @@ class MessageFormatterTest {
     @Test
     @DisplayName("브리핑의 뉴스에도 같은 일시가 붙는다 — 두 채널이 다른 모양이 되면 안 된다")
     void showsPublishedTimeInDigestToo() {
-        assertThat(MessageFormatter.formatDigest(List.of(item("유가 상승", "본문", true))))
+        assertThat(MessageFormatter.formatNews(List.of(item("유가 상승", "본문", true))))
                 .contains("2026년 8월 11일 09:00:00");
     }
 

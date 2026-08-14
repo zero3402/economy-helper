@@ -41,6 +41,7 @@ public class NewsService {
     private final Clock clock;
     private final int llmCandidates;
     private final double relevanceThreshold;
+    private final int searchResults;
 
     public NewsService(FeedFetcher fetcher,
                        HackerNewsBuzzClient buzzClient,
@@ -48,7 +49,8 @@ public class NewsService {
                        RelevanceScorer relevanceScorer,
                        Clock clock,
                        @Value("${economy-helper.digest.llm-candidates:8}") int llmCandidates,
-                       @Value("${economy-helper.digest.relevance-threshold:0.4}") double relevanceThreshold) {
+                       @Value("${economy-helper.digest.relevance-threshold:0.4}") double relevanceThreshold,
+                       @Value("${economy-helper.digest.search-results:3}") int searchResults) {
         this.fetcher = fetcher;
         this.buzzClient = buzzClient;
         this.scorer = scorer;
@@ -56,6 +58,7 @@ public class NewsService {
         this.clock = clock;
         this.llmCandidates = llmCandidates;
         this.relevanceThreshold = relevanceThreshold;
+        this.searchResults = searchResults;
     }
 
     /**
@@ -127,7 +130,7 @@ public class NewsService {
      * <p>먼저 검색어가 걸리는 기사만 남기고 그 안에서 순위를 매긴다. 걸러내지 않으면
      * 검색어와 무관한 기사가 다른 지표만으로 1위가 될 수 있다.
      */
-    public Optional<ScoredArticle> search(Collection<KeywordGroup> keywords) {
+    public List<ScoredArticle> search(Collection<KeywordGroup> keywords) {
         return search(keywords, null);
     }
 
@@ -136,10 +139,10 @@ public class NewsService {
      *              문자열 매칭은 "본문에 한 번 스친" 기사도 통과시켜, 환율 기사가
      *              {@code /news 금리}의 1위가 되곤 했다. {@code null}이면 검증을 건너뛴다
      */
-    public Optional<ScoredArticle> search(Collection<KeywordGroup> keywords, String query) {
+    public List<ScoredArticle> search(Collection<KeywordGroup> keywords, String query) {
         List<KeywordGroup> groups = usable(keywords);
         if (groups.isEmpty()) {
-            return Optional.empty();
+            return List.of();
         }
 
         // 매체 전부를 동시에 긁는다 — 검색은 사용자가 화면을 보고 기다리는 자리라
@@ -149,7 +152,8 @@ public class NewsService {
                 .filter(article -> matchesAny(article, groups))
                 .toList();
 
-        return verified(rank(matching, groups), query).stream().findFirst();
+        // 걸린 게 적으면 그만큼만 나간다 — 자리를 채우려고 관련 없는 기사를 끌어오지 않는다
+        return verified(rank(matching, groups), query).stream().limit(searchResults).toList();
     }
 
     /**

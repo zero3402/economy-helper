@@ -107,8 +107,13 @@ public final class MessageFormatter {
                 .toString();
     }
 
-    /** 아침 브리핑의 뉴스 통 — 매체별 1건을 한 메시지에 묶는다. */
-    public static String formatDigest(List<NewsItem> items) {
+    /**
+     * 기사 여러 건을 한 통에 묶는다 — <b>브리핑과 검색이 같은 메서드를 쓴다.</b>
+     *
+     * <p>브리핑은 매체별 1건, 검색은 상위 몇 건이다. 담기는 기준만 다르고 보여 주는 모양은
+     * 같아야 하므로 여기를 나누지 않는다.
+     */
+    public static String formatNews(List<NewsItem> items) {
         if (items.isEmpty()) {
             return section(Command.NEWS) + "지금은 가져올 수 있는 뉴스가 없습니다.";
         }

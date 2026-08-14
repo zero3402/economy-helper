@@ -30,11 +30,10 @@ public class NewsController {
         return newsFacade.digest();
     }
 
-    /** 텔레그램 {@code /news {검색어}}와 같은 결과. */
+    /** 텔레그램 {@code /news {검색어}}와 같은 결과 — 상위 몇 건. */
     @GetMapping("/search")
-    public ResponseEntity<NewsItem> search(@RequestParam("q") String query) {
-        return newsFacade.search(query)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+    public ResponseEntity<List<NewsItem>> search(@RequestParam("q") String query) {
+        List<NewsItem> found = newsFacade.search(query);
+        return found.isEmpty() ? ResponseEntity.notFound().build() : ResponseEntity.ok(found);
     }
 }

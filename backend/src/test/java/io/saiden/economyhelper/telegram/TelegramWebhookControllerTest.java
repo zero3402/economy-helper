@@ -126,6 +126,37 @@ class TelegramWebhookControllerTest {
     }
 
     @Test
+    @DisplayName("/news는 상위 여러 건을 한 통에 묶어 준다 — 1건뿐이면 다시 치는 수밖에 없다")
+    void repliesWithSeveralArticles() {
+        RecordingClient client = new RecordingClient();
+        var controller = defaultController(
+                facade(List.of(item("첫 번째"), item("두 번째"), item("세 번째"))),
+                crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
+
+        controller.onUpdate(null, update(1, "/news 금리"));
+
+        assertThat(client.sent).hasSize(1);
+        assertThat(client.sent.get(0).text())
+                .startsWith("<b>뉴스</b>")
+                .contains("첫 번째").contains("두 번째").contains("세 번째");
+        assertThat(client.sent.get(0).preview())
+                .as("링크가 있는 답이라 미리보기를 켠다 — 첫 기사에만 카드가 붙는다")
+                .isTrue();
+    }
+
+    @Test
+    @DisplayName("한 건도 못 찾으면 찾지 못했다고 답한다 — 빈 목록을 통으로 내보내지 않는다")
+    void tellsUserWhenNoArticleMatches() {
+        RecordingClient client = new RecordingClient();
+        var controller = defaultController(facade(List.<NewsItem>of()), crypto(Optional.empty()),
+                fx(Optional.empty()), stock(Optional.empty()), client);
+
+        controller.onUpdate(null, update(1, "/news 없는주제zzz"));
+
+        assertThat(client.sent.get(0).text()).contains("찾지 못했습니다");
+    }
+
+    @Test
     @DisplayName("/help는 명령 목록을 준다")
     void repliesToHelp() {
         RecordingClient client = new RecordingClient();
@@ -154,7 +185,7 @@ class TelegramWebhookControllerTest {
     void alwaysReturnsOkEvenOnFailure() {
         NewsFacade exploding = new NewsFacade(null, null, null) {
             @Override
-            public Optional<NewsItem> search(String query) {
+            public List<NewsItem> search(String query) {
                 throw new IllegalStateException("수집 전체 실패");
             }
         };
@@ -422,10 +453,14 @@ class TelegramWebhookControllerTest {
     }
 
     private static NewsFacade facade(Optional<NewsItem> result) {
+        return facade(result.map(List::of).orElseGet(List::of));
+    }
+
+    private static NewsFacade facade(List<NewsItem> results) {
         return new NewsFacade(null, null, null) {
             @Override
-            public Optional<NewsItem> search(String query) {
-                return result;
+            public List<NewsItem> search(String query) {
+                return results;
             }
         };
     }

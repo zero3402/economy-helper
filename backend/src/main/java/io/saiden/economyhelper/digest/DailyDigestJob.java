@@ -319,7 +319,7 @@ public class DailyDigestJob {
 
     private Optional<String> newsMessage() {
         List<NewsItem> items = facade.digest();
-        return items.isEmpty() ? Optional.empty() : Optional.of(MessageFormatter.formatDigest(items));
+        return items.isEmpty() ? Optional.empty() : Optional.of(MessageFormatter.formatNews(items));
     }
 
     private static void pause() {
