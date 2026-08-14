@@ -115,7 +115,24 @@ public class DailyDigestJob {
     @Scheduled(cron = "${economy-helper.digest.cron}", zone = "${economy-helper.digest.zone}")
     @SchedulerLock(name = "dailyDigest", lockAtLeastFor = "PT5M", lockAtMostFor = "PT20M")
     public void sendScheduled() {
-        run(false);
+        DigestResult result = run(false);
+        // 스케줄 경로는 아무도 응답을 보지 않는다. 실패했으면 여기서라도 크게 남겨야
+        // "아침에 아무것도 안 왔다"가 다음 날에야 발견되는 일을 막는다
+        if (!result.sent() && !result.failed().isEmpty()) {
+            log.error("[digest] 스케줄 발송이 아무것도 내보내지 못했습니다: {}", result.failed());
+        }
+    }
+
+    /**
+     * 마지막 실행 결과 — {@code GET /actuator/digest}가 이걸 돌려준다.
+     *
+     * <p>확인하려고 실제 방송을 한 번 더 쏘지 않아도 되게 하려고 들고 있는다.
+     */
+    private volatile DigestResult lastResult =
+            new DigestResult(false, null, List.of(), List.of(), "아직 실행된 적이 없습니다");
+
+    public DigestResult lastResult() {
+        return lastResult;
     }
 
     /**
@@ -123,9 +140,23 @@ public class DailyDigestJob {
      *              점검할 때만 쓴다
      */
     public DigestResult run(boolean force) {
+        DigestResult result = execute(force);
+        lastResult = result;
+        return result;
+    }
+
+    private DigestResult execute(boolean force) {
         String slot = currentSlot();
 
-        boolean claimed = history.claim(slot);
+        boolean claimed;
+        try {
+            claimed = history.claim(slot);
+        } catch (RuntimeException e) {
+            // Redis가 죽으면 슬롯을 판단할 수 없다. 예외를 그대로 올리면 스케줄러가 삼켜
+            // 아무 일도 없었던 것처럼 보인다 — 사유를 결과에 담아 밖에서 보이게 한다
+            log.error("[digest] 발송 이력 조회 실패 — Redis 연결을 확인하세요: {}", e.toString());
+            return DigestResult.skipped(slot, "발송 이력(Redis) 조회 실패: " + e);
+        }
         if (!claimed && !force) {
             // 발송 창 안에서 10분마다 도는 구조라 이 분기가 하루에 열 번 넘게 지나간다.
             // info로 두면 정상 동작이 로그를 덮는다
@@ -134,7 +165,7 @@ public class DailyDigestJob {
         }
 
         List<String> delivered = new ArrayList<>();
-        List<String> failed = new ArrayList<>();
+        List<DigestResult.Failure> failed = new ArrayList<>();
 
         // 환율을 여기서 한 번만 조회해 증시 통까지 들고 간다. 포매터가 스스로 조회하면
         // 환율 통에 찍힌 값과 미국 종목의 원화 환산이 서로 다를 수 있다 — 같은 발송 안에서
@@ -160,14 +191,17 @@ public class DailyDigestJob {
     /**
      * 통 하나를 만들어 보낸다. <b>실패해도 예외를 밖으로 내보내지 않는다</b> —
      * 다음 통이 계속 나가야 하기 때문이다.
+     *
+     * <p>다만 <b>사유는 버리지 않는다.</b> 이름만 남기면 "환율 실패"까지만 알 수 있어
+     * 설정이 틀린 것인지 외부 API가 죽은 것인지 구분하려면 배포처 로그를 뒤져야 한다.
      */
     private void send(String section, Supplier<Optional<String>> message,
-                      List<String> delivered, List<String> failed) {
+                      List<String> delivered, List<DigestResult.Failure> failed) {
         try {
             Optional<String> text = message.get();
             if (text.isEmpty()) {
                 log.info("[digest] {} 통에 보낼 내용이 없습니다", section);
-                failed.add(section);
+                failed.add(new DigestResult.Failure(section, "보낼 내용이 없습니다"));
                 return;
             }
             if (!delivered.isEmpty()) {
@@ -177,7 +211,8 @@ public class DailyDigestJob {
             delivered.add(section);
         } catch (RuntimeException e) {
             log.error("[digest] {} 통 발송 실패: {}", section, e.toString());
-            failed.add(section);
+            failed.add(new DigestResult.Failure(section, e.getMessage() == null
+                    ? e.toString() : e.getMessage()));
         }
     }
 

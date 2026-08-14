@@ -2,6 +2,7 @@ package io.saiden.economyhelper.digest;
 
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint;
+import org.springframework.boot.actuate.endpoint.annotation.ReadOperation;
 import org.springframework.boot.actuate.endpoint.annotation.WriteOperation;
 import org.springframework.stereotype.Component;
 
@@ -33,5 +34,16 @@ public class DigestEndpoint {
     @WriteOperation
     public DigestResult trigger(@Nullable Boolean force) {
         return job.run(Boolean.TRUE.equals(force));
+    }
+
+    /**
+     * 마지막 실행 결과를 <b>발송 없이</b> 본다 ({@code GET /actuator/digest}).
+     *
+     * <p>"오늘 아침 브리핑이 왜 안 왔나"를 확인하려고 실제 방송을 한 번 더 쏘는 것은
+     * 구독자에게 중복을 보내는 일이다. 읽기와 쓰기를 갈라 둔 이유가 그것이다.
+     */
+    @ReadOperation
+    public DigestResult lastResult() {
+        return job.lastResult();
     }
 }

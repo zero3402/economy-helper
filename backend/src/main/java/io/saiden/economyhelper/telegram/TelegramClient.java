@@ -1,15 +1,26 @@
 package io.saiden.economyhelper.telegram;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
-/** 텔레그램 Bot API 발송. */
+/**
+ * 텔레그램 Bot API 발송.
+ *
+ * <p><b>응답 본문을 반드시 읽는다.</b> 텔레그램은 실패를 4xx로도 주고 <b>200 + {@code ok:false}</b>로도
+ * 준다. 후자를 안 읽으면 실패가 성공으로 집계돼, 아침 브리핑이 오지 않았는데 로그에는
+ * "발송 완료"가 남는다 — 무엇을 고쳐야 하는지가 {@code description}에 그대로 적혀 있는데도
+ * 그 문장을 버리고 있었다.
+ */
 @Component
 public class TelegramClient {
 
@@ -68,11 +79,66 @@ public class TelegramClient {
      */
     @CircuitBreaker(name = "telegram")
     public void send(String chatId, Integer topicId, String text) {
-        restClient.post()
-                .uri("/bot{token}/sendMessage", botToken)
-                .body(new SendMessage(chatId, topicId, truncate(text), "HTML", true))
-                .retrieve()
-                .toBodilessEntity();
+        call("sendMessage", new SendMessage(chatId, topicId, truncate(text), "HTML", true),
+                SendAck.class);
+    }
+
+    /**
+     * 설정된 채팅방의 정보 — 기동 시 자가진단에만 쓴다.
+     *
+     * <p>여기서 예외를 던지지 않는다. 진단이 앱을 죽이면 진단하려던 문제보다 큰 문제가 된다.
+     *
+     * @return 채팅방 정보. 못 가져오면 {@link Optional#empty()}이고 사유는 로그에 남는다
+     */
+    public Optional<ChatInfo> chatInfo() {
+        if (defaultChatId == null || defaultChatId.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.ofNullable(call("getChat", new GetChat(defaultChatId), ChatAck.class))
+                    .map(ChatAck::result);
+        } catch (RuntimeException e) {
+            log.error("[telegram] 채팅방 조회 실패 — 브리핑이 안 나갈 수 있습니다: {}", e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * <p>4xx의 기본 예외를 끄고 본문을 직접 읽는다 — 사유({@code description})가 본문에만 있고,
+     * 그 한 문장이 곧 무엇을 고쳐야 하는지다({@code chat not found}인지
+     * {@code message thread not found}인지).
+     */
+    private <T extends Ack> T call(String method, Object body, Class<T> responseType) {
+        T response;
+        try {
+            response = restClient.post()
+                    .uri("/bot{token}/" + method, botToken)
+                    .body(body)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (request, res) -> { })
+                    .body(responseType);
+        } catch (RestClientException e) {
+            throw new TelegramException("텔레그램 " + method + " 호출 실패: " + e.getMessage(), e);
+        }
+        if (response == null) {
+            throw new TelegramException("텔레그램 " + method + " 응답이 비어 있습니다");
+        }
+        if (!response.ok()) {
+            throw new TelegramException("텔레그램 " + method + " 거절: "
+                    + response.errorCode() + " " + response.description());
+        }
+        return response;
+    }
+
+    /** 텔레그램이 거절했거나 닿지 못했다. 사유를 메시지에 그대로 싣는다. */
+    public static class TelegramException extends RuntimeException {
+        public TelegramException(String message) {
+            super(message);
+        }
+
+        TelegramException(String message, Throwable cause) {
+            super(message, cause);
+        }
     }
 
     /**
@@ -132,4 +198,32 @@ public class TelegramClient {
             String text,
             @JsonProperty("parse_mode") String parseMode,
             @JsonProperty("disable_web_page_preview") boolean disableWebPagePreview) {}
+
+    record GetChat(@JsonProperty("chat_id") String chatId) {}
+
+    /** 모든 Bot API 응답의 공통 머리. {@code ok=false}면 {@code description}이 사유다. */
+    public interface Ack {
+        boolean ok();
+
+        String description();
+
+        Integer errorCode();
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record SendAck(boolean ok, String description,
+                          @JsonProperty("error_code") Integer errorCode) implements Ack {}
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record ChatAck(boolean ok, String description,
+                          @JsonProperty("error_code") Integer errorCode,
+                          ChatInfo result) implements Ack {}
+
+    /**
+     * @param isForum 포럼(토픽) 그룹이면 참. <b>참인데 토픽 ID가 없으면</b> 브리핑이 General로
+     *                떨어지고, 거짓인데 토픽 ID가 있으면 발송이 거절된다
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record ChatInfo(Long id, String type, String title,
+                           @JsonProperty("is_forum") Boolean isForum) {}
 }

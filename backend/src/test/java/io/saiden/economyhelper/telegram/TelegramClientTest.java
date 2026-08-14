@@ -105,6 +105,59 @@ class TelegramClientTest {
         assertThat(TelegramClient.truncate("짧은 메시지")).isEqualTo("짧은 메시지");
     }
 
+    @Test
+    @DisplayName("200 + ok:false는 실패다 — 성공으로 세면 브리핑이 안 왔는데 '발송 완료'가 남는다")
+    void treatsOkFalseAsFailure() {
+        server.stubFor(post(anyUrl()).willReturn(aResponse()
+                .withStatus(200)
+                .withHeader("Content-Type", "application/json")
+                .withBody("{\"ok\":false,\"error_code\":400,"
+                        + "\"description\":\"Bad Request: chat not found\"}")));
+
+        assertThatThrownBy(() -> client().send("12345", null, "안녕하세요"))
+                .as("무엇을 고쳐야 하는지가 description에 적혀 있다 — 그 문장을 그대로 실어 올린다")
+                .hasMessageContaining("chat not found")
+                .hasMessageContaining("400");
+    }
+
+    @Test
+    @DisplayName("4xx도 사유를 읽어 올린다 — 기본 예외 메시지만으로는 무엇이 틀렸는지 모른다")
+    void carriesDescriptionOnHttpError() {
+        server.stubFor(post(anyUrl()).willReturn(aResponse()
+                .withStatus(400)
+                .withHeader("Content-Type", "application/json")
+                .withBody("{\"ok\":false,\"error_code\":400,"
+                        + "\"description\":\"Bad Request: message thread not found\"}")));
+
+        assertThatThrownBy(() -> client().send("12345", 3, "안녕하세요"))
+                .hasMessageContaining("message thread not found");
+    }
+
+    @Test
+    @DisplayName("getChat으로 방이 포럼인지 확인한다 — 기동 시 자가진단이 이걸 쓴다")
+    void readsChatInfo() {
+        server.stubFor(post(anyUrl()).willReturn(aResponse()
+                .withStatus(200)
+                .withHeader("Content-Type", "application/json")
+                .withBody("{\"ok\":true,\"result\":{\"id\":-1001,\"type\":\"supergroup\","
+                        + "\"title\":\"경제 도우미\",\"is_forum\":true}}")));
+
+        assertThat(client().chatInfo()).get()
+                .extracting(TelegramClient.ChatInfo::title, TelegramClient.ChatInfo::isForum)
+                .containsExactly("경제 도우미", true);
+    }
+
+    @Test
+    @DisplayName("채팅방을 못 찾아도 예외를 올리지 않는다 — 진단이 앱을 죽이면 본말전도다")
+    void chatInfoSwallowsFailure() {
+        server.stubFor(post(anyUrl()).willReturn(aResponse()
+                .withStatus(400)
+                .withHeader("Content-Type", "application/json")
+                .withBody("{\"ok\":false,\"error_code\":400,\"description\":\"chat not found\"}")));
+
+        assertThat(client().chatInfo()).isEmpty();
+    }
+
     private TelegramClient client() {
         return new TelegramClient(
                 RestClient.builder(), server.baseUrl(), "test-token", "default-chat", "3");

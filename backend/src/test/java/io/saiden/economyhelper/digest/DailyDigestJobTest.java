@@ -124,7 +124,7 @@ class DailyDigestJobTest {
         DigestResult result = job(exploding, history, List.of(item("기사"))).run(false);
 
         assertThat(result.sent()).isFalse();
-        assertThat(result.failed()).contains("뉴스");
+        assertThat(result.failed()).extracting(DigestResult.Failure::section).contains("뉴스");
         assertThat(history.claimed).isEmpty();
     }
 
@@ -158,8 +158,40 @@ class DailyDigestJobTest {
 
         assertThat(result.sent()).isTrue();
         assertThat(result.delivered()).containsExactly("증시", "코인", "뉴스");
-        assertThat(result.failed()).containsExactly("환율");
+        assertThat(result.failed()).extracting(DigestResult.Failure::section).containsExactly("환율");
         assertThat(telegram.sent).hasSize(3);
+    }
+
+    @Test
+    @DisplayName("텔레그램이 거절하면 그 사유가 결과에 실린다 — 이름만 남기면 로그를 뒤져야 한다")
+    void carriesTelegramRejectionReason() {
+        TelegramClient rejecting = new RecordingClient() {
+            @Override
+            public void send(String text) {
+                throw new TelegramClient.TelegramException(
+                        "텔레그램 sendMessage 거절: 400 Bad Request: chat not found");
+            }
+        };
+
+        DigestResult result = job(rejecting, new InMemoryHistory(),
+                new CountingFacade(List.of(item("유가 상승"))),
+                fx(true), stock(true), crypto(true)).run(false);
+
+        assertThat(result.sent()).isFalse();
+        assertThat(result.failed()).hasSize(4)
+                .allSatisfy(failure -> assertThat(failure.reason()).contains("chat not found"));
+    }
+
+    @Test
+    @DisplayName("마지막 실행 결과를 들고 있는다 — 확인하려고 방송을 한 번 더 쏘지 않게")
+    void remembersLastResult() {
+        DailyDigestJob job = job(new RecordingClient(), new InMemoryHistory(),
+                new CountingFacade(List.of()), fx(true), stock(true), crypto(true));
+
+        assertThat(job.lastResult().slot()).as("실행 전에는 비어 있다").isNull();
+        DigestResult result = job.run(false);
+
+        assertThat(job.lastResult()).isEqualTo(result);
     }
 
     @Test
