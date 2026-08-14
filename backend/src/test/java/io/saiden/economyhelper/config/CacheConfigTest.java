@@ -71,10 +71,10 @@ class CacheConfigTest {
         JacksonJsonRedisSerializer<List<Article>> serializer =
                 CacheConfig.serializer(new TypeReference<List<Article>>() {});
         List<Article> original = List.of(
-                new Article(NewsSource.BLOOMBERG, "Oil holds advance", "Oil kept its gains.",
+                new Article(NewsSource.CNBC, "Oil holds advance", "Oil kept its gains.",
                         "https://example.com/1", NOW, 0),
                 // Google News 프록시는 description이 없다
-                new Article(NewsSource.REUTERS, "Fed signals rate cut", null,
+                new Article(NewsSource.AP, "Fed signals rate cut", null,
                         "https://example.com/2", NOW, 1));
 
         assertThat(serializer.deserialize(serializer.serialize(original))).isEqualTo(original);

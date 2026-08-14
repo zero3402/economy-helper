@@ -34,12 +34,12 @@ class RssFeedClientTest {
     @Test
     @DisplayName("Bloomberg — 20건을 파싱하고 노출 순서를 feedRank로 보존한다")
     void parsesBloombergPreservingFeedOrder() {
-        List<Article> articles = client.parse(NewsSource.BLOOMBERG, fixture("bloomberg.xml"));
+        List<Article> articles = client.parse(NewsSource.CNBC, fixture("cnbc.xml"));
 
         assertThat(articles).hasSize(20);
 
         Article first = articles.get(0);
-        assertThat(first.source()).isEqualTo(NewsSource.BLOOMBERG);
+        assertThat(first.source()).isEqualTo(NewsSource.CNBC);
         assertThat(first.title()).isNotBlank();
         assertThat(first.description()).isNotBlank();
         assertThat(first.link()).startsWith("https://");
@@ -52,7 +52,7 @@ class RssFeedClientTest {
     @Test
     @DisplayName("Economist — CDATA를 감싼 개행·들여쓰기를 걷어낸다")
     void normalizesEconomistCdataWhitespace() {
-        List<Article> articles = client.parse(NewsSource.ECONOMIST, fixture("economist.xml"));
+        List<Article> articles = client.parse(NewsSource.BBC, fixture("bbc.xml"));
 
         assertThat(articles).isNotEmpty();
         assertThat(articles).allSatisfy(article -> {
@@ -67,7 +67,7 @@ class RssFeedClientTest {
     @Test
     @DisplayName("Economist — 유니코드 아포스트로피가 깨지지 않는다")
     void preservesUnicodeInEconomistTitles() {
-        List<Article> articles = client.parse(NewsSource.ECONOMIST, fixture("economist.xml"));
+        List<Article> articles = client.parse(NewsSource.BBC, fixture("bbc.xml"));
 
         assertThat(articles)
                 .as("Economist는 타이포그래픽 아포스트로피(’)를 쓴다")
@@ -77,7 +77,7 @@ class RssFeedClientTest {
     @Test
     @DisplayName("CoinDesk — content:encoded가 비어 있어도 description을 살린다")
     void usesCoindeskDescriptionDespiteEmptyContentEncoded() {
-        List<Article> articles = client.parse(NewsSource.COINDESK, fixture("coindesk.xml"));
+        List<Article> articles = client.parse(NewsSource.INVESTING, fixture("investing.xml"));
 
         assertThat(articles).hasSize(25);
         assertThat(articles).allSatisfy(article -> assertThat(article.description()).isNotBlank());
@@ -86,7 +86,7 @@ class RssFeedClientTest {
     @Test
     @DisplayName("FT — 12건을 파싱한다")
     void parsesFt() {
-        List<Article> articles = client.parse(NewsSource.FT, fixture("ft.xml"));
+        List<Article> articles = client.parse(NewsSource.YAHOO_FINANCE, fixture("yahoo-finance.xml"));
 
         assertThat(articles).hasSize(12);
         assertThat(articles).allSatisfy(article -> {
@@ -99,9 +99,9 @@ class RssFeedClientTest {
     @Test
     @DisplayName("망가진 XML은 FeedParseException으로 감싼다 — 소스별 서킷브레이커가 셀 수 있도록")
     void wrapsMalformedXmlAsFeedParseException() {
-        assertThatThrownBy(() -> client.parse(NewsSource.FT, new StringReader("not xml at all")))
+        assertThatThrownBy(() -> client.parse(NewsSource.YAHOO_FINANCE, new StringReader("not xml at all")))
                 .isInstanceOf(FeedParseException.class)
-                .hasMessageContaining("FT");
+                .hasMessageContaining("YAHOO_FINANCE");
     }
 
     private Reader fixture(String name) {

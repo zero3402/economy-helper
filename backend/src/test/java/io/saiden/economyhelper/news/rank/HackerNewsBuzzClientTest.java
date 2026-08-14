@@ -151,7 +151,7 @@ class HackerNewsBuzzClientTest {
     }
 
     private static Article article(String link) {
-        return new Article(NewsSource.REUTERS, "제목", null, link, NOW, 0);
+        return new Article(NewsSource.AP, "제목", null, link, NOW, 0);
     }
 
     /** 호출 횟수를 세는 스텁 — 도메인당 한 번만 부르는지 확인하려고 둔다. */

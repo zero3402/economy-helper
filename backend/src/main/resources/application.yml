@@ -52,42 +52,30 @@ management:
 
 economy-helper:
   feeds:
-    # Reuters는 공식 RSS를 폐지했다(401/404). Google News 검색 피드를 프록시로 쓴다.
-    # 이 피드는 description이 링크 마크업뿐이라 제목만 신뢰한다.
-    # 리다이렉트 뒤 최종 주소를 박는다. feeds.bloomberg.com은 301, coindesk.com/arc/...는
-    # 308이라 클라이언트의 리다이렉트 정책에 결과가 달렸었다 — 왕복도 한 번 줄어든다
-    bloomberg:
-      url: https://www.bloomberg.com/feeds/markets/news.rss
+    # 전부 전문 무료다. 페이월 매체(Bloomberg·Reuters·FT·Economist)는 뺐다 —
+    # 링크를 눌러도 못 읽는 기사는 좋은 답이 아니다. 새 매체를 더할 때도 같은 기준이다.
+    # 다섯은 글로벌 점유율 순이고, 2026-08-14 실측으로 전부 200이다.
+    #
+    # 섹션을 좁혀 잡는다. 홈 피드를 쓰면 일반 뉴스가 섞이는데, 하류에서 걸러내는 것보다
+    # 상류에서 소스를 좁히는 편이 근본적이다.
+    yahoo-finance:
+      url: https://finance.yahoo.com/news/rssindex   # 44건
       type: rss
-    ft:
-      url: "https://www.ft.com/markets?format=rss"
-      # 홈 피드(rss/home)는 일반 뉴스가 섞여 8건뿐이었다. markets는 25건이고 전부 시장 기사다.
-      # Bloomberg는 이미 markets, Economist는 finance-and-economics인데 FT만 홈이었다
+    investing:
+      url: https://www.investing.com/rss/news_25.rss  # 10건
       type: rss
-    economist:
-      url: https://www.economist.com/finance-and-economics/rss.xml
-      type: rss
-    coindesk:
-      url: https://www.coindesk.com/arc/outboundfeeds/rss
-      type: rss
-    # --- 무료 매체 ---------------------------------------------------------
-    # 위 넷 중 셋(Bloomberg·FT·Economist)이 강한 페이월이라 링크를 눌러도 못 읽는 기사가
-    # 매일 나갔다. 아래 셋은 전문 무료이고 글로벌 트래픽 상위다.
-    # 2026-08-14 실측: CNBC 30건 · BBC 52건 · Yahoo Finance 44건, 전부 200.
     cnbc:
-      # id=10000664는 Markets 섹션이다. 홈 피드는 일반 뉴스가 섞인다 — FT·Reuters와 같은 처방
-      url: https://www.cnbc.com/id/10000664/device/rss/rss.html
+      # id=10000664는 Markets 섹션이다. 홈 피드는 일반 뉴스가 섞인다
+      url: https://www.cnbc.com/id/10000664/device/rss/rss.html   # 30건
       type: rss
     bbc:
-      url: https://feeds.bbci.co.uk/news/business/rss.xml
+      url: https://feeds.bbci.co.uk/news/business/rss.xml   # 52건
       type: rss
-    yahoo-finance:
-      url: https://finance.yahoo.com/news/rssindex
-      type: rss
-    reuters:
-      # /markets로 좁힌다. site:reuters.com만 쓰면 우크라이나·트럼프 전용기 같은 일반 뉴스가
-      # 섞여 들어온다(실측). 섹션을 좁히는 게 하류에서 걸러내는 것보다 근본적이다 — FT와 같은 처방.
-      url: "https://news.google.com/rss/search?q=when:24h+site:reuters.com/markets&hl=en-US&gl=US&ceid=US:en"
+    ap:
+      # 통신사 자리를 Reuters에서 넘겨받았다 — 둘 다 통신사고 AP는 전문이 무료다.
+      # 공식 RSS가 없어 Google News 검색 피드를 프록시로 쓴다(Reuters가 쓰던 방식 그대로).
+      # 이 피드는 description이 링크 마크업뿐이라 제목만 신뢰한다.
+      url: "https://news.google.com/rss/search?q=when:24h+site:apnews.com+business+OR+markets+OR+economy&hl=en-US&gl=US&ceid=US:en"   # 100건
       type: google-news
 
   ranking:
@@ -104,7 +92,7 @@ economy-helper:
     hacker-news:
       # 매체가 조회수·댓글을 공개하지 않고 Most Read 페이지도 전부 403/404라,
       # HN이 무료로 얻을 수 있는 유일한 실측 반응이다.
-      # 커버리지는 매체당 하루 ~4건(피드는 12~25건)이고 CoinDesk는 사실상 0이다.
+      # 커버리지는 매체당 하루 ~4건이다(피드는 10~100건).
       base-url: https://hn.algolia.com
       window: 7d
       hits-per-page: 100

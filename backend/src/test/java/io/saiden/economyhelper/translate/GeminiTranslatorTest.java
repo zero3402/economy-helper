@@ -112,7 +112,7 @@ class GeminiTranslatorTest {
     }
 
     private static Article article(String title, String description) {
-        return new Article(NewsSource.BLOOMBERG, title, description,
+        return new Article(NewsSource.CNBC, title, description,
                 "https://example.com/" + title.hashCode(), NOW, 0);
     }
 }

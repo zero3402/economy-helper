@@ -161,9 +161,8 @@ public class RelevanceScorer {
      * 폴백 — <b>전부 통과시킨다.</b>
      *
      * <p>예전에는 키워드 사전으로 내려갔지만 그 사전을 없앴다. <b>피드를 전부 금융 섹션으로
-     * 좁혔기 때문</b>이다(Bloomberg markets · FT markets · Economist finance-and-economics ·
-     * CoinDesk · Reuters /markets · CNBC markets · BBC business · Yahoo Finance).
-     * 후보 자체가 이미 재테크 기사이므로, 걸러내지 않아도
+     * 좁혔기 때문</b>이다(Yahoo Finance · Investing.com · CNBC markets · BBC business ·
+     * AP business). 후보 자체가 이미 재테크 기사이므로, 걸러내지 않아도
      * "EU 국경 검사로 공항 대기줄" 같은 기사가 1위가 되지 않는다.
      *
      * <p>하류에서 단어로 거르는 것보다 <b>상류에서 소스를 좁히는 편이 근본적이다</b> —

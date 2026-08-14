@@ -65,7 +65,7 @@ class GoogleNewsFeedClientTest {
     }
 
     private List<Article> parseFixture() {
-        return client.parse(NewsSource.REUTERS, fixture("googlenews-reuters.xml"));
+        return client.parse(NewsSource.AP, fixture("googlenews-ap.xml"));
     }
 
     private Reader fixture(String name) {

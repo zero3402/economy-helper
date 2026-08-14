@@ -60,7 +60,7 @@ class TranslationServiceTest {
         TranslationService service = service(new FakeGemini(null, new RuntimeException("실패")));
 
         Translation result = service.translate(
-                new Article(NewsSource.REUTERS, "Fed signals cut", null,
+                new Article(NewsSource.AP, "Fed signals cut", null,
                         "https://example.com/r", NOW, 0));
 
         assertThat(result.title()).isEqualTo("Fed signals cut");
@@ -72,7 +72,7 @@ class TranslationServiceTest {
     }
 
     private static Article article(String title, String description) {
-        return new Article(NewsSource.BLOOMBERG, title, description,
+        return new Article(NewsSource.CNBC, title, description,
                 "https://example.com/" + title.hashCode(), NOW, 0);
     }
 

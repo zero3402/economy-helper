@@ -164,7 +164,7 @@ class DigestIntegrationTest {
     @Test
     @DisplayName("@Cacheable이 런타임에 동작한다 — 같은 기사를 두 번 번역하지 않는다")
     void cacheableAnnotationIsLive() {
-        Article article = new Article(NewsSource.BLOOMBERG, "Oil holds advance", "Oil kept gains.",
+        Article article = new Article(NewsSource.CNBC, "Oil holds advance", "Oil kept gains.",
                 "https://example.com/cache-proof-" + System.nanoTime(), NOW, 0);
 
         int before = CountingTranslatorConfig.calls.get();
@@ -202,7 +202,7 @@ class DigestIntegrationTest {
     @Test
     @DisplayName("캐시 값이 JSON으로 저장된다 — 레코드에 Serializable을 붙이지 않아도 된다")
     void cacheValuesRoundTripAsJson() {
-        Article article = new Article(NewsSource.FT, "Fed signals rate cut", null,
+        Article article = new Article(NewsSource.YAHOO_FINANCE, "Fed signals rate cut", null,
                 "https://example.com/json-proof-" + System.nanoTime(), NOW, 0);
 
         translationService.translate(article);

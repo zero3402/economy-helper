@@ -34,7 +34,7 @@ class MessageFormatterTest {
         String message = MessageFormatter.format(item("유가 상승", "인플레이션 우려가 되살아났다.", true));
 
         assertThat(message)
-                .contains("<b>Bloomberg</b>")
+                .contains("<b>CNBC</b>")
                 .contains(">유가 상승</a>")
                 .contains("<blockquote>인플레이션 우려가 되살아났다.</blockquote>")
                 .as("긴 URL 줄이 아니라 제목이 링크가 된다")
@@ -57,7 +57,7 @@ class MessageFormatterTest {
     }
 
     @Test
-    @DisplayName("요약문이 없는 기사(Reuters)는 본문 자리를 비워 둔다")
+    @DisplayName("요약문이 없는 기사(AP)는 본문 자리를 비워 둔다")
     void handlesEmptyBody() {
         String message = MessageFormatter.format(item("Fed signals cut", "", true));
 
@@ -330,7 +330,7 @@ class MessageFormatterTest {
     }
 
     private static NewsItem item(String title, String body, boolean translated) {
-        return new NewsItem(NewsSource.BLOOMBERG, "Bloomberg", title, body,
+        return new NewsItem(NewsSource.CNBC, "CNBC", title, body,
                 "https://example.com/a", NOW, translated, 0.9);
     }
 }

@@ -53,14 +53,14 @@ class FeedFetcherTest {
     @Test
     @DisplayName("정상 응답이면 파싱해서 돌려준다")
     void parsesSuccessfulResponse() throws IOException {
-        stubFeed("/bloomberg", 200, fixture("bloomberg.xml"));
+        stubFeed("/bloomberg", 200, fixture("cnbc.xml"));
 
         List<Article> articles = fetcher(Map.of(
-                NewsSource.BLOOMBERG, feed("/bloomberg", FeedType.RSS)))
-                .fetch(NewsSource.BLOOMBERG);
+                NewsSource.CNBC, feed("/bloomberg", FeedType.RSS)))
+                .fetch(NewsSource.CNBC);
 
         assertThat(articles).hasSize(20);
-        assertThat(articles.get(0).source()).isEqualTo(NewsSource.BLOOMBERG);
+        assertThat(articles.get(0).source()).isEqualTo(NewsSource.CNBC);
     }
 
     @Test
@@ -69,8 +69,8 @@ class FeedFetcherTest {
         stubFeed("/blocked", 403, "<html>Access Denied</html>");
 
         List<Article> articles = fetcher(Map.of(
-                NewsSource.FT, feed("/blocked", FeedType.RSS)))
-                .fetch(NewsSource.FT);
+                NewsSource.YAHOO_FINANCE, feed("/blocked", FeedType.RSS)))
+                .fetch(NewsSource.YAHOO_FINANCE);
 
         assertThat(articles).isEmpty();
     }
@@ -80,22 +80,22 @@ class FeedFetcherTest {
     void returnsEmptyOnGarbageBody() {
         stubFeed("/garbage", 200, "이건 XML이 아닙니다");
 
-        assertThat(fetcher(Map.of(NewsSource.ECONOMIST, feed("/garbage", FeedType.RSS)))
-                .fetch(NewsSource.ECONOMIST))
+        assertThat(fetcher(Map.of(NewsSource.BBC, feed("/garbage", FeedType.RSS)))
+                .fetch(NewsSource.BBC))
                 .isEmpty();
     }
 
     @Test
     @DisplayName("설정에 없는 매체는 조용히 건너뛴다")
     void returnsEmptyWhenSourceNotConfigured() {
-        assertThat(fetcher(Map.of()).fetch(NewsSource.COINDESK)).isEmpty();
+        assertThat(fetcher(Map.of()).fetch(NewsSource.INVESTING)).isEmpty();
     }
 
     @Test
     @DisplayName("서킷브레이커가 소스별로 따로 열린다 — 한 매체 장애가 다른 매체를 끊지 않는다")
     void circuitBreakersAreIsolatedPerSource() throws IOException {
         stubFeed("/broken", 500, "boom");
-        stubFeed("/healthy", 200, fixture("coindesk.xml"));
+        stubFeed("/healthy", 200, fixture("investing.xml"));
 
         // 기본 설정은 minimumNumberOfCalls=100이라 몇 번 호출로는 브레이커가 평가조차 되지 않는다.
         // 테스트에서 관측 가능하도록 창을 좁힌다.
@@ -108,20 +108,20 @@ class FeedFetcherTest {
                         .build());
 
         FeedFetcher fetcher = fetcher(Map.of(
-                NewsSource.FT, feed("/broken", FeedType.RSS),
-                NewsSource.COINDESK, feed("/healthy", FeedType.RSS)), registry);
+                NewsSource.YAHOO_FINANCE, feed("/broken", FeedType.RSS),
+                NewsSource.INVESTING, feed("/healthy", FeedType.RSS)), registry);
 
         // 고장난 매체를 반복 호출해 그쪽 브레이커를 연다
         for (int i = 0; i < 10; i++) {
-            fetcher.fetch(NewsSource.FT);
+            fetcher.fetch(NewsSource.YAHOO_FINANCE);
         }
 
-        assertThat(fetcher.fetch(NewsSource.COINDESK))
-                .as("FT 브레이커가 열려도 다른 매체는 그대로 수집돼야 한다")
+        assertThat(fetcher.fetch(NewsSource.INVESTING))
+                .as("한 매체 브레이커가 열려도 다른 매체는 그대로 수집돼야 한다")
                 .isNotEmpty();
-        assertThat(registry.circuitBreaker("feed-FT").getState())
+        assertThat(registry.circuitBreaker("feed-YAHOO_FINANCE").getState())
                 .isEqualTo(CircuitBreaker.State.OPEN);
-        assertThat(registry.circuitBreaker("feed-COINDESK").getState())
+        assertThat(registry.circuitBreaker("feed-INVESTING").getState())
                 .isEqualTo(CircuitBreaker.State.CLOSED);
     }
 

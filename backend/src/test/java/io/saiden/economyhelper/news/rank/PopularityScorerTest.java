@@ -280,7 +280,7 @@ class PopularityScorerTest {
 
     private static Article article(String title, int feedRank, Instant publishedAt) {
         return new Article(
-                NewsSource.BLOOMBERG,
+                NewsSource.CNBC,
                 title,
                 null,
                 "https://example.com/" + feedRank + "/" + title.hashCode(),

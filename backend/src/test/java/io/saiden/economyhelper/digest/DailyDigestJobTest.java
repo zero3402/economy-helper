@@ -446,7 +446,7 @@ class DailyDigestJobTest {
     }
 
     static NewsItem item(String title) {
-        return new NewsItem(NewsSource.BLOOMBERG, "Bloomberg", title, "본문",
+        return new NewsItem(NewsSource.CNBC, "Bloomberg", title, "본문",
                 "https://example.com/" + title.hashCode(), NOW, true, 0.9);
     }
 

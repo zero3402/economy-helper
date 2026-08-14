@@ -30,7 +30,7 @@ class RelevanceScorerTest {
     private static final ObjectMapper MAPPER = JsonMapper.builder().build();
 
     private static Article article(int rank, String title) {
-        return new Article(NewsSource.FT, title, "본문", "https://example.com/" + rank, NOW, rank);
+        return new Article(NewsSource.YAHOO_FINANCE, title, "본문", "https://example.com/" + rank, NOW, rank);
     }
 
     private static final List<Article> CANDIDATES = List.of(
