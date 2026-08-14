@@ -11,7 +11,6 @@ import io.saiden.economyhelper.market.FxSource;
 import io.saiden.economyhelper.market.StockQuote;
 import io.saiden.economyhelper.market.StockService;
 import io.saiden.economyhelper.market.StockResolver;
-import io.saiden.economyhelper.market.StockService.StockMatch;
 import io.saiden.economyhelper.market.data.MarketIndexApi;
 import io.saiden.economyhelper.market.data.StockPriceApi;
 import io.saiden.economyhelper.market.fmp.FmpApi;
@@ -214,22 +213,22 @@ class TelegramWebhookControllerTest {
     @DisplayName("/stock은 기준일과 함께 답한다 — 전일 종가라 날짜를 숨기면 실시간으로 오해한다")
     void routesStockCommandWithBasisDate() {
         RecordingClient client = new RecordingClient();
-        StockMatch match = new StockMatch(
-                new StockQuote("005930", "삼성전자", "KOSPI", new BigDecimal("239500"),
-                        StockQuote.Money.KRW,
-                        java.time.LocalDate.of(2026, 8, 11)
-                                .atStartOfDay(java.time.ZoneId.of("Asia/Seoul")).toInstant(),
-                        false, false, new BigDecimal("1400183726616000")),
-                List.of("삼성전자우", "삼성물산"));
+        StockQuote match = new StockQuote("005930", "삼성전자", "KOSPI", new BigDecimal("239500"),
+                StockQuote.Money.KRW,
+                java.time.LocalDate.of(2026, 8, 11)
+                        .atStartOfDay(java.time.ZoneId.of("Asia/Seoul")).toInstant(),
+                false, false, new BigDecimal("1400183726616000"));
         var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()),
                 fx(Optional.empty()), stock(Optional.of(match)), client);
 
         controller.onUpdate(null,update(1, "/stock 삼성"));
 
         assertThat(client.sent.get(0).text())
-                .contains("삼성전자").contains("005930").contains("239,500 KRW")
+                .contains("삼성전자").contains("239,500 KRW")
+                .as("전일 종가라는 사실은 값의 성격이라 반드시 남긴다")
                 .contains("2026년 8월 11일 (종가)")
-                .as("함께 걸린 후보를 알려 되묻기를 피한다").contains("삼성전자우");
+                .as("이름·값·시각 셋뿐이다 — 종목코드도 거래소도 적지 않는다")
+                .doesNotContain("005930").doesNotContain("KOSPI");
     }
 
     @Test
@@ -504,14 +503,14 @@ class TelegramWebhookControllerTest {
     }
 
     /** 해석 규칙은 {@code StockServiceTest}가 본다. 여기서는 라우팅만 본다. */
-    private static StockService stock(Optional<StockMatch> result) {
+    private static StockService stock(Optional<StockQuote> result) {
         return new StockService(
                 new StockPriceApi(RestClient.builder(), "https://example.invalid", "k", CLOCK),
                 new MarketIndexApi(RestClient.builder(), "https://example.invalid", "k", CLOCK),
                 new FmpApi(RestClient.builder(), "https://example.invalid", "", null),
                 new StockResolver(null, null)) {
             @Override
-            public Optional<StockMatch> quote(String query) {
+            public Optional<StockQuote> quote(String query) {
                 return result;
             }
         };

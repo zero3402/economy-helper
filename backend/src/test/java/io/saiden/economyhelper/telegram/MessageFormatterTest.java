@@ -7,7 +7,6 @@ import io.saiden.economyhelper.market.CryptoQuote.Quote;
 import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.FxSource;
 import io.saiden.economyhelper.market.StockQuote;
-import io.saiden.economyhelper.market.StockService.StockMatch;
 import io.saiden.economyhelper.news.NewsItem;
 import io.saiden.economyhelper.news.NewsSource;
 import java.math.BigDecimal;
@@ -71,7 +70,7 @@ class MessageFormatterTest {
                 item("첫 번째", "본문1", true),
                 item("두 번째", "본문2", true)));
 
-        assertThat(message).contains("📰 <b>뉴스</b>").contains("첫 번째").contains("두 번째");
+        assertThat(message).contains("<b>뉴스</b>").contains("첫 번째").contains("두 번째");
     }
 
     @Test
@@ -128,7 +127,7 @@ class MessageFormatterTest {
                 usStock("애플", "AAPL", "302.25")), FX);
 
         assertThat(message).isEqualTo("""
-                📈 <b>증시</b>
+                <b>증시</b>
 
                 <b>국내</b>  2026년 8월 11일 (종가)
 
@@ -150,7 +149,7 @@ class MessageFormatterTest {
     void stockDigestOmitsEmptyGroup() {
         assertThat(MessageFormatter.formatStockDigest(List.of(krStock("삼성전자", "239500")), FX))
                 .isEqualTo("""
-                        📈 <b>증시</b>
+                        <b>증시</b>
 
                         <b>국내</b>  2026년 8월 11일 (종가)
 
@@ -189,13 +188,15 @@ class MessageFormatterTest {
     @DisplayName("검색 결과도 달러와 원화를 함께 보여준다")
     void formatsUsStockWithKrw() {
         String message = MessageFormatter.formatStock(
-                new StockMatch(usStock("애플", "AAPL", "302.25"), List.of()), FX);
+                usStock("애플", "AAPL", "302.25"), FX);
 
-        assertThat(message)
-                .contains("<b>애플</b>").contains("AAPL").contains("302.25 USD")
-                .contains("약 426,828 KRW")
-                .contains("FMP · 2026년 8월 13일 07:00:00")
-                .as("현재가이므로 '종가'라고 쓰면 안 된다").doesNotContain("종가");
+        assertThat(message).isEqualTo("""
+                <b>애플</b>
+
+                <b>302.25 USD</b>
+                약 426,828 KRW
+
+                2026년 8월 13일 07:00:00""");
     }
 
     private static StockQuote krIndex(String name, String price) {
@@ -273,7 +274,7 @@ class MessageFormatterTest {
                 new BigDecimal("1384"));
 
         assertThat(message)
-                .contains("🪙 <b>BNB</b>")
+                .contains("<b>BNB</b>")
                 .contains("업비트 미상장")
                 .contains("바이낸스 612.4 USDT")
                 .as("BNBUSDT는 티커에 USDT를 붙인 것뿐이라 제목과 같은 말을 두 번 적는 셈이다")
@@ -281,11 +282,16 @@ class MessageFormatterTest {
     }
 
     @Test
-    @DisplayName("꼬리표는 업비트 마켓 코드뿐이다 — 바이낸스 심볼은 알려 주는 것이 없다")
-    void tailShowsUpbitMarketOnly() {
+    @DisplayName("이름과 값과 시각뿐이다 — 마켓 코드도 이모지도 적지 않는다")
+    void showsOnlyNameValueAndTime() {
         String message = MessageFormatter.formatCrypto(btc(new BigDecimal("63703.69")), null);
 
-        assertThat(message).contains("KRW-BTC").doesNotContain("BTCUSDT");
+        assertThat(message).isEqualTo("""
+                <b>비트코인</b>
+                  업비트 89,848,000 KRW
+                  바이낸스 63,703.69 USDT
+
+                2026년 8월 11일 09:00:00""");
     }
 
     @Test

@@ -3,7 +3,6 @@ package io.saiden.economyhelper.market;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.saiden.economyhelper.market.StockResolver.ResolvedStock;
-import io.saiden.economyhelper.market.StockService.StockMatch;
 import io.saiden.economyhelper.market.data.MarketIndexApi;
 import io.saiden.economyhelper.market.data.MarketIndexApi.MarketIndex;
 import io.saiden.economyhelper.market.data.StockPriceApi;
@@ -46,32 +45,11 @@ class StockServiceTest {
     }
 
     @Test
-    @DisplayName("동명 후보를 시가총액으로 가른다 — 우선주·자회사가 1위가 되면 안 된다")
-    void marketCapResolvesAmbiguity() {
-        StockService service = new StockService(new RecordingApi(Map.of("삼성", SAMSUNG)), indexApi(null), noFmp(), noResolver());
-
-        StockMatch match = service.quote("삼성").orElseThrow();
-
-        assertThat(match.quote().name()).isEqualTo("삼성전자");
-        assertThat(match.quote().code()).isEqualTo("005930");
-    }
-
-    @Test
-    @DisplayName("함께 걸린 후보를 알려준다 — 되묻지 않고 한 번에 끝낸다")
-    void reportsAlternatives() {
-        StockService service = new StockService(new RecordingApi(Map.of("삼성", SAMSUNG)), indexApi(null), noFmp(), noResolver());
-
-        StockMatch match = service.quote("삼성").orElseThrow();
-
-        assertThat(match.alternatives()).containsExactly("삼성전자우", "삼성물산");
-    }
-
-    @Test
     @DisplayName("자회사가 모회사를 이기지 않는다")
     void parentBeatsSubsidiary() {
         StockService service = new StockService(new RecordingApi(Map.of("카카오", KAKAO)), indexApi(null), noFmp(), noResolver());
 
-        assertThat(service.quote("카카오").orElseThrow().quote().name()).isEqualTo("카카오");
+        assertThat(service.quote("카카오").orElseThrow().name()).isEqualTo("카카오");
     }
 
     @Test
@@ -80,7 +58,7 @@ class StockServiceTest {
         RecordingApi api = new RecordingApi(Map.of("005930", SAMSUNG.subList(0, 1)));
         StockService service = new StockService(api, indexApi(null), noFmp(), resolver(new ResolvedStock("KR", "STOCK", "005930", "삼성전자")));
 
-        assertThat(service.quote("삼전").orElseThrow().quote().name()).isEqualTo("삼성전자");
+        assertThat(service.quote("삼전").orElseThrow().name()).isEqualTo("삼성전자");
         assertThat(api.byCode).contains("005930");
         assertThat(api.byName).as("코드가 걸리면 이름 검색은 하지 않는다").isEmpty();
     }
@@ -94,7 +72,7 @@ class StockServiceTest {
         // 군더더기가 붙은 형태도 같은 길로 간다 — QueryNormalizer가 '주가'를 떼어 준다
         for (String query : List.of("005930", "005930 주가", " 005930 ")) {
             assertThat(service.quote(query)).as("입력 '%s'", query)
-                    .get().extracting(match -> match.quote().name()).isEqualTo("삼성전자");
+                    .get().extracting(StockQuote::name).isEqualTo("삼성전자");
         }
         assertThat(api.byName).as("코드가 걸리면 이름 검색도 하지 않는다").isEmpty();
     }
@@ -116,7 +94,7 @@ class StockServiceTest {
         RecordingApi api = new RecordingApi(Map.of("035420", naver));
         StockService service = new StockService(api, indexApi(null), noFmp(), resolver(new ResolvedStock("KR", "STOCK", "035420", "NAVER")));
 
-        assertThat(service.quote("네이버").orElseThrow().quote().name()).isEqualTo("NAVER");
+        assertThat(service.quote("네이버").orElseThrow().name()).isEqualTo("NAVER");
     }
 
     @Test
@@ -125,7 +103,7 @@ class StockServiceTest {
         RecordingApi api = new RecordingApi(Map.of("삼성전자", SAMSUNG.subList(0, 1)));
         StockService service = new StockService(api, indexApi(null), noFmp(), resolver(new ResolvedStock("KR", "STOCK", "999999", "삼성전자")));
 
-        assertThat(service.quote("삼전").orElseThrow().quote().name()).isEqualTo("삼성전자");
+        assertThat(service.quote("삼전").orElseThrow().name()).isEqualTo("삼성전자");
         assertThat(api.byCode).as("지어낸 코드로 한 번은 조회해 본다").contains("999999");
         assertThat(api.byName).as("비었으므로 이름으로 되돌아간다").contains("삼성전자");
     }
@@ -136,7 +114,7 @@ class StockServiceTest {
         RecordingApi api = new RecordingApi(Map.of("삼성전자", SAMSUNG.subList(0, 2)));
         StockService service = new StockService(api, indexApi(null), noFmp(), noResolver());
 
-        assertThat(service.quote("삼성전자").orElseThrow().quote().name()).isEqualTo("삼성전자");
+        assertThat(service.quote("삼성전자").orElseThrow().name()).isEqualTo("삼성전자");
         assertThat(api.byName).contains("삼성전자");
     }
 
@@ -149,10 +127,10 @@ class StockServiceTest {
                 new StockPrice("20260811", "005930", "삼성전자", "KOSPI", "239500", "1400183726616000"));
         StockService service = new StockService(new RecordingApi(Map.of("삼성", mixed)), indexApi(null), noFmp(), noResolver());
 
-        StockMatch match = service.quote("삼성").orElseThrow();
+        StockQuote match = service.quote("삼성").orElseThrow();
 
-        assertThat(match.quote().name()).isEqualTo("삼성전자");
-        assertThat(match.quote().at()).isEqualTo(java.time.LocalDate.of(2026, 8, 11)
+        assertThat(match.name()).isEqualTo("삼성전자");
+        assertThat(match.at()).isEqualTo(java.time.LocalDate.of(2026, 8, 11)
                 .atStartOfDay(java.time.ZoneId.of("Asia/Seoul")).toInstant());
     }
 
@@ -217,11 +195,11 @@ class StockServiceTest {
                         "NASDAQ", new java.math.BigDecimal("4439253351000"), 1786564801L)),
                 resolver(new ResolvedStock("US", "STOCK", "AAPL", "Apple Inc.")));
 
-        StockMatch match = service.quote("애플").orElseThrow();
+        StockQuote match = service.quote("애플").orElseThrow();
 
-        assertThat(match.quote().code()).isEqualTo("AAPL");
-        assertThat(match.quote().currency()).isEqualTo(StockQuote.Money.USD);
-        assertThat(match.quote().realtime()).as("미국은 현재가다").isTrue();
+        assertThat(match.code()).isEqualTo("AAPL");
+        assertThat(match.currency()).isEqualTo(StockQuote.Money.USD);
+        assertThat(match.realtime()).as("미국은 현재가다").isTrue();
         assertThat(api.byName).as("미국인데 국내 검색을 태우면 안 된다").isEmpty();
         assertThat(api.byCode).isEmpty();
     }
@@ -234,7 +212,7 @@ class StockServiceTest {
                         "", null, 1786564801L)),
                 resolver(new ResolvedStock("US", "INDEX", "^IXIC", "나스닥")));
 
-        StockQuote quote = service.quote("나스닥").orElseThrow().quote();
+        StockQuote quote = service.quote("나스닥").orElseThrow();
 
         assertThat(quote.index()).isTrue();
         assertThat(quote.currency())
@@ -360,11 +338,11 @@ class StockServiceTest {
                 indexApi(new MarketIndex("20260811", "코스피", "KOSPI시리즈", "6345.53")),
                 noFmp(), resolver(new ResolvedStock("KR", "INDEX", null, "코스피")));
 
-        StockMatch match = service.quote("코스피").orElseThrow();
+        StockQuote match = service.quote("코스피").orElseThrow();
 
-        assertThat(match.quote().name()).isEqualTo("코스피");
-        assertThat(match.quote().index()).isTrue();
-        assertThat(match.quote().price()).isEqualByComparingTo("6345.53");
+        assertThat(match.name()).isEqualTo("코스피");
+        assertThat(match.index()).isTrue();
+        assertThat(match.price()).isEqualByComparingTo("6345.53");
         assertThat(api.byName).as("지수는 종목 검색을 태우지 않는다").isEmpty();
         assertThat(api.byCode).isEmpty();
     }

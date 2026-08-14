@@ -3,7 +3,6 @@ package io.saiden.economyhelper.telegram;
 import io.saiden.economyhelper.market.CryptoQuote;
 import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.StockQuote;
-import io.saiden.economyhelper.market.StockService.StockMatch;
 import io.saiden.economyhelper.news.NewsItem;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -85,9 +84,9 @@ public final class MessageFormatter {
     /** 아침 브리핑의 뉴스 통 — 매체별 1건을 한 메시지에 묶는다. */
     public static String formatDigest(List<NewsItem> items) {
         if (items.isEmpty()) {
-            return "📰 <b>뉴스</b>\n\n지금은 가져올 수 있는 뉴스가 없습니다.";
+            return "<b>뉴스</b>\n\n지금은 가져올 수 있는 뉴스가 없습니다.";
         }
-        StringBuilder message = new StringBuilder("📰 <b>뉴스</b>");
+        StringBuilder message = new StringBuilder("<b>뉴스</b>");
         for (NewsItem item : items) {
             message.append("\n\n").append(format(item));
         }
@@ -109,19 +108,13 @@ public final class MessageFormatter {
      * 주말엔 며칠 전 값이 나가는데, 그걸 숨기면 고장이 아니라 거짓말이 된다.
      */
     public static String formatFx(FxRate rate) {
-        return "💱 <b>환율</b>\n\n"
+        return "<b>환율</b>\n\n"
                 + "<b>1 USD = " + money(rate.rate()) + " KRW</b>\n\n"
                 + Html.escape(rate.source().displayName()) + " · " + basisOf(rate);
     }
 
     public static String fxUnavailable() {
         return "환율을 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.";
-    }
-
-    /** 환산 근거 한 줄. <b>출처와 날짜까지</b> 붙여야 며칠 전 고시가로 환산된 것이 드러난다. */
-    private static String fxLine(FxRate rate) {
-        return "💱 1 USD = " + money(rate.rate()) + " KRW · "
-                + Html.escape(rate.source().displayName()) + " · " + basisOf(rate);
     }
 
     private static String basisOf(FxRate rate) {
@@ -133,55 +126,34 @@ public final class MessageFormatter {
     // --- 주식·지수 -----------------------------------------------------------
 
     /**
-     * 종목·지수 하나.
+     * 종목·지수 하나 — <b>이름 / 값 / 근거</b> 세 덩어리다. 코인·환율과 같은 뼈대다.
      *
-     * <p><b>기준을 반드시 밝힌다.</b> 국내는 전일 종가라 날짜를 숨기면 현재가로 오해하고,
-     * 미국은 현재가라 시각까지 드러내야 한다.
+     * <p><b>{@code (종가)}는 남긴다.</b> 국내는 전일 종가라 그 표시가 없으면 현재가로 읽힌다 —
+     * 장식이 아니라 값의 성격이고, 낡은 값을 숨기면 거짓말이 된다.
      *
-     * <p>함께 걸린 다른 후보를 덧붙인다 — 텔레그램에서 되묻으면 대화가 두 번 오간다.
+     * <p>반대로 <b>조회처 이름(FMP·공공데이터포털)은 적지 않는다.</b> 사용자에게 의미 없는
+     * 벤더명이고 코인도 적지 않는다. 종목코드·거래소도 같은 이유로 뺐다 — 이름이 이미 그 종목을
+     * 가리킨다.
+     *
+     * <p>환산에 쓴 환율도 적지 않는다. 환율은 {@code /fx}와 브리핑 환율 통이 따로 있고,
+     * 브리핑 증시 통에서는 이미 같은 이유로 뺐다.
      */
-    public static String formatStock(StockMatch match, FxRate fx) {
-        StockQuote quote = match.quote();
-        StringBuilder message = new StringBuilder(quote.index() ? "📊 <b>" : "📈 <b>")
+    public static String formatStock(StockQuote quote, FxRate fx) {
+        StringBuilder message = new StringBuilder("<b>")
                 .append(Html.escape(quote.name())).append("</b>\n\n")
                 .append("<b>").append(priceOf(quote)).append("</b>");
 
         if (convertible(quote, fx)) {
             message.append("\n약 ").append(money(krw(quote.price(), fx))).append(" KRW");
         }
-
-        message.append("\n");
-        String identity = identityOf(quote);
-        if (!identity.isEmpty()) {
-            message.append("\n").append(identity);
-        }
-        message.append("\n").append(sourceOf(quote));
-        if (convertible(quote, fx)) {
-            message.append("\n").append(fxLine(fx));
-        }
-        if (!match.alternatives().isEmpty()) {
-            message.append("\n함께 검색된 종목: ")
-                    .append(Html.escape(String.join(", ", match.alternatives())));
-        }
-        return message.toString();
+        return message.append("\n\n").append(basisOf(quote)).toString();
     }
 
-    /** {@code AAPL · NASDAQ} 또는 {@code 005930 · KOSPI}. 국내 지수는 코드가 없다. */
-    private static String identityOf(StockQuote quote) {
-        StringBuilder id = new StringBuilder();
-        if (quote.code() != null && !quote.code().isBlank()) {
-            id.append(Html.escape(quote.code()));
-        }
-        if (quote.market() != null && !quote.market().isBlank()) {
-            id.append(id.isEmpty() ? "" : " · ").append(Html.escape(quote.market()));
-        }
-        return id.toString();
-    }
-
-    private static String sourceOf(StockQuote quote) {
+    /** 값의 시각. 전일 종가면 그 사실을 함께 적는다. */
+    private static String basisOf(StockQuote quote) {
         return quote.realtime()
-                ? "FMP · " + DATE_TIME.format(quote.at().atZone(SEOUL))
-                : "공공데이터포털 · " + DATE.format(quote.at().atZone(SEOUL)) + " (종가)";
+                ? DATE_TIME.format(quote.at().atZone(SEOUL))
+                : DATE.format(quote.at().atZone(SEOUL)) + " (종가)";
     }
 
     public static String stockNotFound(String query) {
@@ -201,7 +173,7 @@ public final class MessageFormatter {
         List<StockQuote> closing = quotes.stream().filter(q -> !q.realtime()).toList();
         List<StockQuote> live = quotes.stream().filter(StockQuote::realtime).toList();
 
-        StringBuilder message = new StringBuilder("📈 <b>증시</b>");
+        StringBuilder message = new StringBuilder("<b>증시</b>");
         appendGroup(message, "국내", closing, fx);
         appendGroup(message, "미국", live, fx);
 
@@ -252,12 +224,10 @@ public final class MessageFormatter {
      * 명령마다 정보 밀도가 달라지는 것도 피한다.
      */
     public static String formatCrypto(CryptoQuote quote, BigDecimal usdtKrw) {
-        // 꼬리표는 업비트 마켓 코드뿐이다. 바이낸스 심볼은 티커에 USDT를 붙인 것이라 알려 주는
-        // 것이 없고, 업비트에 없는 코인은 제목이 이미 티커라 같은 말을 두 번 적는 셈이 된다
-        String market = quote.market() == null ? "" : Html.escape(quote.market()) + "\n";
-        return "🪙 <b>" + Html.escape(quote.name()) + "</b>\n"
+        // 마켓 코드(KRW-BTC)도 바이낸스 심볼도 적지 않는다. 이름이 이미 그 코인을 가리키고,
+        // 거래소는 값 줄에 이름으로 적혀 있다 — 같은 말을 두 번 할 이유가 없다
+        return "<b>" + Html.escape(quote.name()) + "</b>\n"
                 + exchangeLines(quote, usdtKrw, true) + "\n\n"
-                + market
                 + DATE_TIME.format(quote.at().atZone(SEOUL));
     }
 
@@ -274,7 +244,7 @@ public final class MessageFormatter {
                 .filter(quote -> quote.upbit().hasPrice() || quote.binance().hasPrice())
                 .toList();
 
-        StringBuilder message = new StringBuilder("🪙 <b>코인</b>");
+        StringBuilder message = new StringBuilder("<b>코인</b>");
         shown.stream().findFirst().ifPresent(first ->
                 message.append("  ").append(DATE_TIME.format(first.at().atZone(SEOUL))));
         for (CryptoQuote quote : shown) {

@@ -232,10 +232,9 @@ public class TelegramWebhookController {
             // 미국 종목이면 원화도 함께 보여준다. 환율 조회가 실패하면 달러만 나간다 —
             // 환산을 못 한다고 시세 자체를 막을 이유가 없다.
             case STOCK -> stockService.quote(command.argument())
-                    .map(match -> new Reply(MessageFormatter.formatStock(match, currentFx()),
+                    .map(quote -> new Reply(MessageFormatter.formatStock(quote, currentFx()),
                             // 국내 지수는 종목코드가 없다 — 이름이 유일한 식별자다
-                            match.quote().code() == null
-                                    ? match.quote().name() : match.quote().code()))
+                            quote.code() == null ? quote.name() : quote.code()))
                     .orElseGet(() -> Reply.plain(MessageFormatter.stockNotFound(command.argument())));
             // 설정에 넣어야 할 번호를 여기서 알려준다 — 봇이 이미 아는 값이다
             case HELP -> Reply.plain(MessageFormatter.help(chatId, topicId));

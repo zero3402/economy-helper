@@ -204,7 +204,7 @@ class DailyDigestJobTest {
 
         assertThat(telegram.sent).hasSize(1);
         assertThat(telegram.sent.get(0))
-                .contains("📈 <b>증시</b>")
+                .contains("<b>증시</b>")
                 .contains("코스피")
                 .contains("삼성전자");
     }
@@ -232,9 +232,9 @@ class DailyDigestJobTest {
 
         assertThat(result.delivered()).containsExactly("환율", "증시", "코인", "뉴스");
         assertThat(telegram.sent).hasSize(4);
-        assertThat(telegram.sent.get(0)).contains("💱 <b>환율</b>").contains("1 USD =");
-        assertThat(telegram.sent.get(1)).contains("📈 <b>증시</b>").contains("삼성전자");
-        assertThat(telegram.sent.get(2)).contains("🪙 <b>코인</b>").contains("비트코인");
+        assertThat(telegram.sent.get(0)).contains("<b>환율</b>").contains("1 USD =");
+        assertThat(telegram.sent.get(1)).contains("<b>증시</b>").contains("삼성전자");
+        assertThat(telegram.sent.get(2)).contains("<b>코인</b>").contains("비트코인");
         assertThat(telegram.sent.get(3)).contains("유가 상승");
     }
 
@@ -326,7 +326,7 @@ class DailyDigestJobTest {
 
         assertThat(telegram.sent).hasSize(1);
         assertThat(telegram.sent.get(0))
-                .contains("🪙 <b>코인</b>")
+                .contains("<b>코인</b>")
                 .contains("업비트").contains("89,848,000 KRW")
                 .contains("바이낸스").contains("63,703.69 USDT")
                 // 63,703.69 × 1,384 = 88,165,906.96 → 88,165,907

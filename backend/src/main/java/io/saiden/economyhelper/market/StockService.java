@@ -55,9 +55,6 @@ public class StockService {
     private static final DateTimeFormatter BAS_DT = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
 
-    /** 함께 보여줄 다른 후보 수. 너무 많으면 메시지가 지저분해진다. */
-    private static final int MAX_ALTERNATIVES = 3;
-
     /** 한국 종목코드. 이 형태면 해석할 것이 없으므로 LLM을 건너뛴다. */
     private static final java.util.regex.Pattern KR_STOCK_CODE =
             java.util.regex.Pattern.compile("\\d{6}");
@@ -78,7 +75,7 @@ public class StockService {
     /**
      * @return 시가총액 1위 후보의 시세. 걸리는 종목이 없거나 조회에 실패하면 {@link Optional#empty()}
      */
-    public Optional<StockMatch> quote(String query) {
+    public Optional<StockQuote> quote(String query) {
         String key = StockResolver.cacheKeyOf(query);
         if (key.isEmpty()) {
             return Optional.empty();
@@ -91,7 +88,7 @@ public class StockService {
             if (code.isPresent()) {
                 List<StockPrice> found = api.searchByCode(code.get());
                 if (!found.isEmpty()) {
-                    return Optional.of(toMatch(found));
+                    return Optional.of(pickBest(found));
                 }
                 log.info("[stock] 종목코드 {}에 걸리는 종목이 없습니다", code.get());
                 return Optional.empty();
@@ -114,7 +111,7 @@ public class StockService {
                 log.info("[stock] '{}'에 걸리는 종목이 없습니다", query);
                 return Optional.empty();
             }
-            return Optional.of(toMatch(found));
+            return Optional.of(pickBest(found));
         } catch (RuntimeException e) {
             log.error("[stock] '{}' 조회 실패: {}", query, e.toString());
             return Optional.empty();
@@ -192,10 +189,9 @@ public class StockService {
     /**
      * 미국 종목·지수 하나.
      *
-     * <p>함께 보여줄 후보가 없다 — 심볼이 정확히 하나를 가리키기 때문이다.
-     * <b>LLM이 지어낸 심볼은 FMP가 빈 배열을 줘서 자연히 걸러진다</b>(국내와 같은 방어).
+     * <p><b>LLM이 지어낸 심볼은 FMP가 빈 배열을 줘서 자연히 걸러진다</b>(국내와 같은 방어).
      */
-    private Optional<StockMatch> usQuote(ResolvedStock resolved) {
+    private Optional<StockQuote> usQuote(ResolvedStock resolved) {
         if (!resolved.hasCode()) {
             // 미국은 이름으로 되짚을 경로가 없다 — search-name은 프랑크푸르트 상장이 먼저 걸린다
             log.info("[fmp] '{}'의 티커를 특정하지 못했습니다", resolved.name());
@@ -205,17 +201,17 @@ public class StockService {
         if (quote == null) {
             return Optional.empty();
         }
-        return Optional.of(new StockMatch(toQuote(quote), List.of()));
+        return Optional.of(toQuote(quote));
     }
 
     /** 국내 지수 하나. 함께 보여줄 후보가 없다 — 완전일치로 하나만 고르기 때문이다. */
-    private Optional<StockMatch> indexQuote(String name) {
+    private Optional<StockQuote> indexQuote(String name) {
         MarketIndex index = indexApi.searchByName(name);
         if (index == null) {
             log.info("[stock] '{}' 지수를 찾지 못했습니다", name);
             return Optional.empty();
         }
-        return Optional.of(new StockMatch(toQuote(index), List.of()));
+        return Optional.of(toQuote(index));
     }
 
     /**
@@ -251,25 +247,15 @@ public class StockService {
     }
 
     /**
-     * 시가총액 1위를 고르고 나머지를 후보로 남긴다.
+     * 후보 중 시가총액 1위.
      *
      * <p>같은 종목의 여러 날짜가 섞여 오므로 <b>가장 최근 기준일만</b> 남긴 뒤 비교한다 —
      * 안 그러면 어제 삼성전자와 그제 삼성전자가 서로 다른 후보로 보인다.
      */
-    private static StockMatch toMatch(List<StockPrice> prices) {
-        List<StockPrice> latest = onlyLatestDate(prices);
-        List<StockPrice> ranked = latest.stream()
-                .sorted(Comparator.comparing(StockService::marketCap).reversed())
-                .toList();
-
-        List<String> alternatives = ranked.stream()
-                .skip(1)
-                .map(StockPrice::itmsNm)
-                .distinct()
-                .limit(MAX_ALTERNATIVES)
-                .toList();
-
-        return new StockMatch(toQuote(ranked.get(0)), alternatives);
+    private static StockQuote pickBest(List<StockPrice> prices) {
+        return toQuote(onlyLatestDate(prices).stream()
+                .max(Comparator.comparing(StockService::marketCap))
+                .orElseThrow());
     }
 
     private static Optional<StockPrice> best(List<StockPrice> prices) {
@@ -331,11 +317,4 @@ public class StockService {
         }
     }
 
-    /**
-     * 고른 종목과 <b>함께 걸렸던 다른 후보들</b>.
-     *
-     * <p>후보를 같이 보여주는 이유는 되묻기를 피하기 위해서다 — 텔레그램에서 "어느 것입니까"를
-     * 물으면 대화가 두 번 오간다. 1위를 주고 다른 것들을 한 줄로 덧붙이면 한 번에 끝난다.
-     */
-    public record StockMatch(StockQuote quote, List<String> alternatives) {}
 }
