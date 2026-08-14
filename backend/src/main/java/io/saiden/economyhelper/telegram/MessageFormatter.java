@@ -391,15 +391,31 @@ public final class MessageFormatter {
      *
      * <p>일반 대화에는 반응하지 않는다 — 그룹 채팅이 오염된다.
      */
-    public static String unknownCommand() {
-        return "모르는 명령입니다.\n\n" + help();
+    public static String unknownCommand(String chatId, Integer topicId) {
+        return "모르는 명령입니다.\n\n" + help(chatId, topicId);
     }
 
-    public static String help() {
+    /**
+     * 도움말 — <b>끝에 지금 방과 토픽 번호를 붙인다.</b>
+     *
+     * <p>이 두 값이 {@code TELEGRAM_CHAT_ID}·{@code TELEGRAM_NOTICE_TOPIC_ID}에 들어가야 하는데,
+     * 알아낼 방법이 메시지 링크를 복사해 손으로 파싱하는 것뿐이었다. 실제로 그것 때문에
+     * 토픽 번호가 비어 아침 브리핑이 General 토픽으로 새고 있었다 —
+     * <b>봇이 이미 알고 있는 값을 사람이 찾아 헤맬 이유가 없다.</b>
+     *
+     * <p>{@code /help}에만 붙인다. 시세·뉴스 답에 붙이면 매번 나오는 소음이 된다.
+     *
+     * @param topicId 포럼 토픽 번호. 일반 그룹과 General 토픽에서는 {@code null}이라 자리를 비운다
+     */
+    public static String help(String chatId, Integer topicId) {
         StringBuilder message = new StringBuilder("<b>사용할 수 있는 명령</b>");
         for (Command command : Command.values()) {
             message.append("\n\n<code>").append(Html.escape(command.example())).append("</code>\n")
                     .append(describe(command));
+        }
+        message.append("\n\n<b>이 방</b>  <code>").append(Html.escape(chatId)).append("</code>");
+        if (topicId != null) {
+            message.append(" · <b>토픽</b>  <code>").append(topicId).append("</code>");
         }
         return message.toString();
     }

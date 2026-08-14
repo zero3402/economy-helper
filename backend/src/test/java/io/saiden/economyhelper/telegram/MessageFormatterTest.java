@@ -92,16 +92,28 @@ class MessageFormatterTest {
     @Test
     @DisplayName("도움말은 모든 명령을 빠짐없이 싣는다")
     void helpListsEveryCommand() {
-        String help = MessageFormatter.help();
+        String help = MessageFormatter.help("-1002334455667", 12);
         for (Command command : Command.values()) {
             assertThat(help).contains(command.token());
         }
     }
 
     @Test
+    @DisplayName("도움말이 지금 방·토픽 번호를 알려준다 — 설정에 넣을 값을 찾아 헤매지 않게")
+    void helpShowsChatAndTopicId() {
+        assertThat(MessageFormatter.help("-1002334455667", 12))
+                .contains("-1002334455667")
+                .contains("12");
+        assertThat(MessageFormatter.help("-1002334455667", null))
+                .as("토픽이 없는 방에서는 토픽 자리를 비운다")
+                .contains("-1002334455667")
+                .doesNotContain("토픽");
+    }
+
+    @Test
     @DisplayName("모르는 명령에는 도움말을 함께 준다 — 무엇을 칠 수 있는지 알려주지 않으면 고장으로 보인다")
     void unknownCommandIncludesHelp() {
-        assertThat(MessageFormatter.unknownCommand())
+        assertThat(MessageFormatter.unknownCommand("-1002334455667", 12))
                 .contains("모르는 명령")
                 .contains("/news");
     }

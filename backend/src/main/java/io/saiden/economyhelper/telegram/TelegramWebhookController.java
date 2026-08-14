@@ -170,10 +170,14 @@ public class TelegramWebhookController {
         if (parsed.isEmpty()) {
             // '/'로 시작하는 오타에만 안내한다. 일반 대화는 조용히 무시해 그룹 채팅을 오염시키지 않는다
             if (CommandParser.isUnknownCommand(text)) {
-                telegramClient.send(chatId, topicId, MessageFormatter.unknownCommand());
+                telegramClient.send(chatId, topicId, MessageFormatter.unknownCommand(chatId, topicId));
             }
             return;
         }
+
+        // 정상 경로에도 번호를 남긴다. 거절할 때만 찍으면 SEARCH_TOPIC_ID가 비었을 때
+        // (=아무것도 거절하지 않을 때) 로그로는 토픽 번호를 알 길이 없다
+        log.debug("[webhook] 채팅 {} 토픽 {} — '{}'", chatId, topicId, text);
 
         ParsedCommand command = parsed.get();
         if (command.missingRequiredArgument()) {
@@ -182,7 +186,7 @@ public class TelegramWebhookController {
         }
 
         // 물어본 토픽으로 답한다 — 다른 토픽에 답이 뜨면 대화가 어긋난다
-        Reply reply = reply(command);
+        Reply reply = reply(command, chatId, topicId);
         if (reply.logoSymbol() == null) {
             telegramClient.send(chatId, topicId, reply.text());
             return;
@@ -211,7 +215,7 @@ public class TelegramWebhookController {
      * <p>{@code default} 없는 switch 식이라 <b>명령을 더하면 컴파일이 깨진다</b> —
      * 새 명령을 여기서 빠뜨려 조용히 무응답이 되는 일을 컴파일러가 막아 준다.
      */
-    private Reply reply(ParsedCommand command) {
+    private Reply reply(ParsedCommand command, String chatId, Integer topicId) {
         return switch (command.command()) {
             case NEWS -> Reply.plain(newsFacade.search(command.argument())
                     .map(MessageFormatter::format)
@@ -233,7 +237,8 @@ public class TelegramWebhookController {
                             match.quote().code() == null
                                     ? match.quote().name() : match.quote().code()))
                     .orElseGet(() -> Reply.plain(MessageFormatter.stockNotFound(command.argument())));
-            case HELP -> Reply.plain(MessageFormatter.help());
+            // 설정에 넣어야 할 번호를 여기서 알려준다 — 봇이 이미 아는 값이다
+            case HELP -> Reply.plain(MessageFormatter.help(chatId, topicId));
         };
     }
 

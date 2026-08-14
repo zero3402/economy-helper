@@ -50,7 +50,8 @@ public class TelegramSelfCheck {
         Optional<ChatInfo> chat = client.chatInfo();
         if (chat.isEmpty()) {
             log.error("[telegram] chat-id '{}'로 채팅방을 찾지 못했습니다 — 아침 브리핑이 나가지 않습니다. "
-                    + "슈퍼그룹으로 승격되면 번호가 -100...으로 바뀝니다", chatId);
+                    + "슈퍼그룹으로 승격되면 번호가 -100...으로 바뀝니다. 그 방에서 /help를 치면 "
+                    + "현재 번호를 봇이 알려줍니다", chatId);
             return;
         }
 
@@ -63,12 +64,13 @@ public class TelegramSelfCheck {
         // 알 방법이 없다 — 사용자에게는 "Notice에 안 온다"로 보인다
         if (forum && noticeTopicId == null) {
             log.error("[telegram] 포럼 그룹인데 TELEGRAM_NOTICE_TOPIC_ID가 비어 있습니다 — "
-                    + "브리핑이 General 토픽으로 갑니다");
+                    + "브리핑이 General 토픽으로 갑니다. 브리핑을 받을 토픽에서 /help를 치면 "
+                    + "거기 넣을 번호를 봇이 알려줍니다");
         }
         // 반대는 발송 자체가 거절된다
         if (!forum && noticeTopicId != null) {
             log.error("[telegram] 포럼이 아닌 방에 TELEGRAM_NOTICE_TOPIC_ID={}가 설정돼 있습니다 — "
-                    + "브리핑이 거절됩니다", noticeTopicId);
+                    + "브리핑이 거절됩니다. 이 값을 비우면 됩니다", noticeTopicId);
         }
     }
 }
