@@ -54,8 +54,10 @@ economy-helper:
   feeds:
     # Reuters는 공식 RSS를 폐지했다(401/404). Google News 검색 피드를 프록시로 쓴다.
     # 이 피드는 description이 링크 마크업뿐이라 제목만 신뢰한다.
+    # 리다이렉트 뒤 최종 주소를 박는다. feeds.bloomberg.com은 301, coindesk.com/arc/...는
+    # 308이라 클라이언트의 리다이렉트 정책에 결과가 달렸었다 — 왕복도 한 번 줄어든다
     bloomberg:
-      url: https://feeds.bloomberg.com/markets/news.rss
+      url: https://www.bloomberg.com/feeds/markets/news.rss
       type: rss
     ft:
       url: "https://www.ft.com/markets?format=rss"
@@ -66,7 +68,21 @@ economy-helper:
       url: https://www.economist.com/finance-and-economics/rss.xml
       type: rss
     coindesk:
-      url: https://www.coindesk.com/arc/outboundfeeds/rss/
+      url: https://www.coindesk.com/arc/outboundfeeds/rss
+      type: rss
+    # --- 무료 매체 ---------------------------------------------------------
+    # 위 넷 중 셋(Bloomberg·FT·Economist)이 강한 페이월이라 링크를 눌러도 못 읽는 기사가
+    # 매일 나갔다. 아래 셋은 전문 무료이고 글로벌 트래픽 상위다.
+    # 2026-08-14 실측: CNBC 30건 · BBC 52건 · Yahoo Finance 44건, 전부 200.
+    cnbc:
+      # id=10000664는 Markets 섹션이다. 홈 피드는 일반 뉴스가 섞인다 — FT·Reuters와 같은 처방
+      url: https://www.cnbc.com/id/10000664/device/rss/rss.html
+      type: rss
+    bbc:
+      url: https://feeds.bbci.co.uk/news/business/rss.xml
+      type: rss
+    yahoo-finance:
+      url: https://finance.yahoo.com/news/rssindex
       type: rss
     reuters:
       # /markets로 좁힌다. site:reuters.com만 쓰면 우크라이나·트럼프 전용기 같은 일반 뉴스가

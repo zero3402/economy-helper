@@ -130,6 +130,32 @@ class NewsServiceTest {
     }
 
     @Test
+    @DisplayName("점수가 사실상 같으면 읽히는 기사를 준다 — 페이월 링크는 눌러도 못 읽는다")
+    void searchPrefersFreeSourceOnCloseScores() {
+        NewsService service = service(Map.of(
+                // 같은 순위·같은 시각이라 점수가 붙는다. 하나는 유료, 하나는 무료다
+                NewsSource.FT, List.of(article(NewsSource.FT, "Fed signals rate cut", 0)),
+                NewsSource.CNBC, List.of(article(NewsSource.CNBC, "Fed signals rate cut soon", 0))));
+
+        assertThat(service.search(groups("rate"))).get()
+                .extracting(scored -> scored.article().source())
+                .isEqualTo(NewsSource.CNBC);
+    }
+
+    @Test
+    @DisplayName("무료 매체가 뚜렷이 뒤처지면 유료라도 그게 답이다 — 읽힌다고 아무거나 줄 수는 없다")
+    void searchKeepsPaywalledWhenClearlyBetter() {
+        NewsService service = service(Map.of(
+                NewsSource.FT, List.of(article(NewsSource.FT, "Fed signals rate cut", 0)),
+                // 피드 맨 아래라 노출 순서 점수가 크게 낮다
+                NewsSource.CNBC, List.of(article(NewsSource.CNBC, "Fed rate cut recap", 40))));
+
+        assertThat(service.search(groups("rate"))).get()
+                .extracting(scored -> scored.article().source())
+                .isEqualTo(NewsSource.FT);
+    }
+
+    @Test
     @DisplayName("걸리는 기사가 없으면 빈 결과")
     void searchReturnsEmptyWhenNothingMatches() {
         NewsService service = service(Map.of(

@@ -34,6 +34,14 @@ public class NewsService {
 
     private static final Logger log = LoggerFactory.getLogger(NewsService.class);
 
+    /**
+     * "사실상 같은 점수"의 기준. 1위의 95% 이상이면 오차 범위로 본다.
+     *
+     * <p>더 낮게 잡으면 뚜렷이 못한 기사가 무료라는 이유만으로 올라오고, 더 높게 잡으면
+     * 이 규칙이 사실상 동점에만 걸려 아무 일도 하지 않는다.
+     */
+    private static final double READABLE_MARGIN = 0.95;
+
     private final FeedFetcher fetcher;
     private final HackerNewsBuzzClient buzzClient;
     private final PopularityScorer scorer;
@@ -141,7 +149,27 @@ public class NewsService {
                 .flatMap(List::stream)
                 .filter(article -> matchesAny(article, groups))
                 .toList();
-        return rank(matching, groups).stream().findFirst();
+        return preferReadable(rank(matching, groups));
+    }
+
+    /**
+     * 1위와 <b>사실상 같은 점수</b>인 무료 기사가 있으면 그쪽을 준다.
+     *
+     * <p>Bloomberg·FT·Economist는 링크를 눌러도 대부분 못 읽는다. 점수가 뚜렷이 높으면
+     * 그래도 그게 답이지만, 오차 범위 안이라면 <b>읽히는 쪽</b>이 사용자에게 더 나은 답이다.
+     * 유료 매체를 목록에서 빼지 않는 이유는 그쪽 기사 품질이 실제로 높기 때문이다.
+     */
+    private static Optional<ScoredArticle> preferReadable(List<ScoredArticle> ranked) {
+        Optional<ScoredArticle> top = ranked.stream().findFirst();
+        if (top.isEmpty() || !top.get().article().source().paywalled()) {
+            return top;
+        }
+        double threshold = top.get().score() * READABLE_MARGIN;
+        return ranked.stream()
+                .filter(scored -> !scored.article().source().paywalled())
+                .filter(scored -> scored.score() >= threshold)
+                .findFirst()
+                .or(() -> top);
     }
 
     private List<ScoredArticle> rank(List<Article> articles, Collection<KeywordGroup> keywords) {
