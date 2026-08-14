@@ -15,12 +15,23 @@ import java.time.Instant;
  * <p>바이낸스 심볼은 담지 않는다. {@code BTCUSDT}는 티커에 {@code USDT}를 붙인 것뿐이라
  * 화면에 적어도 알려 주는 것이 없고, 업비트에 없는 코인은 이름 자리에 이미 티커가 찍힌다.
  *
- * @param name   화면에 쓸 이름. <b>업비트 한글명이 있으면 그것, 없으면 티커</b>({@code BNB}).
- *               지어낸 한글 표기({@code 비앤비})를 쓰지 않는 이유는 아무도 그렇게 부르지 않아서다
+ * @param name   업비트 한글명이 있으면 그것, 없으면 티커({@code BNB}). 화면에는 {@link #ticker()}가
+ *               나가지만, 후보를 가르거나 로그를 남길 때 사람이 읽을 이름이 여전히 필요하다
  * @param market 업비트 마켓 코드({@code KRW-BTC}). <b>업비트 미상장이면 {@code null}</b>
  * @param at     체결 시각
  */
 public record CryptoQuote(String name, String market, Instant at, Quote upbit, Quote binance) {
+
+    /**
+     * 화면에 굵게 찍을 <b>티커</b>({@code BTC}).
+     *
+     * <p>업비트 상장이면 마켓 코드 뒷부분을 뗀다({@code KRW-BTC} → {@code BTC}).
+     * 미상장이면 {@code market}이 {@code null}이고 그때는 {@code name}이 이미 대문자 티커다
+     * ({@code BNB}) — 업비트에 없어 한글명을 확인할 곳이 없어서 그렇게 담긴다.
+     */
+    public String ticker() {
+        return market == null ? name : market.substring(market.indexOf('-') + 1);
+    }
 
     /**
      * 거래소 한 곳의 값.

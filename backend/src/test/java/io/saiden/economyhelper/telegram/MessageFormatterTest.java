@@ -59,13 +59,22 @@ class MessageFormatterTest {
     }
 
     @Test
-    @DisplayName("정기 발송은 매체별 1건을 제목 아래로 묶는다")
+    @DisplayName("여러 건은 번호를 붙여 묶는다 — 빈 줄만으로는 어디까지가 한 건인지 흐려진다")
     void joinsDigestWithSeparator() {
         String message = MessageFormatter.formatNews(List.of(
                 item("첫 번째", "본문1", true),
                 item("두 번째", "본문2", true)));
 
-        assertThat(message).contains("<b>뉴스</b>").contains("첫 번째").contains("두 번째");
+        assertThat(message).contains("<b>뉴스</b>")
+                .contains("1. ").contains("첫 번째")
+                .contains("2. ").contains("두 번째");
+    }
+
+    @Test
+    @DisplayName("한 건뿐이면 외로운 번호를 붙이지 않는다")
+    void doesNotNumberASingleArticle() {
+        assertThat(MessageFormatter.formatNews(List.of(item("유일한 기사", "본문", true))))
+                .doesNotContain("1. ");
     }
 
     @Test
@@ -187,8 +196,8 @@ class MessageFormatterTest {
                 CryptoQuote.Quote.of(new BigDecimal("62910"), new BigDecimal("-1.451")));
 
         assertThat(MessageFormatter.formatCrypto(quote, null))
-                .contains("업비트 88,922,000 KRW · 🔵 0.71%")
-                .contains("바이낸스 62,910 USDT · 🔵 1.45%");
+                .contains("업비트 88,922,000 KRW\n🔵 0.71%")
+                .contains("바이낸스 62,910 USDT\n🔵 1.45%");
     }
 
     @Test
@@ -209,7 +218,8 @@ class MessageFormatterTest {
 
                 <b>미국</b>
                 나스닥 26,588.49
-                애플 302.25 USD · 426,828 KRW
+                애플 302.25 USD
+                426,828 KRW
 
                 국내 2026년 8월 11일 (종가)
                 미국 2026년 8월 13일 07:00:00""");
@@ -365,9 +375,10 @@ class MessageFormatterTest {
         String message = MessageFormatter.formatCrypto(btc(new BigDecimal("63703.69")), null);
 
         assertThat(message).isEqualTo("""
-                <b>비트코인</b>
+                <b>BTC</b>
 
                 업비트 89,848,000 KRW
+
                 바이낸스 63,703.69 USDT
 
                 2026년 8월 11일 09:00:00""");
@@ -381,7 +392,7 @@ class MessageFormatterTest {
         String message = MessageFormatter.formatCryptoDigest(
                 List.of(btc(new BigDecimal("63703.69")), usdt()), new BigDecimal("1384"));
 
-        assertThat(message).contains("비트코인").contains("바이낸스").contains("63,703.69 USDT");
+        assertThat(message).contains("<b>BTC</b>").contains("바이낸스").contains("63,703.69 USDT");
     }
 
     @Test
@@ -390,8 +401,8 @@ class MessageFormatterTest {
         String message = MessageFormatter.formatCryptoDigest(
                 List.of(btc(new BigDecimal("63703.69")), usdt()), new BigDecimal("1384"));
 
-        assertThat(message.substring(message.indexOf("테더")))
-                .as("테더는 바이낸스에 USDTUSDT가 없다 — 매일 아침 그 사실을 알릴 이유가 없다")
+        assertThat(message.substring(message.indexOf("<b>USDT</b>")))
+                .as("테더(USDT)는 바이낸스에 USDTUSDT가 없다 — 매일 아침 그 사실을 알릴 이유가 없다")
                 .doesNotContain("바이낸스")
                 .contains("업비트 1,384 KRW");
     }
@@ -405,7 +416,7 @@ class MessageFormatterTest {
                                 Quote.FAILED, Quote.FAILED)),
                 new BigDecimal("1384"));
 
-        assertThat(message).contains("비트코인").doesNotContain("이더리움");
+        assertThat(message).contains("<b>BTC</b>").doesNotContain("ETH");
     }
 
     private static CryptoQuote btc(BigDecimal binanceUsdt) {

@@ -5,7 +5,6 @@ import io.saiden.economyhelper.translate.Translation;
 import io.saiden.economyhelper.translate.TranslationService;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import org.springframework.stereotype.Service;
 
 /**
@@ -30,20 +29,11 @@ public class NewsFacade {
         this.queryExpander = queryExpander;
     }
 
-    /** 매체별 1건 — 정기 발송과 프론트 첫 화면이 같은 목록을 쓴다. */
+    /** 오늘 발행분 중 점수 상위 몇 건 — 정기 발송과 프론트 첫 화면이 같은 목록을 쓴다. */
     public List<NewsItem> digest() {
-        Map<NewsSource, ScoredArticle> top = newsService.digest();
-        // NewsSource 선언 순서를 따라 매체 순서를 고정한다 — 발송할 때마다 순서가 바뀌면 읽기 불편하다
-        List<ScoredArticle> ordered = new ArrayList<>(top.size());
-        for (NewsSource source : NewsSource.values()) {
-            ScoredArticle scored = top.get(source);
-            if (scored != null) {
-                ordered.add(scored);
-            }
-        }
-
-        // 번역을 겹친다 — 순차로 돌면 매체 수만큼 곱해져 그것만으로 10~25초였다
-        return translated(ordered);
+        // NewsService가 이미 점수순으로 상위 몇 건을 준다 — 그 순서 그대로 번역한다.
+        // 번역을 겹친다 — 순차로 돌면 건수만큼 곱해져 그것만으로 10~25초였다
+        return translated(newsService.digest());
     }
 
     /**

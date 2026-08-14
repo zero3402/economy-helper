@@ -11,7 +11,7 @@ import java.util.Optional;
  */
 public enum Command {
 
-    /** {@code /news 금리} — 검색어에 해당하는 1위 기사. */
+    /** {@code /news 금리} — 검색어에 해당하는 오늘 기사 중 점수 상위 3건. */
     NEWS("/news", "뉴스", true, "/news 금리"),
 
     /** {@code /fx} — 원/달러 환율. 인자가 없다. */

@@ -107,16 +107,25 @@ public final class MessageFormatter {
     /**
      * 기사 여러 건을 한 통에 묶는다 — <b>브리핑과 검색이 같은 메서드를 쓴다.</b>
      *
-     * <p>브리핑은 매체별 1건, 검색은 상위 몇 건이다. 담기는 기준만 다르고 보여 주는 모양은
+     * <p>둘 다 오늘 발행분 중 점수 상위 몇 건이다. 담기는 기준이 같고 보여 주는 모양도
      * 같아야 하므로 여기를 나누지 않는다.
+     *
+     * <p><b>두 건 이상이면 앞에 번호를 붙인다.</b> 기사끼리는 빈 줄로만 갈라 두면 제목·요약·출처·시각이
+     * 줄줄이 이어져 어디까지가 한 건인지 흐려진다. 번호가 그 경계를 못 박는다. 한 건뿐이면
+     * 외로운 "1."이 오히려 어색하므로 붙이지 않는다.
      */
     public static String formatNews(List<NewsItem> items) {
         if (items.isEmpty()) {
             return section(Command.NEWS) + "지금은 가져올 수 있는 뉴스가 없습니다.";
         }
         StringBuilder message = new StringBuilder(title(Command.NEWS));
-        for (NewsItem item : items) {
-            message.append("\n\n").append(format(item));
+        boolean numbered = items.size() > 1;
+        for (int i = 0; i < items.size(); i++) {
+            message.append("\n\n");
+            if (numbered) {
+                message.append(i + 1).append(". ");
+            }
+            message.append(format(items.get(i)));
         }
         return message.toString();
     }
@@ -174,12 +183,13 @@ public final class MessageFormatter {
                 .append(Html.escape(quote.name())).append("</b>\n\n")
                 .append(priceOf(quote));
 
+        // 값 → 원화 환산 → 등락률 순으로 각각 제 줄에. 환산값과 등락률을 한 줄에 붙이면 엉킨다
+        if (convertible(quote, fx)) {
+            message.append("\n약 ").append(money(krw(quote.price(), fx))).append(" KRW");
+        }
         String change = change(quote.changePercent());
         if (!change.isEmpty()) {
             message.append("\n").append(change);
-        }
-        if (convertible(quote, fx)) {
-            message.append("\n약 ").append(money(krw(quote.price(), fx))).append(" KRW");
         }
         return message.append("\n\n").append(basisOf(quote)).toString();
     }
@@ -239,17 +249,18 @@ public final class MessageFormatter {
         for (StockQuote quote : quotes) {
             message.append("\n").append(Html.escape(quote.name())).append(" ")
                     .append(priceOf(quote));
+            // 무리 기준과 어긋난 줄에만 표시한다. 맨 밑 기준 줄이 그 값까지 대표하는 것처럼
+            // 보이면 거짓말이 된다. 값의 시각이라 값 줄에 함께 둔다
+            if (!quote.at().equals(basis)) {
+                message.append(" · ").append(DATE.format(quote.at().atZone(SEOUL)));
+            }
+            // 값 → 원화 환산 → 등락률 순으로 각각 제 줄에. 환산값과 등락률을 한 줄에 붙이면 엉킨다
             if (convertible(quote, fx)) {
-                message.append(" · ").append(money(krw(quote.price(), fx))).append(" KRW");
+                message.append("\n").append(money(krw(quote.price(), fx))).append(" KRW");
             }
             String change = change(quote.changePercent());
             if (!change.isEmpty()) {
-                message.append(" · ").append(change);
-            }
-            // 무리 기준과 어긋난 줄에만 표시한다. 맨 밑 기준 줄이 그 값까지 대표하는 것처럼
-            // 보이면 거짓말이 된다
-            if (!quote.at().equals(basis)) {
-                message.append(" · ").append(DATE.format(quote.at().atZone(SEOUL)));
+                message.append("\n").append(change);
             }
         }
     }
@@ -282,9 +293,9 @@ public final class MessageFormatter {
      * 명령마다 정보 밀도가 달라지는 것도 피한다.
      */
     public static String formatCrypto(CryptoQuote quote, BigDecimal usdtKrw) {
-        // 마켓 코드(KRW-BTC)도 바이낸스 심볼도 적지 않는다. 이름이 이미 그 코인을 가리키고,
-        // 거래소는 값 줄에 이름으로 적혀 있다 — 같은 말을 두 번 할 이유가 없다
-        return "<b>" + Html.escape(quote.name()) + "</b>\n\n"
+        // 제목은 이름이 아니라 티커(BTC)다 — 코인은 사람들이 티커로 부른다. 마켓 코드(KRW-BTC)나
+        // 바이낸스 심볼을 따로 적지 않는 건 그대로다. 거래소는 값 줄에 이름으로 적혀 있다
+        return "<b>" + Html.escape(quote.ticker()) + "</b>\n\n"
                 + exchangeLines(quote, usdtKrw, true) + "\n\n"
                 + DATE_TIME.format(quote.at().atZone(SEOUL));
     }
@@ -304,7 +315,7 @@ public final class MessageFormatter {
 
         StringBuilder message = new StringBuilder(title(Command.CRYPTO));
         for (CryptoQuote quote : shown) {
-            message.append("\n\n<b>").append(Html.escape(quote.name())).append("</b>\n")
+            message.append("\n\n<b>").append(Html.escape(quote.ticker())).append("</b>\n")
                     .append(exchangeLines(quote, usdtKrw, false));
         }
         // 시각은 맨 밑에 단독으로 — 모든 통이 같은 자리에 둔다
@@ -316,43 +327,61 @@ public final class MessageFormatter {
     /**
      * 거래소별 한 줄씩 — <b>업비트 먼저, 바이낸스 다음.</b>
      *
-     * <p>{@code explainMissing}이면 값이 없는 쪽도 이유를 적는다. 사용자가 방금 그 코인을 물었을
-     * 때는 줄을 빼 버리면 그 거래소를 조회하지 않은 것처럼 보이고, 무엇보다 다시 시도해야 할지
-     * 알 수 없다. 그래서 이유를 갈라 쓴다 — {@code 미상장}은 영영 안 나오는 것이고
+     * <p>{@code single}(단건 {@code /crypto})이면 값이 없는 쪽도 이유를 적는다. 사용자가 방금 그
+     * 코인을 물었을 때는 줄을 빼 버리면 그 거래소를 조회하지 않은 것처럼 보이고, 무엇보다 다시
+     * 시도해야 할지 알 수 없다. 그래서 이유를 갈라 쓴다 — {@code 미상장}은 영영 안 나오는 것이고
      * {@code 조회 실패}는 잠시 뒤 다시 치면 되는 것이다. 브리핑에서는 그 줄을 아예 뺀다.
+     *
+     * <p><b>한 거래소 안에서 값·원화 환산·등락률을 각각 제 줄에 둔다.</b> 한 줄에 {@code ·}로 붙이면
+     * USDT와 KRW 두 값이 엉킨다. 순서는 값 → 원화 환산 → 등락률이다.
      *
      * <p>{@code usdtKrw}가 없으면 USDT만 적는다 — 환산을 못 한다고 시세를 빼는 것은 과하다.
      */
-    private static String exchangeLines(CryptoQuote quote, BigDecimal usdtKrw,
-                                        boolean explainMissing) {
+    private static String exchangeLines(CryptoQuote quote, BigDecimal usdtKrw, boolean single) {
         StringBuilder lines = new StringBuilder();
+        // 업비트는 원화가 기본이라 환산 줄이 없다 — 값 한 줄, 등락률 한 줄
         if (quote.upbit().hasPrice()) {
-            lines.append(withChange("업비트 " + money(quote.upbit().price()) + " KRW",
-                    quote.upbit().changePercent()));
-        } else if (explainMissing) {
+            lines.append("업비트 ").append(money(quote.upbit().price())).append(" KRW");
+            appendChangeLine(lines, quote.upbit().changePercent());
+        } else if (single) {
             lines.append("업비트 ").append(reasonOf(quote.upbit()));
         }
 
         if (!quote.binance().hasPrice()) {
-            if (explainMissing) {
-                lines.append(separator(lines)).append("바이낸스 ").append(reasonOf(quote.binance()));
+            if (single) {
+                lines.append(exchangeGap(lines, single)).append("바이낸스 ").append(reasonOf(quote.binance()));
             }
             return lines.toString();
         }
-        StringBuilder binance = new StringBuilder("바이낸스 ")
-                .append(money(quote.binance().price())).append(" USDT");
+        // 바이낸스: 값(USDT) → 원화 환산 → 등락률, 각각 제 줄에
+        lines.append(exchangeGap(lines, single))
+                .append("바이낸스 ").append(money(quote.binance().price())).append(" USDT");
         if (usdtKrw != null) {
             BigDecimal krw = quote.binance().price().multiply(usdtKrw).setScale(0, RoundingMode.HALF_UP);
-            binance.append(" · ").append(money(krw)).append(" KRW");
+            lines.append("\n").append(money(krw)).append(" KRW");
         }
-        lines.append(separator(lines))
-                .append(withChange(binance.toString(), quote.binance().changePercent()));
+        appendChangeLine(lines, quote.binance().changePercent());
         return lines.toString();
     }
 
-    /** 앞 줄이 있을 때만 줄바꿈 — 업비트 줄을 뺀 브리핑에서 빈 줄이 앞서지 않게 한다. */
-    private static String separator(StringBuilder lines) {
-        return lines.isEmpty() ? "" : "\n";
+    /** 등락률을 제 줄에 붙인다 — 값과 원화 환산 다음이다. 없으면 붙이지 않는다. */
+    private static void appendChangeLine(StringBuilder lines, BigDecimal percent) {
+        String change = change(percent);
+        if (!change.isEmpty()) {
+            lines.append("\n").append(change);
+        }
+    }
+
+    /**
+     * 거래소 블록 사이 간격 — 앞 블록이 있을 때만 띄운다(브리핑에서 업비트 줄을 뺐을 때 빈 줄이
+     * 앞서지 않게 한다). 단건은 빈 줄로 띄워 두 거래소를 또렷이 가르고, 브리핑은 한 줄로 촘촘히
+     * 둔다 — 브리핑에서 빈 줄은 코인 사이 경계라 거래소 사이에도 쓰면 계층이 흐려진다.
+     */
+    private static String exchangeGap(StringBuilder lines, boolean single) {
+        if (lines.isEmpty()) {
+            return "";
+        }
+        return single ? "\n\n" : "\n";
     }
 
     /** 값이 없는 이유. 사용자가 다시 시도해야 하는지가 여기서 갈린다. */
@@ -413,12 +442,6 @@ public final class MessageFormatter {
             return "0.00%";
         }
         return (direction > 0 ? "🔴 " : "🔵 ") + rounded.abs().toPlainString() + "%";
-    }
-
-    /** 값 줄 뒤에 등락률을 이어 붙인다. 없으면 붙이지 않는다. */
-    private static String withChange(String value, BigDecimal percent) {
-        String change = change(percent);
-        return change.isEmpty() ? value : value + " · " + change;
     }
 
     /** 통화 코드까지 붙인 값. 지수는 통화가 없어 숫자만 나간다. */
@@ -499,7 +522,7 @@ public final class MessageFormatter {
 
     private static String describe(Command command) {
         return switch (command) {
-            case NEWS -> "검색어에 해당하는 뉴스 1건";
+            case NEWS -> "검색어에 해당하는 뉴스";
             case FX -> "원/달러 환율";
             case STOCK -> "국내·미국 주식과 지수의 현재가";
             case CRYPTO -> "코인 현재가";

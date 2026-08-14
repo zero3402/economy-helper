@@ -234,7 +234,7 @@ class DailyDigestJobTest {
         assertThat(telegram.sent).hasSize(4);
         assertThat(telegram.sent.get(0)).contains("<b>환율</b>").contains("1 USD =");
         assertThat(telegram.sent.get(1)).contains("<b>증시</b>").contains("삼성전자");
-        assertThat(telegram.sent.get(2)).contains("<b>코인</b>").contains("비트코인");
+        assertThat(telegram.sent.get(2)).contains("<b>코인</b>").contains("<b>BTC</b>");
         assertThat(telegram.sent.get(3)).contains("유가 상승");
     }
 

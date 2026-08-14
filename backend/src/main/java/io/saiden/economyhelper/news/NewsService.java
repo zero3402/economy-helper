@@ -8,12 +8,13 @@ import io.saiden.economyhelper.news.rank.RelevanceScorer;
 import io.saiden.economyhelper.support.Concurrently;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Collection;
-import java.util.EnumMap;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,6 +34,9 @@ public class NewsService {
 
     private static final Logger log = LoggerFactory.getLogger(NewsService.class);
 
+    /** 조회일자를 가르는 기준 — 사용자가 한국에 있으므로 KST 날짜로 "오늘"을 정한다. */
+    private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
+
     private final FeedFetcher fetcher;
     private final HackerNewsBuzzClient buzzClient;
     private final PopularityScorer scorer;
@@ -41,6 +45,7 @@ public class NewsService {
     private final int llmCandidates;
     private final double relevanceThreshold;
     private final int searchResults;
+    private final int digestResults;
 
     public NewsService(FeedFetcher fetcher,
                        HackerNewsBuzzClient buzzClient,
@@ -49,7 +54,8 @@ public class NewsService {
                        Clock clock,
                        @Value("${economy-helper.digest.llm-candidates:8}") int llmCandidates,
                        @Value("${economy-helper.digest.relevance-threshold:0.4}") double relevanceThreshold,
-                       @Value("${economy-helper.digest.search-results:3}") int searchResults) {
+                       @Value("${economy-helper.digest.search-results:3}") int searchResults,
+                       @Value("${economy-helper.digest.top-results:3}") int digestResults) {
         this.fetcher = fetcher;
         this.buzzClient = buzzClient;
         this.scorer = scorer;
@@ -58,43 +64,45 @@ public class NewsService {
         this.llmCandidates = llmCandidates;
         this.relevanceThreshold = relevanceThreshold;
         this.searchResults = searchResults;
+        this.digestResults = digestResults;
     }
 
     /**
-     * 매체별 1건 — 정기 발송용.
+     * 오늘(KST) 발행분 중 점수 상위 몇 건 — 정기 발송용.
      *
-     * <p><b>재테크 관련도가 임계값 이상인 기사만 후보로 삼는다.</b> 없으면 그 매체는 이번 발송에서
-     * 빠진다 — 재테크 뉴스가 아닌 걸 채워 보내는 것보다 낫다. 필터 없이 순위만 매기면
-     * "EU 국경 검사로 공항 대기줄 두 배" 같은 기사가 1위로 뽑힌다 — 랭킹 네 항 중
+     * <p><b>매체를 가리지 않고 전 매체를 통틀어 점수로 줄 세운다.</b> 예전에는 매체별 1건이었으나
+     * 검색과 같은 규칙("오늘 발행분 중 점수 상위 3건")으로 통일했다. 매체별 정규화(feedRank)를 거친
+     * 0~1 점수라 매체가 달라도 비교가 성립한다.
+     *
+     * <p><b>재테크 관련도가 임계값 이상인 기사만 후보로 삼는다.</b> 필터 없이 순위만 매기면
+     * "EU 국경 검사로 공항 대기줄 두 배" 같은 기사가 상위로 뽑힌다 — 랭킹 네 항 중
      * 셋({@code feedRank}·{@code recency}·{@code buzz})이 주제를 전혀 모르기 때문이다.
-     *
-     * <p>관련도를 <b>어떻게 재는지</b>는 {@link RelevanceScorer}가 정한다.
-     * 여기서는 후보를 좁혀 넘기고 임계값으로 자를 뿐이다.
+     * 관련도를 <b>어떻게 재는지</b>는 {@link RelevanceScorer}가 정한다.
      *
      * <p>수집에 실패한 매체도 결과에서 빠질 뿐 나머지를 막지 않는다.
      * 이게 "한 소스가 죽어도 발송은 계속된다"의 실제 구현이다.
      */
-    public Map<NewsSource, ScoredArticle> digest() {
+    public List<ScoredArticle> digest() {
         // 매체끼리는 서로를 기다릴 이유가 없어 겹쳐 돈다 — 가장 느린 매체 하나 만큼만 걸린다.
         // 매체 안에서는 순차다: 피드가 있어야 후보가 나오고 후보가 있어야 관련도를 잰다
-        List<ScoredArticle> best = Concurrently.map(List.of(NewsSource.values()), this::topOf).stream()
-                .flatMap(Optional::stream)
+        return Concurrently.map(List.of(NewsSource.values()), this::relevantOf).stream()
+                .flatMap(List::stream)
+                .sorted(Comparator.comparingDouble(ScoredArticle::score).reversed())
+                .limit(digestResults)
                 .toList();
-
-        Map<NewsSource, ScoredArticle> top = new EnumMap<>(NewsSource.class);
-        for (ScoredArticle article : best) {
-            top.put(article.article().source(), article);
-        }
-        return top;
     }
 
-    /** 매체 하나에서 1건. 그 매체가 죽거나 재테크 기사가 없으면 비어 있다. */
-    private Optional<ScoredArticle> topOf(NewsSource source) {
+    /**
+     * 매체 하나에서 오늘 발행분의 재테크 기사들을 점수순으로. 그 매체가 죽거나 오늘 재테크 기사가
+     * 없으면 비어 있다. 상위 몇 건을 고르는 것은 {@link #digest()}가 전 매체를 모아 한다.
+     */
+    private List<ScoredArticle> relevantOf(NewsSource source) {
         Instant now = clock.instant();
-        List<Article> articles = fetcher.fetch(source);
+        // 조회일자(오늘) 발행분만 남긴다 — "무조건 오늘"이라 어제 기사로 자리를 채우지 않는다
+        List<Article> articles = onToday(fetcher.fetch(source), now);
         if (articles.isEmpty()) {
-            log.warn("[{}] 수집 결과가 없어 이번 발송에서 제외합니다", source);
-            return Optional.empty();
+            log.warn("[{}] 오늘 발행분 수집 결과가 없어 이번 발송에서 제외합니다", source);
+            return List.of();
         }
 
         Map<String, Integer> buzz = buzzClient.buzzByLink(articles, now);
@@ -114,12 +122,26 @@ public class NewsService {
                 .filter(article -> relevance.getOrDefault(article.link(), 0.0) >= relevanceThreshold)
                 .toList();
         if (relevant.isEmpty()) {
-            log.info("[{}] 재테크 관련도가 {} 이상인 기사가 없어 이번 발송에서 제외합니다 (후보 {}건)",
+            log.info("[{}] 오늘 재테크 관련도가 {} 이상인 기사가 없어 이번 발송에서 제외합니다 (후보 {}건)",
                     source, relevanceThreshold, candidates.size());
-            return Optional.empty();
+            return List.of();
         }
 
-        return scorer.rankByRelevance(relevant, relevance, buzz, now).stream().findFirst();
+        return scorer.rankByRelevance(relevant, relevance, buzz, now);
+    }
+
+    /**
+     * 조회일자(오늘, KST) 발행 기사만 남긴다.
+     *
+     * <p>신선도는 랭킹 점수에도 반영되지만({@code recency}), 그건 가중치의 한 항일 뿐이라
+     * 피드 앞자리의 어제 기사를 못 막는다. 사용자가 "무조건 조회일자에서"를 요구했으므로
+     * 날짜로 하드 필터한다 — {@code StockService.onlyLatestDate}가 최신 기준일만 남기는 것과 같은 결.
+     */
+    private static List<Article> onToday(List<Article> articles, Instant now) {
+        LocalDate today = now.atZone(SEOUL).toLocalDate();
+        return articles.stream()
+                .filter(article -> article.publishedAt().atZone(SEOUL).toLocalDate().equals(today))
+                .toList();
     }
 
     /**
@@ -144,11 +166,11 @@ public class NewsService {
         }
 
         // 매체 전부를 동시에 긁는다 — 검색은 사용자가 화면을 보고 기다리는 자리라
-        // 순차로 도는 시간이 그대로 체감된다
-        List<Article> matching = Concurrently.map(List.of(NewsSource.values()), fetcher::fetch).stream()
+        // 순차로 도는 시간이 그대로 체감된다. 조회일자(오늘) 발행분만 남긴다
+        List<Article> matching = onToday(Concurrently.map(List.of(NewsSource.values()), fetcher::fetch).stream()
                 .flatMap(List::stream)
                 .filter(article -> matchesAny(article, groups))
-                .toList();
+                .toList(), clock.instant());
 
         // 걸린 게 적으면 그만큼만 나간다 — 자리를 채우려고 관련 없는 기사를 끌어오지 않는다
         return verified(rank(matching, groups), query).stream().limit(searchResults).toList();

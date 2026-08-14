@@ -24,7 +24,7 @@ public class NewsController {
         this.newsFacade = newsFacade;
     }
 
-    /** 매체별 1건 — 정기 발송과 같은 목록. */
+    /** 오늘 발행분 중 점수 상위 몇 건 — 정기 발송과 같은 목록. */
     @GetMapping("/top")
     public List<NewsItem> top() {
         return newsFacade.digest();

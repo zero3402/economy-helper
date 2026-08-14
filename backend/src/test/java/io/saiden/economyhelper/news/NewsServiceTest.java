@@ -81,6 +81,38 @@ class NewsServiceTest {
     }
 
     @Test
+    @DisplayName("검색은 오늘(KST) 발행분만 남긴다 — 어제 기사는 조회일자에서 벗어난다")
+    void searchKeepsOnlyToday() {
+        NewsService service = service(Map.of(NewsSource.CNBC, List.of(
+                article(NewsSource.CNBC, "Rate cut today", 0),
+                yesterday(NewsSource.CNBC, "Old rate story", 1))));
+
+        List<ScoredArticle> result = service.search(groups("rate"), "금리");
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).article().title()).isEqualTo("Rate cut today");
+    }
+
+    @Test
+    @DisplayName("브리핑은 전 매체를 통틀어 오늘 발행분 중 점수 상위 3건을 준다")
+    void digestTakesTopThreeAcrossSourcesFromToday() {
+        NewsService service = service(Map.of(
+                NewsSource.CNBC, List.of(
+                        article(NewsSource.CNBC, "cnbc a", 0),
+                        article(NewsSource.CNBC, "cnbc b", 1),
+                        yesterday(NewsSource.CNBC, "cnbc old", 2)),
+                NewsSource.YAHOO_FINANCE, List.of(
+                        article(NewsSource.YAHOO_FINANCE, "yahoo a", 0),
+                        article(NewsSource.YAHOO_FINANCE, "yahoo b", 1))));
+
+        List<ScoredArticle> digest = service.digest();
+
+        assertThat(digest).as("오늘 후보 4건 중 상위 3건").hasSize(3);
+        assertThat(digest).as("어제 기사는 조회일자 필터에서 빠진다")
+                .allSatisfy(scored -> assertThat(scored.article().title()).doesNotContain("old"));
+    }
+
+    @Test
     @DisplayName("걸리는 기사가 없으면 빈 결과")
     void searchReturnsEmptyWhenNothingMatches() {
         NewsService service = service(Map.of(
@@ -132,6 +164,7 @@ class NewsServiceTest {
                 CLOCK,
                 8,
                 RELEVANCE_THRESHOLD,
+                3,
                 3);
     }
 
@@ -162,6 +195,13 @@ class NewsServiceTest {
     private static Article article(NewsSource source, String title, int feedRank) {
         return new Article(source, title, null,
                 "https://example.com/" + source + "/" + title.hashCode(), NOW, feedRank);
+    }
+
+    /** 어제(KST) 발행 기사 — 조회일자(오늘) 필터가 걸러내야 하는 것. */
+    private static Article yesterday(NewsSource source, String title, int feedRank) {
+        return new Article(source, title, null,
+                "https://example.com/" + source + "/" + title.hashCode(),
+                NOW.minus(Duration.ofDays(1)), feedRank);
     }
 
     /** 실제 HTTP 없이 소스별 결과를 정해 준다. */
