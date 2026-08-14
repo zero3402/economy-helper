@@ -526,7 +526,7 @@ public final class MessageFormatter {
             case FX -> "원/달러 환율";
             case STOCK -> "국내·미국 주식과 지수의 현재가";
             case CRYPTO -> "코인 현재가";
-            case HELP -> "이 도움말";
+            case HELP -> "도움말";
         };
     }
 }
