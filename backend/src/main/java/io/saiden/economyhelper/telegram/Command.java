@@ -12,32 +12,47 @@ import java.util.Optional;
 public enum Command {
 
     /** {@code /news 금리} — 검색어에 해당하는 1위 기사. */
-    NEWS("/news", true, "/news 금리"),
+    NEWS("/news", "뉴스", true, "/news 금리"),
 
     /** {@code /fx} — 원/달러 환율. 인자가 없다. */
-    FX("/fx", false, "/fx"),
+    FX("/fx", "환율", false, "/fx"),
 
     /** {@code /stock 삼성전자} — 현재 주가. */
-    STOCK("/stock", true, "/stock 삼성전자"),
+    STOCK("/stock", "증시", true, "/stock 삼성전자"),
 
     /** {@code /crypto 비트코인} — 현재 코인 시세. */
-    CRYPTO("/crypto", true, "/crypto 비트코인"),
+    CRYPTO("/crypto", "코인", true, "/crypto 비트코인"),
 
     /** {@code /help} — 명령 목록. */
-    HELP("/help", false, "/help");
+    HELP("/help", "사용할 수 있는 명령", false, "/help");
 
     private final String token;
+    private final String section;
     private final boolean requiresArgument;
     private final String example;
 
-    Command(String token, boolean requiresArgument, String example) {
+    Command(String token, String section, boolean requiresArgument, String example) {
         this.token = token;
+        this.section = section;
         this.requiresArgument = requiresArgument;
         this.example = example;
     }
 
     public String token() {
         return token;
+    }
+
+    /**
+     * 이 명령이 답하는 통의 이름 — <b>메시지 맨 위에 굵게 찍히는 그 제목이다.</b>
+     *
+     * <p>성공 답과 실패 답이 같은 제목을 이고 있어야 한다. 실패했을 때만 제목 없이
+     * 맨몸 문장이 오면 무엇에 대한 답인지 알 수 없고, 그룹 채팅에서는 특히 그렇다.
+     *
+     * <p>분기문이 아니라 상수가 직접 들고 있는 이유는 {@link #example}과 같다 —
+     * 명령을 하나 더할 때 빠뜨릴 자리를 남기지 않는다.
+     */
+    public String section() {
+        return section;
     }
 
     /** 참이면 인자 없이 온 호출에 사용법을 띄워야 한다 — 무엇을 찾을지 알 수 없기 때문이다. */

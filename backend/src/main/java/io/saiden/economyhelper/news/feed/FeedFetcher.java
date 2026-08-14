@@ -32,10 +32,14 @@ public class FeedFetcher {
 
     private static final Logger log = LoggerFactory.getLogger(FeedFetcher.class);
 
-    /** 기본 UA로는 막는 매체가 있다. */
-    private static final String USER_AGENT =
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
-                    + "(KHTML, like Gecko) Chrome/120 Safari/537.36";
+    /**
+     * <b>우리 이름을 댄다.</b> 한동안 크롬 UA를 그대로 흉내 냈는데, 우리는 크롬이 아니고
+     * 브라우저인 척할 이유도 없다 — RSS는 원래 클라이언트가 자기를 밝히기를 기대하는 쪽이다.
+     *
+     * <p>헤더 자체는 남긴다. 야후가 자바 기본 UA({@code Java-http-client})를 429로 막기
+     * 때문이다(2026-08-14 실측, 두 번 다 429). 이 값으로는 다섯 매체 전부 200이다.
+     */
+    private static final String USER_AGENT = "economy-helper/1.0";
 
     private final RestClient restClient;
     private final EconomyHelperProperties properties;

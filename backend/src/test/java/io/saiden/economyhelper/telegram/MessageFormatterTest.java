@@ -28,16 +28,32 @@ class MessageFormatterTest {
             FxSource.FRANKFURTER, BASIS);
 
     @Test
-    @DisplayName("매체명·제목·본문·링크를 담는다")
-    void includesAllParts() {
+    @DisplayName("굵은 것은 기사 제목이다 — 매체명은 환율의 은행명과 같은 출처 자리다")
+    void headlineIsTheBoldTitle() {
         String message = MessageFormatter.format(item("유가 상승", "인플레이션 우려가 되살아났다.", true));
 
         assertThat(message)
-                .contains("<b>CNBC</b>")
-                .contains(">유가 상승</a>")
+                .as("긴 URL 줄이 아니라 제목이 링크이고, 그 제목이 굵다")
+                .contains("<a href=\"https://example.com/a\"><b>유가 상승</b></a>")
                 .contains("<blockquote>인플레이션 우려가 되살아났다.</blockquote>")
-                .as("긴 URL 줄이 아니라 제목이 링크가 된다")
-                .contains("<a href=\"https://example.com/a\">");
+                .as("매체명은 출처라 굵지 않다")
+                .contains("CNBC")
+                .doesNotContain("<b>CNBC</b>");
+    }
+
+    @Test
+    @DisplayName("제목 / 본문 / 출처 / 시각 — 다른 통과 같은 순서, 시각은 맨 밑 단독")
+    void followsTheSameSkeletonAsEveryOtherSection() {
+        String message = MessageFormatter.format(item("유가 상승", "인플레이션 우려.", true));
+
+        assertThat(message).isEqualTo("""
+                <a href="https://example.com/a"><b>유가 상승</b></a>
+
+                <blockquote>인플레이션 우려.</blockquote>
+
+                CNBC
+
+                2026년 8월 11일 09:00:00""");
     }
 
     @Test
@@ -86,6 +102,10 @@ class MessageFormatterTest {
         assertThat(MessageFormatter.usage(Command.NEWS)).contains("/news 금리");
         // 명령마다 예시가 달라야 한다 — 하나로 고정하면 /stock에 /news 예시가 뜬다
         assertThat(MessageFormatter.usage(Command.STOCK)).contains("/stock 삼성전자");
+        // 실패·안내 답도 성공 답과 같은 제목을 인다. 그룹 채팅에서 맨몸 문장 하나만
+        // 튀어나오면 무엇에 대한 답인지 알 수 없다
+        assertThat(MessageFormatter.usage(Command.STOCK)).startsWith("<b>증시</b>\n\n");
+        assertThat(MessageFormatter.usage(Command.NEWS)).startsWith("<b>뉴스</b>\n\n");
     }
 
     @Test
@@ -101,8 +121,20 @@ class MessageFormatterTest {
     @DisplayName("모르는 명령에는 도움말을 함께 준다 — 무엇을 칠 수 있는지 알려주지 않으면 고장으로 보인다")
     void unknownCommandIncludesHelp() {
         assertThat(MessageFormatter.unknownCommand())
-                .contains("모르는 명령")
-                .contains("/news");
+                .startsWith("<b>모르는 명령</b>\n\n")
+                .contains("/news")
+                .as("도움말 제목까지 딸려 오면 굵은 제목이 둘 연달아 찍힌다")
+                .doesNotContain("<b>사용할 수 있는 명령</b>");
+    }
+
+    @Test
+    @DisplayName("안내·오류 답도 예외 없이 굵은 제목으로 시작한다")
+    void everyFailureReplyCarriesItsSectionTitle() {
+        assertThat(MessageFormatter.noResults("금리")).startsWith("<b>뉴스</b>\n\n");
+        assertThat(MessageFormatter.fxUnavailable()).startsWith("<b>환율</b>\n\n");
+        assertThat(MessageFormatter.stockNotFound("없는종목")).startsWith("<b>증시</b>\n\n");
+        assertThat(MessageFormatter.cryptoNotFound("없는코인")).startsWith("<b>코인</b>\n\n");
+        assertThat(MessageFormatter.help()).startsWith("<b>사용할 수 있는 명령</b>");
     }
 
     @Test

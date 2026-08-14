@@ -1,7 +1,9 @@
 package io.saiden.economyhelper.news.feed;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -61,6 +63,19 @@ class FeedFetcherTest {
 
         assertThat(articles).hasSize(20);
         assertThat(articles.get(0).source()).isEqualTo(NewsSource.CNBC);
+    }
+
+    @Test
+    @DisplayName("자기 이름을 대고 요청한다 — 브라우저인 척하지도, UA를 비우지도 않는다")
+    void identifiesItselfWithoutPretendingToBeABrowser() throws IOException {
+        stubFeed("/cnbc", 200, fixture("cnbc.xml"));
+
+        fetcher(Map.of(NewsSource.CNBC, feed("/cnbc", FeedType.RSS))).fetch(NewsSource.CNBC);
+
+        // UA를 아예 안 보내면 야후가 자바 기본값을 429로 막는다. 그렇다고 크롬을 흉내 낼
+        // 이유는 없다 — 이 단언이 그 둘 사이를 고정한다
+        server.verify(getRequestedFor(urlPathEqualTo("/cnbc"))
+                .withHeader("User-Agent", equalTo("economy-helper/1.0")));
     }
 
     @Test

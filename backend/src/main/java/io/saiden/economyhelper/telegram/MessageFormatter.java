@@ -32,8 +32,14 @@ import java.util.Locale;
  * 본문을 가른다). {@code <i>}는 번역 실패 경고 한 곳에만 쓴다 — 그건 값이 아니라 시스템이
  * 붙인 주석이고, 굵게 쓰면 제목으로 오해된다.
  *
- * <p><b>모든 덩어리가 같은 모양이다: 굵은 제목 / 값 / 빈 줄 / 시각 한 줄.</b>
- * 시각을 통마다 다른 자리에 두던 것을 맨 아래로 통일했다.
+ * <p><b>모든 덩어리가 같은 모양이다: 굵은 제목 / 값 / 출처 / 시각.</b> 덩어리 사이는 빈 줄로
+ * 가르고 시각은 언제나 맨 아래 단독이다. 출처가 없는 통(주식·코인)은 그 자리를 비운다.
+ * 뉴스가 한동안 계층이 뒤집혀 있었다 — 매체명이 굵고 기사 제목은 안 굵었는데, 매체명은
+ * 환율의 {@code 유럽중앙은행}과 같은 <b>출처</b> 자리다.
+ *
+ * <p><b>성공하든 실패하든 굵은 제목으로 시작한다</b>({@link #section}). 실패·안내 답만
+ * 맨몸 문장으로 시작하던 것을 없앴다 — 그룹 채팅에 그런 줄이 튀어나오면 무엇에 대한
+ * 답인지 알 수 없다. 제목 문자열은 {@link Command#section()} 한 곳에만 있다.
  *
  * <p><b>바깥에서 온 문자열은 예외 없이 {@link Html#escape}를 통과한다.</b>
  * 하나라도 빠뜨리면 그 메시지는 발송 자체가 실패한다 — 평문일 때는 없던 위험이다.
@@ -64,10 +70,13 @@ public final class MessageFormatter {
     // --- 뉴스 ---------------------------------------------------------------
 
     /**
-     * 기사 한 건. <b>제목이 곧 링크</b>가 되어 토막난 URL 줄이 사라진다.
+     * 기사 한 건 — 다른 통과 같은 뼈대다: <b>굵은 제목 / 값 / 출처 / 시각</b>.
      *
-     * <p>발행 일시를 매체명 옆에 붙인다 — 없으면 어제 기사인지 방금 것인지 알 수 없고,
-     * 아침 브리핑처럼 여러 건이 묶일 때 특히 그렇다.
+     * <p><b>굵은 것은 기사 제목이다.</b> 한동안 매체명이 굵고 기사 제목은 링크뿐이라 계층이
+     * 뒤집혀 있었다 — 매체명은 {@code 환율} 통의 {@code 유럽중앙은행}과 같은 자리, 즉
+     * <b>출처</b>다. 사용자가 읽으러 온 것은 기사 제목이므로 그쪽이 제목 자리를 가진다.
+     *
+     * <p>제목이 곧 링크라 토막난 URL 줄이 사라진다. 굵기와 링크를 겹쳐 쓸 수 있다.
      *
      * <p>{@code publishedAt}에 {@code null} 방어를 두지 않는다. {@code Article}이 생성 시점에
      * 강제하고({@code "publishedAt is required"}) {@code RssFeedClient}는 날짜 없는 항목을
@@ -75,29 +84,29 @@ public final class MessageFormatter {
      */
     public static String format(NewsItem item) {
         StringBuilder message = new StringBuilder();
-        message.append("<b>").append(Html.escape(item.sourceName())).append("</b>\n")
-                .append("<a href=\"").append(Html.escape(item.link())).append("\">")
-                .append(Html.escape(item.title())).append("</a>");
+        message.append("<a href=\"").append(Html.escape(item.link())).append("\"><b>")
+                .append(Html.escape(item.title())).append("</b></a>");
 
         if (!item.body().isBlank()) {
             // 인용 블록으로 감싸면 제목과 본문이 갈려 다섯 건이 훨씬 잘 읽힌다
-            message.append("\n<blockquote>").append(Html.escape(item.body())).append("</blockquote>");
+            message.append("\n\n<blockquote>").append(Html.escape(item.body())).append("</blockquote>");
         }
         if (!item.translated()) {
             // 왜 영문인지 밝히지 않으면 고장으로 보인다
             message.append("\n<i>번역이 일시적으로 불가해 원문 그대로 보냅니다.</i>");
         }
-        // 시각은 값 아래 한 줄 — 다른 모든 통과 같은 자리다. 항목이 하나든 다섯이든 같다
-        return message.append("\n\n")
-                .append(DATE_TIME.format(item.publishedAt().atZone(SEOUL))).toString();
+        // 출처와 시각 — 환율 통과 같은 자리, 같은 모양이다
+        return message.append("\n\n").append(Html.escape(item.sourceName()))
+                .append("\n\n").append(DATE_TIME.format(item.publishedAt().atZone(SEOUL)))
+                .toString();
     }
 
     /** 아침 브리핑의 뉴스 통 — 매체별 1건을 한 메시지에 묶는다. */
     public static String formatDigest(List<NewsItem> items) {
         if (items.isEmpty()) {
-            return "<b>뉴스</b>\n\n지금은 가져올 수 있는 뉴스가 없습니다.";
+            return section(Command.NEWS) + "지금은 가져올 수 있는 뉴스가 없습니다.";
         }
-        StringBuilder message = new StringBuilder("<b>뉴스</b>");
+        StringBuilder message = new StringBuilder(title(Command.NEWS));
         for (NewsItem item : items) {
             message.append("\n\n").append(format(item));
         }
@@ -105,7 +114,7 @@ public final class MessageFormatter {
     }
 
     public static String noResults(String query) {
-        return "'" + Html.escape(query) + "'에 해당하는 뉴스를 찾지 못했습니다.";
+        return section(Command.NEWS) + "'" + Html.escape(query) + "'에 해당하는 뉴스를 찾지 못했습니다.";
     }
 
     // --- 환율 ---------------------------------------------------------------
@@ -119,13 +128,14 @@ public final class MessageFormatter {
      * 주말엔 며칠 전 값이 나가는데, 그걸 숨기면 고장이 아니라 거짓말이 된다.
      */
     public static String formatFx(FxRate rate) {
-        return "<b>환율</b>\n\n"
+        return section(Command.FX)
                 + "1 USD = " + money(rate.rate()) + " KRW\n\n"
-                + Html.escape(rate.source().displayName()) + " · " + basisOf(rate);
+                + Html.escape(rate.source().displayName()) + "\n\n"
+                + basisOf(rate);
     }
 
     public static String fxUnavailable() {
-        return "환율을 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.";
+        return section(Command.FX) + "환율을 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.";
     }
 
     private static String basisOf(FxRate rate) {
@@ -168,8 +178,9 @@ public final class MessageFormatter {
     }
 
     public static String stockNotFound(String query) {
-        return "'" + Html.escape(query) + "'에 해당하는 종목을 찾지 못했습니다.\n\n"
-                + "국내(코스피·코스닥)와 미국(나스닥·뉴욕) 종목·지수를 조회할 수 있습니다.\n"
+        return section(Command.STOCK)
+                + "'" + Html.escape(query) + "'에 해당하는 종목을 찾지 못했습니다.\n\n"
+                + "국내(코스피·코스닥)와 미국(나스닥·뉴욕) 종목·지수를 조회할 수 있습니다.\n\n"
                 + "예) /stock 삼성전자 · /stock 애플 · /stock 코스피 · /stock 나스닥";
     }
 
@@ -183,7 +194,7 @@ public final class MessageFormatter {
         List<StockQuote> closing = quotes.stream().filter(q -> !q.realtime()).toList();
         List<StockQuote> live = quotes.stream().filter(StockQuote::realtime).toList();
 
-        StringBuilder message = new StringBuilder("<b>증시</b>");
+        StringBuilder message = new StringBuilder(title(Command.STOCK));
         appendGroup(message, "국내", closing, fx);
         appendGroup(message, "미국", live, fx);
 
@@ -275,7 +286,7 @@ public final class MessageFormatter {
                 .filter(quote -> quote.upbit().hasPrice() || quote.binance().hasPrice())
                 .toList();
 
-        StringBuilder message = new StringBuilder("<b>코인</b>");
+        StringBuilder message = new StringBuilder(title(Command.CRYPTO));
         for (CryptoQuote quote : shown) {
             message.append("\n\n<b>").append(Html.escape(quote.name())).append("</b>\n")
                     .append(exchangeLines(quote, usdtKrw, false));
@@ -335,12 +346,33 @@ public final class MessageFormatter {
     }
 
     public static String cryptoNotFound(String query) {
-        return "'" + Html.escape(query) + "'에 해당하는 코인을 찾지 못했습니다.\n\n"
-                + "업비트 또는 바이낸스에 상장된 이름이나 심볼로 입력해 주세요.\n"
+        return section(Command.CRYPTO)
+                + "'" + Html.escape(query) + "'에 해당하는 코인을 찾지 못했습니다.\n\n"
+                + "업비트 또는 바이낸스에 상장된 이름이나 심볼로 입력해 주세요.\n\n"
                 + "예) /crypto 비트코인 · /crypto BTC";
     }
 
     // --- 공통 ---------------------------------------------------------------
+
+    /**
+     * 굵은 제목 한 줄과 그 아래 빈 줄 — <b>모든 메시지가 이것으로 시작한다.</b>
+     *
+     * <p>한동안 성공 답만 제목을 이고 실패·안내 답은 맨몸 문장으로 시작했다. 그룹 채팅에서
+     * 그런 줄이 하나 튀어나오면 무엇에 대한 답인지 알 수 없고, 무엇보다 같은 명령의 답인데
+     * 성공했을 때와 실패했을 때 모양이 달라진다.
+     */
+    private static String section(Command command) {
+        return title(command) + "\n\n";
+    }
+
+    /**
+     * 제목 줄만. 아래에 무리를 바로 붙이는 통(증시·코인·뉴스 브리핑)이 쓴다.
+     *
+     * <p>제목 문자열이 {@link Command}에만 있으므로 검색 답과 브리핑 답의 제목이 갈릴 수 없다.
+     */
+    private static String title(Command command) {
+        return "<b>" + Html.escape(command.section()) + "</b>";
+    }
 
     /** 통화 코드까지 붙인 값. 지수는 통화가 없어 숫자만 나간다. */
     private static String priceOf(StockQuote quote) {
@@ -384,17 +416,21 @@ public final class MessageFormatter {
 
     /** 인자가 필요한 명령을 인자 없이 보냈을 때. 명령마다 예시가 다르다. */
     public static String usage(Command command) {
-        return "검색어를 함께 입력해 주세요.\n예) "
-                + Html.escape(command.example());
+        return section(command)
+                + "검색어를 함께 입력해 주세요.\n\n"
+                + "예) " + Html.escape(command.example());
     }
 
     /**
      * {@code /}로 시작하는 모르는 명령에만 띄운다.
      *
      * <p>일반 대화에는 반응하지 않는다 — 그룹 채팅이 오염된다.
+     *
+     * <p>{@link #help()}를 통째로 붙이지 않는다. 그러면 굵은 제목이 둘 연달아 찍혀
+     * 무엇이 이 메시지의 제목인지 흐려진다 — 목록 본문만 빌린다.
      */
     public static String unknownCommand() {
-        return "모르는 명령입니다.\n\n" + help();
+        return "<b>모르는 명령</b>\n\n입력하신 명령을 찾지 못했습니다." + commandList();
     }
 
     /**
@@ -406,12 +442,17 @@ public final class MessageFormatter {
      * 쓰는 사람은 안 봐도 된다.
      */
     public static String help() {
-        StringBuilder message = new StringBuilder("<b>사용할 수 있는 명령</b>");
+        return title(Command.HELP) + commandList();
+    }
+
+    /** 명령 목록 본문. 도움말과 "모르는 명령"이 나눠 쓴다. */
+    private static String commandList() {
+        StringBuilder list = new StringBuilder();
         for (Command command : Command.values()) {
-            message.append("\n\n").append(Html.escape(command.example())).append("\n")
+            list.append("\n\n").append(Html.escape(command.example())).append("\n")
                     .append(describe(command));
         }
-        return message.toString();
+        return list.toString();
     }
 
     private static String describe(Command command) {
