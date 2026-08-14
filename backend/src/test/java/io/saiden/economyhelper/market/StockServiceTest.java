@@ -41,7 +41,7 @@ class StockServiceTest {
             price("323410", "카카오뱅크", "KOSPI", "22000", "10000000000000"));
 
     private static StockPrice price(String code, String name, String market, String close, String cap) {
-        return new StockPrice(TODAY, code, name, market, close, cap);
+        return new StockPrice(TODAY, code, name, market, close,null,  cap);
     }
 
     @Test
@@ -123,8 +123,8 @@ class StockServiceTest {
     void comparesOnlyLatestBasisDate() {
         // 어제 삼성전자우(시총 큼)와 오늘 삼성전자가 섞이면 날짜를 안 맞출 때 우선주가 이긴다
         List<StockPrice> mixed = List.of(
-                new StockPrice("20260810", "005935", "삼성전자우", "KOSPI", "180200", "9999999999999999"),
-                new StockPrice("20260811", "005930", "삼성전자", "KOSPI", "239500", "1400183726616000"));
+                new StockPrice("20260810", "005935", "삼성전자우", "KOSPI", "180200",null,  "9999999999999999"),
+                new StockPrice("20260811", "005930", "삼성전자", "KOSPI", "239500",null,  "1400183726616000"));
         StockService service = new StockService(new RecordingApi(Map.of("삼성", mixed)), indexApi(null), noFmp(), noResolver());
 
         StockQuote match = service.quote("삼성").orElseThrow();
@@ -191,7 +191,7 @@ class StockServiceTest {
     void routesUsStockToFmp() {
         RecordingApi api = new RecordingApi(Map.of());
         StockService service = new StockService(api, indexApi(null),
-                fmp(new FmpQuote("AAPL", "Apple Inc.", new java.math.BigDecimal("302.25"),
+                fmp(new FmpQuote("AAPL", "Apple Inc.", new java.math.BigDecimal("302.25"),null, 
                         "NASDAQ", new java.math.BigDecimal("4439253351000"), 1786564801L)),
                 resolver(new ResolvedStock("US", "STOCK", "AAPL", "Apple Inc.")));
 
@@ -208,7 +208,7 @@ class StockServiceTest {
     @DisplayName("^로 시작하면 지수로 본다 — FMP는 종목과 지수를 구분해 주지 않는다")
     void treatsCaretSymbolAsIndex() {
         StockService service = new StockService(new RecordingApi(Map.of()), indexApi(null),
-                fmp(new FmpQuote("^IXIC", "NASDAQ Composite", new java.math.BigDecimal("26588.49"),
+                fmp(new FmpQuote("^IXIC", "NASDAQ Composite", new java.math.BigDecimal("26588.49"),null, 
                         "", null, 1786564801L)),
                 resolver(new ResolvedStock("US", "INDEX", "^IXIC", "나스닥")));
 
@@ -247,7 +247,7 @@ class StockServiceTest {
                 if ("BAD".equals(symbol)) {
                     throw new IllegalStateException("서킷브레이커 열림");
                 }
-                return new FmpQuote(symbol, symbol, new java.math.BigDecimal("1"), "NASDAQ", null, 1L);
+                return new FmpQuote(symbol, symbol, new java.math.BigDecimal("1"),null,  "NASDAQ", null, 1L);
             }
         };
         StockService service = new StockService(new RecordingApi(Map.of()), indexApi(null),
@@ -307,8 +307,8 @@ class StockServiceTest {
     @DisplayName("브리핑용 지수는 설정 순서를 지킨다")
     void indicesOfKeepsConfiguredOrder() {
         MarketIndexApi api = indexApiOf(Map.of(
-                "코스피", new MarketIndex("20260811", "코스피", "KOSPI시리즈", "6345.53"),
-                "코스닥", new MarketIndex("20260811", "코스닥", "KOSDAQ시리즈", "857.84")));
+                "코스피", new MarketIndex("20260811", "코스피", "KOSPI시리즈", "6345.53", null),
+                "코스닥", new MarketIndex("20260811", "코스닥", "KOSDAQ시리즈", "857.84", null)));
 
         assertThat(new StockService(new RecordingApi(Map.of()), api, noFmp(), noResolver())
                 .indicesOf(List.of("코스피", "코스닥")))
@@ -320,7 +320,7 @@ class StockServiceTest {
     @DisplayName("지수 하나가 실패해도 나머지는 나온다 — 코스닥 때문에 코스피까지 빠지면 안 된다")
     void indicesOfSurvivesPartialFailure() {
         Map<String, MarketIndex> answers = new java.util.HashMap<>();
-        answers.put("코스피", new MarketIndex("20260811", "코스피", "KOSPI시리즈", "6345.53"));
+        answers.put("코스피", new MarketIndex("20260811", "코스피", "KOSPI시리즈", "6345.53", null));
         answers.put("코스닥", null);   // 못 찾은 경우
         MarketIndexApi api = indexApiOf(answers);
 
@@ -335,7 +335,7 @@ class StockServiceTest {
     void routesIndexToIndexApi() {
         RecordingApi api = new RecordingApi(Map.of());
         StockService service = new StockService(api,
-                indexApi(new MarketIndex("20260811", "코스피", "KOSPI시리즈", "6345.53")),
+                indexApi(new MarketIndex("20260811", "코스피", "KOSPI시리즈", "6345.53", null)),
                 noFmp(), resolver(new ResolvedStock("KR", "INDEX", null, "코스피")));
 
         StockQuote match = service.quote("코스피").orElseThrow();

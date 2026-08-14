@@ -80,6 +80,45 @@ class KeximFxClientTest {
     }
 
     @Test
+    @DisplayName("전 고시를 한 번 더 불러 등락률을 낸다 — 이 API는 등락률도 전일값도 안 준다")
+    void computesChangeFromThePreviousQuote() {
+        stub("20260812", usdBody("1,415"));
+        stub("20260811", usdBody("1,415.3"));
+
+        FxRate rate = client.usdToKrw();
+
+        // (1415 - 1415.3) / 1415.3 × 100 = -0.0212%
+        assertThat(rate.rate()).isEqualByComparingTo("1415");
+        assertThat(rate.changePercent()).isEqualByComparingTo("-0.02");
+    }
+
+    @Test
+    @DisplayName("전 고시도 비영업일이면 더 되짚는다 — 월요일에는 금요일과 비교해야 한다")
+    void walksBackPastNonBusinessDaysForThePreviousQuote() {
+        stub("20260812", usdBody("1,420"));
+        stub("20260811", "[]");   // 가정: 휴일
+        stub("20260810", usdBody("1,400"));
+
+        assertThat(client.usdToKrw().changePercent()).isEqualByComparingTo("1.43");
+    }
+
+    @Test
+    @DisplayName("전 고시를 못 찾아도 환율은 나간다 — 등락률 하나로 시세를 막지 않는다")
+    void stillReturnsTheRateWhenTheChangeCannotBeComputed() {
+        // 기본은 빈 배열 — 전 고시를 7일 되짚어도 못 찾는 상황이다.
+        // 나중에 등록한 스텁이 이기므로 넓은 것을 먼저 깐다
+        server.stubFor(get(urlPathEqualTo("/site/program/financial/exchangeJSON"))
+                .willReturn(aResponse().withStatus(200)
+                        .withHeader("Content-Type", "application/json").withBody("[]")));
+        stub("20260812", usdBody("1,415"));
+
+        FxRate rate = client.usdToKrw();
+
+        assertThat(rate.rate()).isEqualByComparingTo("1415");
+        assertThat(rate.changePercent()).isNull();
+    }
+
+    @Test
     @DisplayName("콤마 낀 값의 두 형태를 모두 파싱한다 — 실측에서 소수점 유무가 갈렸다")
     void parsesBothNumberFormats() {
         // 20260812는 "1,415"(소수점 없음), 20260810은 "1,420.1"(있음)이었다

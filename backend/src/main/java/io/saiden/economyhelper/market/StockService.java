@@ -274,14 +274,14 @@ public class StockService {
     /** 국내 종목 — <b>전일 종가</b>다. {@code realtime=false}가 메시지에서 "종가"로 드러난다. */
     private static StockQuote toQuote(StockPrice price) {
         return new StockQuote(price.srtnCd(), price.itmsNm(), price.mrktCtg(),
-                parse(price.clpr()), StockQuote.Money.KRW,
+                parse(price.clpr()), percent(price.fltRt()), StockQuote.Money.KRW,
                 atSeoulMidnight(price.basDt()), false, false, parse(price.mrktTotAmt()));
     }
 
     /** 국내 지수 — 종목코드가 없고 통화도 없다. */
     private static StockQuote toQuote(MarketIndex index) {
         return new StockQuote(null, index.idxNm(), index.idxCsf(), parse(index.clpr()),
-                StockQuote.Money.NONE,
+                percent(index.fltRt()), StockQuote.Money.NONE,
                 atSeoulMidnight(index.basDt()), false, true, BigDecimal.ZERO);
     }
 
@@ -295,7 +295,8 @@ public class StockService {
         boolean index = quote.symbol() != null && quote.symbol().startsWith("^");
         Instant at = quote.timestamp() == null ? Instant.now() : Instant.ofEpochSecond(quote.timestamp());
         return new StockQuote(quote.symbol(), quote.name(), quote.exchange(),
-                quote.price(), index ? StockQuote.Money.NONE : StockQuote.Money.USD,
+                quote.price(), quote.changePercentage(),
+                index ? StockQuote.Money.NONE : StockQuote.Money.USD,
                 at, true, index,
                 quote.marketCap() == null ? BigDecimal.ZERO : quote.marketCap());
     }
@@ -303,6 +304,24 @@ public class StockService {
     /** 종가일을 시각으로 옮긴다. 그날 장이 끝난 값이므로 KST 자정으로 두고 표기는 날짜만 쓴다. */
     private static Instant atSeoulMidnight(String basDt) {
         return LocalDate.parse(basDt, BAS_DT).atStartOfDay(SEOUL).toInstant();
+    }
+
+    /**
+     * 등락률 전용 파서.
+     *
+     * <p><b>{@link #parse}를 쓰면 안 된다.</b> 그쪽은 없는 값을 {@code 0}으로 만드는데,
+     * 등락률에서 {@code 0}은 "보합"이라는 <b>값</b>이지 "모른다"가 아니다 — 못 구한 것을
+     * 보합으로 찍으면 화면이 거짓말을 한다. 모르면 {@code null}로 두고 표시에서 뺀다.
+     */
+    private static BigDecimal percent(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return new BigDecimal(value.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     /** 값이 비거나 깨져 있어도 조회 전체를 실패시키지 않는다 — 0으로 보면 순위에서 뒤로 밀릴 뿐이다. */

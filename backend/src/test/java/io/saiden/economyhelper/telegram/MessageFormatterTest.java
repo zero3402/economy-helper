@@ -137,6 +137,81 @@ class MessageFormatterTest {
         assertThat(MessageFormatter.help()).startsWith("<b>사용할 수 있는 명령</b>");
     }
 
+    // --- 등락률 -------------------------------------------------------------
+
+    @Test
+    @DisplayName("상승은 빨강, 하락은 파랑 — 텔레그램이 글자에 색을 못 입혀 이모지가 유일한 수단이다")
+    void marksDirectionWithColour() {
+        assertThat(MessageFormatter.formatStock(
+                krStock("삼성전자", "268000", "4.89"), null)).contains("🔴 4.89%");
+        assertThat(MessageFormatter.formatStock(
+                krStock("삼성전자", "268000", "-1.45"), null)).contains("🔵 1.45%");
+    }
+
+    @Test
+    @DisplayName("부호를 원과 겹쳐 쓰지 않는다 — 원이 이미 방향이다")
+    void doesNotRepeatDirectionWithASign() {
+        assertThat(MessageFormatter.formatStock(krStock("삼성전자", "268000", "-1.45"), null))
+                .doesNotContain("-1.45").doesNotContain("+1.45");
+    }
+
+    @Test
+    @DisplayName("보합은 원을 붙이지 않는다 — 방향이 없는 값에 방향 표시를 붙일 이유가 없다")
+    void showsFlatWithoutAColour() {
+        assertThat(MessageFormatter.formatStock(krStock("삼성전자", "268000", "0"), null))
+                .contains("0.00%").doesNotContain("🔴").doesNotContain("🔵");
+    }
+
+    @Test
+    @DisplayName("등락률을 못 구하면 표시만 빠지고 시세는 그대로 나간다")
+    void omitsUnknownChangeButKeepsThePrice() {
+        String message = MessageFormatter.formatStock(krStock("삼성전자", "268000", null), null);
+
+        assertThat(message).contains("268,000 KRW")
+                .doesNotContain("%").doesNotContain("🔴").doesNotContain("🔵");
+    }
+
+    @Test
+    @DisplayName("출처마다 자릿수가 달라도 소수 둘째 자리로 맞춘다")
+    void roundsToTwoDecimalsRegardlessOfSource() {
+        // FMP는 0.99586, 바이낸스는 -1.451, 공공데이터포털은 4.89로 준다
+        assertThat(MessageFormatter.formatStock(krStock("A", "100", "0.99586"), null))
+                .contains("🔴 1.00%");
+        assertThat(MessageFormatter.formatStock(krStock("B", "100", "-1.451"), null))
+                .contains("🔵 1.45%");
+    }
+
+    @Test
+    @DisplayName("환율도 등락률을 단다 — 세 통이 같은 밀도여야 한다")
+    void fxCarriesItsChangeToo() {
+        FxRate rate = new FxRate("USD", "KRW", new BigDecimal("1414.90"),
+                new BigDecimal("-0.01"), FxSource.KEXIM, BASIS);
+
+        assertThat(MessageFormatter.formatFx(rate)).contains("1,414.9 KRW").contains("🔵 0.01%");
+    }
+
+    @Test
+    @DisplayName("등락률이 없으면 줄 자체를 빼고 빈 줄을 남기지 않는다")
+    void leavesNoBlankLineWhereTheChangeWouldBe() {
+        FxRate rate = new FxRate("USD", "KRW", new BigDecimal("1414.90"), FxSource.KEXIM, BASIS);
+
+        assertThat(MessageFormatter.formatFx(rate))
+                .as("덩어리 사이는 빈 줄 하나다 — 두 줄이면 자리가 비어 보인다")
+                .doesNotContain("\n\n\n");
+    }
+
+    @Test
+    @DisplayName("코인은 거래소마다 등락률이 따로다 — 업비트와 바이낸스는 다른 시장이다")
+    void cryptoCarriesPerExchangeChange() {
+        CryptoQuote quote = new CryptoQuote("비트코인", "KRW-BTC", NOW,
+                CryptoQuote.Quote.of(new BigDecimal("88922000"), new BigDecimal("-0.71")),
+                CryptoQuote.Quote.of(new BigDecimal("62910"), new BigDecimal("-1.451")));
+
+        assertThat(MessageFormatter.formatCrypto(quote, null))
+                .contains("업비트 88,922,000 KRW · 🔵 0.71%")
+                .contains("바이낸스 62,910 USDT · 🔵 1.45%");
+    }
+
     @Test
     @DisplayName("국내와 미국을 무리로 갈라 각각 기준을 밝힌다 — 종가와 현재가를 한 덩어리로 붙이면 안 된다")
     void stockDigestSeparatesByFreshness() {
@@ -196,7 +271,7 @@ class MessageFormatterTest {
     @Test
     @DisplayName("무리 안에서 기준일이 어긋나면 묵은 줄에 날짜를 붙인다 — 조용히 섞으면 거짓말이 된다")
     void stockDigestMarksStaleLines() {
-        StockQuote stale = new StockQuote(null, "코스닥", "KOSDAQ시리즈", new BigDecimal("857.84"),
+        StockQuote stale = new StockQuote(null, "코스닥", "KOSDAQ시리즈", new BigDecimal("857.84"),null, 
                 StockQuote.Money.NONE, BASIS.minus(java.time.Duration.ofDays(1)),
                 false, true, BigDecimal.ZERO);
 
@@ -226,22 +301,28 @@ class MessageFormatterTest {
     }
 
     private static StockQuote krIndex(String name, String price) {
-        return new StockQuote(null, name, "KOSPI시리즈", new BigDecimal(price),
+        return new StockQuote(null, name, "KOSPI시리즈", new BigDecimal(price),null, 
                 StockQuote.Money.NONE, BASIS, false, true, BigDecimal.ZERO);
     }
 
     private static StockQuote krStock(String name, String price) {
+        return krStock(name, price, null);
+    }
+
+    /** @param change 등락률(%) 문자열. {@code null}이면 "못 구했다"는 뜻이다 */
+    private static StockQuote krStock(String name, String price, String change) {
         return new StockQuote("005930", name, "KOSPI", new BigDecimal(price),
+                change == null ? null : new BigDecimal(change),
                 StockQuote.Money.KRW, BASIS, false, false, new BigDecimal("1400183726616000"));
     }
 
     private static StockQuote usIndex(String name, String price) {
-        return new StockQuote("^IXIC", name, "", new BigDecimal(price),
+        return new StockQuote("^IXIC", name, "", new BigDecimal(price),null, 
                 StockQuote.Money.NONE, US_AT, true, true, BigDecimal.ZERO);
     }
 
     private static StockQuote usStock(String name, String symbol, String price) {
-        return new StockQuote(symbol, name, "NASDAQ", new BigDecimal(price),
+        return new StockQuote(symbol, name, "NASDAQ", new BigDecimal(price),null, 
                 StockQuote.Money.USD, US_AT, true, false, new BigDecimal("4439253351000"));
     }
 
@@ -287,7 +368,7 @@ class MessageFormatterTest {
 
         assertThat(MessageFormatter.formatCrypto(
                 new CryptoQuote("비트코인", "KRW-BTC", NOW,
-                        Quote.of(new BigDecimal("89848000")), Quote.FAILED), null))
+                        Quote.of(new BigDecimal("89848000"), null), Quote.FAILED), null))
                 .as("잠시 뒤 다시 치면 되는 것").contains("바이낸스 조회 실패");
     }
 
@@ -296,7 +377,7 @@ class MessageFormatterTest {
     void showsBinanceOnlyCoin() {
         String message = MessageFormatter.formatCrypto(
                 new CryptoQuote("BNB", null, NOW,
-                        Quote.NOT_LISTED, Quote.of(new BigDecimal("612.40"))),
+                        Quote.NOT_LISTED, Quote.of(new BigDecimal("612.40"), null)),
                 new BigDecimal("1384"));
 
         assertThat(message)
@@ -366,14 +447,14 @@ class MessageFormatterTest {
 
     private static CryptoQuote btc(BigDecimal binanceUsdt) {
         return new CryptoQuote("비트코인", "KRW-BTC", NOW,
-                Quote.of(new BigDecimal("89848000")),
-                binanceUsdt == null ? Quote.NOT_LISTED : Quote.of(binanceUsdt));
+                Quote.of(new BigDecimal("89848000"), null),
+                binanceUsdt == null ? Quote.NOT_LISTED : Quote.of(binanceUsdt, null));
     }
 
     /** 바이낸스에 {@code USDTUSDT}가 없다 — 브리핑 기본 설정에 들어 있어 실제로 밟는 길이다. */
     private static CryptoQuote usdt() {
         return new CryptoQuote("테더", "KRW-USDT", NOW,
-                Quote.of(new BigDecimal("1384")), Quote.NOT_LISTED);
+                Quote.of(new BigDecimal("1384"), null), Quote.NOT_LISTED);
     }
 
     private static NewsItem item(String title, String body, boolean translated) {

@@ -155,9 +155,10 @@ public class StockPriceApi {
      * @param itmsNm     종목명 (한글)
      * @param mrktCtg    {@code KOSPI} · {@code KOSDAQ} · {@code KONEX}
      * @param clpr       종가 — 화면에 나가는 값
+     * @param fltRt      등락률(%). {@code 4.89}·{@code -1.2} 꼴로 부호까지 실려 온다
      * @param mrktTotAmt 시가총액 — 동명 후보를 가르는 내부 신호
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record StockPrice(String basDt, String srtnCd, String itmsNm, String mrktCtg,
-                             String clpr, String mrktTotAmt) {}
+                             String clpr, String fltRt, String mrktTotAmt) {}
 }

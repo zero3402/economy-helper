@@ -98,11 +98,14 @@ public class FmpApi {
     }
 
     /**
-     * @param price     현재가 — 우리가 화면에 쓰는 값
-     * @param exchange  {@code NASDAQ} · {@code NYSE}. 지수는 비어 오기도 한다
-     * @param timestamp epoch 초. 값의 신선도를 밝히는 데 쓴다
+     * @param price            현재가 — 우리가 화면에 쓰는 값
+     * @param changePercentage 전일 대비 등락률(%). {@code 0.99586}이면 +0.99586%다.
+     *                         응답에 원래 들어 있던 값인데 record에 없어 버려지고 있었다
+     * @param exchange         {@code NASDAQ} · {@code NYSE}. 지수는 비어 오기도 한다
+     * @param timestamp        epoch 초. 값의 신선도를 밝히는 데 쓴다
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record FmpQuote(String symbol, String name, java.math.BigDecimal price,
+                           java.math.BigDecimal changePercentage,
                            String exchange, java.math.BigDecimal marketCap, Long timestamp) {}
 }

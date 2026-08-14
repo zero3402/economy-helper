@@ -51,6 +51,9 @@ public class CryptoService {
 
     private static final Logger log = LoggerFactory.getLogger(CryptoService.class);
 
+    /** 업비트만 등락률을 비율로 준다 — %로 옮기는 데 쓴다. */
+    private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
+
     /** 업비트 원화 마켓의 USDT. 바이낸스 USDT 가격을 원화로 옮길 때 쓴다. */
     private static final String USDT_MARKET = "KRW-USDT";
 
@@ -155,8 +158,8 @@ public class CryptoService {
         }
         try {
             return upbitApi.tickers(List.of(listed.get().market())).stream().findFirst()
-                    .map(ticker -> new UpbitSide(listed.get(), Quote.of(ticker.tradePrice()),
-                            tradedAt(ticker)))
+                    .map(ticker -> new UpbitSide(listed.get(),
+                            Quote.of(ticker.tradePrice(), percentOf(ticker)), tradedAt(ticker)))
                     .orElseGet(() -> new UpbitSide(listed.get(), Quote.FAILED, null));
         } catch (RuntimeException e) {
             log.warn("[crypto] {} 업비트 시세 실패: {}", market, e.toString());
@@ -171,8 +174,9 @@ public class CryptoService {
      */
     private Quote binancePrice(String symbol) {
         try {
-            return binanceApi.prices(List.of(symbol)).stream()
-                    .map(BinancePrice::price).findFirst().map(Quote::of).orElse(Quote.NOT_LISTED);
+            return binanceApi.prices(List.of(symbol)).stream().findFirst()
+                    .map(price -> Quote.of(price.lastPrice(), price.priceChangePercent()))
+                    .orElse(Quote.NOT_LISTED);
         } catch (RuntimeException e) {
             if (e instanceof HttpClientErrorException http && http.getStatusCode().value() == 400) {
                 return Quote.NOT_LISTED;
@@ -240,10 +244,10 @@ public class CryptoService {
             return quotes.stream().map(quote -> withBinanceState(quote, Quote.NOT_LISTED)).toList();
         }
 
-        Map<String, BigDecimal> priceBySymbol;
+        Map<String, BinancePrice> priceBySymbol;
         try {
             priceBySymbol = binanceApi.prices(symbolByMarket.values().stream().sorted().toList()).stream()
-                    .collect(Collectors.toMap(BinancePrice::symbol, BinancePrice::price));
+                    .collect(Collectors.toMap(BinancePrice::symbol, Function.identity()));
         } catch (RuntimeException e) {
             log.warn("[crypto] 바이낸스 조회 실패 — 업비트 시세만 내보냅니다: {}", e.toString());
             return quotes.stream()
@@ -254,8 +258,10 @@ public class CryptoService {
 
         return quotes.stream().map(quote -> {
             String symbol = symbolByMarket.get(quote.market());
-            BigDecimal price = symbol == null ? null : priceBySymbol.get(symbol);
-            return withBinanceState(quote, price == null ? Quote.NOT_LISTED : Quote.of(price));
+            BinancePrice price = symbol == null ? null : priceBySymbol.get(symbol);
+            return withBinanceState(quote, price == null
+                    ? Quote.NOT_LISTED
+                    : Quote.of(price.lastPrice(), price.priceChangePercent()));
         }).toList();
     }
 
@@ -289,7 +295,20 @@ public class CryptoService {
         // 바이낸스 쪽은 withBinance가 나중에 채운다 — 업비트 조회와 별개 호출이다
         return new CryptoQuote(market.koreanName(), market.market(),
                 at == null ? Instant.now() : at,
-                Quote.of(ticker.tradePrice()), Quote.FAILED);
+                Quote.of(ticker.tradePrice(), percentOf(ticker)), Quote.FAILED);
+    }
+
+    /**
+     * 업비트 등락률을 %로 옮긴다.
+     *
+     * <p><b>업비트는 비율로 준다</b> — {@code -0.0070571945}가 -0.71%다. 바이낸스·FMP·
+     * 공공데이터포털은 이미 %라 이 환산은 업비트에만 필요하고, <b>그래서 여기 한 곳에만 둔다.</b>
+     * 표시하는 쪽까지 내려보내면 어느 출처가 비율이고 어느 쪽이 %인지를 화면이 알아야 한다.
+     */
+    private static BigDecimal percentOf(UpbitTicker ticker) {
+        return ticker.signedChangeRate() == null
+                ? null
+                : ticker.signedChangeRate().multiply(HUNDRED);
     }
 
     /** @return 업비트 체결 시각. 응답에 없으면 {@code null} */

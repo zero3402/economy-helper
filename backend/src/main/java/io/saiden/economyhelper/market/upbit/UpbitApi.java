@@ -101,11 +101,15 @@ public class UpbitApi {
      * @param accTradePrice24h  24시간 누적 거래대금. <b>화면용이 아니라</b> 동명 후보를 가르는 신호다.
      *                          {@code 비트}는 비트코인·비트코인캐시·비트텐서에 모두 걸리는데,
      *                          거래대금이 47배 차이라 이걸로 갈리면 LLM을 부를 필요가 없다
+     * @param signedChangeRate  전일 종가 대비 등락률. <b>%가 아니라 비율이다</b> —
+     *                          {@code -0.0070571945}가 -0.71%다. 100을 곱하는 곳은
+     *                          {@code CryptoService} 한 곳뿐이어야 한다
      * @param tradeTimestamp    체결 시각(epoch millis)
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record UpbitTicker(String market,
                               @JsonProperty("trade_price") BigDecimal tradePrice,
                               @JsonProperty("acc_trade_price_24h") BigDecimal accTradePrice24h,
+                              @JsonProperty("signed_change_rate") BigDecimal signedChangeRate,
                               @JsonProperty("trade_timestamp") Long tradeTimestamp) {}
 }

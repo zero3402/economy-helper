@@ -93,7 +93,7 @@ class TelegramWebhookControllerTest {
     @DisplayName("/stock은 기준일과 함께 답한다 — 전일 종가라 날짜를 숨기면 실시간으로 오해한다")
     void routesStockCommandWithBasisDate() {
         RecordingClient client = new RecordingClient();
-        StockQuote match = new StockQuote("005930", "삼성전자", "KOSPI", new BigDecimal("239500"),
+        StockQuote match = new StockQuote("005930", "삼성전자", "KOSPI", new BigDecimal("239500"),null, 
                 StockQuote.Money.KRW,
                 java.time.LocalDate.of(2026, 8, 11)
                         .atStartOfDay(java.time.ZoneId.of("Asia/Seoul")).toInstant(),

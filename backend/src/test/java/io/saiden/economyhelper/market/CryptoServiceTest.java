@@ -194,7 +194,7 @@ class CryptoServiceTest {
         UpbitApi withUsdt = new RecordingApi() {
             @Override
             public List<UpbitTicker> tickers(List<String> markets) {
-                return List.of(new UpbitTicker("KRW-USDT", BigDecimal.valueOf(1_384), null, null));
+                return List.of(new UpbitTicker("KRW-USDT", BigDecimal.valueOf(1_384), null,null,  null));
             }
         };
         assertThat(cryptoService(withUsdt).usdtKrw())
@@ -316,7 +316,7 @@ class CryptoServiceTest {
             public List<BinancePrice> prices(List<String> symbols) {
                 return symbols.stream()
                         .filter(binancePrices::containsKey)
-                        .map(symbol -> new BinancePrice(symbol, new BigDecimal(binancePrices.get(symbol))))
+                        .map(symbol -> new BinancePrice(symbol, new BigDecimal(binancePrices.get(symbol)), null))
                         .toList();
             }
         }, resolver);
@@ -386,7 +386,7 @@ class CryptoServiceTest {
             return markets.stream()
                     .filter(TICKERS::containsKey)
                     .map(market -> new UpbitTicker(
-                            market, TICKERS.get(market)[0], TICKERS.get(market)[1], 1_786_497_710_484L))
+                            market, TICKERS.get(market)[0], TICKERS.get(market)[1],null,  1_786_497_710_484L))
                     .toList();
         }
     }

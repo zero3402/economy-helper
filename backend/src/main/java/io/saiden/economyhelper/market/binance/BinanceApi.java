@@ -78,13 +78,18 @@ public class BinanceApi {
         String json = symbols.stream()
                 .map(symbol -> "\"" + symbol + "\"")
                 .collect(Collectors.joining(",", "[", "]"));
-        return "/api/v3/ticker/price?symbols=" + URLEncoder.encode(json, StandardCharsets.UTF_8);
+        return "/api/v3/ticker/24hr?symbols=" + URLEncoder.encode(json, StandardCharsets.UTF_8);
     }
 
     /**
-     * @param symbol {@code BTCUSDT}
-     * @param price  USDT 기준 현재가
+     * @param symbol             {@code BTCUSDT}
+     * @param lastPrice          USDT 기준 현재가.
+     *                           <b>{@code /ticker/price}의 {@code price}가 여기서는 이 이름이다</b> —
+     *                           등락률을 얻으려 {@code /ticker/24hr}로 옮기면서 갈렸다
+     * @param priceChangePercent 24시간 등락률(%). {@code -1.451}이면 -1.451%다.
+     *                           업비트의 비율과 달리 이쪽은 이미 %다
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record BinancePrice(String symbol, BigDecimal price) {}
+    public record BinancePrice(String symbol, BigDecimal lastPrice,
+                               BigDecimal priceChangePercent) {}
 }

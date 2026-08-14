@@ -292,8 +292,9 @@ resilience4j:
         limitForPeriod: 8
         limitRefreshPeriod: 1s
         timeoutDuration: 3s
-      # 바이낸스는 분당 1200 weight/IP다 — /ticker/price 한 번이 2~4라 우리 사용량으로는
-      # 닿을 일이 없다. 넉넉하다고 안 걸면 버그로 폭주할 때 IP가 밴된다.
+      # 바이낸스는 분당 1200 weight/IP다 — /ticker/24hr는 심볼 수에 따라 무거워지지만
+      # 우리는 3~5개라 한 자릿수다. /ticker/price에서 옮긴 이유는 등락률이 24hr에만 있어서다.
+      # 넉넉하다고 안 걸면 버그로 폭주할 때 IP가 밴된다.
       binance:
         limitForPeriod: 10
         limitRefreshPeriod: 1s

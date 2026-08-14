@@ -8,6 +8,7 @@ import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.FxRateClient;
 import io.saiden.economyhelper.market.FxSource;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -83,29 +84,68 @@ public class KeximFxClient implements FxRateClient {
     @RateLimiter(name = "kexim")
     @CircuitBreaker(name = "fxKexim")
     public FxRate usdToKrw() {
-        LocalDate today = LocalDate.ofInstant(clock.instant(), SEOUL);
+        Quoted current = findAt(LocalDate.ofInstant(clock.instant(), SEOUL));
+        return new FxRate(USD, "KRW", current.rate(), changeOf(current),
+                FxSource.KEXIM, current.date().atStartOfDay(SEOUL).toInstant());
+    }
 
+    /**
+     * 전 고시 대비 등락률(%).
+     *
+     * <p><b>수출입은행은 등락률도 전일값도 주지 않는다</b> — 응답 열한 필드가 전부 당일
+     * 고시값이다. 그래서 전 영업일을 한 번 더 부른다. 되짚는 비용은 {@code fx-kexim} 캐시
+     * (1시간)가 흡수한다 — 캐시가 비었을 때만 도는 길이고, 고시값은 하루에 바뀌지 않는다.
+     *
+     * <p><b>못 구하면 {@code null}이다.</b> 연휴가 상한을 넘겼거나 그 호출만 실패한 경우인데,
+     * 등락률 하나 때문에 환율 자체를 막는 것은 과하다 — 원화 환산이 실패해도 시세는
+     * 내보내는 것과 같은 판단이다.
+     *
+     * <p><b>다른 기관 값과 비교하지 않는다.</b> 유럽중앙은행 전일값을 끌어다 쓰면 기관 간
+     * 고시 차이가 등락률로 둔갑한다.
+     */
+    private BigDecimal changeOf(Quoted current) {
+        try {
+            Quoted previous = findAt(current.date().minusDays(1));
+            return current.rate().subtract(previous.rate())
+                    .divide(previous.rate(), 8, RoundingMode.HALF_UP)
+                    .multiply(BigDecimal.valueOf(100))
+                    .setScale(2, RoundingMode.HALF_UP);
+        } catch (RuntimeException e) {
+            log.info("[kexim] 전 고시를 찾지 못해 등락률을 비웁니다: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * {@code from}부터 <b>거슬러 올라가며</b> 가장 가까운 고시를 찾는다.
+     *
+     * <p>주말·공휴일에는 빈 배열이 오고, 영업일이어도 고시 전(11시경)이면 마찬가지다.
+     * 그래서 날짜를 하루씩 물려 가며 찾는다 — 유럽중앙은행이 금요일 값을 그대로 주는 것과
+     * 다른 점이다.
+     */
+    private Quoted findAt(LocalDate from) {
         for (int back = 0; back < MAX_LOOKBACK_DAYS; back++) {
-            LocalDate date = today.minusDays(back);
+            LocalDate date = from.minusDays(back);
             Rate[] rates = request(date);
 
             if (rates == null || rates.length == 0) {
-                // 주말·공휴일이거나 아직 고시 전(영업일 11시경)이다. 하루 물린다
                 continue;
             }
             verifyResultCode(rates[0], date);
 
             for (Rate rate : rates) {
                 if (USD.equals(rate.currencyUnit()) && rate.dealBasisRate() != null) {
-                    return new FxRate(USD, "KRW", parse(rate.dealBasisRate()),
-                            FxSource.KEXIM, date.atStartOfDay(SEOUL).toInstant());
+                    return new Quoted(date, parse(rate.dealBasisRate()));
                 }
             }
             throw new IllegalStateException("수출입은행 응답에 USD가 없습니다: " + date);
         }
         throw new IllegalStateException(
-                "최근 " + MAX_LOOKBACK_DAYS + "일 안에 고시된 환율이 없습니다");
+                from + "부터 " + MAX_LOOKBACK_DAYS + "일 안에 고시된 환율이 없습니다");
     }
+
+    /** 고시 한 건 — 값과 그 값이 고시된 날. */
+    private record Quoted(LocalDate date, BigDecimal rate) {}
 
     /**
      * 에러도 200으로 오므로 {@code result}를 직접 본다.

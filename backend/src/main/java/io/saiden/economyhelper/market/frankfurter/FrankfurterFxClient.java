@@ -6,8 +6,11 @@ import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.FxRateClient;
 import io.saiden.economyhelper.market.FxSource;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
@@ -21,9 +24,15 @@ import org.springframework.web.client.RestClient;
  * 그대로 도는 것이 이 출처를 고른 가장 큰 이유다.
  *
  * <pre>
- * GET /v1/latest?base=USD&amp;symbols=KRW
- *   → {"amount":1.0,"base":"USD","date":"2026-08-11","rates":{"KRW":1412.17}}
+ * GET /v1/2026-08-04..?base=USD&amp;symbols=KRW
+ *   → {"base":"USD","start_date":"2026-08-04","end_date":"2026-08-13",
+ *      "rates":{"2026-08-12":{"KRW":1417.13},"2026-08-13":{"KRW":1420.29}, ...}}
  * </pre>
+ *
+ * <p><b>{@code /latest}가 아니라 시계열을 부른다.</b> 등락률을 내려면 전 고시값이 필요한데
+ * {@code /latest}는 당일 하나뿐이라 두 번 불러야 한다. 시계열은 한 번에 여러 날을 주므로
+ * <b>호출 수가 늘지 않는다</b> — 수출입은행이 전 영업일을 되짚느라 한 번 더 부르는 것과
+ * 갈리는 지점이다.
  *
  * <p><b>시각이 아니라 날짜만 온다.</b> ECB가 영업일에 한 번 고시하기 때문이다 —
  * {@link FxSource#intraday()}가 거짓이라 메시지에도 "08-11 고시"로 나간다.
@@ -37,11 +46,21 @@ public class FrankfurterFxClient implements FxRateClient {
     private static final String USD = "USD";
     private static final String KRW = "KRW";
 
+    /**
+     * 얼마나 거슬러 받을지. <b>두 영업일만 있으면 되지만 연휴를 넉넉히 넘긴다</b> —
+     * 응답이 몇 KB라 범위를 넓혀도 비용이 사실상 같고, 좁혔다가 설 연휴에 한 건만
+     * 돌아오면 그때만 등락률이 조용히 빈다.
+     */
+    private static final int LOOKBACK_DAYS = 10;
+
     private final RestClient restClient;
+    private final Clock clock;
 
     public FrankfurterFxClient(RestClient.Builder builder,
-                               @Value("${economy-helper.market.frankfurter.base-url}") String baseUrl) {
+                               @Value("${economy-helper.market.frankfurter.base-url}") String baseUrl,
+                               Clock clock) {
         this.restClient = builder.baseUrl(baseUrl).build();
+        this.clock = clock;
     }
 
     @Override
@@ -53,26 +72,61 @@ public class FrankfurterFxClient implements FxRateClient {
     @Cacheable(cacheNames = "fx", unless = "#result == null")
     @CircuitBreaker(name = "fxFrankfurter")
     public FxRate usdToKrw() {
-        LatestRates response = restClient.get()
+        TimeSeries response = restClient.get()
                 .uri(uriBuilder -> uriBuilder
-                        .path("/v1/latest")
+                        .path("/v1/{start}..")
                         .queryParam("base", USD)
                         .queryParam("symbols", KRW)
-                        .build())
+                        .build(LocalDate.ofInstant(clock.instant(), SEOUL).minusDays(LOOKBACK_DAYS)))
                 .retrieve()
-                .body(LatestRates.class);
+                .body(TimeSeries.class);
 
-        if (response == null || response.rates() == null || response.rates().get(KRW) == null) {
+        if (response == null || response.rates() == null || response.rates().isEmpty()) {
+            throw new IllegalStateException("Frankfurter 응답에 환율이 없습니다");
+        }
+
+        // 날짜 문자열이 yyyy-MM-dd라 사전순이 곧 시간순이다
+        List<String> dates = response.rates().keySet().stream().sorted().toList();
+        LocalDate latest = LocalDate.parse(dates.get(dates.size() - 1));
+        BigDecimal rate = rateOn(response, dates.get(dates.size() - 1));
+        if (rate == null) {
             throw new IllegalStateException("Frankfurter 응답에 KRW 환율이 없습니다");
         }
 
         // 고시일 00:00(KST)로 맞춘다 — 시각 정보가 없으므로 있는 척하지 않는다
-        LocalDate date = response.date() == null ? LocalDate.now(SEOUL) : LocalDate.parse(response.date());
-        return new FxRate(USD, KRW, response.rates().get(KRW),
-                FxSource.FRANKFURTER, date.atStartOfDay(SEOUL).toInstant());
+        return new FxRate(USD, KRW, rate, changeOf(response, dates),
+                FxSource.FRANKFURTER, latest.atStartOfDay(SEOUL).toInstant());
     }
 
-    /** @param date {@code yyyy-MM-dd} — ECB 고시일이다 */
+    /**
+     * 전 고시 대비 등락률(%).
+     *
+     * <p>고시가 하루치뿐이면({@code null}) 표시에서 빠진다 — 없는 값을 0%로 찍으면
+     * 보합이라고 <b>거짓말</b>을 하게 된다.
+     */
+    private static BigDecimal changeOf(TimeSeries response, List<String> dates) {
+        if (dates.size() < 2) {
+            return null;
+        }
+        BigDecimal latest = rateOn(response, dates.get(dates.size() - 1));
+        BigDecimal previous = rateOn(response, dates.get(dates.size() - 2));
+        if (latest == null || previous == null || previous.signum() == 0) {
+            return null;
+        }
+        return latest.subtract(previous)
+                .divide(previous, 8, RoundingMode.HALF_UP)
+                .multiply(BigDecimal.valueOf(100))
+                .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private static BigDecimal rateOn(TimeSeries response, String date) {
+        Map<String, BigDecimal> onDate = response.rates().get(date);
+        return onDate == null ? null : onDate.get(KRW);
+    }
+
+    /**
+     * @param rates 고시일({@code yyyy-MM-dd}) → 통화별 환율. 비영업일은 <b>키 자체가 없다</b>
+     */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record LatestRates(String base, String date, Map<String, BigDecimal> rates) {}
+    record TimeSeries(String base, Map<String, Map<String, BigDecimal>> rates) {}
 }

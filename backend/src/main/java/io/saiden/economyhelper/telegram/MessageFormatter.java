@@ -32,6 +32,12 @@ import java.util.Locale;
  * 본문을 가른다). {@code <i>}는 번역 실패 경고 한 곳에만 쓴다 — 그건 값이 아니라 시스템이
  * 붙인 주석이고, 굵게 쓰면 제목으로 오해된다.
  *
+ * <p><b>이모지를 쓰지 않는다 — 등락률 한 곳만 빼고.</b> 상승이 빨강, 하락이 파랑인 것은
+ * 국내 시세 화면의 관습이라 색 자체가 정보인데, <b>텔레그램은 글자에 색을 못 입힌다</b>
+ * (HTML 모드가 허용하는 태그가 {@code b·i·u·s·a·code·pre·blockquote·tg-spoiler}뿐이고
+ * {@code tg-emoji}는 Fragment에서 산 사용자명이 있어야 한다). 색을 내는 유일한 수단이
+ * 이모지라서 여기만 남긴다 — 장식이 아니라 값의 일부다.
+ *
  * <p><b>모든 덩어리가 같은 모양이다: 굵은 제목 / 값 / 출처 / 시각.</b> 덩어리 사이는 빈 줄로
  * 가르고 시각은 언제나 맨 아래 단독이다. 출처가 없는 통(주식·코인)은 그 자리를 비운다.
  * 뉴스가 한동안 계층이 뒤집혀 있었다 — 매체명이 굵고 기사 제목은 안 굵었는데, 매체명은
@@ -128,8 +134,10 @@ public final class MessageFormatter {
      * 주말엔 며칠 전 값이 나가는데, 그걸 숨기면 고장이 아니라 거짓말이 된다.
      */
     public static String formatFx(FxRate rate) {
+        String change = change(rate.changePercent());
         return section(Command.FX)
-                + "1 USD = " + money(rate.rate()) + " KRW\n\n"
+                + "1 USD = " + money(rate.rate()) + " KRW"
+                + (change.isEmpty() ? "" : "\n" + change) + "\n\n"
                 + Html.escape(rate.source().displayName()) + "\n\n"
                 + basisOf(rate);
     }
@@ -164,6 +172,10 @@ public final class MessageFormatter {
                 .append(Html.escape(quote.name())).append("</b>\n\n")
                 .append(priceOf(quote));
 
+        String change = change(quote.changePercent());
+        if (!change.isEmpty()) {
+            message.append("\n").append(change);
+        }
         if (convertible(quote, fx)) {
             message.append("\n약 ").append(money(krw(quote.price(), fx))).append(" KRW");
         }
@@ -227,6 +239,10 @@ public final class MessageFormatter {
                     .append(priceOf(quote));
             if (convertible(quote, fx)) {
                 message.append(" · ").append(money(krw(quote.price(), fx))).append(" KRW");
+            }
+            String change = change(quote.changePercent());
+            if (!change.isEmpty()) {
+                message.append(" · ").append(change);
             }
             // 무리 기준과 어긋난 줄에만 표시한다. 맨 밑 기준 줄이 그 값까지 대표하는 것처럼
             // 보이면 거짓말이 된다
@@ -309,7 +325,8 @@ public final class MessageFormatter {
                                         boolean explainMissing) {
         StringBuilder lines = new StringBuilder();
         if (quote.upbit().hasPrice()) {
-            lines.append("업비트 ").append(money(quote.upbit().price())).append(" KRW");
+            lines.append(withChange("업비트 " + money(quote.upbit().price()) + " KRW",
+                    quote.upbit().changePercent()));
         } else if (explainMissing) {
             lines.append("업비트 ").append(reasonOf(quote.upbit()));
         }
@@ -320,12 +337,14 @@ public final class MessageFormatter {
             }
             return lines.toString();
         }
-        lines.append(separator(lines)).append("바이낸스 ")
+        StringBuilder binance = new StringBuilder("바이낸스 ")
                 .append(money(quote.binance().price())).append(" USDT");
         if (usdtKrw != null) {
             BigDecimal krw = quote.binance().price().multiply(usdtKrw).setScale(0, RoundingMode.HALF_UP);
-            lines.append(" · ").append(money(krw)).append(" KRW");
+            binance.append(" · ").append(money(krw)).append(" KRW");
         }
+        lines.append(separator(lines))
+                .append(withChange(binance.toString(), quote.binance().changePercent()));
         return lines.toString();
     }
 
@@ -370,6 +389,35 @@ public final class MessageFormatter {
      */
     private static String title(Command command) {
         return "<b>" + Html.escape(command.section()) + "</b>";
+    }
+
+    /**
+     * 등락률 한 조각 — <b>상승 🔴 / 하락 🔵 / 보합 무표시</b>.
+     *
+     * <p>부호({@code +}·{@code -})는 붙이지 않는다. 원이 이미 방향이라 겹친다.
+     *
+     * <p><b>{@code null}이면 빈 문자열이다.</b> 등락률을 못 구한 것과 보합(0%)은 다른 말이라
+     * 못 구한 값을 {@code 0.00%}로 찍으면 화면이 거짓말을 한다. 그때는 시세만 나간다.
+     *
+     * <p>소수 둘째 자리까지 쓴다. 출처마다 자릿수가 제각각인데({@code 0.99586}·{@code 4.89}·
+     * {@code -1.451}) 그대로 내보내면 같은 화면에서 정밀도가 들쭉날쭉해 보인다.
+     */
+    private static String change(BigDecimal percent) {
+        if (percent == null) {
+            return "";
+        }
+        BigDecimal rounded = percent.setScale(2, RoundingMode.HALF_UP);
+        int direction = rounded.signum();
+        if (direction == 0) {
+            return "0.00%";
+        }
+        return (direction > 0 ? "🔴 " : "🔵 ") + rounded.abs().toPlainString() + "%";
+    }
+
+    /** 값 줄 뒤에 등락률을 이어 붙인다. 없으면 붙이지 않는다. */
+    private static String withChange(String value, BigDecimal percent) {
+        String change = change(percent);
+        return change.isEmpty() ? value : value + " · " + change;
     }
 
     /** 통화 코드까지 붙인 값. 지수는 통화가 없어 숫자만 나간다. */

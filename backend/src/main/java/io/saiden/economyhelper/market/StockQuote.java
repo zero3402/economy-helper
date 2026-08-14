@@ -17,11 +17,13 @@ import java.time.Instant;
  * @param at        이 값의 시각 — {@code realtime}이면 조회 시각, 아니면 종가일 00시(KST)
  * @param realtime  현재가면 true, 종가면 false
  * @param index     지수인가. 통화 단위도 원화 환산도 붙이지 않는다
+ * @param changePercent 전일 대비 등락률(%). <b>{@code null}일 수 있다</b> — 못 구했다고
+ *                      시세까지 막지는 않는다. 지수도 등락률이 있다
  * @param marketCap 시가총액. 화면용이 아니라 동명 후보를 가르는 내부 신호다 —
  *                  {@code 삼성}은 26건이 걸리는데 시총 1위가 삼성전자다
  */
 public record StockQuote(String code, String name, String market,
-                         BigDecimal price, Money currency,
+                         BigDecimal price, BigDecimal changePercent, Money currency,
                          Instant at, boolean realtime,
                          boolean index, BigDecimal marketCap) {
 

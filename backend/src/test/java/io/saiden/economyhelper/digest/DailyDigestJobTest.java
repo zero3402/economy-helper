@@ -313,7 +313,7 @@ class DailyDigestJobTest {
             @Override
             public List<StockQuote> indicesOf(List<String> names) {
                 return indicesAlive
-                        ? List.of(new StockQuote(null, "코스피", "KOSPI시리즈", new BigDecimal("6345.53"),
+                        ? List.of(new StockQuote(null, "코스피", "KOSPI시리즈", new BigDecimal("6345.53"),null, 
                                 StockQuote.Money.NONE, BASIS, false, true, BigDecimal.ZERO))
                         : List.of();
             }
@@ -321,7 +321,7 @@ class DailyDigestJobTest {
             @Override
             public List<StockQuote> quotesOf(List<String> codes) {
                 return stocksAlive
-                        ? List.of(new StockQuote("005930", "삼성전자", "KOSPI", new BigDecimal("239500"),
+                        ? List.of(new StockQuote("005930", "삼성전자", "KOSPI", new BigDecimal("239500"),null, 
                                 StockQuote.Money.KRW, BASIS, false, false,
                                 new BigDecimal("1400183726616000")))
                         : List.of();
@@ -374,7 +374,7 @@ class DailyDigestJobTest {
             public List<CryptoQuote> quotesOf(List<String> markets) {
                 return List.of(btc(new BigDecimal("63703.69")),
                         new CryptoQuote("테더", "KRW-USDT", NOW,
-                                Quote.of(new BigDecimal("1384")), Quote.NOT_LISTED));
+                                Quote.of(new BigDecimal("1384"), null), Quote.NOT_LISTED));
             }
 
             @Override
@@ -426,8 +426,8 @@ class DailyDigestJobTest {
     /** 업비트 값은 항상 있고, 바이낸스는 인자로 준다({@code null}이면 미상장). */
     private static CryptoQuote btc(BigDecimal binanceUsdt) {
         return new CryptoQuote("비트코인", "KRW-BTC", NOW,
-                Quote.of(new BigDecimal("89848000")),
-                binanceUsdt == null ? Quote.NOT_LISTED : Quote.of(binanceUsdt));
+                Quote.of(new BigDecimal("89848000"), null),
+                binanceUsdt == null ? Quote.NOT_LISTED : Quote.of(binanceUsdt, null));
     }
 
     /** 브리핑은 마켓 코드로 조회하므로 LLM 경로를 타지 않는다 — 실수로 타면 여기서 드러난다. */

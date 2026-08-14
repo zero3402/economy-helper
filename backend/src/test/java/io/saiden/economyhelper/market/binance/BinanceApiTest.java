@@ -34,24 +34,29 @@ class BinanceApiTest {
     @Test
     @DisplayName("여러 심볼을 한 번에 부르고 배열 응답을 그대로 읽는다")
     void readsBatchResponse() {
+        // /ticker/24hr의 실제 응답 모양이다. 값 이름이 price가 아니라 lastPrice이고
+        // 등락률(priceChangePercent)이 함께 온다 — 그래서 이 엔드포인트로 옮겼다
         server.stubFor(get(anyUrl()).willReturn(aResponse()
                 .withStatus(200)
                 .withHeader("Content-Type", "application/json")
                 .withBody("""
-                        [{"symbol":"BTCUSDT","price":"63703.69000000"},\
-                        {"symbol":"ETHUSDT","price":"1886.36000000"}]""")));
+                        [{"symbol":"BTCUSDT","lastPrice":"63703.69000000",\
+                        "priceChange":"-926.01000000","priceChangePercent":"-1.451"},\
+                        {"symbol":"ETHUSDT","lastPrice":"1886.36000000",\
+                        "priceChange":"12.00000000","priceChangePercent":"0.640"}]""")));
 
         List<BinancePrice> prices = api().prices(List.of("BTCUSDT", "ETHUSDT"));
 
         assertThat(prices).extracting(BinancePrice::symbol).containsExactly("BTCUSDT", "ETHUSDT");
-        assertThat(prices.get(0).price()).isEqualByComparingTo(new BigDecimal("63703.69"));
+        assertThat(prices.get(0).lastPrice()).isEqualByComparingTo(new BigDecimal("63703.69"));
+        assertThat(prices.get(0).priceChangePercent()).isEqualByComparingTo(new BigDecimal("-1.451"));
     }
 
     @Test
     @DisplayName("symbols는 JSON 배열을 한 번만 인코딩한다 — 두 번 하면 %255B가 되어 400이다")
     void encodesSymbolsExactlyOnce() {
         assertThat(BinanceApi.query(List.of("BTCUSDT", "ETHUSDT")))
-                .isEqualTo("/api/v3/ticker/price?symbols=%5B%22BTCUSDT%22%2C%22ETHUSDT%22%5D")
+                .isEqualTo("/api/v3/ticker/24hr?symbols=%5B%22BTCUSDT%22%2C%22ETHUSDT%22%5D")
                 .doesNotContain("%25");
     }
 
@@ -59,7 +64,7 @@ class BinanceApiTest {
     @DisplayName("심볼이 하나여도 배열로 보낸다 — 개수에 따라 응답 모양이 갈리면 파싱이 두 갈래가 된다")
     void alwaysUsesArrayForm() {
         assertThat(BinanceApi.query(List.of("BTCUSDT")))
-                .isEqualTo("/api/v3/ticker/price?symbols=%5B%22BTCUSDT%22%5D");
+                .isEqualTo("/api/v3/ticker/24hr?symbols=%5B%22BTCUSDT%22%5D");
     }
 
     @Test

@@ -135,7 +135,9 @@ public class MarketIndexApi {
      * @param idxNm  지수명 {@code 코스피}
      * @param idxCsf 분류 {@code KOSPI시리즈} · {@code KOSDAQ시리즈} · {@code KRX시리즈}
      * @param clpr   종가 — 지수는 통화 단위가 없다
+     * @param fltRt  등락률(%). 지수도 종목과 같은 필드명으로 온다
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record MarketIndex(String basDt, String idxNm, String idxCsf, String clpr) {}
+    public record MarketIndex(String basDt, String idxNm, String idxCsf, String clpr,
+                              String fltRt) {}
 }

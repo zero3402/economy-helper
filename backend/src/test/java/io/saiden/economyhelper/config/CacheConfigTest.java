@@ -95,7 +95,7 @@ class CacheConfigTest {
     void roundTripsMarketIndex() {
         JacksonJsonRedisSerializer<MarketIndex> serializer =
                 CacheConfig.serializer(new TypeReference<MarketIndex>() {});
-        MarketIndex original = new MarketIndex("20260811", "코스피", "KOSPI시리즈", "6345.53");
+        MarketIndex original = new MarketIndex("20260811", "코스피", "KOSPI시리즈", "6345.53", null);
 
         assertThat(serializer.deserialize(serializer.serialize(original))).isEqualTo(original);
     }
@@ -106,8 +106,8 @@ class CacheConfigTest {
         JacksonJsonRedisSerializer<List<BinancePrice>> serializer =
                 CacheConfig.serializer(new TypeReference<List<BinancePrice>>() {});
         List<BinancePrice> original = List.of(
-                new BinancePrice("BTCUSDT", new BigDecimal("63703.69")),
-                new BinancePrice("ETHUSDT", new BigDecimal("1886.36")));
+                new BinancePrice("BTCUSDT", new BigDecimal("63703.69"), null),
+                new BinancePrice("ETHUSDT", new BigDecimal("1886.36"), null));
 
         assertThat(serializer.deserialize(serializer.serialize(original))).isEqualTo(original);
     }
