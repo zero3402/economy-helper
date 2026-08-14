@@ -109,7 +109,7 @@ public final class MessageFormatter {
      */
     public static String formatFx(FxRate rate) {
         return "<b>환율</b>\n\n"
-                + "<b>1 USD = " + money(rate.rate()) + " KRW</b>\n\n"
+                + "1 USD = " + money(rate.rate()) + " KRW\n\n"
                 + Html.escape(rate.source().displayName()) + " · " + basisOf(rate);
     }
 
@@ -141,7 +141,7 @@ public final class MessageFormatter {
     public static String formatStock(StockQuote quote, FxRate fx) {
         StringBuilder message = new StringBuilder("<b>")
                 .append(Html.escape(quote.name())).append("</b>\n\n")
-                .append("<b>").append(priceOf(quote)).append("</b>");
+                .append(priceOf(quote));
 
         if (convertible(quote, fx)) {
             message.append("\n약 ").append(money(krw(quote.price(), fx))).append(" KRW");
@@ -177,42 +177,63 @@ public final class MessageFormatter {
         appendGroup(message, "국내", closing, fx);
         appendGroup(message, "미국", live, fx);
 
-        // 환율 줄을 붙이지 않는다. 브리핑은 환율 통을 이 통 바로 앞에 보내므로 중복이다.
-        // 단건 검색(formatStock)은 혼자 나가니 거기서는 계속 붙인다
+        // 시각은 맨 밑에 단독으로 — 모든 통이 같은 자리에 둔다. 국내는 전일 종가고 미국은
+        // 현재가라 기준이 서로 다르므로 무리 이름을 붙여 두 줄로 적는다
+        StringBuilder basis = new StringBuilder();
+        appendBasis(basis, "국내", closing);
+        appendBasis(basis, "미국", live);
+        if (!basis.isEmpty()) {
+            message.append("\n\n").append(basis);
+        }
+
+        // 환율 줄을 붙이지 않는다. 브리핑은 환율 통을 이 통 바로 앞에 보내므로 중복이다
         return message.toString();
     }
 
     /**
-     * 무리 하나를 표로 붙인다. 비어 있으면 제목도 남기지 않는다.
+     * 무리 하나. 비어 있으면 제목도 남기지 않는다.
      *
-     * <p>기준을 <b>무리 제목에 한 번만</b> 쓴다 — 줄마다 붙이면 같은 값이 반복된다.
-     * 무리 안에서 기준이 어긋난 줄에만 따로 표시한다.
-     *
-     * <p>원화 환산은 <b>세 번째 열</b>이다. 값 뒤에 괄호로 붙이면 모처럼 맞춘 정렬이 그 줄에서 깨진다.
+     * <p>굵게는 <b>제목에만</b> 쓴다 — 값까지 굵으면 무엇이 계층인지 드러나지 않는다.
      */
     private static void appendGroup(StringBuilder message, String title,
                                     List<StockQuote> quotes, FxRate fx) {
         if (quotes.isEmpty()) {
             return;
         }
-        Instant basis = quotes.stream().map(StockQuote::at).max(Comparator.naturalOrder()).orElseThrow();
-        boolean realtime = quotes.get(0).realtime();
-
-        message.append("\n\n<b>").append(title).append("</b>  ")
-                .append(realtime ? DATE_TIME.format(basis.atZone(SEOUL))
-                        : DATE.format(basis.atZone(SEOUL)) + " (종가)")
-                .append("\n");
+        Instant basis = basisOf(quotes);
+        message.append("\n\n<b>").append(title).append("</b>");
 
         for (StockQuote quote : quotes) {
-            message.append("\n").append(Html.escape(quote.name())).append("  ")
+            message.append("\n").append(Html.escape(quote.name())).append(" ")
                     .append(priceOf(quote));
             if (convertible(quote, fx)) {
                 message.append(" · ").append(money(krw(quote.price(), fx))).append(" KRW");
             }
+            // 무리 기준과 어긋난 줄에만 표시한다. 맨 밑 기준 줄이 그 값까지 대표하는 것처럼
+            // 보이면 거짓말이 된다
             if (!quote.at().equals(basis)) {
                 message.append(" · ").append(DATE.format(quote.at().atZone(SEOUL)));
             }
         }
+    }
+
+    private static void appendBasis(StringBuilder basis, String title, List<StockQuote> quotes) {
+        if (quotes.isEmpty()) {
+            return;
+        }
+        basis.append(basis.isEmpty() ? "" : "\n")
+                .append(title).append(" ").append(basisOf(quotes.get(0), basisOf(quotes)));
+    }
+
+    /** 무리의 기준 시각 — 가장 최근 값이다. */
+    private static Instant basisOf(List<StockQuote> quotes) {
+        return quotes.stream().map(StockQuote::at).max(Comparator.naturalOrder()).orElseThrow();
+    }
+
+    private static String basisOf(StockQuote sample, Instant basis) {
+        return sample.realtime()
+                ? DATE_TIME.format(basis.atZone(SEOUL))
+                : DATE.format(basis.atZone(SEOUL)) + " (종가)";
     }
 
     // --- 코인 ---------------------------------------------------------------
@@ -226,7 +247,7 @@ public final class MessageFormatter {
     public static String formatCrypto(CryptoQuote quote, BigDecimal usdtKrw) {
         // 마켓 코드(KRW-BTC)도 바이낸스 심볼도 적지 않는다. 이름이 이미 그 코인을 가리키고,
         // 거래소는 값 줄에 이름으로 적혀 있다 — 같은 말을 두 번 할 이유가 없다
-        return "<b>" + Html.escape(quote.name()) + "</b>\n"
+        return "<b>" + Html.escape(quote.name()) + "</b>\n\n"
                 + exchangeLines(quote, usdtKrw, true) + "\n\n"
                 + DATE_TIME.format(quote.at().atZone(SEOUL));
     }
@@ -245,12 +266,13 @@ public final class MessageFormatter {
                 .toList();
 
         StringBuilder message = new StringBuilder("<b>코인</b>");
-        shown.stream().findFirst().ifPresent(first ->
-                message.append("  ").append(DATE_TIME.format(first.at().atZone(SEOUL))));
         for (CryptoQuote quote : shown) {
             message.append("\n\n<b>").append(Html.escape(quote.name())).append("</b>\n")
                     .append(exchangeLines(quote, usdtKrw, false));
         }
+        // 시각은 맨 밑에 단독으로 — 모든 통이 같은 자리에 둔다
+        shown.stream().findFirst().ifPresent(first ->
+                message.append("\n\n").append(DATE_TIME.format(first.at().atZone(SEOUL))));
         return message.toString();
     }
 
@@ -268,18 +290,18 @@ public final class MessageFormatter {
                                         boolean explainMissing) {
         StringBuilder lines = new StringBuilder();
         if (quote.upbit().hasPrice()) {
-            lines.append("  업비트 ").append(money(quote.upbit().price())).append(" KRW");
+            lines.append("업비트 ").append(money(quote.upbit().price())).append(" KRW");
         } else if (explainMissing) {
-            lines.append("  업비트 ").append(reasonOf(quote.upbit()));
+            lines.append("업비트 ").append(reasonOf(quote.upbit()));
         }
 
         if (!quote.binance().hasPrice()) {
             if (explainMissing) {
-                lines.append(separator(lines)).append("  바이낸스 ").append(reasonOf(quote.binance()));
+                lines.append(separator(lines)).append("바이낸스 ").append(reasonOf(quote.binance()));
             }
             return lines.toString();
         }
-        lines.append(separator(lines)).append("  바이낸스 ")
+        lines.append(separator(lines)).append("바이낸스 ")
                 .append(money(quote.binance().price())).append(" USDT");
         if (usdtKrw != null) {
             BigDecimal krw = quote.binance().price().multiply(usdtKrw).setScale(0, RoundingMode.HALF_UP);
@@ -361,31 +383,23 @@ public final class MessageFormatter {
      *
      * <p>일반 대화에는 반응하지 않는다 — 그룹 채팅이 오염된다.
      */
-    public static String unknownCommand(String chatId, Integer topicId) {
-        return "모르는 명령입니다.\n\n" + help(chatId, topicId);
+    public static String unknownCommand() {
+        return "모르는 명령입니다.\n\n" + help();
     }
 
     /**
-     * 도움말 — <b>끝에 지금 방과 토픽 번호를 붙인다.</b>
+     * 도움말.
      *
-     * <p>이 두 값이 {@code TELEGRAM_CHAT_ID}·{@code TELEGRAM_NOTICE_TOPIC_ID}에 들어가야 하는데,
-     * 알아낼 방법이 메시지 링크를 복사해 손으로 파싱하는 것뿐이었다. 실제로 그것 때문에
-     * 토픽 번호가 비어 아침 브리핑이 General 토픽으로 새고 있었다 —
-     * <b>봇이 이미 알고 있는 값을 사람이 찾아 헤맬 이유가 없다.</b>
-     *
-     * <p>{@code /help}에만 붙인다. 시세·뉴스 답에 붙이면 매번 나오는 소음이 된다.
-     *
-     * @param topicId 포럼 토픽 번호. 일반 그룹과 General 토픽에서는 {@code null}이라 자리를 비운다
+     * <p><b>방·토픽 번호를 적지 않는다.</b> 설정에 넣을 값이라 한동안 여기에 띄웠는데,
+     * 사용자가 볼 화면에 내부 배관을 늘어놓는 꼴이었다. 같은 값은 명령을 받을 때마다
+     * {@code TelegramWebhookController}가 INFO 로그로 남긴다 — 설정하는 사람은 로그를 보고,
+     * 쓰는 사람은 안 봐도 된다.
      */
-    public static String help(String chatId, Integer topicId) {
+    public static String help() {
         StringBuilder message = new StringBuilder("<b>사용할 수 있는 명령</b>");
         for (Command command : Command.values()) {
             message.append("\n\n<code>").append(Html.escape(command.example())).append("</code>\n")
                     .append(describe(command));
-        }
-        message.append("\n\n<b>이 방</b>  <code>").append(Html.escape(chatId)).append("</code>");
-        if (topicId != null) {
-            message.append(" · <b>토픽</b>  <code>").append(topicId).append("</code>");
         }
         return message.toString();
     }

@@ -170,7 +170,7 @@ public class TelegramWebhookController {
         if (parsed.isEmpty()) {
             // '/'로 시작하는 오타에만 안내한다. 일반 대화는 조용히 무시해 그룹 채팅을 오염시키지 않는다
             if (CommandParser.isUnknownCommand(text)) {
-                telegramClient.send(chatId, topicId, MessageFormatter.unknownCommand(chatId, topicId));
+                telegramClient.send(chatId, topicId, MessageFormatter.unknownCommand());
             }
             return;
         }
@@ -183,7 +183,7 @@ public class TelegramWebhookController {
 
         long startedAt = System.nanoTime();
         // 물어본 토픽으로 답한다 — 다른 토픽에 답이 뜨면 대화가 어긋난다
-        Reply reply = reply(command, chatId, topicId);
+        Reply reply = reply(command);
         if (reply.logoSymbol() == null) {
             telegramClient.send(chatId, topicId, reply.text());
         } else {
@@ -225,7 +225,7 @@ public class TelegramWebhookController {
      * <p>{@code default} 없는 switch 식이라 <b>명령을 더하면 컴파일이 깨진다</b> —
      * 새 명령을 여기서 빠뜨려 조용히 무응답이 되는 일을 컴파일러가 막아 준다.
      */
-    private Reply reply(ParsedCommand command, String chatId, Integer topicId) {
+    private Reply reply(ParsedCommand command) {
         return switch (command.command()) {
             case NEWS -> Reply.plain(newsFacade.search(command.argument())
                     .map(MessageFormatter::format)
@@ -246,8 +246,7 @@ public class TelegramWebhookController {
                             // 국내 지수는 종목코드가 없다 — 이름이 유일한 식별자다
                             quote.code() == null ? quote.name() : quote.code()))
                     .orElseGet(() -> Reply.plain(MessageFormatter.stockNotFound(command.argument())));
-            // 설정에 넣어야 할 번호를 여기서 알려준다 — 봇이 이미 아는 값이다
-            case HELP -> Reply.plain(MessageFormatter.help(chatId, topicId));
+            case HELP -> Reply.plain(MessageFormatter.help());
         };
     }
 

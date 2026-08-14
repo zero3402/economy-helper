@@ -91,28 +91,16 @@ class MessageFormatterTest {
     @Test
     @DisplayName("도움말은 모든 명령을 빠짐없이 싣는다")
     void helpListsEveryCommand() {
-        String help = MessageFormatter.help("-1002334455667", 12);
+        String help = MessageFormatter.help();
         for (Command command : Command.values()) {
             assertThat(help).contains(command.token());
         }
     }
 
     @Test
-    @DisplayName("도움말이 지금 방·토픽 번호를 알려준다 — 설정에 넣을 값을 찾아 헤매지 않게")
-    void helpShowsChatAndTopicId() {
-        assertThat(MessageFormatter.help("-1002334455667", 12))
-                .contains("-1002334455667")
-                .contains("12");
-        assertThat(MessageFormatter.help("-1002334455667", null))
-                .as("토픽이 없는 방에서는 토픽 자리를 비운다")
-                .contains("-1002334455667")
-                .doesNotContain("토픽");
-    }
-
-    @Test
     @DisplayName("모르는 명령에는 도움말을 함께 준다 — 무엇을 칠 수 있는지 알려주지 않으면 고장으로 보인다")
     void unknownCommandIncludesHelp() {
-        assertThat(MessageFormatter.unknownCommand("-1002334455667", 12))
+        assertThat(MessageFormatter.unknownCommand())
                 .contains("모르는 명령")
                 .contains("/news");
     }
@@ -129,15 +117,16 @@ class MessageFormatterTest {
         assertThat(message).isEqualTo("""
                 <b>증시</b>
 
-                <b>국내</b>  2026년 8월 11일 (종가)
+                <b>국내</b>
+                코스피 6,345.53
+                삼성전자 239,500 KRW
 
-                코스피  6,345.53
-                삼성전자  239,500 KRW
+                <b>미국</b>
+                나스닥 26,588.49
+                애플 302.25 USD · 426,828 KRW
 
-                <b>미국</b>  2026년 8월 13일 07:00:00
-
-                나스닥  26,588.49
-                애플  302.25 USD · 426,828 KRW""");
+                국내 2026년 8월 11일 (종가)
+                미국 2026년 8월 13일 07:00:00""");
         assertThat(message)
                 .as("복사 버튼이 붙는 코드 블록을 쓰지 않는다").doesNotContain("<pre>")
                 .as("환율은 바로 앞 환율 통에 이미 있다 — 여기 또 넣으면 중복이다")
@@ -151,9 +140,10 @@ class MessageFormatterTest {
                 .isEqualTo("""
                         <b>증시</b>
 
-                        <b>국내</b>  2026년 8월 11일 (종가)
+                        <b>국내</b>
+                        삼성전자 239,500 KRW
 
-                        삼성전자  239,500 KRW""");
+                        국내 2026년 8월 11일 (종가)""");
     }
 
     @Test
@@ -179,9 +169,11 @@ class MessageFormatterTest {
                 false, true, BigDecimal.ZERO);
 
         assertThat(MessageFormatter.formatStockDigest(List.of(krIndex("코스피", "6345.53"), stale), FX))
-                .contains("<b>국내</b>  2026년 8월 11일 (종가)")
-                .contains("2026년 8월 10일")
-                .as("기준과 같은 줄에는 날짜를 안 붙인다").doesNotContain("6,345.53  2026년");
+                .as("무리 기준은 맨 밑에 단독으로 — 모든 통이 같은 자리에 둔다")
+                .endsWith("국내 2026년 8월 11일 (종가)")
+                .as("맨 밑 기준이 대표하지 못하는 줄에만 날짜를 붙인다")
+                .contains("코스닥 857.84 · 2026년 8월 10일")
+                .as("기준과 같은 줄에는 안 붙인다").contains("코스피 6,345.53\n");
     }
 
     @Test
@@ -193,10 +185,12 @@ class MessageFormatterTest {
         assertThat(message).isEqualTo("""
                 <b>애플</b>
 
-                <b>302.25 USD</b>
+                302.25 USD
                 약 426,828 KRW
 
                 2026년 8월 13일 07:00:00""");
+        assertThat(message).as("굵게는 제목에만 — 값까지 굵으면 무엇이 계층인지 안 드러난다")
+                .doesNotContain("<b>302.25");
     }
 
     private static StockQuote krIndex(String name, String price) {
@@ -288,10 +282,13 @@ class MessageFormatterTest {
 
         assertThat(message).isEqualTo("""
                 <b>비트코인</b>
-                  업비트 89,848,000 KRW
-                  바이낸스 63,703.69 USDT
+
+                업비트 89,848,000 KRW
+                바이낸스 63,703.69 USDT
 
                 2026년 8월 11일 09:00:00""");
+        assertThat(message).as("들여쓰기를 쓰지 않는다 — 통마다 제각각이던 것을 하나로 맞췄다")
+                .doesNotContain("  업비트");
     }
 
     @Test
