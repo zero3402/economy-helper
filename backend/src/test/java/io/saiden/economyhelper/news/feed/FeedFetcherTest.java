@@ -79,19 +79,18 @@ class FeedFetcherTest {
     }
 
     @Test
-    @DisplayName("Yahoo가 실어 온 페이월 기사를 빼고 돌려준다 — 캐시 안쪽이라 한 번만 거른다")
-    void dropsPaywalledLinksSyndicatedByYahoo() throws IOException {
+    @DisplayName("그 매체 피드에서 그 매체 기사만 남긴다 — Yahoo가 실어 온 남의 기사는 뺀다")
+    void keepsOnlyTheOutletsOwnArticles() throws IOException {
         stubFeed("/yahoo", 200, fixture("yahoo-finance.xml"));
 
         List<Article> articles = fetcher(Map.of(
                 NewsSource.YAHOO_FINANCE, feed("/yahoo", FeedType.RSS)))
                 .fetch(NewsSource.YAHOO_FINANCE);
 
-        // 실물 픽스처는 48건이고 그중 wsj.com 1건 + investors.com 7건이 페이월이다
+        // 실물 픽스처는 48건인데 그중 8건이 wsj.com·investors.com이다(둘 다 페이월)
         assertThat(articles).hasSize(40);
-        assertThat(articles).allSatisfy(article -> assertThat(article.link())
-                .doesNotContain("wsj.com")
-                .doesNotContain("investors.com"));
+        assertThat(articles).allSatisfy(article ->
+                assertThat(article.link()).contains("yahoo.com"));
     }
 
     @Test

@@ -93,15 +93,16 @@ public class FeedFetcher {
             throw new FeedParseException(source, "응답 본문이 비어 있습니다", null);
         }
 
-        // 페이월 링크는 여기서 뺀다. 캐시(@Cacheable) 안쪽이라 걸러낸 결과가 캐시되고,
-        // 파서 종류와 무관하게 다섯 매체 전부에 걸린다
+        // 그 매체 피드에서는 그 매체 기사만 쓴다. Yahoo 피드가 wsj.com·investors.com을
+        // 실어 나르는데 둘 다 페이월이다 — 우리가 고른 것은 Yahoo지 그들이 아니다.
+        // 캐시(@Cacheable) 안쪽이라 걸러낸 결과가 캐시되고 파서 종류와 무관하게 걸린다
         List<Article> parsed = parser.parse(source, new StringReader(body));
-        List<Article> open = PaywallFilter.apply(parsed);
-        if (open.size() < parsed.size()) {
+        List<Article> own = parsed.stream().filter(article -> source.owns(article.link())).toList();
+        if (own.size() < parsed.size()) {
             // 조용히 사라지면 나중에 "왜 이 매체만 기사가 적지"를 처음부터 다시 추적하게 된다
-            log.info("[{}] 페이월 링크 {}건을 뺐습니다 ({}건 중)",
-                    source, parsed.size() - open.size(), parsed.size());
+            log.info("[{}] 다른 매체 기사 {}건을 뺐습니다 ({}건 중)",
+                    source, parsed.size() - own.size(), parsed.size());
         }
-        return open;
+        return own;
     }
 }
