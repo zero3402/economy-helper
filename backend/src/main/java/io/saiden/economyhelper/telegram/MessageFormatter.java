@@ -325,7 +325,7 @@ public final class MessageFormatter {
     }
 
     /**
-     * 거래소별 한 줄씩 — <b>업비트 먼저, 바이낸스 다음.</b>
+     * 거래소마다 <b>이름 한 줄, 그 아래 값 줄</b> — <b>업비트 먼저, 바이낸스 다음.</b>
      *
      * <p>{@code single}(단건 {@code /crypto})이면 값이 없는 쪽도 이유를 적는다. 사용자가 방금 그
      * 코인을 물었을 때는 줄을 빼 버리면 그 거래소를 조회하지 않은 것처럼 보이고, 무엇보다 다시
@@ -339,9 +339,9 @@ public final class MessageFormatter {
      */
     private static String exchangeLines(CryptoQuote quote, BigDecimal usdtKrw, boolean single) {
         StringBuilder lines = new StringBuilder();
-        // 업비트는 원화가 기본이라 환산 줄이 없다 — 값 한 줄, 등락률 한 줄
+        // 업비트는 원화가 기본이라 환산 줄이 없다 — 이름 한 줄, 값 한 줄, 등락률 한 줄
         if (quote.upbit().hasPrice()) {
-            lines.append("업비트 ").append(money(quote.upbit().price())).append(" KRW");
+            lines.append("업비트\n").append(money(quote.upbit().price())).append(" KRW");
             appendChangeLine(lines, quote.upbit().changePercent());
         } else if (single) {
             lines.append("업비트 ").append(reasonOf(quote.upbit()));
@@ -353,9 +353,9 @@ public final class MessageFormatter {
             }
             return lines.toString();
         }
-        // 바이낸스: 값(USDT) → 원화 환산 → 등락률, 각각 제 줄에
+        // 바이낸스: 이름 한 줄, 그 아래 값(USDT) → 원화 환산 → 등락률, 각각 제 줄에
         lines.append(exchangeGap(lines, single))
-                .append("바이낸스 ").append(money(quote.binance().price())).append(" USDT");
+                .append("바이낸스\n").append(money(quote.binance().price())).append(" USDT");
         if (usdtKrw != null) {
             BigDecimal krw = quote.binance().price().multiply(usdtKrw).setScale(0, RoundingMode.HALF_UP);
             lines.append("\n").append(money(krw)).append(" KRW");

@@ -196,8 +196,8 @@ class MessageFormatterTest {
                 CryptoQuote.Quote.of(new BigDecimal("62910"), new BigDecimal("-1.451")));
 
         assertThat(MessageFormatter.formatCrypto(quote, null))
-                .contains("업비트 88,922,000 KRW\n🔵 0.71%")
-                .contains("바이낸스 62,910 USDT\n🔵 1.45%");
+                .contains("업비트\n88,922,000 KRW\n🔵 0.71%")
+                .contains("바이낸스\n62,910 USDT\n🔵 1.45%");
     }
 
     @Test
@@ -344,7 +344,7 @@ class MessageFormatterTest {
     @DisplayName("단건은 값이 없는 이유를 적는다 — 다시 시도해야 하는지가 여기서 갈린다")
     void explainsMissingExchangeInSingleQuote() {
         assertThat(MessageFormatter.formatCrypto(btc(null), new BigDecimal("1384")))
-                .contains("업비트 89,848,000 KRW")
+                .contains("업비트\n89,848,000 KRW")
                 .as("영영 안 나오는 것").contains("바이낸스 미상장");
 
         assertThat(MessageFormatter.formatCrypto(
@@ -364,7 +364,7 @@ class MessageFormatterTest {
         assertThat(message)
                 .contains("<b>BNB</b>")
                 .contains("업비트 미상장")
-                .contains("바이낸스 612.4 USDT")
+                .contains("바이낸스\n612.4 USDT")
                 .as("BNBUSDT는 티커에 USDT를 붙인 것뿐이라 제목과 같은 말을 두 번 적는 셈이다")
                 .doesNotContain("BNBUSDT");
     }
@@ -377,9 +377,11 @@ class MessageFormatterTest {
         assertThat(message).isEqualTo("""
                 <b>BTC</b>
 
-                업비트 89,848,000 KRW
+                업비트
+                89,848,000 KRW
 
-                바이낸스 63,703.69 USDT
+                바이낸스
+                63,703.69 USDT
 
                 2026년 8월 11일 09:00:00""");
         assertThat(message).as("들여쓰기를 쓰지 않는다 — 통마다 제각각이던 것을 하나로 맞췄다")
@@ -404,7 +406,7 @@ class MessageFormatterTest {
         assertThat(message.substring(message.indexOf("<b>USDT</b>")))
                 .as("테더(USDT)는 바이낸스에 USDTUSDT가 없다 — 매일 아침 그 사실을 알릴 이유가 없다")
                 .doesNotContain("바이낸스")
-                .contains("업비트 1,384 KRW");
+                .contains("업비트\n1,384 KRW");
     }
 
     @Test
