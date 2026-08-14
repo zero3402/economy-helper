@@ -314,11 +314,6 @@ public class DailyDigestJob {
         return items.isEmpty() ? Optional.empty() : Optional.of(MessageFormatter.formatDigest(items));
     }
 
-    private static <T> Optional<String> quotesOrEmpty(List<T> quotes,
-                                                      java.util.function.Function<List<T>, String> format) {
-        return quotes.isEmpty() ? Optional.empty() : Optional.of(format.apply(quotes));
-    }
-
     private static void pause() {
         try {
             Thread.sleep(BETWEEN_MESSAGES.toMillis());

@@ -1,11 +1,11 @@
 package io.saiden.economyhelper.news;
 
 import io.saiden.economyhelper.news.feed.FeedFetcher;
-import io.saiden.economyhelper.support.Concurrently;
 import io.saiden.economyhelper.news.rank.HackerNewsBuzzClient;
 import io.saiden.economyhelper.news.rank.KeywordGroup;
 import io.saiden.economyhelper.news.rank.PopularityScorer;
 import io.saiden.economyhelper.news.rank.RelevanceScorer;
+import io.saiden.economyhelper.support.Concurrently;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -81,9 +81,7 @@ public class NewsService {
      * 이게 "한 소스가 죽어도 발송은 계속된다"의 실제 구현이다.
      */
     public Map<NewsSource, ScoredArticle> digest() {
-        Instant now = clock.instant();
-
-        // 매체끼리는 서로를 기다릴 이유가 없다. 예전에는 다섯 매체를 줄줄이 돌아
+        // 매체끼리는 서로를 기다릴 이유가 없다. 예전에는 매체를 줄줄이 돌아
         // (피드 + HN + Gemini) × 5가 전부 더해졌다 — 이제 가장 느린 매체 하나 만큼만 걸린다.
         // 매체 <b>안에서는</b> 순차를 유지한다. 피드가 있어야 후보가 나오고 후보가 있어야 관련도다
         List<ScoredArticle> best = Concurrently.map(List.of(NewsSource.values()), this::topOf).stream()

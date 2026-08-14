@@ -4,7 +4,7 @@
 # 그래서 잡을 둘로 나누고 needs로 묶는다. 한 잡에 넣으면 테스트가 깨져도 이미지가 올라갈 수 있다.
 #
 # 시크릿을 쓰지 않는다. 외부 호출은 전부 WireMock으로 스텁하고 Redis는 Testcontainers라
-# application.yml의 빈 기본값(${GEMINI_API_KEY:})만으로 214개가 그대로 돈다.
+# application.yml의 빈 기본값(${GEMINI_API_KEY:})만으로 테스트가 그대로 돈다.
 # 넣어 두면 PR에서 유출될 경로만 생긴다.
 
 name: CI

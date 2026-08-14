@@ -44,7 +44,7 @@ public class NewsFacade {
         }
 
         // 번역을 겹친다. 기사당 Gemini 한 번이고 서로 무관한데 줄줄이 기다렸다 —
-        // 다섯 매체면 그것만으로 10~25초였다. 한 번에 묶어 보내지 않는 이유는 캐시다:
+        // 매체 수만큼 곱해져 그것만으로 10~25초였다. 한 번에 묶어 보내지 않는 이유는 캐시다:
         // 링크 단위로 캐시해야 이미 번역한 기사를 다시 태우지 않는다
         List<Translation> translations =
                 Concurrently.map(ordered, scored -> translationService.translate(scored.article()));

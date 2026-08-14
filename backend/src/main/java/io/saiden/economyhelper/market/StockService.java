@@ -43,7 +43,9 @@ import org.springframework.stereotype.Service;
  * <p><b>지수도 같은 명령으로 받는다.</b> {@code /stock 코스피}는 종목이 아니라 지수 API로 간다 —
  * 별도 명령을 만들지 않은 건 사용자가 "주가"와 "지수"를 굳이 구분해 치지 않기 때문이다.
  *
- * <p><b>국내만 다룬다.</b> 미국 주식은 지원하지 않는다 — {@code /stock AAPL}은 "찾지 못했습니다"가 된다.
+ * <p><b>국내와 미국을 함께 다룬다.</b> 어느 쪽인지는 {@link StockResolver}가 판단하고 조회처가
+ * 갈린다 — 국내 종목은 공공데이터포털(전일 종가), 국내 지수는 지수 API, 미국은 종목·지수가
+ * 같은 FMP 엔드포인트다.
  */
 @Service
 public class StockService {

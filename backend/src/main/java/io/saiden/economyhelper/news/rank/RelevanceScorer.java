@@ -25,7 +25,7 @@ import tools.jackson.databind.ObjectMapper;
  *
  * <p><b>비용을 어떻게 통제하는가.</b> 기사 전체(최대 ~200건)를 하나씩 물으면 무료 티어를 태운다.
  * 호출자가 <b>로컬 점수로 후보를 좁혀</b> 넘기고, 여기서 <b>한 번에 묶어</b> 묻는다 —
- * 매체당 1회, 하루 5회다. 정기 발송이 하루 한 번이라 이걸로 충분하다.
+ * 매체당 1회이고 정기 발송이 하루 한 번이라 이걸로 충분하다.
  * {@code /crypto}에서 후보를 좁혀 거래대금으로 가른 것과 같은 발상이다.
  *
  * <p><b>실패하면 전부 통과시킨다.</b> 예전에는 키워드 사전으로 내려갔지만, 피드를 전부
@@ -162,7 +162,8 @@ public class RelevanceScorer {
      *
      * <p>예전에는 키워드 사전으로 내려갔지만 그 사전을 없앴다. <b>피드를 전부 금융 섹션으로
      * 좁혔기 때문</b>이다(Bloomberg markets · FT markets · Economist finance-and-economics ·
-     * CoinDesk · Reuters /markets). 후보 자체가 이미 재테크 기사이므로, 걸러내지 않아도
+     * CoinDesk · Reuters /markets · CNBC markets · BBC business · Yahoo Finance).
+     * 후보 자체가 이미 재테크 기사이므로, 걸러내지 않아도
      * "EU 국경 검사로 공항 대기줄" 같은 기사가 1위가 되지 않는다.
      *
      * <p>하류에서 단어로 거르는 것보다 <b>상류에서 소스를 좁히는 편이 근본적이다</b> —
