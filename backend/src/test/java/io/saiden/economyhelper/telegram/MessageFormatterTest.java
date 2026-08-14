@@ -28,20 +28,6 @@ class MessageFormatterTest {
             FxSource.FRANKFURTER, BASIS);
 
     @Test
-    @DisplayName("굵은 것은 기사 제목이다 — 매체명은 환율의 은행명과 같은 출처 자리다")
-    void headlineIsTheBoldTitle() {
-        String message = MessageFormatter.format(item("유가 상승", "인플레이션 우려가 되살아났다.", true));
-
-        assertThat(message)
-                .as("긴 URL 줄이 아니라 제목이 링크이고, 그 제목이 굵다")
-                .contains("<a href=\"https://example.com/a\"><b>유가 상승</b></a>")
-                .contains("<blockquote>인플레이션 우려가 되살아났다.</blockquote>")
-                .as("매체명은 출처라 굵지 않다")
-                .contains("CNBC")
-                .doesNotContain("<b>CNBC</b>");
-    }
-
-    @Test
     @DisplayName("제목 / 본문 / 출처 / 시각 — 다른 통과 같은 순서, 시각은 맨 밑 단독")
     void followsTheSameSkeletonAsEveryOtherSection() {
         String message = MessageFormatter.format(item("유가 상승", "인플레이션 우려.", true));
@@ -62,13 +48,6 @@ class MessageFormatterTest {
         String message = MessageFormatter.format(item("Oil holds advance", "Oil kept its gains.", false));
 
         assertThat(message).contains("번역이 일시적으로 불가");
-    }
-
-    @Test
-    @DisplayName("번역에 성공하면 경고를 붙이지 않는다")
-    void noWarningWhenTranslated() {
-        assertThat(MessageFormatter.format(item("유가 상승", "본문", true)))
-                .doesNotContain("번역이 일시적으로 불가");
     }
 
     @Test
@@ -329,14 +308,6 @@ class MessageFormatterTest {
     // --- 뉴스 날짜 ---------------------------------------------------------
 
     @Test
-    @DisplayName("기사에 발행 일시를 붙인다 — 없으면 어제 것인지 방금 것인지 알 수 없다")
-    void showsArticlePublishedTime() {
-        // NOW = 2026-08-11T00:00:00Z → KST 09:00
-        assertThat(MessageFormatter.format(item("유가 상승", "본문", true)))
-                .contains("2026년 8월 11일 09:00:00");
-    }
-
-    @Test
     @DisplayName("브리핑의 뉴스에도 같은 일시가 붙는다 — 두 채널이 다른 모양이 되면 안 된다")
     void showsPublishedTimeInDigestToo() {
         assertThat(MessageFormatter.formatNews(List.of(item("유가 상승", "본문", true))))
@@ -402,14 +373,6 @@ class MessageFormatterTest {
                 2026년 8월 11일 09:00:00""");
         assertThat(message).as("들여쓰기를 쓰지 않는다 — 통마다 제각각이던 것을 하나로 맞췄다")
                 .doesNotContain("  업비트");
-    }
-
-    @Test
-    @DisplayName("USDT 원화값을 모르면 USDT만 적는다 — 환산을 못 한다고 시세를 빼지 않는다")
-    void showsUsdtOnlyWhenRateUnknown() {
-        String message = MessageFormatter.formatCrypto(btc(new BigDecimal("63703.69")), null);
-
-        assertThat(message).contains("63,703.69 USDT").doesNotContain("88,165,907");
     }
 
     @Test

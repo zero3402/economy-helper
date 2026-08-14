@@ -74,7 +74,7 @@ class TelegramClientTest {
     @Test
     @DisplayName("chat_id를 생략하면 설정된 기본 채팅방의 Notice 토픽으로 간다 — 정기 발송 경로")
     void usesDefaultChatIdAndNoticeTopicForDigest() {
-        client().send("정기 발송");
+        client().send("정기 발송", false);
 
         server.verify(postRequestedFor(anyUrl())
                 .withRequestBody(equalToJson("""

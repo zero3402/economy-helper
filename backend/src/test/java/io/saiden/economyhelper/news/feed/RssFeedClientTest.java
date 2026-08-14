@@ -32,19 +32,17 @@ class RssFeedClientTest {
     private final RssFeedClient client = new RssFeedClient();
 
     @Test
-    @DisplayName("RSS 형식을 다룬다고 스스로 밝힌다")
-    void reportsRssType() {
-        assertThat(client.type()).isEqualTo(FeedType.RSS);
-    }
-
-    @Test
     @DisplayName("픽스처가 정말 그 매체 것이다 — 파일명만 바꾼 옛 매체 응답이 아니다")
     void fixturesActuallyComeFromTheirOutlet() {
         assertFixtureIsFrom("yahoo-finance.xml", "finance.yahoo.com");
         assertFixtureIsFrom("investing.xml", "investing.com");
         assertFixtureIsFrom("cnbc.xml", "cnbc.com");
         assertFixtureIsFrom("bbc.xml", "bbc.co.uk");
-        assertFixtureIsFrom("googlenews-ap.xml", "apnews.com");
+        // AP는 링크가 구글 뉴스 불투명 주소라 목적지를 볼 수 없다. 대신 피드가 스스로
+        // 밝히는 검색 조건이 목적지를 못 박는다
+        assertThat(raw("googlenews-ap.xml"))
+                .as("AP 피드는 site:apnews.com으로 묶인 구글 뉴스 검색이어야 한다")
+                .contains("site:apnews.com");
     }
 
     @Test
@@ -171,11 +169,21 @@ class RssFeedClientTest {
                 .hasMessageContaining("YAHOO_FINANCE");
     }
 
-    /** 피드가 스스로 밝히는 주소(channel link)로 확인한다 — 항목 링크는 남의 매체가 섞인다. */
+    /**
+     * <b>항목 링크의 과반</b>이 그 매체 것인지로 확인한다.
+     *
+     * <p>파일 어딘가에 그 문자열이 있는지만 보면 이름값을 못 한다 — WSJ 피드에
+     * {@code finance.yahoo.com} 링크가 하나만 섞여 있어도 통과한다. 반대로 전부를
+     * 요구할 수도 없다: Yahoo는 남의 매체 기사를 실어 나른다.
+     */
     private void assertFixtureIsFrom(String name, String host) {
-        assertThat(raw(name))
-                .as("%s 는 %s 피드를 뜬 것이어야 한다", name, host)
-                .contains(host);
+        List<String> links = java.util.regex.Pattern.compile("<link>(https?://[^<]+)</link>")
+                .matcher(raw(name)).results().map(m -> m.group(1)).toList();
+        long own = links.stream().filter(link -> link.contains(host)).count();
+
+        assertThat(links).as("%s 에 항목 링크가 있어야 한다", name).isNotEmpty();
+        assertThat(own * 2).as("%s 는 %s 피드를 뜬 것이어야 한다 (%d/%d)", name, host, own, links.size())
+                .isGreaterThan(links.size());
     }
 
     private String raw(String name) {

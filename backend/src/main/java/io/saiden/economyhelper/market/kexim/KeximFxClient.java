@@ -7,8 +7,8 @@ import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.FxRateClient;
 import io.saiden.economyhelper.market.FxSource;
+import io.saiden.economyhelper.market.PercentChange;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -21,7 +21,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 /**
- * 한국수출입은행 환율 — 이중화의 폴백.
+ * 한국수출입은행 환율 — <b>이중화의 1순위</b>({@code FxService.ORDER}).
  *
  * <p>실제로 호출해 확인한 함정이 넷이다.
  *
@@ -40,9 +40,8 @@ import org.springframework.web.client.RestClient;
  * 헤더로 옮길 수 없으므로, RestClient 예외를 그대로 흘리지 않고 <b>URL 없는 자체 예외</b>로
  * 바꿔 던진다 — 원래 예외 메시지에는 authkey가 박힌 URL이 들어간다.
  *
- * <p><b>하루 1,000회 제한</b>은 초 단위 리미터로 지킬 수 없다. 1시간 캐시가 실질 방어이고
- * (하루 최대 24회), 토스가 1순위라 폴백일 때만 불린다. 리미터는 아래 후퇴 루프가
- * 폭주하는 것만 막는다.
+ * <p><b>하루 1,000회 제한</b>은 초 단위 리미터로 지킬 수 없다. 1시간 캐시가 실질 방어이고,
+ * 리미터는 아래 되짚기 루프가 폭주하는 것만 막는다.
  */
 @Component
 public class KeximFxClient implements FxRateClient {
@@ -105,11 +104,7 @@ public class KeximFxClient implements FxRateClient {
      */
     private BigDecimal changeOf(Quoted current) {
         try {
-            Quoted previous = findAt(current.date().minusDays(1));
-            return current.rate().subtract(previous.rate())
-                    .divide(previous.rate(), 8, RoundingMode.HALF_UP)
-                    .multiply(BigDecimal.valueOf(100))
-                    .setScale(2, RoundingMode.HALF_UP);
+            return PercentChange.between(current.rate(), findAt(current.date().minusDays(1)).rate());
         } catch (RuntimeException e) {
             log.info("[kexim] 전 고시를 찾지 못해 등락률을 비웁니다: {}", e.getMessage());
             return null;

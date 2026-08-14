@@ -151,8 +151,7 @@ class CacheConfigTest {
     private static EconomyHelperProperties propertiesWithTtl() {
         Duration any = Duration.ofMinutes(1);
         return new EconomyHelperProperties(null, null, null,
-                new CacheTtl(any, any, any, any, any, any, any, any, any, any, any, any, any, any),
-                null);
+                new CacheTtl(any, any, any, any, any, any, any, any, any, any, any, any, any, any));
     }
 
     @Test

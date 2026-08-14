@@ -8,11 +8,15 @@ import io.saiden.economyhelper.news.Article;
 import io.saiden.economyhelper.news.FeedType;
 import io.saiden.economyhelper.news.NewsSource;
 import java.io.StringReader;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -33,30 +37,32 @@ public class FeedFetcher {
     private static final Logger log = LoggerFactory.getLogger(FeedFetcher.class);
 
     /**
-     * <b>우리 이름을 댄다.</b> 한동안 크롬 UA를 그대로 흉내 냈는데, 우리는 크롬이 아니고
-     * 브라우저인 척할 이유도 없다 — RSS는 원래 클라이언트가 자기를 밝히기를 기대하는 쪽이다.
+     * <b>우리 이름을 댄다.</b> RSS는 클라이언트가 자기를 밝히기를 기대하는 쪽이고, 우리는
+     * 브라우저가 아니다.
      *
-     * <p>헤더 자체는 남긴다. 야후가 자바 기본 UA({@code Java-http-client})를 429로 막기
+     * <p>헤더를 비우지는 않는다. 야후가 자바 기본 UA({@code Java-http-client})를 429로 막기
      * 때문이다(2026-08-14 실측, 두 번 다 429). 이 값으로는 다섯 매체 전부 200이다.
-     *
-     * <p><b>200이 곧 "기사가 나온다"는 아니다.</b> 같은 날 Investing은 200을 주면서 항목이
-     * 전부 버려지고 있었다({@link RssFeedClient#normalizePubDates} 참조). 상태 코드만 보고
-     * 연동이 살아 있다고 판단하지 않는다.
      */
     private static final String USER_AGENT = "economy-helper/1.0";
 
     private final RestClient restClient;
     private final EconomyHelperProperties properties;
     private final CircuitBreakerRegistry circuitBreakers;
+    private final Clock clock;
+    private final Duration maxAge;
     private final Map<FeedType, FeedClient> parsers = new EnumMap<>(FeedType.class);
 
     public FeedFetcher(RestClient.Builder builder,
                        EconomyHelperProperties properties,
                        CircuitBreakerRegistry circuitBreakers,
+                       Clock clock,
+                       @Value("${economy-helper.ranking.max-age:3d}") Duration maxAge,
                        List<FeedClient> feedClients) {
         this.restClient = builder.defaultHeader("User-Agent", USER_AGENT).build();
         this.properties = properties;
         this.circuitBreakers = circuitBreakers;
+        this.clock = clock;
+        this.maxAge = maxAge;
         for (FeedClient client : feedClients) {
             parsers.put(client.type(), client);
         }
@@ -103,6 +109,17 @@ public class FeedFetcher {
             log.info("[{}] 다른 매체 기사 {}건을 뺐습니다 ({}건 중)",
                     source, parsed.size() - own.size(), parsed.size());
         }
-        return own;
+
+        // 오래된 기사를 여기서 자른다. 신선도 가중치만으로는 못 막는다 — 랭킹 네 항 중
+        // 하나일 뿐이라 피드 앞자리에 놓인 옛 기사가 그대로 1위가 된다. 실측에서 Yahoo가
+        // 50건 중 12건을 2024~2025년 기사로 채웠고 그중 둘이 /news 검색 상위에 올라왔다
+        Instant cutoff = clock.instant().minus(maxAge);
+        List<Article> fresh = own.stream()
+                .filter(article -> article.publishedAt().isAfter(cutoff)).toList();
+        if (fresh.size() < own.size()) {
+            log.info("[{}] {} 넘은 기사 {}건을 뺐습니다 ({}건 중)",
+                    source, maxAge, own.size() - fresh.size(), own.size());
+        }
+        return fresh;
     }
 }

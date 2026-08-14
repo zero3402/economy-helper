@@ -10,7 +10,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * {@code CLAUDE.md}의 "TOSS 증권 API, 수출입은행 API로 이중화"가 실제로 이중화인지 본다.
+ * 환율 이중화가 실제로 이중화인지 본다 — 수출입은행이 1순위, 유럽중앙은행이 폴백이다.
  *
  * <p>가장 중요한 건 <b>1순위가 성공하면 2순위를 부르지 않는다</b>는 점이다.
  * 수출입은행은 하루 1,000회 제한이 있어, 매번 같이 부르면 폴백이 아니라 낭비다.

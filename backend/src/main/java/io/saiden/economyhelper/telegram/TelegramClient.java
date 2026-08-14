@@ -18,8 +18,7 @@ import org.springframework.web.client.RestClientException;
  *
  * <p><b>응답 본문을 반드시 읽는다.</b> 텔레그램은 실패를 4xx로도 주고 <b>200 + {@code ok:false}</b>로도
  * 준다. 후자를 안 읽으면 실패가 성공으로 집계돼, 아침 브리핑이 오지 않았는데 로그에는
- * "발송 완료"가 남는다 — 무엇을 고쳐야 하는지가 {@code description}에 그대로 적혀 있는데도
- * 그 문장을 버리고 있었다.
+ * "발송 완료"가 남는다. 무엇을 고쳐야 하는지는 응답의 {@code description}에 적혀 있다.
  */
 @Component
 public class TelegramClient {
@@ -64,13 +63,7 @@ public class TelegramClient {
         }
     }
 
-    /** 정기 발송 — 설정된 방의 Notice 토픽으로. */
-    @CircuitBreaker(name = "telegram")
-    public void send(String text) {
-        send(text, false);
-    }
-
-    /** 정기 발송 — 미리보기를 켤지 고른다. 뉴스 통만 켠다. */
+    /** 정기 발송 — 설정된 방의 Notice 토픽으로. 미리보기는 뉴스 통만 켠다. */
     @CircuitBreaker(name = "telegram")
     public void send(String text, boolean preview) {
         send(defaultChatId, noticeTopicId, text, preview);

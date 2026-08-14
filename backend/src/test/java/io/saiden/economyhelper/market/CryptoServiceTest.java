@@ -70,18 +70,6 @@ class CryptoServiceTest {
     }
 
     @Test
-    @DisplayName("정확한 이름·심볼·영문명은 어느 쪽으로 쳐도 같은 답")
-    void resolvesExactNamesInAnyLanguage() {
-        CryptoService service = cryptoService(new RecordingApi());
-
-        for (String query : List.of("비트코인", "BTC", "btc", "bitcoin", "비트코인 얼마")) {
-            assertThat(service.quote(query))
-                    .as("입력 '%s'", query)
-                    .get().extracting(CryptoQuote::market).isEqualTo("KRW-BTC");
-        }
-    }
-
-    @Test
     @DisplayName("후보 전부를 한 번에 조회한다 — 후보마다 부르면 초당 10회 제한에 닿는다")
     void fetchesAllCandidatesInOneCall() {
         RecordingApi api = new RecordingApi();

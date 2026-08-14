@@ -172,7 +172,7 @@ class DigestIntegrationTest {
         awaitCached(article.link());
         Translation second = translationService.translate(article);
 
-        assertThat(first).isEqualTo(second);
+        assertThat(second).isEqualTo(first);
         assertThat(CountingTranslatorConfig.calls.get() - before)
                 .as("두 번 호출되면 무료 티어를 두 배로 태우고 있다는 뜻이다")
                 .isEqualTo(1);

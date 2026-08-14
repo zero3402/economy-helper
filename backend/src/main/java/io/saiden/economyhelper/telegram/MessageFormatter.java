@@ -17,9 +17,9 @@ import java.util.Locale;
 /**
  * 값들을 텔레그램 메시지로 옮긴다.
  *
- * <p><b>{@code parse_mode=HTML}로 보낸다.</b> 예전에는 평문이었다 — 기사 제목의
- * {@code *}·{@code _}·{@code [}가 Markdown 파싱 오류를 내 발송이 실패했기 때문이다.
- * HTML에서는 그 문자들이 무해하고 {@code & < >} 세 자만 처리하면 된다({@link Html} 참조).
+ * <p><b>{@code parse_mode=HTML}로 보낸다.</b> 기사 제목에 흔한 {@code *}·{@code _}·{@code [}가
+ * HTML에서는 무해하다(Markdown에서는 파싱 오류를 내고 그러면 발송 자체가 실패한다).
+ * 대신 {@code & < >} 세 자를 처리해야 하며 그것은 {@link Html}이 맡는다.
  *
  * <p><b>마크업 규칙은 하나다 — 굵게는 제목·소제목뿐이고 값과 설명은 평문이다.</b>
  * 값까지 굵으면 무엇이 계층인지 드러나지 않는다.
@@ -40,15 +40,15 @@ import java.util.Locale;
  *
  * <p><b>모든 덩어리가 같은 모양이다: 굵은 제목 / 값 / 출처 / 시각.</b> 덩어리 사이는 빈 줄로
  * 가르고 시각은 언제나 맨 아래 단독이다. 출처가 없는 통(주식·코인)은 그 자리를 비운다.
- * 뉴스가 한동안 계층이 뒤집혀 있었다 — 매체명이 굵고 기사 제목은 안 굵었는데, 매체명은
- * 환율의 {@code 유럽중앙은행}과 같은 <b>출처</b> 자리다.
+ * 뉴스의 매체명은 환율의 {@code 유럽중앙은행}과 같은 <b>출처</b> 자리이며, 굵은 것은
+ * 언제나 사용자가 읽으러 온 것 — 기사 제목이다.
  *
- * <p><b>성공하든 실패하든 굵은 제목으로 시작한다</b>({@link #section}). 실패·안내 답만
- * 맨몸 문장으로 시작하던 것을 없앴다 — 그룹 채팅에 그런 줄이 튀어나오면 무엇에 대한
- * 답인지 알 수 없다. 제목 문자열은 {@link Command#section()} 한 곳에만 있다.
+ * <p><b>성공하든 실패하든 굵은 제목으로 시작한다</b>({@link #section}). 그룹 채팅에서는
+ * 답이 여러 대화 사이에 끼므로 제목이 없으면 무엇에 대한 답인지 알 수 없다. 제목 문자열은
+ * {@link Command#section()} 한 곳에만 둔다.
  *
  * <p><b>바깥에서 온 문자열은 예외 없이 {@link Html#escape}를 통과한다.</b>
- * 하나라도 빠뜨리면 그 메시지는 발송 자체가 실패한다 — 평문일 때는 없던 위험이다.
+ * 하나라도 빠뜨리면 텔레그램이 파싱에 실패해 그 메시지는 발송 자체가 안 된다.
  *
  * <p>표기 규칙은 전 메시지 공통이다.
  * <ul>
@@ -78,11 +78,8 @@ public final class MessageFormatter {
     /**
      * 기사 한 건 — 다른 통과 같은 뼈대다: <b>굵은 제목 / 값 / 출처 / 시각</b>.
      *
-     * <p><b>굵은 것은 기사 제목이다.</b> 한동안 매체명이 굵고 기사 제목은 링크뿐이라 계층이
-     * 뒤집혀 있었다 — 매체명은 {@code 환율} 통의 {@code 유럽중앙은행}과 같은 자리, 즉
-     * <b>출처</b>다. 사용자가 읽으러 온 것은 기사 제목이므로 그쪽이 제목 자리를 가진다.
-     *
-     * <p>제목이 곧 링크라 토막난 URL 줄이 사라진다. 굵기와 링크를 겹쳐 쓸 수 있다.
+     * <p>제목이 곧 링크다. 텔레그램은 {@code <a>} 안에 {@code <b>}를 허용하므로 굵기와 링크를
+     * 겹쳐 쓸 수 있고, 그래서 토막난 URL을 따로 한 줄 적을 필요가 없다.
      *
      * <p>{@code publishedAt}에 {@code null} 방어를 두지 않는다. {@code Article}이 생성 시점에
      * 강제하고({@code "publishedAt is required"}) {@code RssFeedClient}는 날짜 없는 항목을
@@ -379,9 +376,8 @@ public final class MessageFormatter {
     /**
      * 굵은 제목 한 줄과 그 아래 빈 줄 — <b>모든 메시지가 이것으로 시작한다.</b>
      *
-     * <p>한동안 성공 답만 제목을 이고 실패·안내 답은 맨몸 문장으로 시작했다. 그룹 채팅에서
-     * 그런 줄이 하나 튀어나오면 무엇에 대한 답인지 알 수 없고, 무엇보다 같은 명령의 답인데
-     * 성공했을 때와 실패했을 때 모양이 달라진다.
+     * <p>실패·안내 답에도 붙인다. 같은 명령의 답인데 성공했을 때만 제목이 있으면 모양이
+     * 갈리고, 그룹 채팅에서 맨몸 문장 하나만 튀어나오면 무엇에 대한 답인지 알 수 없다.
      */
     private static String section(Command command) {
         return title(command) + "\n\n";
@@ -401,11 +397,11 @@ public final class MessageFormatter {
      *
      * <p>부호({@code +}·{@code -})는 붙이지 않는다. 원이 이미 방향이라 겹친다.
      *
-     * <p><b>{@code null}이면 빈 문자열이다.</b> 등락률을 못 구한 것과 보합(0%)은 다른 말이라
-     * 못 구한 값을 {@code 0.00%}로 찍으면 화면이 거짓말을 한다. 그때는 시세만 나간다.
+     * <p><b>{@code null}이면 빈 문자열이다.</b> "못 구했다"와 "보합(0%)"은 다른 말이므로
+     * 못 구한 값을 {@code 0.00%}로 찍어서는 안 된다. 그때는 시세만 나간다.
      *
-     * <p>소수 둘째 자리까지 쓴다. 출처마다 자릿수가 제각각인데({@code 0.99586}·{@code 4.89}·
-     * {@code -1.451}) 그대로 내보내면 같은 화면에서 정밀도가 들쭉날쭉해 보인다.
+     * <p>소수 둘째 자리로 맞춘다. 출처마다 자릿수가 제각각이라
+     * ({@code 0.99586}·{@code 4.89}·{@code -1.451}) 그대로 두면 한 화면에서 정밀도가 들쭉날쭉해진다.
      */
     private static String change(BigDecimal percent) {
         if (percent == null) {
@@ -461,10 +457,6 @@ public final class MessageFormatter {
         return format.format(trimmed);
     }
 
-    static String timestamp(Instant at) {
-        return DATE_TIME.format(at.atZone(SEOUL));
-    }
-
     /** 인자가 필요한 명령을 인자 없이 보냈을 때. 명령마다 예시가 다르다. */
     public static String usage(Command command) {
         return section(command)
@@ -487,10 +479,9 @@ public final class MessageFormatter {
     /**
      * 도움말.
      *
-     * <p><b>방·토픽 번호를 적지 않는다.</b> 설정에 넣을 값이라 한동안 여기에 띄웠는데,
-     * 사용자가 볼 화면에 내부 배관을 늘어놓는 꼴이었다. 같은 값은 명령을 받을 때마다
-     * {@code TelegramWebhookController}가 INFO 로그로 남긴다 — 설정하는 사람은 로그를 보고,
-     * 쓰는 사람은 안 봐도 된다.
+     * <p><b>방·토픽 번호를 적지 않는다.</b> 사용자가 볼 화면에 내부 배관을 늘어놓을 이유가
+     * 없다. 설정에 넣을 그 값은 명령을 받을 때마다 {@code TelegramWebhookController}가 INFO
+     * 로그로 남긴다 — 설정하는 사람은 로그를 보고, 쓰는 사람은 안 봐도 된다.
      */
     public static String help() {
         return title(Command.HELP) + commandList();

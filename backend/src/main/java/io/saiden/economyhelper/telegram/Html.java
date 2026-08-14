@@ -3,9 +3,9 @@ package io.saiden.economyhelper.telegram;
 /**
  * 텔레그램 {@code parse_mode=HTML}을 위한 이스케이프.
  *
- * <p><b>왜 Markdown이 아니라 HTML인가.</b> 예전에는 서식 없는 평문을 썼다 — 기사 제목의
- * {@code *}·{@code _}·{@code [}가 Markdown 파싱 오류를 내 발송 자체가 실패했기 때문이다.
- * 실제 봇으로 확인해 보니 <b>HTML에서는 그 문자들이 아무 의미가 없다</b>:
+ * <p><b>왜 Markdown이 아니라 HTML인가.</b> 기사 제목에 흔한 {@code *}·{@code _}·{@code [}가
+ * Markdown에서는 파싱 오류를 내 발송 자체를 실패시키는데, <b>HTML에서는 아무 의미가 없다.</b>
+ * 실제 봇으로 확인한 결과다:
  *
  * <pre>
  * parse_mode=HTML, 이스케이프 없이 "A &lt; B"  → ok=false  can't parse entities

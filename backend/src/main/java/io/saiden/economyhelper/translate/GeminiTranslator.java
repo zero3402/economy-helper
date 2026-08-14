@@ -12,7 +12,7 @@ import tools.jackson.databind.ObjectMapper;
  * 실패를 삼키지 않고 던지는 이유는 폴백 판단을 {@link TranslationService}가 하도록 하기 위해서다.
  */
 @Component
-public class GeminiTranslator implements Translator {
+public class GeminiTranslator {
 
     /**
      * 원문에 없는 사실을 못 넣게 못박는다. 근거가 제목 + 1~2문장뿐이라 여지를 주면 지어낸다.
@@ -46,7 +46,6 @@ public class GeminiTranslator implements Translator {
         this.objectMapper = objectMapper;
     }
 
-    @Override
     public Translation translate(Article article) {
         String prompt = PROMPT.formatted(
                 article.title(),

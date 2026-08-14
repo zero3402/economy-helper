@@ -10,14 +10,8 @@ import io.saiden.economyhelper.news.NewsSource;
  */
 public class FeedParseException extends RuntimeException {
 
-    private final NewsSource source;
-
+    /** 매체명은 메시지 앞에 붙인다 — 로그 한 줄만 보고도 어느 피드가 깨졌는지 알아야 한다. */
     public FeedParseException(NewsSource source, String message, Throwable cause) {
         super("[" + source + "] " + message, cause);
-        this.source = source;
-    }
-
-    public NewsSource source() {
-        return source;
     }
 }

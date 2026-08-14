@@ -18,18 +18,18 @@ import tools.jackson.databind.ObjectMapper;
  * "이 기사가 재테크에 쓸모 있는가"를 0~1로 매긴다 — 정기 발송 랭킹의 의미 신호다.
  *
  * <p><b>왜 필요한가.</b> 랭킹 네 항 중 {@code feedRank}·{@code recency}·{@code buzz}는
- * 주제를 전혀 모른다(각각 RSS 노출 순서, 최신성, HN 반응이다). 게다가 buzz는 커버리지가
- * 매체당 하루 ~4건이고 CoinDesk는 사실상 0이라 대부분 0점이다. 의미를 아는 항이 하나는
- * 있어야 하는데, 그 자리를 손으로 쓴 영어 단어 목록이 채우고 있었다 —
- * 스테이블코인·AI 설비투자처럼 새로 생기는 주제를 못 잡고 부분 문자열 매칭이라 오탐도 났다.
+ * 주제를 전혀 모른다(각각 RSS 노출 순서, 최신성, HN 반응이다). buzz는 커버리지가 매체당
+ * 하루 ~4건이라 대부분 0점이기까지 하다. <b>기사가 무엇에 대한 것인지 아는 항은 이것뿐이다.</b>
+ * 단어 목록으로는 대신할 수 없다 — 스테이블코인·AI 설비투자처럼 주제는 계속 새로 생기고,
+ * 부분 문자열 매칭은 오탐을 낸다.
  *
  * <p><b>비용을 어떻게 통제하는가.</b> 기사 전체(최대 ~200건)를 하나씩 물으면 무료 티어를 태운다.
  * 호출자가 <b>로컬 점수로 후보를 좁혀</b> 넘기고, 여기서 <b>한 번에 묶어</b> 묻는다 —
  * 매체당 1회이고 정기 발송이 하루 한 번이라 이걸로 충분하다.
  * {@code /crypto}에서 후보를 좁혀 거래대금으로 가른 것과 같은 발상이다.
  *
- * <p><b>실패하면 전부 통과시킨다.</b> 예전에는 키워드 사전으로 내려갔지만, 피드를 전부
- * 금융 섹션으로 좁힌 뒤로는 후보 자체가 이미 재테크 기사라 걸러낼 필요가 없어졌다.
+ * <p><b>실패하면 전부 통과시킨다</b>({@link #passAll}). 후보 자체가 이미 금융 섹션 기사라
+ * 걸러내지 않아도 엉뚱한 기사가 1위가 되지는 않는다.
  */
 @Component
 public class RelevanceScorer {
@@ -152,7 +152,7 @@ public class RelevanceScorer {
         Map<String, Double> byLink = new HashMap<>();
         for (int i = 0; i < candidates.size(); i++) {
             Double score = parsed.scores().get(i);
-            byLink.put(candidates.get(i).link(), score == null ? 0.0 : clamp(score));
+            byLink.put(candidates.get(i).link(), score == null ? 0.0 : PopularityScorer.clamp(score));
         }
         return byLink;
     }
@@ -160,13 +160,11 @@ public class RelevanceScorer {
     /**
      * 폴백 — <b>전부 통과시킨다.</b>
      *
-     * <p>예전에는 키워드 사전으로 내려갔지만 그 사전을 없앴다. <b>피드를 전부 금융 섹션으로
-     * 좁혔기 때문</b>이다(Yahoo Finance · Investing.com · CNBC markets · BBC business ·
-     * AP business). 후보 자체가 이미 재테크 기사이므로, 걸러내지 않아도
-     * "EU 국경 검사로 공항 대기줄" 같은 기사가 1위가 되지 않는다.
-     *
-     * <p>하류에서 단어로 거르는 것보다 <b>상류에서 소스를 좁히는 편이 근본적이다</b> —
-     * 손으로 관리할 목록이 사라지고, 새 주제(스테이블코인·AI 설비투자)를 쫓아다닐 이유도 없다.
+     * <p>키워드 사전으로 내려가지 않는다. <b>피드를 전부 금융 섹션으로 좁혀 뒀기 때문</b>이다
+     * (Yahoo Finance · Investing.com · CNBC markets · BBC business · AP business) —
+     * 후보 자체가 이미 재테크 기사라 "EU 국경 검사로 공항 대기줄" 같은 기사가 섞이지 않는다.
+     * 하류에서 단어로 거르는 것보다 상류에서 소스를 좁히는 편이 근본적이고, 손으로 관리할
+     * 목록도 남지 않는다.
      */
     private static Map<String, Double> passAll(List<Article> candidates) {
         Map<String, Double> byLink = new HashMap<>();
@@ -174,10 +172,6 @@ public class RelevanceScorer {
             byLink.put(article.link(), 1.0);
         }
         return byLink;
-    }
-
-    private static double clamp(double value) {
-        return Math.max(0.0, Math.min(1.0, value));
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

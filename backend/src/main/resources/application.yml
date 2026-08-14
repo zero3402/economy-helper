@@ -89,6 +89,10 @@ economy-helper:
       keyword-match: 0.25
       buzz: 0.15           # Hacker News 실측 (points + num_comments)
     recency-half-life: 6h
+    # 이보다 오래된 기사는 수집 단계에서 버린다. 신선도 가중치는 랭킹 네 항 중 하나일 뿐이라
+    # 피드 앞자리에 놓인 옛 기사를 못 막는다 — Yahoo는 50건 중 12건이 2024~2025년 기사였다.
+    # 재테크 뉴스에서 사흘이 넘은 것은 답이 아니다.
+    max-age: 3d
     hacker-news:
       # 매체가 조회수·댓글을 공개하지 않고 Most Read 페이지도 전부 403/404라,
       # HN이 무료로 얻을 수 있는 유일한 실측 반응이다.
@@ -250,10 +254,13 @@ resilience4j:
         failureRateThreshold: 50
         waitDurationInOpenState: 60s
         permittedNumberOfCallsInHalfOpenState: 3
+        # 리미터가 우리 호출을 거절한 것은 상대 장애가 아니라 우리가 스스로 건 스로틀이다.
+        # 실패로 세면 우리 트래픽이 몰릴 때 브레이커가 열려 멀쩡한 상대를 끊는다 —
+        # 실측에서 /news 한 번에 gemini 리미터(12/60s)가 소진되자 translation 브레이커가
+        # 열려 브리핑이 통째로 번역 없이 나갔다.
+        ignoreExceptions:
+          - io.github.resilience4j.ratelimiter.RequestNotPermitted
     instances:
-      # 피드 소스별로 따로 연다 — 한 매체가 죽어도 나머지는 발송된다
-      feed:
-        baseConfig: default
       translation:
         baseConfig: default
         waitDurationInOpenState: 120s

@@ -179,10 +179,9 @@ public class PopularityScorer {
     }
 
     /**
-     * <p><b>제목과 본문을 갈라 센다.</b> 예전에는 둘을 한 덩어리로 봐서 본문에 단어가 한 번
-     * 스친 기사가 제목에 걸린 기사와 같은 점수를 받았다 — {@code /news 금리}에 "환율 기사인데
-     * 금리를 한 줄 언급"한 것이 1위로 올라오던 이유다. 제목에 있으면 그 기사가 그 주제를
-     * <b>다루는</b> 것이고, 본문에만 있으면 <b>언급한</b> 것이다.
+     * <p><b>제목과 본문을 갈라 센다.</b> 제목에 있으면 그 기사가 그 주제를 <b>다루는</b> 것이고,
+     * 본문에만 있으면 <b>언급한</b> 것이다. 한 덩어리로 세면 "환율 기사인데 금리를 한 줄 언급"한
+     * 것이 {@code /news 금리}의 1위로 올라온다.
      */
     static double keywordScore(String title, String body, Collection<KeywordGroup> keywords) {
         if (keywords == null || keywords.isEmpty()) {
@@ -214,7 +213,8 @@ public class PopularityScorer {
         return clamp(Math.log1p(raw) / Math.log1p(BUZZ_SATURATION));
     }
 
-    private static double clamp(double value) {
+    /** 0~1 밖으로 새는 값을 자른다. {@code RelevanceScorer}도 LLM 점수에 이걸 쓴다. */
+    static double clamp(double value) {
         return Math.max(0.0, Math.min(1.0, value));
     }
 }

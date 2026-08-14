@@ -6,12 +6,12 @@ import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
 
 /**
- * Google News 검색 피드 파서 — 현재는 Reuters 프록시로만 쓴다.
+ * Google News 검색 피드 파서 — 현재는 AP 프록시로만 쓴다.
  *
  * <p>표준 RSS 2.0이라 파싱 골격은 {@link RssFeedClient}와 같지만 Google이 두 곳에 손을 댄다:
  *
  * <ul>
- *   <li>제목이 {@code "헤드라인 - Reuters"} 형태다 — 매체명 꼬리를 뗀다
+ *   <li>제목이 {@code "헤드라인 - apnews.com"} 형태다 — 매체명 꼬리를 뗀다
  *   <li>description이 요약문이 아니라 Google 리다이렉트 링크 마크업이다 — 버린다
  * </ul>
  *

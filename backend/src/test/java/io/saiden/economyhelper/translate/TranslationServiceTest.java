@@ -55,7 +55,7 @@ class TranslationServiceTest {
     }
 
     @Test
-    @DisplayName("요약문이 없는 기사(Reuters)는 body가 빈 문자열로 강등된다")
+    @DisplayName("요약문이 없는 기사(AP)는 body가 빈 문자열로 강등된다")
     void handlesArticlesWithoutDescription() {
         TranslationService service = service(new FakeGemini(null, new RuntimeException("실패")));
 
@@ -68,7 +68,7 @@ class TranslationServiceTest {
     }
 
     private static TranslationService service(GeminiTranslator gemini) {
-        return new TranslationService(gemini, new PassthroughTranslator());
+        return new TranslationService(gemini);
     }
 
     private static Article article(String title, String description) {

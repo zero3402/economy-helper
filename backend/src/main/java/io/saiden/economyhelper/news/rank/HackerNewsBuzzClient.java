@@ -17,7 +17,7 @@ import org.springframework.stereotype.Component;
  *
  * <p>매체 어디도 조회수·댓글 수를 공개하지 않아(Most Read 페이지도 전부 403/404)
  * HN이 유일하게 얻을 수 있는 <b>실측 댓글 수</b>다. 다만 커버리지가 20~30%,
- * CoinDesk는 사실상 0이라 대부분의 기사는 여기 없다 — 없으면 그냥 빠지고
+ * 금융 매체는 사실상 0이라 대부분의 기사는 여기 없다 — 없으면 그냥 빠지고
  * {@link PopularityScorer}가 나머지 세 지표로 순위를 매긴다.
  */
 @Component

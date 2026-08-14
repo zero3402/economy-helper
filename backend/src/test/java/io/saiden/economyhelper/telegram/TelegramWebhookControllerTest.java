@@ -2,7 +2,6 @@ package io.saiden.economyhelper.telegram;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.market.CryptoQuote;
 import io.saiden.economyhelper.market.CryptoService;
 import io.saiden.economyhelper.market.FxRate;
@@ -22,7 +21,6 @@ import io.saiden.economyhelper.telegram.TelegramWebhookController.Chat;
 import io.saiden.economyhelper.telegram.TelegramWebhookController.Message;
 import io.saiden.economyhelper.telegram.TelegramWebhookController.Update;
 import java.math.BigDecimal;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -403,17 +401,10 @@ class TelegramWebhookControllerTest {
     }
 
     private static NewsItem item(String title) {
-        return new NewsItem(NewsSource.CNBC, "Bloomberg", title, "본문",
+        return new NewsItem(NewsSource.CNBC, "CNBC", title, "본문",
                 "https://example.com/a", NOW, true, 0.9);
     }
 
-    private static EconomyHelperProperties properties() {
-        return new EconomyHelperProperties(Map.of(), null,
-                new EconomyHelperProperties.Digest(
-                        "Asia/Seoul", "0 0 9 * * *", Duration.ofDays(3),
-                        List.of(), List.of(), List.of(), List.of()),
-                null, null);
-    }
 
     /** 해석 규칙은 {@code StockServiceTest}가 본다. 여기서는 라우팅만 본다. */
     private static StockService stock(Optional<StockQuote> result) {
@@ -476,11 +467,6 @@ class TelegramWebhookControllerTest {
         @Override
         public void send(String chatId, Integer topicId, String text) {
             sent.add(new Sent(chatId, topicId, text, false));
-        }
-
-        @Override
-        public void send(String text) {
-            sent.add(new Sent("default-chat", null, text, false));
         }
 
         @Override

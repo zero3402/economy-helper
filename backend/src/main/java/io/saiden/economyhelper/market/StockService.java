@@ -201,7 +201,9 @@ public class StockService {
         if (quote == null) {
             return Optional.empty();
         }
-        return Optional.of(toQuote(quote));
+        // LLM이 준 한국어 이름을 쓴다. 국내 종목·코인은 한글로 나가는데 미국만 영문이면
+        // 같은 화면에서 표기가 갈린다 — '애플'을 물었는데 'Apple Inc.'가 돌아온다
+        return Optional.of(toQuote(quote, resolved.name()));
     }
 
     /** 국내 지수 하나. 함께 보여줄 후보가 없다 — 완전일치로 하나만 고르기 때문이다. */
@@ -292,9 +294,19 @@ public class StockService {
      * 응답에 구분 필드가 없어서, 심볼 관례가 유일한 단서다({@code ^IXIC}·{@code ^GSPC}·{@code ^DJI}).
      */
     private static StockQuote toQuote(FmpQuote quote) {
+        return toQuote(quote, null);
+    }
+
+    /**
+     * @param preferredName 화면에 쓸 이름. {@code null}이면 FMP가 준 영문명을 쓴다.
+     *                      국내 종목은 공공데이터포털이 한글명을 주고 코인은 업비트가 주는데
+     *                      FMP만 영문이라, LLM이 이미 해석해 둔 한국어 이름이 있으면 그쪽을 쓴다
+     */
+    private static StockQuote toQuote(FmpQuote quote, String preferredName) {
         boolean index = quote.symbol() != null && quote.symbol().startsWith("^");
         Instant at = quote.timestamp() == null ? Instant.now() : Instant.ofEpochSecond(quote.timestamp());
-        return new StockQuote(quote.symbol(), quote.name(), quote.exchange(),
+        String name = preferredName == null || preferredName.isBlank() ? quote.name() : preferredName;
+        return new StockQuote(quote.symbol(), name, quote.exchange(),
                 quote.price(), quote.changePercentage(),
                 index ? StockQuote.Money.NONE : StockQuote.Money.USD,
                 at, true, index,
@@ -307,32 +319,29 @@ public class StockService {
     }
 
     /**
-     * 등락률 전용 파서.
+     * 등락률 전용 파서 — 없거나 깨진 값은 {@code null}이다.
      *
-     * <p><b>{@link #parse}를 쓰면 안 된다.</b> 그쪽은 없는 값을 {@code 0}으로 만드는데,
-     * 등락률에서 {@code 0}은 "보합"이라는 <b>값</b>이지 "모른다"가 아니다 — 못 구한 것을
-     * 보합으로 찍으면 화면이 거짓말을 한다. 모르면 {@code null}로 두고 표시에서 뺀다.
+     * <p><b>{@link #parse}를 쓰면 안 된다.</b> 그쪽의 폴백인 {@code 0}은 등락률에서
+     * "보합"이라는 <b>값</b>이지 "모른다"가 아니다. 못 구한 것을 보합으로 찍으면 화면이
+     * 거짓말을 한다.
      */
     private static BigDecimal percent(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        try {
-            return new BigDecimal(value.trim());
-        } catch (NumberFormatException e) {
-            return null;
-        }
+        return number(value, null);
     }
 
     /** 값이 비거나 깨져 있어도 조회 전체를 실패시키지 않는다 — 0으로 보면 순위에서 뒤로 밀릴 뿐이다. */
     private static BigDecimal parse(String value) {
+        return number(value, BigDecimal.ZERO);
+    }
+
+    private static BigDecimal number(String value, BigDecimal fallback) {
         if (value == null || value.isBlank()) {
-            return BigDecimal.ZERO;
+            return fallback;
         }
         try {
             return new BigDecimal(value.trim());
         } catch (NumberFormatException e) {
-            return BigDecimal.ZERO;
+            return fallback;
         }
     }
 

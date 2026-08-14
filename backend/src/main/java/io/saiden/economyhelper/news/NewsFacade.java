@@ -6,7 +6,6 @@ import io.saiden.economyhelper.translate.TranslationService;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import org.springframework.stereotype.Service;
 
 /**
@@ -52,8 +51,8 @@ public class NewsFacade {
      *
      * <p>기사가 영문이라 한국어 검색어는 {@link QueryExpander}가 영어로 옮겨 준다.
      *
-     * <p>한 건만 주던 것을 여러 건으로 늘렸다. 1위가 늘 원하던 기사인 것은 아닌데
-     * 한 건뿐이면 사용자가 할 수 있는 일이 검색어를 바꿔 다시 치는 것밖에 없었다.
+     * <p>한 건이 아니라 여러 건을 준다. 1위가 늘 원하던 기사인 것은 아닌데, 한 건뿐이면
+     * 사용자가 할 수 있는 일이 검색어를 바꿔 다시 치는 것밖에 없다.
      */
     public List<NewsItem> search(String query) {
         // 원문을 함께 넘긴다 — 확장한 표현 묶음은 매칭용이고, "정말 그 주제인가"를 물으려면

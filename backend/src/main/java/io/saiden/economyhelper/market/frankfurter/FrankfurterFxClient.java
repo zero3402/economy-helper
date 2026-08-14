@@ -5,8 +5,8 @@ import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.FxRateClient;
 import io.saiden.economyhelper.market.FxSource;
+import io.saiden.economyhelper.market.PercentChange;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -18,9 +18,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 /**
- * Frankfurter — 유럽중앙은행 고시 환율. 이중화의 1순위.
+ * Frankfurter — 유럽중앙은행 고시 환율. <b>이중화의 폴백</b>({@code FxService.ORDER}).
  *
- * <p><b>인증이 없다.</b> 토스증권을 떠난 이유가 IP 허용목록이었으므로, 배포 환경에서
+ * <p><b>인증이 없다.</b> 키도 IP 허용목록도 없어 배포 환경에서
  * 그대로 도는 것이 이 출처를 고른 가장 큰 이유다.
  *
  * <pre>
@@ -108,15 +108,8 @@ public class FrankfurterFxClient implements FxRateClient {
         if (dates.size() < 2) {
             return null;
         }
-        BigDecimal latest = rateOn(response, dates.get(dates.size() - 1));
-        BigDecimal previous = rateOn(response, dates.get(dates.size() - 2));
-        if (latest == null || previous == null || previous.signum() == 0) {
-            return null;
-        }
-        return latest.subtract(previous)
-                .divide(previous, 8, RoundingMode.HALF_UP)
-                .multiply(BigDecimal.valueOf(100))
-                .setScale(2, RoundingMode.HALF_UP);
+        return PercentChange.between(rateOn(response, dates.get(dates.size() - 1)),
+                rateOn(response, dates.get(dates.size() - 2)));
     }
 
     private static BigDecimal rateOn(TimeSeries response, String date) {

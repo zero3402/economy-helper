@@ -51,9 +51,6 @@ public class CryptoService {
 
     private static final Logger log = LoggerFactory.getLogger(CryptoService.class);
 
-    /** 업비트만 등락률을 비율로 준다 — %로 옮기는 데 쓴다. */
-    private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
-
     /** 업비트 원화 마켓의 USDT. 바이낸스 USDT 가격을 원화로 옮길 때 쓴다. */
     private static final String USDT_MARKET = "KRW-USDT";
 
@@ -298,17 +295,9 @@ public class CryptoService {
                 Quote.of(ticker.tradePrice(), percentOf(ticker)), Quote.FAILED);
     }
 
-    /**
-     * 업비트 등락률을 %로 옮긴다.
-     *
-     * <p><b>업비트는 비율로 준다</b> — {@code -0.0070571945}가 -0.71%다. 바이낸스·FMP·
-     * 공공데이터포털은 이미 %라 이 환산은 업비트에만 필요하고, <b>그래서 여기 한 곳에만 둔다.</b>
-     * 표시하는 쪽까지 내려보내면 어느 출처가 비율이고 어느 쪽이 %인지를 화면이 알아야 한다.
-     */
+    /** 업비트만 등락률을 비율로 준다 — 화면이 단위를 알 필요가 없도록 여기서 %로 옮긴다. */
     private static BigDecimal percentOf(UpbitTicker ticker) {
-        return ticker.signedChangeRate() == null
-                ? null
-                : ticker.signedChangeRate().multiply(HUNDRED);
+        return PercentChange.fromRatio(ticker.signedChangeRate());
     }
 
     /** @return 업비트 체결 시각. 응답에 없으면 {@code null} */

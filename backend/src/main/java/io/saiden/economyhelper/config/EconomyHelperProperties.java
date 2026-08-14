@@ -15,34 +15,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  */
 @ConfigurationProperties(prefix = "economy-helper")
 public record EconomyHelperProperties(
-        Map<NewsSource, Feed> feeds, Ranking ranking, Digest digest, CacheTtl cacheTtl, Market market) {
-
-    /** 시세 API들. 키는 여기 두지 않는다 — 환경변수로만 주입한다. */
-    public record Market(Upbit upbit, Kexim kexim, DataGo dataGo, Frankfurter frankfurter, Fmp fmp) {}
-
-    /**
-     * Financial Modeling Prep — 미국 주식·지수 현재가.
-     *
-     * <p>무료 티어는 <b>하루 250회, 미국 거래소 전용</b>이다(실측: 한국 심볼·환율·스크리너는 402).
-     * 응답에 레이트리밋 헤더가 없어 우리가 센다 — {@code daily-limit}이 그 기준이다.
-     */
-    public record Fmp(String baseUrl, String apiKey, Integer dailyLimit) {}
-
-    public record Upbit(String baseUrl) {}
-
-    public record Kexim(String baseUrl, String apiKey) {}
-
-    /** 유럽중앙은행 고시 환율. 인증이 없어 배포에서도 그대로 돈다. */
-    public record Frankfurter(String baseUrl) {}
-
-    /**
-     * 공공데이터포털. 발급된 키는 <b>이미 URL 인코딩된 형태</b>다 —
-     * 한 번 더 인코딩하면 "등록되지 않은 서비스키" 403이 난다.
-     */
-    public record DataGo(String baseUrl, String apiKey) {}
+        Map<NewsSource, Feed> feeds, Ranking ranking, Digest digest, CacheTtl cacheTtl) {
 
 
-    /** {@code type}이 어느 파서를 쓸지 정한다 — Reuters만 GOOGLE_NEWS다. */
+    /** {@code type}이 어느 파서를 쓸지 정한다 — AP만 GOOGLE_NEWS다. */
     public record Feed(String url, FeedType type) {}
 
     public record Ranking(Weights weights, Duration recencyHalfLife) {}

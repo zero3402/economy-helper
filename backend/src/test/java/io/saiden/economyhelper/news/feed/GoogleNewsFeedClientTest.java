@@ -14,7 +14,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Reuters 프록시 피드가 표준 RSS와 다른 두 지점을 고정한다:
+ * AP 프록시 피드가 표준 RSS와 다른 두 지점을 고정한다:
  * 제목의 매체명 꼬리와, 요약문 대신 오는 리다이렉트 링크 마크업.
  */
 class GoogleNewsFeedClientTest {
@@ -22,19 +22,14 @@ class GoogleNewsFeedClientTest {
     private final GoogleNewsFeedClient client = new GoogleNewsFeedClient();
 
     @Test
-    @DisplayName("Google News 형식을 다룬다고 스스로 밝힌다")
-    void reportsGoogleNewsType() {
-        assertThat(client.type()).isEqualTo(FeedType.GOOGLE_NEWS);
-    }
-
-    @Test
-    @DisplayName("제목 꼬리의 ' - Reuters'를 뗀다")
+    @DisplayName("제목 꼬리의 ' - apnews.com'을 뗀다")
     void stripsOutletSuffixFromTitle() {
         List<Article> articles = parseFixture();
 
         assertThat(articles).hasSize(100);
         assertThat(articles).allSatisfy(article -> {
-            assertThat(article.title()).doesNotEndWith("- Reuters");
+            // 픽스처 100건이 전부 이 꼬리를 달고 온다 — 안 떼면 제목마다 매체명이 붙는다
+            assertThat(article.title()).doesNotEndWith("- apnews.com");
             assertThat(article.title()).isNotBlank();
         });
     }
@@ -59,7 +54,7 @@ class GoogleNewsFeedClientTest {
     @Test
     @DisplayName("헤드라인 중간의 하이픈은 건드리지 않는다")
     void keepsHyphensInsideHeadline() {
-        String kept = client.normalizeTitle("US-China trade talks stall - Reuters");
+        String kept = client.normalizeTitle("US-China trade talks stall - apnews.com");
 
         assertThat(kept).isEqualTo("US-China trade talks stall");
     }

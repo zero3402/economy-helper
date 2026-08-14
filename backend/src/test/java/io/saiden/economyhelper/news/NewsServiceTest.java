@@ -174,9 +174,10 @@ class NewsServiceTest {
                             new EnumMap<NewsSource, Feed>(NewsSource.class),
                             new Ranking(new Weights(1, 1, 1, 1), Duration.ofHours(6)),
                             null,
-                            null,
                             null),
                     CircuitBreakerRegistry.ofDefaults(),
+                    Clock.systemUTC(),
+                    Duration.ofDays(3),
                     List.of());
             this.bySource = bySource;
         }

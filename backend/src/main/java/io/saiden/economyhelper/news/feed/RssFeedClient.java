@@ -43,8 +43,8 @@ public class RssFeedClient implements FeedClient {
      *
      * <p>RSS 2.0은 pubDate를 RFC 822로 규정하지만 Investing은 지키지 않는다. Rome은 이 값을
      * 파싱하지 못해 {@code getPublishedDate()}에 {@code null}을 주고, 그러면 {@link #toArticle}이
-     * 항목을 통째로 버린다. <b>HTTP는 200이므로 아무 데도 오류가 안 뜨고 그 매체만 조용히
-     * 사라진다</b> — 실제로 그렇게 되어 있었다(10건 받아 0건).
+     * 항목을 통째로 버린다. <b>HTTP는 200이라 아무 데도 오류가 뜨지 않고 그 매체만 조용히
+     * 사라진다</b> — 그래서 넘기기 전에 되돌린다.
      */
     private static final Pattern BARE_PUB_DATE = Pattern.compile(
             "<pubDate>\\s*(\\d{4})-(\\d{2})-(\\d{2})[ T](\\d{2}):(\\d{2}):(\\d{2})\\s*</pubDate>");

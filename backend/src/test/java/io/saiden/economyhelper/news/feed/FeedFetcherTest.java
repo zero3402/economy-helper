@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +39,12 @@ import org.springframework.web.client.RestClient;
  * <p>WireMock으로 매체를 흉내 내므로 외부 네트워크를 타지 않는다.
  */
 class FeedFetcherTest {
+
+    /** 픽스처를 뜬 날. 나이 컷오프가 픽스처를 통째로 버리지 않도록 여기에 맞춘다. */
+    private static final java.time.Clock CLOCK =
+            java.time.Clock.fixed(java.time.Instant.parse("2026-08-14T09:00:00Z"),
+                    java.time.ZoneOffset.UTC);
+    private static final Duration MAX_AGE = Duration.ofDays(3);
 
     private WireMockServer server;
 
@@ -55,14 +62,15 @@ class FeedFetcherTest {
     @Test
     @DisplayName("정상 응답이면 파싱해서 돌려준다")
     void parsesSuccessfulResponse() throws IOException {
-        stubFeed("/bloomberg", 200, fixture("cnbc.xml"));
+        stubFeed("/cnbc", 200, fixture("cnbc.xml"));
 
         List<Article> articles = fetcher(Map.of(
-                NewsSource.CNBC, feed("/bloomberg", FeedType.RSS)))
+                NewsSource.CNBC, feed("/cnbc", FeedType.RSS)))
                 .fetch(NewsSource.CNBC);
 
-        assertThat(articles).hasSize(30);
-        assertThat(articles.get(0).source()).isEqualTo(NewsSource.CNBC);
+        // 픽스처 30건 중 기준 시각(2026-08-14 09:00 UTC)에서 사흘 이내인 것만 남는다.
+        // 건수 자체는 RssFeedClientTest가 본다 — 여기서는 수집이 값을 돌려준다는 것만 본다
+        assertThat(articles).isNotEmpty();
     }
 
     @Test
@@ -87,10 +95,26 @@ class FeedFetcherTest {
                 NewsSource.YAHOO_FINANCE, feed("/yahoo", FeedType.RSS)))
                 .fetch(NewsSource.YAHOO_FINANCE);
 
-        // 실물 픽스처는 48건인데 그중 8건이 wsj.com·investors.com이다(둘 다 페이월)
-        assertThat(articles).hasSize(40);
+        // 실물 픽스처 48건 중 8건이 wsj.com·investors.com이고(둘 다 페이월),
+        // 남은 40건 중 2건이 2024년 기사라 나이 컷오프에서 다시 빠진다
+        assertThat(articles).hasSize(38);
         assertThat(articles).allSatisfy(article ->
                 assertThat(article.link()).contains("yahoo.com"));
+    }
+
+    @Test
+    @DisplayName("오래된 기사는 뺀다 — 신선도 가중치는 랭킹 네 항 중 하나라 옛 기사를 못 막는다")
+    void dropsArticlesOlderThanTheCutoff() throws IOException {
+        stubFeed("/yahoo", 200, fixture("yahoo-finance.xml"));
+
+        List<Article> articles = fetcher(Map.of(
+                NewsSource.YAHOO_FINANCE, feed("/yahoo", FeedType.RSS)))
+                .fetch(NewsSource.YAHOO_FINANCE);
+
+        // 실물 Yahoo 피드에는 2024~2025년 에버그린 기사가 섞여 온다
+        Instant cutoff = CLOCK.instant().minus(MAX_AGE);
+        assertThat(articles).allSatisfy(article ->
+                assertThat(article.publishedAt()).isAfter(cutoff));
     }
 
     @Test
@@ -177,13 +201,14 @@ class FeedFetcherTest {
                 copy,
                 new Ranking(new Weights(0.35, 0.25, 0.25, 0.15), Duration.ofHours(6)),
                 null,   // 수집은 digest 설정을 쓰지 않는다
-                null,   // 캐시 TTL도 마찬가지 (여기선 @Cacheable이 프록시 없이 지나간다)
-                null);  // 시세 API 설정도 수집과 무관하다
+                null);  // 캐시 TTL도 마찬가지 (여기선 @Cacheable이 프록시 없이 지나간다)
 
         return new FeedFetcher(
                 RestClient.builder(),
                 properties,
                 registry,
+                CLOCK,
+                MAX_AGE,
                 List.of(new RssFeedClient(), new GoogleNewsFeedClient()));
     }
 

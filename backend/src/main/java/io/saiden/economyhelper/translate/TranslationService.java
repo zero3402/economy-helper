@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 /**
  * 번역의 단일 진입점 — 캐시 → Gemini → 원문 강등.
  *
- * <p>폴백 판단을 여기 모아 둔 이유는 {@link Translator} 구현체가 스스로 원문을 돌려주면
+ * <p>폴백 판단을 여기 모아 둔 이유는 번역기가 스스로 원문을 돌려주면
  * 실패가 조용히 묻히기 때문이다. 어디서 강등이 일어나는지 한 곳에서 보여야 한다.
  */
 @Service
@@ -18,11 +18,9 @@ public class TranslationService {
     private static final Logger log = LoggerFactory.getLogger(TranslationService.class);
 
     private final GeminiTranslator gemini;
-    private final PassthroughTranslator passthrough;
 
-    public TranslationService(GeminiTranslator gemini, PassthroughTranslator passthrough) {
+    public TranslationService(GeminiTranslator gemini) {
         this.gemini = gemini;
-        this.passthrough = passthrough;
     }
 
     /**
@@ -38,7 +36,8 @@ public class TranslationService {
         } catch (Exception e) {
             log.warn("[{}] 번역 실패 — 원문 그대로 내보냅니다: {}",
                     article.source(), e.toString());
-            return passthrough.translate(article);
+            // 번역이라 원문을 그대로 내보내도 정보 손실이 없다 — 읽는 사람이 영어로 읽을 뿐이다
+            return Translation.untranslated(article);
         }
     }
 }

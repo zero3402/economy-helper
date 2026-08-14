@@ -455,11 +455,11 @@ class DailyDigestJobTest {
                 new EconomyHelperProperties.Digest(
                         "Asia/Seoul", "0 0 9 * * *", Duration.ofDays(3),
                         List.of("코스피"), List.of("005930"), List.of("KRW-BTC"), List.of()),
-                null, null);
+                null);
     }
 
     static NewsItem item(String title) {
-        return new NewsItem(NewsSource.CNBC, "Bloomberg", title, "본문",
+        return new NewsItem(NewsSource.CNBC, "CNBC", title, "본문",
                 "https://example.com/" + title.hashCode(), NOW, true, 0.9);
     }
 

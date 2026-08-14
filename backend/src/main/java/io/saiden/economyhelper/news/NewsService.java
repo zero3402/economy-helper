@@ -8,7 +8,6 @@ import io.saiden.economyhelper.news.rank.RelevanceScorer;
 import io.saiden.economyhelper.support.Concurrently;
 import java.time.Clock;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumMap;
 import java.util.List;
@@ -66,8 +65,8 @@ public class NewsService {
      *
      * <p><b>재테크 관련도가 임계값 이상인 기사만 후보로 삼는다.</b> 없으면 그 매체는 이번 발송에서
      * 빠진다 — 재테크 뉴스가 아닌 걸 채워 보내는 것보다 낫다. 필터 없이 순위만 매기면
-     * "EU 국경 검사로 공항 대기줄 두 배" 같은 기사가 1위로 뽑힌다(8단계에서 실제로 겪음).
-     * 랭킹 네 항 중 셋({@code feedRank}·{@code recency}·{@code buzz})은 주제를 전혀 모르기 때문이다.
+     * "EU 국경 검사로 공항 대기줄 두 배" 같은 기사가 1위로 뽑힌다 — 랭킹 네 항 중
+     * 셋({@code feedRank}·{@code recency}·{@code buzz})이 주제를 전혀 모르기 때문이다.
      *
      * <p>관련도를 <b>어떻게 재는지</b>는 {@link RelevanceScorer}가 정한다.
      * 여기서는 후보를 좁혀 넘기고 임계값으로 자를 뿐이다.
@@ -76,9 +75,8 @@ public class NewsService {
      * 이게 "한 소스가 죽어도 발송은 계속된다"의 실제 구현이다.
      */
     public Map<NewsSource, ScoredArticle> digest() {
-        // 매체끼리는 서로를 기다릴 이유가 없다. 예전에는 매체를 줄줄이 돌아
-        // (피드 + HN + Gemini) × 5가 전부 더해졌다 — 이제 가장 느린 매체 하나 만큼만 걸린다.
-        // 매체 <b>안에서는</b> 순차를 유지한다. 피드가 있어야 후보가 나오고 후보가 있어야 관련도다
+        // 매체끼리는 서로를 기다릴 이유가 없어 겹쳐 돈다 — 가장 느린 매체 하나 만큼만 걸린다.
+        // 매체 안에서는 순차다: 피드가 있어야 후보가 나오고 후보가 있어야 관련도를 잰다
         List<ScoredArticle> best = Concurrently.map(List.of(NewsSource.values()), this::topOf).stream()
                 .flatMap(Optional::stream)
                 .toList();
