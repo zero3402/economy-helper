@@ -178,7 +178,9 @@ public class DailyDigestJob {
                 section("환율", () -> fx.map(MessageFormatter::formatFx)),
                 section("증시", () -> stockMessage(fx.orElse(null))),
                 section("코인", this::cryptoMessage),
-                section("뉴스", this::newsMessage)), Supplier::get);
+                // 뉴스 통만 미리보기를 켠다 — 링크가 있는 통이 여기뿐이다.
+                // 텔레그램이 메시지당 카드를 하나만 붙이므로 첫 기사에만 뜬다
+                section("뉴스", this::newsMessage, true)), Supplier::get);
 
         // 발송은 순서대로 — 텔레그램이 같은 방에 초당 한 통을 권고한다(BETWEEN_MESSAGES)
         for (Section section : sections) {
@@ -201,8 +203,9 @@ public class DailyDigestJob {
      *
      * @param text    보낼 본문. 비어 있으면 {@code failure}에 이유가 있다
      * @param failure 실패 사유. 성공이면 {@code null}
+     * @param preview 링크 미리보기를 띄울지. 기사를 담은 통만 참이다
      */
-    private record Section(String name, Optional<String> text, String failure) {}
+    private record Section(String name, Optional<String> text, String failure, boolean preview) {}
 
     /**
      * 수집을 <b>예외 없이</b> 끝낸다.
@@ -211,17 +214,22 @@ public class DailyDigestJob {
      * "넷 중 하나가 실패해도 나머지는 나간다"가 여기서 깨진다. 사유를 값으로 바꿔 들고 간다.
      */
     private Supplier<Section> section(String name, Supplier<Optional<String>> message) {
+        return section(name, message, false);
+    }
+
+    private Supplier<Section> section(String name, Supplier<Optional<String>> message,
+                                      boolean preview) {
         return () -> {
             try {
                 Optional<String> text = message.get();
                 if (text.isEmpty()) {
                     log.info("[digest] {} 통에 보낼 내용이 없습니다", name);
-                    return new Section(name, Optional.empty(), "보낼 내용이 없습니다");
+                    return new Section(name, Optional.empty(), "보낼 내용이 없습니다", preview);
                 }
-                return new Section(name, text, null);
+                return new Section(name, text, null, preview);
             } catch (RuntimeException e) {
                 log.error("[digest] {} 통 수집 실패: {}", name, e.toString());
-                return new Section(name, Optional.empty(), reasonOf(e));
+                return new Section(name, Optional.empty(), reasonOf(e), preview);
             }
         };
     }
@@ -242,7 +250,7 @@ public class DailyDigestJob {
             if (!delivered.isEmpty()) {
                 pause();
             }
-            telegram.send(section.text().orElseThrow());
+            telegram.send(section.text().orElseThrow(), section.preview());
             delivered.add(section.name());
         } catch (RuntimeException e) {
             log.error("[digest] {} 통 발송 실패: {}", section.name(), e.toString());

@@ -116,7 +116,7 @@ class DailyDigestJobTest {
         InMemoryHistory history = new InMemoryHistory();
         TelegramClient exploding = new RecordingClient() {
             @Override
-            public void send(String text) {
+            public void send(String text, boolean preview) {
                 throw new IllegalStateException("Bot API 502");
             }
         };
@@ -135,7 +135,7 @@ class DailyDigestJobTest {
         history.claim(SLOT);
         TelegramClient exploding = new RecordingClient() {
             @Override
-            public void send(String text) {
+            public void send(String text, boolean preview) {
                 throw new IllegalStateException("Bot API 502");
             }
         };
@@ -167,7 +167,7 @@ class DailyDigestJobTest {
     void carriesTelegramRejectionReason() {
         TelegramClient rejecting = new RecordingClient() {
             @Override
-            public void send(String text) {
+            public void send(String text, boolean preview) {
                 throw new TelegramClient.TelegramException(
                         "텔레그램 sendMessage 거절: 400 Bad Request: chat not found");
             }
@@ -236,6 +236,19 @@ class DailyDigestJobTest {
         assertThat(telegram.sent.get(1)).contains("<b>증시</b>").contains("삼성전자");
         assertThat(telegram.sent.get(2)).contains("<b>코인</b>").contains("비트코인");
         assertThat(telegram.sent.get(3)).contains("유가 상승");
+    }
+
+    @Test
+    @DisplayName("뉴스 통만 링크 미리보기를 켠다 — 시세 통에는 링크가 없어 켤 것이 없다")
+    void enablesLinkPreviewOnlyForTheNewsSection() {
+        RecordingClient telegram = new RecordingClient();
+
+        job(telegram, new InMemoryHistory(), new CountingFacade(List.of(item("유가 상승"))),
+                fx(true), stock(true), crypto(true)).run(false);
+
+        // 환율·증시·코인 / 뉴스 순서다. 텔레그램은 메시지당 카드를 하나만 붙이므로
+        // 다섯 건을 묶은 뉴스 통에서는 첫 기사에만 뜬다 — 그래도 안 뜨는 것보다 낫다
+        assertThat(telegram.previews).containsExactly(false, false, false, true);
     }
 
     @Test
@@ -486,16 +499,24 @@ class DailyDigestJobTest {
         }
     }
 
+    /**
+     * 발송을 가로채 기록한다.
+     *
+     * <p><b>미리보기 여부까지 받는 오버로드를 재정의한다.</b> {@code send(String)}만 막으면
+     * 실제 발송 경로가 그 아래 오버로드를 부르므로 테스트가 바깥으로 HTTP를 쏜다.
+     */
     static class RecordingClient extends TelegramClient {
         final List<String> sent = new ArrayList<>();
+        final List<Boolean> previews = new ArrayList<>();
 
         RecordingClient() {
             super(RestClient.builder(), "https://example.invalid", "token", "chat", "");
         }
 
         @Override
-        public void send(String text) {
+        public void send(String text, boolean preview) {
             sent.add(text);
+            previews.add(preview);
         }
     }
 }

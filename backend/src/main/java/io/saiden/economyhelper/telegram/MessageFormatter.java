@@ -179,9 +179,7 @@ public final class MessageFormatter {
 
     public static String stockNotFound(String query) {
         return section(Command.STOCK)
-                + "'" + Html.escape(query) + "'에 해당하는 종목을 찾지 못했습니다.\n\n"
-                + "국내(코스피·코스닥)와 미국(나스닥·뉴욕) 종목·지수를 조회할 수 있습니다.\n\n"
-                + "예) /stock 삼성전자 · /stock 애플 · /stock 코스피 · /stock 나스닥";
+                + "'" + Html.escape(query) + "'에 해당하는 종목을 찾지 못했습니다.";
     }
 
     /**

@@ -112,7 +112,7 @@ class TelegramWebhookControllerTest {
     }
 
     @Test
-    @DisplayName("못 찾은 종목은 국내만 조회된다는 것까지 알린다")
+    @DisplayName("못 찾은 종목에도 어느 통의 답인지는 남는다")
     void tellsUserWhenStockNotFound() {
         RecordingClient client = new RecordingClient();
         var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()),
@@ -120,7 +120,9 @@ class TelegramWebhookControllerTest {
 
         controller.onUpdate(null,update(1, "/stock AAPL"));
 
-        assertThat(client.sent.get(0).text()).contains("찾지 못했습니다").contains("국내");
+        assertThat(client.sent.get(0).text())
+                .startsWith("<b>증시</b>")
+                .contains("찾지 못했습니다");
     }
 
     @Test

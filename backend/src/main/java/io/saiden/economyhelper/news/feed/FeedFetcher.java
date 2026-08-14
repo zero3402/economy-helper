@@ -22,7 +22,7 @@ import org.springframework.web.client.RestClient;
  *
  * <p><b>서킷브레이커를 애노테이션이 아니라 프로그래매틱 API로 건다.</b>
  * {@code @CircuitBreaker(name = "feed")}는 이름이 컴파일 타임에 고정이라 5개 매체가
- * 브레이커 하나를 공유하게 된다 — Bloomberg가 죽으면 CoinDesk 호출까지 끊긴다.
+ * 브레이커 하나를 공유하게 된다 — Yahoo가 죽으면 BBC 호출까지 끊긴다.
  * 소스별로 이름을 달리하려면 런타임에 레지스트리에서 꺼내야 한다.
  *
  * <p>실패는 예외가 아니라 빈 리스트다. 한 매체가 죽어도 나머지 매체 발송은 계속돼야 한다.
@@ -38,6 +38,10 @@ public class FeedFetcher {
      *
      * <p>헤더 자체는 남긴다. 야후가 자바 기본 UA({@code Java-http-client})를 429로 막기
      * 때문이다(2026-08-14 실측, 두 번 다 429). 이 값으로는 다섯 매체 전부 200이다.
+     *
+     * <p><b>200이 곧 "기사가 나온다"는 아니다.</b> 같은 날 Investing은 200을 주면서 항목이
+     * 전부 버려지고 있었다({@link RssFeedClient#normalizePubDates} 참조). 상태 코드만 보고
+     * 연동이 살아 있다고 판단하지 않는다.
      */
     private static final String USER_AGENT = "economy-helper/1.0";
 
@@ -88,6 +92,16 @@ public class FeedFetcher {
         if (body == null || body.isBlank()) {
             throw new FeedParseException(source, "응답 본문이 비어 있습니다", null);
         }
-        return parser.parse(source, new StringReader(body));
+
+        // 페이월 링크는 여기서 뺀다. 캐시(@Cacheable) 안쪽이라 걸러낸 결과가 캐시되고,
+        // 파서 종류와 무관하게 다섯 매체 전부에 걸린다
+        List<Article> parsed = parser.parse(source, new StringReader(body));
+        List<Article> open = PaywallFilter.apply(parsed);
+        if (open.size() < parsed.size()) {
+            // 조용히 사라지면 나중에 "왜 이 매체만 기사가 적지"를 처음부터 다시 추적하게 된다
+            log.info("[{}] 페이월 링크 {}건을 뺐습니다 ({}건 중)",
+                    source, parsed.size() - open.size(), parsed.size());
+        }
+        return open;
     }
 }

@@ -79,6 +79,22 @@ class FeedFetcherTest {
     }
 
     @Test
+    @DisplayName("Yahoo가 실어 온 페이월 기사를 빼고 돌려준다 — 캐시 안쪽이라 한 번만 거른다")
+    void dropsPaywalledLinksSyndicatedByYahoo() throws IOException {
+        stubFeed("/yahoo", 200, fixture("yahoo-finance.xml"));
+
+        List<Article> articles = fetcher(Map.of(
+                NewsSource.YAHOO_FINANCE, feed("/yahoo", FeedType.RSS)))
+                .fetch(NewsSource.YAHOO_FINANCE);
+
+        // 실물 픽스처는 48건이고 그중 wsj.com 1건 + investors.com 7건이 페이월이다
+        assertThat(articles).hasSize(40);
+        assertThat(articles).allSatisfy(article -> assertThat(article.link())
+                .doesNotContain("wsj.com")
+                .doesNotContain("investors.com"));
+    }
+
+    @Test
     @DisplayName("403이면 예외가 아니라 빈 리스트 — 호출자가 나머지 매체를 계속 돌 수 있다")
     void returnsEmptyOnForbidden() {
         stubFeed("/blocked", 403, "<html>Access Denied</html>");

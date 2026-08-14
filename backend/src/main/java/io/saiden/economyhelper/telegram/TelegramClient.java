@@ -67,7 +67,13 @@ public class TelegramClient {
     /** 정기 발송 — 설정된 방의 Notice 토픽으로. */
     @CircuitBreaker(name = "telegram")
     public void send(String text) {
-        send(defaultChatId, noticeTopicId, text);
+        send(text, false);
+    }
+
+    /** 정기 발송 — 미리보기를 켤지 고른다. 뉴스 통만 켠다. */
+    @CircuitBreaker(name = "telegram")
+    public void send(String text, boolean preview) {
+        send(defaultChatId, noticeTopicId, text, preview);
     }
 
     /**
@@ -83,9 +89,12 @@ public class TelegramClient {
     }
 
     /**
-     * @param preview 링크 미리보기를 띄울지. <b>기본은 끈다</b> — 브리핑 뉴스 통은 매체별
-     *                1건씩 다섯을 묶으므로 카드 하나가 붙어도 본문이 밀린다. 답이
-     *                <b>기사 한 건</b>일 때만 켠다({@code /news} 단건)
+     * @param preview 링크 미리보기를 띄울지. <b>기본은 끈다</b> — 시세 통에는 링크 자체가
+     *                없어 켜 봐야 달라지는 것이 없다. 기사를 담은 통만 켠다
+     *                ({@code /news} 단건과 브리핑 뉴스 통).
+     *                <p><b>텔레그램은 한 메시지에 미리보기를 하나만 붙인다.</b> 그래서 다섯 건을
+     *                묶어 보내는 브리핑 뉴스 통에서는 첫 기사에만 카드가 뜬다 — 켜 두는 것이
+     *                안 뜨는 것보다 낫다는 판단이고, 전부 띄우려면 통을 쪼개야 한다
      */
     @CircuitBreaker(name = "telegram")
     public void send(String chatId, Integer topicId, String text, boolean preview) {
