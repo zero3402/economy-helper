@@ -7,6 +7,7 @@ import io.saiden.economyhelper.market.fmp.FmpApi;
 import io.saiden.economyhelper.market.fmp.FmpApi.FmpQuote;
 import io.saiden.economyhelper.market.StockResolver.ResolvedStock;
 import io.saiden.economyhelper.market.data.StockPriceApi.StockPrice;
+import io.saiden.economyhelper.text.QueryNormalizer;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -55,6 +56,10 @@ public class StockService {
     /** 함께 보여줄 다른 후보 수. 너무 많으면 메시지가 지저분해진다. */
     private static final int MAX_ALTERNATIVES = 3;
 
+    /** 한국 종목코드. 이 형태면 해석할 것이 없으므로 LLM을 건너뛴다. */
+    private static final java.util.regex.Pattern KR_STOCK_CODE =
+            java.util.regex.Pattern.compile("\\d{6}");
+
     private final StockPriceApi api;
     private final MarketIndexApi indexApi;
     private final FmpApi fmpApi;
@@ -78,6 +83,18 @@ public class StockService {
         }
 
         try {
+            // 6자리 숫자는 종목코드 그 자체다 — LLM에게 물어볼 것이 없다.
+            // 아침 브리핑이 quotesOf로 쓰는 경로와 같은 길이고, 결과도 같아야 한다
+            Optional<String> code = directCode(query);
+            if (code.isPresent()) {
+                List<StockPrice> found = api.searchByCode(code.get());
+                if (!found.isEmpty()) {
+                    return Optional.of(toMatch(found));
+                }
+                log.info("[stock] 종목코드 {}에 걸리는 종목이 없습니다", code.get());
+                return Optional.empty();
+            }
+
             Optional<ResolvedStock> resolved = resolver.resolve(key);
 
             // 미국은 종목과 지수가 같은 엔드포인트다 — AAPL도 ^IXIC도 /stable/quote로 간다
@@ -100,6 +117,20 @@ public class StockService {
             log.error("[stock] '{}' 조회 실패: {}", query, e.toString());
             return Optional.empty();
         }
+    }
+
+    /**
+     * 검색어가 곧 종목코드인 경우.
+     *
+     * <p>{@code 005930 주가}처럼 군더더기가 붙은 형태도 잡아야 하므로
+     * {@link QueryNormalizer#forLookup}이 만든 두 형태를 다 본다.
+     *
+     * @return 6자리 숫자 형태. 아니면 {@link Optional#empty()} — LLM으로 간다
+     */
+    private static Optional<String> directCode(String query) {
+        return QueryNormalizer.forLookup(query).stream()
+                .filter(form -> KR_STOCK_CODE.matcher(form).matches())
+                .findFirst();
     }
 
     /** 종목코드를 이미 아는 경우 — 아침 브리핑처럼 설정에 박힌 종목들이 여기로 온다. */

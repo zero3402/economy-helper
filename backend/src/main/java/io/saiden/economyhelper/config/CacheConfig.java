@@ -1,8 +1,10 @@
 package io.saiden.economyhelper.config;
 
 import io.saiden.economyhelper.config.EconomyHelperProperties.CacheTtl;
+import io.saiden.economyhelper.market.CryptoResolver.ResolvedCoin;
 import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.StockResolver.ResolvedStock;
+import io.saiden.economyhelper.market.binance.BinanceApi.BinancePrice;
 import io.saiden.economyhelper.market.data.MarketIndexApi.MarketIndex;
 import io.saiden.economyhelper.market.fmp.FmpApi.FmpQuote;
 import io.saiden.economyhelper.market.data.StockPriceApi.StockPrice;
@@ -64,9 +66,14 @@ public class CacheConfig {
                         cache(ttl.upbitMarkets(), new TypeReference<List<UpbitMarket>>() {}))
                 .withCacheConfiguration("crypto-price",
                         cache(ttl.cryptoPrice(), new TypeReference<List<UpbitTicker>>() {}))
+                // 업비트와 같은 수명이지만 담기는 타입이 달라 crypto-price에 섞을 수 없다
+                .withCacheConfiguration("binance-price",
+                        cache(ttl.binancePrice(), new TypeReference<List<BinancePrice>>() {}))
                 // LLM 해석 결과 — 같은 검색어에 Gemini를 두 번 태우지 않는다
                 .withCacheConfiguration("stock-resolve",
                         cache(ttl.stockResolve(), new TypeReference<java.util.Optional<ResolvedStock>>() {}))
+                .withCacheConfiguration("crypto-resolve",
+                        cache(ttl.cryptoResolve(), new TypeReference<java.util.Optional<ResolvedCoin>>() {}))
                 // 전일 종가라 자주 바뀌지 않는다 — 짧게 잡을 이유가 없다
                 .withCacheConfiguration("stock-price",
                         cache(ttl.stockPrice(), new TypeReference<List<StockPrice>>() {}))

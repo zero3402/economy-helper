@@ -63,6 +63,9 @@ public class DailyDigestJob {
      */
     private static final Duration BETWEEN_MESSAGES = Duration.ofSeconds(1);
 
+    /** 브리핑 설정에 대개 들어 있는 코인. 들어 있으면 USDT 원화값을 따로 물을 필요가 없다. */
+    private static final String USDT_MARKET = "KRW-USDT";
+
     private final NewsFacade facade;
     private final FxService fxService;
     private final StockService stockService;
@@ -209,11 +212,28 @@ public class DailyDigestJob {
         if (quotes.isEmpty()) {
             return Optional.empty();
         }
-        // 바이낸스가 하나도 안 붙었으면 USDT 환율을 물을 이유가 없다 — 호출 한 번을 아낀다
-        BigDecimal usdtKrw = quotes.stream().anyMatch(quote -> quote.binanceUsdt() != null)
-                ? cryptoService.usdtKrw().orElse(null)
-                : null;
-        return Optional.of(MessageFormatter.formatCryptoDigest(quotes, usdtKrw));
+        return Optional.of(MessageFormatter.formatCryptoDigest(quotes, usdtKrw(quotes)));
+    }
+
+    /**
+     * 바이낸스 USDT 값을 원화로 옮길 기준.
+     *
+     * <p><b>부르지 않아도 되면 부르지 않는다.</b> 두 가지다. 하나, 바이낸스가 하나도 안 붙었으면
+     * 환산할 대상이 없다. 둘, 브리핑 설정에 {@code KRW-USDT}가 들어 있으면 그 값은 <b>방금 받아
+     * 온 목록 안에</b> 있다 — {@code crypto-price} 캐시는 마켓 목록 단위로 키를 잡아
+     * {@code [KRW-USDT]} 단건 조회는 캐시에 걸리지 않고 그대로 업비트 호출로 나간다.
+     *
+     * @return 원화값. 구할 수 없거나 쓸 일이 없으면 {@code null}
+     */
+    private BigDecimal usdtKrw(List<CryptoQuote> quotes) {
+        if (quotes.stream().noneMatch(quote -> quote.binance().hasPrice())) {
+            return null;
+        }
+        return quotes.stream()
+                .filter(quote -> USDT_MARKET.equals(quote.market()) && quote.upbit().hasPrice())
+                .map(quote -> quote.upbit().price())
+                .findFirst()
+                .orElseGet(() -> cryptoService.usdtKrw().orElse(null));
     }
 
     private Optional<String> newsMessage() {

@@ -177,7 +177,7 @@ public class TelegramWebhookController {
             case CRYPTO -> cryptoService.quote(command.argument())
                     // 바이낸스가 붙었을 때만 USDT 환율을 묻는다 — 안 쓸 값을 미리 부르지 않는다
                     .map(quote -> MessageFormatter.formatCrypto(quote,
-                            quote.binanceUsdt() == null ? null : cryptoService.usdtKrw().orElse(null)))
+                            quote.binance().hasPrice() ? cryptoService.usdtKrw().orElse(null) : null))
                     .orElseGet(() -> MessageFormatter.cryptoNotFound(command.argument()));
             case FX -> fxService.usdToKrw()
                     .map(MessageFormatter::formatFx)

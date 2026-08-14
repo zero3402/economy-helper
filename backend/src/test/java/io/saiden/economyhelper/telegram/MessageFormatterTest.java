@@ -2,6 +2,8 @@ package io.saiden.economyhelper.telegram;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.saiden.economyhelper.market.CryptoQuote;
+import io.saiden.economyhelper.market.CryptoQuote.Quote;
 import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.FxSource;
 import io.saiden.economyhelper.market.StockQuote;
@@ -117,14 +119,18 @@ class MessageFormatterTest {
                 📈 <b>증시</b>
 
                 <b>국내</b>  2026년 8월 11일 (종가)
-                <pre>코스피            6,345.53
-                삼성전자       239,500 KRW</pre>
+
+                코스피  6,345.53
+                삼성전자  239,500 KRW
 
                 <b>미국</b>  2026년 8월 13일 07:00:00
-                <pre>나스닥           26,588.49
-                애플            302.25 USD    426,828 KRW</pre>
 
-                💱 1 USD = 1,412.17 KRW · 유럽중앙은행 · 2026년 8월 11일 (고시)""");
+                나스닥  26,588.49
+                애플  302.25 USD · 426,828 KRW""");
+        assertThat(message)
+                .as("복사 버튼이 붙는 코드 블록을 쓰지 않는다").doesNotContain("<pre>")
+                .as("환율은 바로 앞 환율 통에 이미 있다 — 여기 또 넣으면 중복이다")
+                .doesNotContain("1 USD =");
     }
 
     @Test
@@ -135,8 +141,8 @@ class MessageFormatterTest {
                         📈 <b>증시</b>
 
                         <b>국내</b>  2026년 8월 11일 (종가)
-                        <pre>삼성전자       239,500 KRW</pre>""")
-                .as("미국이 없으면 환산 줄도 없다").doesNotContain("1 USD =");
+
+                        삼성전자  239,500 KRW""");
     }
 
     @Test
@@ -151,7 +157,7 @@ class MessageFormatterTest {
     void stockDigestFallsBackToUsdWithoutFx() {
         String message = MessageFormatter.formatStockDigest(List.of(usStock("애플", "AAPL", "302.25")), null);
 
-        assertThat(message).contains("302.25 USD").doesNotContain("약").doesNotContain("환율 1 USD");
+        assertThat(message).contains("302.25 USD").doesNotContain("약").doesNotContain("1 USD =");
     }
 
     @Test
@@ -234,11 +240,32 @@ class MessageFormatterTest {
     }
 
     @Test
-    @DisplayName("바이낸스 값이 없으면 그 줄을 아예 뺀다 — 0이나 -로 채우면 '시세 0'과 구분이 안 된다")
-    void omitsBinanceLineWhenMissing() {
-        String message = MessageFormatter.formatCrypto(btc(null), new BigDecimal("1384"));
+    @DisplayName("단건은 값이 없는 이유를 적는다 — 다시 시도해야 하는지가 여기서 갈린다")
+    void explainsMissingExchangeInSingleQuote() {
+        assertThat(MessageFormatter.formatCrypto(btc(null), new BigDecimal("1384")))
+                .contains("업비트 89,848,000 KRW")
+                .as("영영 안 나오는 것").contains("바이낸스 미상장");
 
-        assertThat(message).contains("업비트").contains("89,848,000 KRW").doesNotContain("바이낸스");
+        assertThat(MessageFormatter.formatCrypto(
+                new CryptoQuote("비트코인", "KRW-BTC", "BTCUSDT", NOW,
+                        Quote.of(new BigDecimal("89848000")), Quote.FAILED), null))
+                .as("잠시 뒤 다시 치면 되는 것").contains("바이낸스 조회 실패");
+    }
+
+    @Test
+    @DisplayName("업비트에 없는 코인은 바이낸스만 적고 꼬리표도 바이낸스 심볼 하나뿐이다")
+    void showsBinanceOnlyCoin() {
+        String message = MessageFormatter.formatCrypto(
+                new CryptoQuote("비앤비", null, "BNBUSDT", NOW,
+                        Quote.NOT_LISTED, Quote.of(new BigDecimal("612.40"))),
+                new BigDecimal("1384"));
+
+        assertThat(message)
+                .contains("업비트 미상장")
+                .contains("바이낸스 612.4 USDT")
+                .contains("BNBUSDT")
+                .as("업비트 마켓 코드가 없으니 꼬리표에 구분자만 남으면 안 된다")
+                .doesNotContain(" · BNBUSDT");
     }
 
     @Test
@@ -253,20 +280,45 @@ class MessageFormatterTest {
     @DisplayName("브리핑 코인 통도 코인마다 두 거래소를 보여준다")
     void showsBothExchangesInDigest() {
         String message = MessageFormatter.formatCryptoDigest(
-                List.of(btc(new BigDecimal("63703.69")),
-                        new io.saiden.economyhelper.market.CryptoQuote(
-                                "KRW-USDT", "테더", new BigDecimal("1384"), NOW, null)),
-                new BigDecimal("1384"));
+                List.of(btc(new BigDecimal("63703.69")), usdt()), new BigDecimal("1384"));
 
         assertThat(message).contains("비트코인").contains("바이낸스").contains("63,703.69 USDT");
-        assertThat(message.substring(message.indexOf("테더")))
-                .as("테더는 바이낸스에 USDTUSDT가 없어 업비트만 나온다")
-                .doesNotContain("바이낸스");
     }
 
-    private static io.saiden.economyhelper.market.CryptoQuote btc(BigDecimal binanceUsdt) {
-        return new io.saiden.economyhelper.market.CryptoQuote(
-                "KRW-BTC", "비트코인", new BigDecimal("89848000"), NOW, binanceUsdt);
+    @Test
+    @DisplayName("브리핑에서는 값이 없는 거래소 줄을 뺀다 — 매일 같은 코인이라 첫날 이후 소음이다")
+    void omitsMissingExchangeInDigest() {
+        String message = MessageFormatter.formatCryptoDigest(
+                List.of(btc(new BigDecimal("63703.69")), usdt()), new BigDecimal("1384"));
+
+        assertThat(message.substring(message.indexOf("테더")))
+                .as("테더는 바이낸스에 USDTUSDT가 없다 — 매일 아침 그 사실을 알릴 이유가 없다")
+                .doesNotContain("바이낸스")
+                .contains("업비트 1,384 KRW");
+    }
+
+    @Test
+    @DisplayName("양쪽 다 값이 없는 코인은 브리핑에서 통째로 뺀다 — 이름만 찍히고 아래가 비면 고장으로 보인다")
+    void dropsCoinWithNoPriceFromDigest() {
+        String message = MessageFormatter.formatCryptoDigest(
+                List.of(btc(new BigDecimal("63703.69")),
+                        new CryptoQuote("이더리움", "KRW-ETH", "ETHUSDT", NOW,
+                                Quote.FAILED, Quote.FAILED)),
+                new BigDecimal("1384"));
+
+        assertThat(message).contains("비트코인").doesNotContain("이더리움");
+    }
+
+    private static CryptoQuote btc(BigDecimal binanceUsdt) {
+        return new CryptoQuote("비트코인", "KRW-BTC", binanceUsdt == null ? null : "BTCUSDT", NOW,
+                Quote.of(new BigDecimal("89848000")),
+                binanceUsdt == null ? Quote.NOT_LISTED : Quote.of(binanceUsdt));
+    }
+
+    /** 바이낸스에 {@code USDTUSDT}가 없다 — 브리핑 기본 설정에 들어 있어 실제로 밟는 길이다. */
+    private static CryptoQuote usdt() {
+        return new CryptoQuote("테더", "KRW-USDT", null, NOW,
+                Quote.of(new BigDecimal("1384")), Quote.NOT_LISTED);
     }
 
     private static NewsItem item(String title, String body, boolean translated) {

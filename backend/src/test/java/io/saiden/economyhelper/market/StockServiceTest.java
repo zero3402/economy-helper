@@ -86,6 +86,30 @@ class StockServiceTest {
     }
 
     @Test
+    @DisplayName("6자리 종목코드는 LLM을 건너뛴다 — 해석할 것이 없는데 Gemini를 태울 이유가 없다")
+    void skipsLlmForPlainStockCode() {
+        RecordingApi api = new RecordingApi(Map.of("005930", SAMSUNG.subList(0, 1)));
+        StockService service = new StockService(api, indexApi(null), noFmp(), explodingResolver());
+
+        // 군더더기가 붙은 형태도 같은 길로 간다 — QueryNormalizer가 '주가'를 떼어 준다
+        for (String query : List.of("005930", "005930 주가", " 005930 ")) {
+            assertThat(service.quote(query)).as("입력 '%s'", query)
+                    .get().extracting(match -> match.quote().name()).isEqualTo("삼성전자");
+        }
+        assertThat(api.byName).as("코드가 걸리면 이름 검색도 하지 않는다").isEmpty();
+    }
+
+    @Test
+    @DisplayName("없는 종목코드는 이름 검색으로 넘기지 않는다 — 6자리 숫자는 이름일 수 없다")
+    void returnsEmptyForUnknownStockCode() {
+        RecordingApi api = new RecordingApi(Map.of());
+
+        assertThat(new StockService(api, indexApi(null), noFmp(), explodingResolver()).quote("999999"))
+                .isEmpty();
+        assertThat(api.byName).isEmpty();
+    }
+
+    @Test
     @DisplayName("통칭과 상장명이 달라도 찾는다 — 네이버는 상장명이 NAVER(로마자)다")
     void resolvesCommonNameToListedName() {
         List<StockPrice> naver = List.of(price("035420", "NAVER", "KOSPI", "200000", "32000000000000"));
@@ -367,6 +391,16 @@ class StockServiceTest {
     /** LLM이 죽었거나 종목을 특정하지 못한 상태. */
     private static StockResolver noResolver() {
         return resolver(null);
+    }
+
+    /** 불리면 안 되는 상태 — 해석할 것이 없는 입력에 Gemini가 나가면 여기서 드러난다. */
+    private static StockResolver explodingResolver() {
+        return new StockResolver(null, null) {
+            @Override
+            public Optional<ResolvedStock> resolve(String normalizedQuery) {
+                throw new AssertionError("해석이 필요 없는 입력에 LLM을 불렀습니다: " + normalizedQuery);
+            }
+        };
     }
 
     /** HTTP는 {@code StockPriceApiTest}가 따로 본다. 여기서는 해석 규칙만 본다. */

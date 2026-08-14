@@ -2,6 +2,7 @@ package io.saiden.economyhelper.market;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.saiden.economyhelper.market.CryptoResolver.ResolvedCoin;
 import io.saiden.economyhelper.market.binance.BinanceApi;
 import io.saiden.economyhelper.market.binance.BinanceApi.BinancePrice;
 import io.saiden.economyhelper.market.upbit.UpbitApi;
@@ -11,15 +12,23 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
 /**
- * 이 클래스의 핵심 주장을 고정한다: <b>동명 후보를 24시간 거래대금으로 가른다.</b>
+ * 두 갈래를 함께 고정한다.
  *
- * <p>아래 값들은 2026-08-12 업비트 실측이다. 비트·이더·리플 셋 다 <b>이름만 보면 오답이
- * 앞에 왔고</b>, 거래대금으로는 전부 정답이 나왔다. LLM을 쓰지 않는 근거가 이것이다.
+ * <p><b>LLM 폴백(업비트 이름 매칭)</b> — 동명 후보를 24시간 거래대금으로 가른다. 아래 값들은
+ * 2026-08-12 업비트 실측이다. 비트·이더·리플 셋 다 <b>이름만 보면 오답이 앞에 왔고</b>,
+ * 거래대금으로는 전부 정답이 나왔다. LLM이 죽어도 이 경로가 남아 있어야 하는 근거다.
+ *
+ * <p><b>LLM 경로</b> — 티커 하나로 두 거래소를 각각 물어, 한쪽에 없어도 다른 쪽을 내보낸다.
+ * 그리고 <b>없는 이유를 뭉개지 않는다</b>: {@code NOT_LISTED}(영영 없음)와
+ * {@code FAILED}(잠시 뒤 다시)를 가르는 것이 이 개편의 요지다.
  */
 class CryptoServiceTest {
 
@@ -87,8 +96,8 @@ class CryptoServiceTest {
     void carriesPriceAndTimestamp() {
         CryptoQuote quote = cryptoService(new RecordingApi()).quote("비트코인").orElseThrow();
 
-        assertThat(quote.koreanName()).isEqualTo("비트코인");
-        assertThat(quote.price()).isEqualByComparingTo("89848000");
+        assertThat(quote.name()).isEqualTo("비트코인");
+        assertThat(quote.upbit().price()).isEqualByComparingTo("89848000");
         assertThat(quote.at()).isNotNull();
     }
 
@@ -145,11 +154,13 @@ class CryptoServiceTest {
 
         CryptoQuote quote = service.quote("비트코인").orElseThrow();
 
-        assertThat(quote.price()).isEqualByComparingTo(BigDecimal.valueOf(89_848_000));
-        assertThat(quote.binanceUsdt()).as("모른다는 것을 0이 아니라 null로 남긴다").isNull();
+        assertThat(quote.upbit().price()).isEqualByComparingTo(BigDecimal.valueOf(89_848_000));
+        assertThat(quote.binance().state())
+                .as("장애는 미상장이 아니다 — 사용자에게 '잠시 뒤 다시'와 '영영 없음'은 다른 말이다")
+                .isEqualTo(CryptoQuote.Quote.State.FAILED);
         assertThat(service.quotesOf(List.of("KRW-BTC", "KRW-ETH")))
                 .hasSize(2)
-                .allSatisfy(each -> assertThat(each.binanceUsdt()).isNull());
+                .allSatisfy(each -> assertThat(each.binance().hasPrice()).isFalse());
     }
 
     @Test
@@ -159,7 +170,7 @@ class CryptoServiceTest {
                 Map.of("BTCUSDT", "63703.69", "ETHUSDT", "1886.36"));
 
         assertThat(service.quotesOf(List.of("KRW-BTC", "KRW-ETH")))
-                .extracting(CryptoQuote::market, CryptoQuote::binanceUsdt)
+                .extracting(CryptoQuote::market, each -> each.binance().price())
                 .containsExactly(
                         org.assertj.core.api.Assertions.tuple("KRW-BTC", new BigDecimal("63703.69")),
                         org.assertj.core.api.Assertions.tuple("KRW-ETH", new BigDecimal("1886.36")));
@@ -171,7 +182,7 @@ class CryptoServiceTest {
         CryptoService service = cryptoService(new RecordingApi(), Map.of("BTCUSDT", "63703.69"));
 
         assertThat(service.quotesOf(List.of("KRW-BTC", "KRW-ETH")))
-                .extracting(CryptoQuote::binanceUsdt)
+                .extracting(each -> each.binance().price())
                 .containsExactly(new BigDecimal("63703.69"), null);
     }
 
@@ -203,12 +214,102 @@ class CryptoServiceTest {
         assertThat(cryptoService(exploding).usdtKrw()).isEmpty();
     }
 
+    // --- LLM은 업비트가 못 풀 때만 부른다 -------------------------------------
+
+    @Test
+    @DisplayName("업비트 이름이 걸리면 LLM을 부르지 않는다 — 캐시된 목록에 대한 순수 계산이라 공짜다")
+    void skipsLlmWhenUpbitNameMatches() {
+        CryptoService service = cryptoService(new RecordingApi(), Map.of("BTCUSDT", "63703.69"),
+                explodingResolver());
+
+        for (String query : List.of("비트코인", "BTC", "bitcoin", "비트", "비트코인 얼마")) {
+            CryptoQuote quote = service.quote(query).orElseThrow();
+            assertThat(quote.market()).as("입력 '%s'", query).isEqualTo("KRW-BTC");
+            assertThat(quote.binance().price()).isEqualByComparingTo("63703.69");
+        }
+    }
+
+    @Test
+    @DisplayName("업비트에 없는 코인도 바이낸스로 답한다 — 이름 매칭만 쓰면 시작조차 못 하던 것들이다")
+    void answersCoinsMissingFromUpbit() {
+        CryptoService service = cryptoService(new RecordingApi(), Map.of("BNBUSDT", "612.40"),
+                resolverOf("BNB", "비앤비"));
+
+        CryptoQuote quote = service.quote("바이낸스코인").orElseThrow();
+
+        assertThat(quote.name()).as("업비트 한글명이 없으니 LLM이 준 이름을 쓴다").isEqualTo("비앤비");
+        assertThat(quote.market()).as("업비트 마켓 코드가 없으므로 비운다").isNull();
+        assertThat(quote.binanceSymbol()).isEqualTo("BNBUSDT");
+        assertThat(quote.upbit().state()).isEqualTo(CryptoQuote.Quote.State.NOT_LISTED);
+        assertThat(quote.binance().price()).isEqualByComparingTo("612.40");
+    }
+
+    @Test
+    @DisplayName("업비트 체결 시각을 그대로 쓴다 — 조회 시각으로 덮으면 경로마다 값이 달라진다")
+    void carriesUpbitTradeTimestamp() {
+        CryptoQuote quote = cryptoService(new RecordingApi(), Map.of("BTCUSDT", "63703.69"),
+                explodingResolver()).quote("비트코인").orElseThrow();
+
+        assertThat(quote.at()).isEqualTo(java.time.Instant.ofEpochMilli(1_786_497_710_484L));
+    }
+
+    @Test
+    @DisplayName("두 거래소 어디에도 없으면 빈 결과 — LLM 환각이 여기서 걸러진다")
+    void returnsEmptyWhenNeitherExchangeHasTheTicker() {
+        CryptoService service = cryptoService(new RecordingApi(), Map.of(),
+                resolverOf("ZZZ", "없는코인"));
+
+        assertThat(service.quote("없는코인zzz")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("바이낸스 400만 미상장이다 — 451·429까지 묶으면 재시도하면 될 것을 '없는 코인'이라 답하게 된다")
+    void separatesInvalidSymbolFromOutage() {
+        CryptoService invalidSymbol = new CryptoService(new RecordingApi(),
+                explodingBinance(new HttpClientErrorException(HttpStatus.BAD_REQUEST)),
+                resolverOf("BNB", "비앤비"));
+        CryptoService blocked = new CryptoService(new RecordingApi(),
+                explodingBinance(new HttpClientErrorException(HttpStatus.UNAVAILABLE_FOR_LEGAL_REASONS)),
+                resolverOf("BNB", "비앤비"));
+
+        assertThat(invalidSymbol.quote("바이낸스코인"))
+                .as("Invalid symbol — 업비트에도 바이낸스에도 없으니 '찾지 못했다'가 맞다")
+                .isEmpty();
+        assertThat(blocked.quote("바이낸스코인")).get()
+                .extracting(quote -> quote.binance().state())
+                .as("지역 차단은 장애다 — '없는 코인'이 아니라 '잠시 뒤 다시'다")
+                .isEqualTo(CryptoQuote.Quote.State.FAILED);
+    }
+
+    @Test
+    @DisplayName("업비트 마켓 목록이 죽으면 미상장이 아니라 조회 실패다 — 상장 여부를 '모르는' 것이다")
+    void marksUpbitFailedWhenMarketListIsDown() {
+        UpbitApi exploding = new RecordingApi() {
+            @Override
+            public List<UpbitMarket> krwMarkets() {
+                throw new IllegalStateException("서킷브레이커 열림");
+            }
+        };
+
+        CryptoQuote quote = cryptoService(exploding, Map.of("BTCUSDT", "63703.69"),
+                resolverOf("BTC", "비트코인")).quote("비트코인").orElseThrow();
+
+        assertThat(quote.upbit().state()).isEqualTo(CryptoQuote.Quote.State.FAILED);
+        assertThat(quote.binance().price())
+                .as("업비트가 죽어도 바이낸스 값은 그대로 나간다").isEqualByComparingTo("63703.69");
+    }
+
     /** 바이낸스가 아무것도 못 주는 상태. 기존 단언은 업비트만 보므로 이게 기본값이다. */
     private static CryptoService cryptoService(UpbitApi upbit) {
         return cryptoService(upbit, Map.of());
     }
 
     private static CryptoService cryptoService(UpbitApi upbit, Map<String, String> binancePrices) {
+        return cryptoService(upbit, binancePrices, noResolver());
+    }
+
+    private static CryptoService cryptoService(UpbitApi upbit, Map<String, String> binancePrices,
+                                               CryptoResolver resolver) {
         return new CryptoService(upbit, new BinanceApi(RestClient.builder(), "https://example.invalid") {
             @Override
             public List<BinancePrice> prices(List<String> symbols) {
@@ -217,17 +318,52 @@ class CryptoServiceTest {
                         .map(symbol -> new BinancePrice(symbol, new BigDecimal(binancePrices.get(symbol))))
                         .toList();
             }
-        });
+        }, resolver);
     }
 
     /** 바이낸스가 죽은 상태 — 지역 차단·타임아웃·브레이커 열림을 모두 대표한다. */
     private static CryptoService cryptoServiceWithDeadBinance(UpbitApi upbit) {
-        return new CryptoService(upbit, new BinanceApi(RestClient.builder(), "https://example.invalid") {
+        return new CryptoService(upbit, explodingBinance(new IllegalStateException("451 지역 차단")),
+                noResolver());
+    }
+
+    private static BinanceApi explodingBinance(RuntimeException failure) {
+        return new BinanceApi(RestClient.builder(), "https://example.invalid") {
             @Override
             public List<BinancePrice> prices(List<String> symbols) {
-                throw new IllegalStateException("451 지역 차단");
+                throw failure;
             }
-        });
+        };
+    }
+
+    /** LLM이 못 푼 상태 — 업비트 이름 매칭 경로를 고정한다. */
+    private static CryptoResolver noResolver() {
+        return new CryptoResolver(null, null) {
+            @Override
+            public Optional<ResolvedCoin> resolve(String query) {
+                return Optional.empty();
+            }
+        };
+    }
+
+    /** 불리면 안 되는 상태 — 업비트가 푸는 검색어에 Gemini가 나가면 여기서 드러난다. */
+    private static CryptoResolver explodingResolver() {
+        return new CryptoResolver(null, null) {
+            @Override
+            public Optional<ResolvedCoin> resolve(String query) {
+                throw new AssertionError("업비트가 푸는 검색어에 LLM을 불렀습니다: " + query);
+            }
+        };
+    }
+
+    /** LLM이 티커를 준 상태. 프롬프트·파싱은 이 클래스의 관심사가 아니다. */
+    private static CryptoResolver resolverOf(String symbol, String name) {
+        return new CryptoResolver(null, null) {
+            @Override
+            public Optional<ResolvedCoin> resolve(String query) {
+                return Optional.of(new ResolvedCoin(symbol, name));
+            }
+        };
     }
 
     /** HTTP는 {@code UpbitApiTest}가 따로 본다. 여기서는 해석 규칙만 본다. */

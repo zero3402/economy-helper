@@ -21,7 +21,10 @@ import java.util.Locale;
  * <p><b>{@code parse_mode=HTML}로 보낸다.</b> 예전에는 평문이었다 — 기사 제목의
  * {@code *}·{@code _}·{@code [}가 Markdown 파싱 오류를 내 발송이 실패했기 때문이다.
  * HTML에서는 그 문자들이 무해하고 {@code & < >} 세 자만 처리하면 된다({@link Html} 참조).
- * 덕분에 시세를 <b>모노스페이스 표</b>로 세워 자릿수를 맞출 수 있다.
+ *
+ * <p><b>{@code <pre>}·{@code <code>}로 감싸지 않는다.</b> 모노스페이스면 자릿수를 세로로 맞출 수
+ * 있지만 텔레그램이 그 블록에 복사 버튼을 띄운다 — 읽으라고 보낸 시세에 붙을 이유가 없다.
+ * 정렬 대신 이름을 굵게 하고 거래소를 들여써서 계층으로 읽히게 한다.
  *
  * <p><b>바깥에서 온 문자열은 예외 없이 {@link Html#escape}를 통과한다.</b>
  * 하나라도 빠뜨리면 그 메시지는 발송 자체가 실패한다 — 평문일 때는 없던 위험이다.
@@ -45,13 +48,6 @@ public final class MessageFormatter {
     private static final DateTimeFormatter DATE_TIME =
             DateTimeFormatter.ofPattern("yyyy년 M월 d일 HH:mm:ss");
     private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("yyyy년 M월 d일");
-
-    /** 표의 열 폭(표시 폭 기준). 이름은 왼쪽, 숫자는 오른쪽으로 맞춘다. */
-    private static final int NAME_COLUMNS = 11;
-    private static final int VALUE_COLUMNS = 15;
-    private static final int KRW_COLUMNS = 15;
-    /** 거래소 이름 칸. {@code 바이낸스}가 8칸이라 한 칸 띄우면 값이 세로로 떨어진다. */
-    private static final int EXCHANGE_COLUMNS = 9;
 
     private MessageFormatter() {
     }
@@ -148,10 +144,10 @@ public final class MessageFormatter {
         StockQuote quote = match.quote();
         StringBuilder message = new StringBuilder(quote.index() ? "📊 <b>" : "📈 <b>")
                 .append(Html.escape(quote.name())).append("</b>\n\n")
-                .append("<code>").append(priceOf(quote)).append("</code>");
+                .append("<b>").append(priceOf(quote)).append("</b>");
 
         if (convertible(quote, fx)) {
-            message.append("\n<code>약 ").append(money(krw(quote.price(), fx))).append(" KRW</code>");
+            message.append("\n약 ").append(money(krw(quote.price(), fx))).append(" KRW");
         }
 
         message.append("\n");
@@ -209,9 +205,8 @@ public final class MessageFormatter {
         appendGroup(message, "국내", closing, fx);
         appendGroup(message, "미국", live, fx);
 
-        if (live.stream().anyMatch(quote -> convertible(quote, fx))) {
-            message.append("\n\n").append(fxLine(fx));
-        }
+        // 환율 줄을 붙이지 않는다. 브리핑은 환율 통을 이 통 바로 앞에 보내므로 중복이다.
+        // 단건 검색(formatStock)은 혼자 나가니 거기서는 계속 붙인다
         return message.toString();
     }
 
@@ -234,24 +229,18 @@ public final class MessageFormatter {
         message.append("\n\n<b>").append(title).append("</b>  ")
                 .append(realtime ? DATE_TIME.format(basis.atZone(SEOUL))
                         : DATE.format(basis.atZone(SEOUL)) + " (종가)")
-                .append("\n<pre>");
+                .append("\n");
 
-        boolean first = true;
         for (StockQuote quote : quotes) {
-            if (!first) {
-                message.append("\n");
-            }
-            first = false;
-            message.append(Html.pad(Html.escape(quote.name()), NAME_COLUMNS))
-                    .append(Html.padLeft(priceOf(quote), VALUE_COLUMNS));
+            message.append("\n").append(Html.escape(quote.name())).append("  ")
+                    .append(priceOf(quote));
             if (convertible(quote, fx)) {
-                message.append(Html.padLeft(money(krw(quote.price(), fx)) + " KRW", KRW_COLUMNS));
+                message.append(" · ").append(money(krw(quote.price(), fx))).append(" KRW");
             }
             if (!quote.at().equals(basis)) {
-                message.append("  ").append(DATE.format(quote.at().atZone(SEOUL)));
+                message.append(" · ").append(DATE.format(quote.at().atZone(SEOUL)));
             }
         }
-        message.append("</pre>");
     }
 
     // --- 코인 ---------------------------------------------------------------
@@ -263,59 +252,90 @@ public final class MessageFormatter {
      * 명령마다 정보 밀도가 달라지는 것도 피한다.
      */
     public static String formatCrypto(CryptoQuote quote, BigDecimal usdtKrw) {
-        return "🪙 <b>" + Html.escape(quote.koreanName()) + "</b>\n"
-                + "<pre>" + exchangeLines(quote, usdtKrw) + "</pre>\n"
-                + Html.escape(quote.market()) + "\n"
+        String identity = java.util.stream.Stream.of(quote.market(), quote.binanceSymbol())
+                .filter(java.util.Objects::nonNull)
+                .map(Html::escape)
+                .collect(java.util.stream.Collectors.joining(" · "));
+        return "🪙 <b>" + Html.escape(quote.name()) + "</b>\n"
+                + exchangeLines(quote, usdtKrw, true) + "\n\n"
+                + (identity.isEmpty() ? "" : identity + "\n")
                 + DATE_TIME.format(quote.at().atZone(SEOUL));
     }
 
-    /** 아침 브리핑의 코인 통. 24시간 거래되므로 기준일이 아니라 시각을 쓴다. */
+    /**
+     * 아침 브리핑의 코인 통. 24시간 거래되므로 기준일이 아니라 시각을 쓴다.
+     *
+     * <p><b>값이 없는 거래소 줄은 뺀다.</b> 단건 {@code /crypto}와 갈리는 지점이다 —
+     * 브리핑은 매일 같은 코인이 나가므로 {@code KRW-USDT}의 "바이낸스 미상장"은 첫날 이후
+     * 정보가 아니라 소음이다. 사용자가 방금 물은 것이 아니라 우리가 매일 밀어 넣는 것이다.
+     */
     public static String formatCryptoDigest(List<CryptoQuote> quotes, BigDecimal usdtKrw) {
-        StringBuilder message = new StringBuilder("🪙 <b>코인</b>");
-        quotes.stream().findFirst().ifPresent(first ->
-                message.append("  ").append(DATE_TIME.format(first.at().atZone(SEOUL))));
-        message.append("\n<pre>");
+        // 양쪽 다 값이 없으면 이름만 굵게 찍히고 아래가 빈다. 그런 코인은 통째로 뺀다
+        List<CryptoQuote> shown = quotes.stream()
+                .filter(quote -> quote.upbit().hasPrice() || quote.binance().hasPrice())
+                .toList();
 
-        boolean first = true;
-        for (CryptoQuote quote : quotes) {
-            if (!first) {
-                message.append("\n");
-            }
-            first = false;
-            message.append(Html.escape(quote.koreanName())).append("\n")
-                    .append(exchangeLines(quote, usdtKrw));
+        StringBuilder message = new StringBuilder("🪙 <b>코인</b>");
+        shown.stream().findFirst().ifPresent(first ->
+                message.append("  ").append(DATE_TIME.format(first.at().atZone(SEOUL))));
+        for (CryptoQuote quote : shown) {
+            message.append("\n\n<b>").append(Html.escape(quote.name())).append("</b>\n")
+                    .append(exchangeLines(quote, usdtKrw, false));
         }
-        return message.append("</pre>").toString();
+        return message.toString();
     }
 
     /**
      * 거래소별 한 줄씩 — <b>업비트 먼저, 바이낸스 다음.</b>
      *
-     * <p>이름을 위에 두고 거래소를 들여쓰는 이유는 폭이다. 한 줄에 이름·거래소·값·환산을 다 넣으면
-     * 50칸을 넘어 휴대폰에서 가로로 밀린다. 이렇게 두면 주식 통과 같은 42칸 안에 들어온다.
+     * <p>{@code explainMissing}이면 값이 없는 쪽도 이유를 적는다. 사용자가 방금 그 코인을 물었을
+     * 때는 줄을 빼 버리면 그 거래소를 조회하지 않은 것처럼 보이고, 무엇보다 다시 시도해야 할지
+     * 알 수 없다. 그래서 이유를 갈라 쓴다 — {@code 미상장}은 영영 안 나오는 것이고
+     * {@code 조회 실패}는 잠시 뒤 다시 치면 되는 것이다. 브리핑에서는 그 줄을 아예 뺀다.
      *
-     * <p>바이낸스 값이 없으면 그 줄을 <b>아예 뺀다</b> — {@code 0}이나 {@code -}로 채우면
-     * "시세가 0"과 "모른다"가 구분되지 않는다. {@code usdtKrw}가 없으면 USDT만 적는다.
+     * <p>{@code usdtKrw}가 없으면 USDT만 적는다 — 환산을 못 한다고 시세를 빼는 것은 과하다.
      */
-    private static String exchangeLines(CryptoQuote quote, BigDecimal usdtKrw) {
-        StringBuilder lines = new StringBuilder(" ")
-                .append(Html.pad("업비트", EXCHANGE_COLUMNS))
-                .append(Html.padLeft(money(quote.price()) + " KRW", VALUE_COLUMNS));
-        if (quote.binanceUsdt() == null) {
+    private static String exchangeLines(CryptoQuote quote, BigDecimal usdtKrw,
+                                        boolean explainMissing) {
+        StringBuilder lines = new StringBuilder();
+        if (quote.upbit().hasPrice()) {
+            lines.append("  업비트 ").append(money(quote.upbit().price())).append(" KRW");
+        } else if (explainMissing) {
+            lines.append("  업비트 ").append(reasonOf(quote.upbit()));
+        }
+
+        if (!quote.binance().hasPrice()) {
+            if (explainMissing) {
+                lines.append(separator(lines)).append("  바이낸스 ").append(reasonOf(quote.binance()));
+            }
             return lines.toString();
         }
-        lines.append("\n ").append(Html.pad("바이낸스", EXCHANGE_COLUMNS))
-                .append(Html.padLeft(money(quote.binanceUsdt()) + " USDT", VALUE_COLUMNS));
+        lines.append(separator(lines)).append("  바이낸스 ")
+                .append(money(quote.binance().price())).append(" USDT");
         if (usdtKrw != null) {
-            BigDecimal krw = quote.binanceUsdt().multiply(usdtKrw).setScale(0, RoundingMode.HALF_UP);
-            lines.append(Html.padLeft(money(krw) + " KRW", KRW_COLUMNS));
+            BigDecimal krw = quote.binance().price().multiply(usdtKrw).setScale(0, RoundingMode.HALF_UP);
+            lines.append(" · ").append(money(krw)).append(" KRW");
         }
         return lines.toString();
     }
 
+    /** 앞 줄이 있을 때만 줄바꿈 — 업비트 줄을 뺀 브리핑에서 빈 줄이 앞서지 않게 한다. */
+    private static String separator(StringBuilder lines) {
+        return lines.isEmpty() ? "" : "\n";
+    }
+
+    /** 값이 없는 이유. 사용자가 다시 시도해야 하는지가 여기서 갈린다. */
+    private static String reasonOf(CryptoQuote.Quote quote) {
+        return switch (quote.state()) {
+            case NOT_LISTED -> "미상장";
+            case FAILED -> "조회 실패";
+            case OK -> "";
+        };
+    }
+
     public static String cryptoNotFound(String query) {
         return "'" + Html.escape(query) + "'에 해당하는 코인을 찾지 못했습니다.\n\n"
-                + "업비트 원화 마켓에 있는 이름이나 심볼로 입력해 주세요.\n"
+                + "업비트 또는 바이낸스에 상장된 이름이나 심볼로 입력해 주세요.\n"
                 + "예) <code>/crypto 비트코인</code> · <code>/crypto BTC</code>";
     }
 

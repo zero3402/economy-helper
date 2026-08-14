@@ -73,6 +73,7 @@ public record EconomyHelperProperties(
      */
     public record CacheTtl(Duration feed, Duration translation, Duration buzz, Duration query,
                            Duration relevance, Duration upbitMarkets, Duration cryptoPrice,
-                           Duration stockResolve, Duration stockPrice, Duration usQuote,
+                           Duration binancePrice, Duration stockResolve, Duration cryptoResolve,
+                           Duration stockPrice, Duration usQuote,
                            Duration fx, Duration fxKexim) {}
 }

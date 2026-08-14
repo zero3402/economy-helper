@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 /**
- * 코인 현재가 한 건.
+ * 코인 한 종목의 <b>두 거래소 시세</b>.
  *
  * <p>등락률·전일종가는 업비트가 주지만 담지 않는다. {@code CLAUDE.md}가 요구하는 건 "현재 가격"이고,
  * 토스는 등락률을 주지 않아 {@code /stock}에는 넣을 수 없다 — 코인에만 붙이면 명령마다
@@ -13,19 +13,41 @@ import java.time.Instant;
  * <p>원화 환산값은 담지 않는다. 환산은 <b>표시 시점의 관심사</b>고, {@code formatStock}이 환율을
  * 인자로 받는 것과 같은 이유다 — 모델에 넣어 두면 시세와 환율의 시각이 엇갈린 채로 굳는다.
  *
- * @param market      업비트 마켓 코드 ({@code KRW-BTC})
- * @param koreanName  화면에 쓸 이름 ({@code 비트코인})
- * @param price       업비트 원화 현재가
- * @param at          체결 시각
- * @param binanceUsdt 바이낸스 USDT 현재가. <b>{@code null}이면 표시하지 않는다</b> —
- *                    바이낸스에 상장되지 않았거나(예: USDT 자신) 조회가 실패한 경우다.
- *                    0이나 빈 값으로 채우면 "시세가 0"과 "모른다"가 구분되지 않는다
+ * @param name          화면에 쓸 이름. 업비트 한글명이 있으면 그것, 없으면 심볼({@code BNB})
+ * @param market        업비트 마켓 코드({@code KRW-BTC}). <b>업비트 미상장이면 {@code null}</b>
+ * @param binanceSymbol 바이낸스 심볼({@code BTCUSDT}). 바이낸스 미상장이면 {@code null}
+ * @param at            체결 시각
  */
-public record CryptoQuote(String market, String koreanName, BigDecimal price, Instant at,
-                          BigDecimal binanceUsdt) {
+public record CryptoQuote(String name, String market, String binanceSymbol, Instant at,
+                          Quote upbit, Quote binance) {
 
-    /** 바이낸스 값을 붙인 사본. 업비트 조회와 바이낸스 조회가 별개 호출이라 필요하다. */
-    public CryptoQuote withBinance(BigDecimal usdt) {
-        return new CryptoQuote(market, koreanName, price, at, usdt);
+    /**
+     * 거래소 한 곳의 값.
+     *
+     * <p><b>값이 없을 때 왜 없는지를 함께 들고 있어야 한다.</b> 예전에는 {@code null} 하나로
+     * "그 거래소에 없다"와 "조회가 실패했다"를 뭉갰는데, 둘은 사용자에게 다른 말이다 —
+     * 전자는 영영 안 나오는 것이고 후자는 잠시 뒤 다시 치면 되는 것이다.
+     */
+    public record Quote(BigDecimal price, State state) {
+
+        public enum State {
+            /** 값이 있다. */
+            OK,
+            /** 그 거래소에 상장돼 있지 않다. 다시 시도해도 소용없다. */
+            NOT_LISTED,
+            /** 거래소가 응답하지 않았다. 장애·지역차단·브레이커 열림을 모두 포함한다. */
+            FAILED
+        }
+
+        public static final Quote NOT_LISTED = new Quote(null, State.NOT_LISTED);
+        public static final Quote FAILED = new Quote(null, State.FAILED);
+
+        public static Quote of(BigDecimal price) {
+            return price == null ? FAILED : new Quote(price, State.OK);
+        }
+
+        public boolean hasPrice() {
+            return state == State.OK && price != null;
+        }
     }
 }

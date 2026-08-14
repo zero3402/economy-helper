@@ -2,23 +2,45 @@ package io.saiden.economyhelper.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.saiden.economyhelper.config.EconomyHelperProperties.CacheTtl;
+import io.saiden.economyhelper.market.CryptoResolver;
+import io.saiden.economyhelper.market.CryptoResolver.ResolvedCoin;
+import io.saiden.economyhelper.market.StockResolver;
+import io.saiden.economyhelper.market.binance.BinanceApi;
+import io.saiden.economyhelper.market.binance.BinanceApi.BinancePrice;
 import io.saiden.economyhelper.market.data.MarketIndexApi;
 import io.saiden.economyhelper.market.data.MarketIndexApi.MarketIndex;
 import io.saiden.economyhelper.market.data.StockPriceApi;
+import io.saiden.economyhelper.market.fmp.FmpApi;
+import io.saiden.economyhelper.market.frankfurter.FrankfurterFxClient;
+import io.saiden.economyhelper.market.kexim.KeximFxClient;
+import io.saiden.economyhelper.market.upbit.UpbitApi;
 import io.saiden.economyhelper.news.Article;
 import io.saiden.economyhelper.news.NewsSource;
+import io.saiden.economyhelper.news.feed.FeedFetcher;
+import io.saiden.economyhelper.news.rank.HackerNewsApi;
+import io.saiden.economyhelper.news.rank.RelevanceScorer;
+import io.saiden.economyhelper.translate.QueryTranslator;
 import io.saiden.economyhelper.translate.Translation;
+import io.saiden.economyhelper.translate.TranslationService;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.redis.cache.RedisCacheManager;
+import org.springframework.data.redis.cache.RedisCacheManager.RedisCacheManagerBuilder;
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.serializer.JacksonJsonRedisSerializer;
 import tools.jackson.core.type.TypeReference;
 
@@ -76,6 +98,61 @@ class CacheConfigTest {
         MarketIndex original = new MarketIndex("20260811", "코스피", "KOSPI시리즈", "6345.53");
 
         assertThat(serializer.deserialize(serializer.serialize(original))).isEqualTo(original);
+    }
+
+    @Test
+    @DisplayName("binance-price 캐시 — List<BinancePrice>가 그대로 돌아온다")
+    void roundTripsBinancePrices() {
+        JacksonJsonRedisSerializer<List<BinancePrice>> serializer =
+                CacheConfig.serializer(new TypeReference<List<BinancePrice>>() {});
+        List<BinancePrice> original = List.of(
+                new BinancePrice("BTCUSDT", new BigDecimal("63703.69")),
+                new BinancePrice("ETHUSDT", new BigDecimal("1886.36")));
+
+        assertThat(serializer.deserialize(serializer.serialize(original))).isEqualTo(original);
+    }
+
+    @Test
+    @DisplayName("crypto-resolve 캐시 — Optional<ResolvedCoin>이 그대로 돌아온다")
+    void roundTripsResolvedCoin() {
+        JacksonJsonRedisSerializer<Optional<ResolvedCoin>> serializer =
+                CacheConfig.serializer(new TypeReference<Optional<ResolvedCoin>>() {});
+        Optional<ResolvedCoin> original = Optional.of(new ResolvedCoin("BNB", "비앤비"));
+
+        assertThat(serializer.deserialize(serializer.serialize(original))).isEqualTo(original);
+    }
+
+    @Test
+    @DisplayName("@Cacheable을 단 캐시는 전부 CacheConfig에 등록돼 있다")
+    void configuresEveryDeclaredCache() {
+        Set<String> declared = Stream.of(
+                        BinanceApi.class, UpbitApi.class, CryptoResolver.class, StockResolver.class,
+                        StockPriceApi.class, MarketIndexApi.class, FmpApi.class,
+                        FrankfurterFxClient.class, KeximFxClient.class,
+                        FeedFetcher.class, HackerNewsApi.class, RelevanceScorer.class,
+                        QueryTranslator.class, TranslationService.class)
+                .flatMap(type -> cacheNamesOf(type).stream())
+                .collect(Collectors.toSet());
+
+        assertThat(configuredCacheNames())
+                .as("등록이 빠지면 Redis 기본값(JDK 직렬화·무기한)으로 떨어져 레코드를 담는 순간 "
+                        + "예외가 난다. 실제로 binance-price가 그 상태로 배포됐다")
+                .containsAll(declared);
+    }
+
+    /** {@code CacheConfig}가 실제로 등록한 이름. TTL 값은 여기서 보지 않는다. */
+    private static Set<String> configuredCacheNames() {
+        RedisCacheManagerBuilder builder = RedisCacheManager.builder(new LettuceConnectionFactory());
+        new CacheConfig().cacheCustomizer(propertiesWithTtl()).customize(builder);
+        return builder.getConfiguredCaches();
+    }
+
+    /** 캐시 설정만 보므로 나머지 묶음은 채우지 않는다. TTL 값 자체는 무엇이든 상관없다. */
+    private static EconomyHelperProperties propertiesWithTtl() {
+        Duration any = Duration.ofMinutes(1);
+        return new EconomyHelperProperties(null, null, null,
+                new CacheTtl(any, any, any, any, any, any, any, any, any, any, any, any, any, any),
+                null);
     }
 
     @Test

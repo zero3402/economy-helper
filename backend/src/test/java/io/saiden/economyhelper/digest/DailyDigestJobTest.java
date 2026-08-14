@@ -5,6 +5,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.market.CryptoQuote;
 import io.saiden.economyhelper.market.CryptoService;
+import io.saiden.economyhelper.market.CryptoQuote.Quote;
+import io.saiden.economyhelper.market.CryptoResolver;
+import io.saiden.economyhelper.market.CryptoResolver.ResolvedCoin;
 import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.FxService;
 import io.saiden.economyhelper.market.FxSource;
@@ -313,15 +316,45 @@ class DailyDigestJobTest {
                 .doesNotContain("88,165,907");
     }
 
+    @Test
+    @DisplayName("KRW-USDT가 이미 목록에 있으면 다시 묻지 않는다 — 캐시 키가 달라 그대로 호출로 나간다")
+    void reusesUsdtPriceAlreadyFetched() {
+        RecordingClient telegram = new RecordingClient();
+        CryptoService withUsdtInList = new CryptoService(
+                new UpbitApi(RestClient.builder(), "https://example.invalid"),
+                new io.saiden.economyhelper.market.binance.BinanceApi(
+                        RestClient.builder(), "https://example.invalid"),
+                noCryptoResolver()) {
+            @Override
+            public List<CryptoQuote> quotesOf(List<String> markets) {
+                return List.of(btc(new BigDecimal("63703.69")),
+                        new CryptoQuote("테더", "KRW-USDT", null, NOW,
+                                Quote.of(new BigDecimal("1384")), Quote.NOT_LISTED));
+            }
+
+            @Override
+            public Optional<BigDecimal> usdtKrw() {
+                throw new AssertionError("이미 받아 온 KRW-USDT를 두고 업비트를 또 불렀습니다");
+            }
+        };
+
+        DigestResult result = job(telegram, new InMemoryHistory(), new CountingFacade(List.of()),
+                fx(false), stock(false, false), withUsdtInList).run(false);
+
+        assertThat(result.delivered()).containsExactly("코인");
+        assertThat(telegram.sent.get(0))
+                .as("목록 안의 1,384원으로 환산한다").contains("88,165,907 KRW");
+    }
+
     /** 바이낸스 값이 붙은 코인 하나. {@code usdtKrw}가 {@code null}이면 환산 실패 상황이다. */
     private static CryptoService cryptoWithBinance(BigDecimal usdtKrw) {
         return new CryptoService(new UpbitApi(RestClient.builder(), "https://example.invalid"),
                 new io.saiden.economyhelper.market.binance.BinanceApi(
-                        RestClient.builder(), "https://example.invalid")) {
+                        RestClient.builder(), "https://example.invalid"),
+                noCryptoResolver()) {
             @Override
             public List<CryptoQuote> quotesOf(List<String> markets) {
-                return List.of(new CryptoQuote("KRW-BTC", "비트코인", new BigDecimal("89848000"), NOW,
-                        new BigDecimal("63703.69")));
+                return List.of(btc(new BigDecimal("63703.69")));
             }
 
             @Override
@@ -334,12 +367,30 @@ class DailyDigestJobTest {
     private static CryptoService crypto(boolean alive) {
         return new CryptoService(new UpbitApi(RestClient.builder(), "https://example.invalid"),
                 new io.saiden.economyhelper.market.binance.BinanceApi(
-                        RestClient.builder(), "https://example.invalid")) {
+                        RestClient.builder(), "https://example.invalid"),
+                noCryptoResolver()) {
             @Override
             public List<CryptoQuote> quotesOf(List<String> markets) {
                 return alive
-                        ? List.of(new CryptoQuote("KRW-BTC", "비트코인", new BigDecimal("89848000"), NOW, null))
+                        ? List.of(btc(null))
                         : List.of();
+            }
+        };
+    }
+
+    /** 업비트 값은 항상 있고, 바이낸스는 인자로 준다({@code null}이면 미상장). */
+    private static CryptoQuote btc(BigDecimal binanceUsdt) {
+        return new CryptoQuote("비트코인", "KRW-BTC", binanceUsdt == null ? null : "BTCUSDT", NOW,
+                Quote.of(new BigDecimal("89848000")),
+                binanceUsdt == null ? Quote.NOT_LISTED : Quote.of(binanceUsdt));
+    }
+
+    /** 브리핑은 마켓 코드로 조회하므로 LLM 경로를 타지 않는다 — 실수로 타면 여기서 드러난다. */
+    private static CryptoResolver noCryptoResolver() {
+        return new CryptoResolver(null, null) {
+            @Override
+            public java.util.Optional<ResolvedCoin> resolve(String query) {
+                throw new AssertionError("브리핑이 LLM 해석을 불렀습니다: " + query);
             }
         };
     }

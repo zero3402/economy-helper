@@ -262,7 +262,8 @@ class DigestIntegrationTest {
                 new io.saiden.economyhelper.market.upbit.UpbitApi(
                         RestClient.builder(), "https://example.invalid"),
                 new io.saiden.economyhelper.market.binance.BinanceApi(
-                        RestClient.builder(), "https://example.invalid")) {
+                        RestClient.builder(), "https://example.invalid"),
+                new io.saiden.economyhelper.market.CryptoResolver(null, null)) {
             @Override
             public List<io.saiden.economyhelper.market.CryptoQuote> quotesOf(List<String> markets) {
                 return List.of();
