@@ -175,24 +175,34 @@ public class TelegramWebhookController {
             return;
         }
 
-        // 정상 경로에도 번호를 남긴다. 거절할 때만 찍으면 SEARCH_TOPIC_ID가 비었을 때
-        // (=아무것도 거절하지 않을 때) 로그로는 토픽 번호를 알 길이 없다
-        log.debug("[webhook] 채팅 {} 토픽 {} — '{}'", chatId, topicId, text);
-
         ParsedCommand command = parsed.get();
         if (command.missingRequiredArgument()) {
             telegramClient.send(chatId, topicId, MessageFormatter.usage(command.command()));
             return;
         }
 
+        long startedAt = System.nanoTime();
         // 물어본 토픽으로 답한다 — 다른 토픽에 답이 뜨면 대화가 어긋난다
         Reply reply = reply(command, chatId, topicId);
         if (reply.logoSymbol() == null) {
             telegramClient.send(chatId, topicId, reply.text());
-            return;
+        } else {
+            telegramClient.sendPhoto(chatId, topicId, reply.text(),
+                    logoCatalog.find(reply.logoSymbol()).orElse(null));
         }
-        telegramClient.sendPhoto(chatId, topicId, reply.text(),
-                logoCatalog.find(reply.logoSymbol()).orElse(null));
+
+        // 성공 경로에 유일하게 남는 줄이다. 세 가지를 여기서만 알 수 있다.
+        //   · 토픽 번호 — 거절할 때만 찍으면 SEARCH_TOPIC_ID가 비었을 때(=아무것도 거절하지
+        //     않을 때) 로그로는 알 길이 없다. /help 답과 함께 두 경로가 된다
+        //   · 소요 시간 — 수집을 겹친 것이 실제로 듣는지, 스핀다운 직후 첫 요청이 얼마나
+        //     늦는지가 여기서만 보인다
+        //   · 어떤 명령이었는지
+        // INFO여야 한다. debug로 두면 기본 레벨(INFO)에서 안 찍혀 없는 것과 같다 —
+        // 실제로 그 상태로 커밋된 적이 있다.
+        //
+        // 답 본문은 남기지 않는다. 길고, 그룹 대화가 로그로 흘러드는 것과 다름없다
+        log.info("[webhook] 채팅 {} 토픽 {} · {} → {}초", chatId, topicId, text,
+                String.format("%.1f", (System.nanoTime() - startedAt) / 1_000_000_000.0));
     }
 
     /**
