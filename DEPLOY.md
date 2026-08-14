@@ -46,7 +46,7 @@ CI가 구운 것이고, 그쪽이 빌드 시간을 아낀다. 무료 빌더에�
 | 변수 | 값 | 이유 |
 |---|---|---|
 | `PORT` | `8080` | Render 기본값은 10000이고 덮어쓸 수 있다. 앱은 `${PORT:8080}`을 읽는다 |
-| `MANAGEMENT_PORT` | `8080` | **`PORT`와 같게.** 액추에이터가 같은 포트로 합쳐져 `/actuator/health`가 열린다 — keep-warm과 Render 헬스체크가 이걸 친다 |
+| `MANAGEMENT_PORT` | `8080` | **`PORT`와 같게.** 액추에이터가 같은 포트로 합쳐져 `/actuator/health`가 열린다 — keep-warm과 Render 헬스체크가 이걸 친다. keep-warm은 `/actuator/health/liveness`를 친다 — `/actuator/health`는 Redis가 끊기면 503이라 깨우는 용도로는 시끄럽다 |
 | `MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE` | `health,info,metrics` | **`digest`를 뺀다.** 포트를 합치면 공개되므로 시크릿으로 막는 대신 엔드포인트 자체를 없앤다 |
 | `REDIS_HOST` · `REDIS_PORT` | Key Value의 내부 주소 | |
 | `REDIS_PASSWORD` · `REDIS_SSL` | 필요 시 | 관리형 Redis는 대개 요구한다 |
@@ -56,14 +56,15 @@ CI가 구운 것이고, 그쪽이 빌드 시간을 아낀다. 무료 빌더에�
 | 시크릿 6개 | `.env.example` 참조 | `TELEGRAM_*` · `GEMINI_API_KEY` · `KEXIM_API_KEY` · `DATA_API_KEY` · `FMP_API_KEY` |
 
 그리고 GitHub 저장소에 **변수** `SERVICE_URL`을 넣는다(Settings → Secrets and variables →
-Actions → Variables). `.github/workflows/keep-warm.yml`이 그 주소의 `/actuator/health`를
-10분마다 쳐 인스턴스를 깨워 둔다.
+Actions → Variables). `.github/workflows/keep-warm.yml`이 그 주소의 `/actuator/health/liveness`를
+5분마다 쳐 인스턴스를 깨워 둔다. 실행 요약에 `200 0.3s`처럼 상태 코드와 소요 시간이 남으므로,
+`200 45s`가 찍혔다면 그 시각에 잠들어 있었다는 뜻이다.
 
 ### 무료 티어의 제약과 대응
 
 | 제약 | 대응 |
 |---|---|
-| 15분 무활동 시 스핀다운, 재기동 ~1분 | `keep-warm.yml`이 10분마다 깨워 둔다 — 아래 참조 |
+| 15분 무활동 시 스핀다운, 재기동 ~1분 | `keep-warm.yml`이 5분마다 깨워 둔다 — 아래 참조. GitHub 예약 실행은 베스트에포트라 10분으로는 여유가 없었다 |
 | 포트 하나만 노출 | 위 환경변수 두 개로 흡수. **코드는 안 바뀐다** |
 | **Key Value가 in-memory 전용** — 재시작 시 데이터 소실 | 발송 창을 두 시간으로 닫아 노출을 줄였다. 아래 참조 |
 
