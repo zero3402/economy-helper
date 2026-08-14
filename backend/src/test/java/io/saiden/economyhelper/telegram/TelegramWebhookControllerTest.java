@@ -52,126 +52,6 @@ class TelegramWebhookControllerTest {
     private static final java.time.Clock CLOCK = java.time.Clock.fixed(NOW, java.time.ZoneOffset.UTC);
 
     @Test
-    @DisplayName("검색 결과를 요청한 채팅방으로 보낸다")
-    void repliesToRequestingChat() {
-        RecordingClient client = new RecordingClient();
-        var controller = defaultController(
-                facade(Optional.of(item("유가 상승"))), crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
-
-        controller.onUpdate(null,update(777, "/news 유가"));
-
-        assertThat(client.sent).hasSize(1);
-        assertThat(client.sent.get(0).chatId()).isEqualTo("777");
-        assertThat(client.sent.get(0).text()).contains("유가 상승");
-    }
-
-    @Test
-    @DisplayName("결과가 없으면 없다고 알린다")
-    void tellsUserWhenNothingFound() {
-        RecordingClient client = new RecordingClient();
-        var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
-
-        controller.onUpdate(null,update(1, "/news 비트코인"));
-
-        assertThat(client.sent.get(0).text()).contains("찾지 못했습니다");
-    }
-
-    @Test
-    @DisplayName("검색어가 빠지면 사용법을 안내한다")
-    void repliesWithUsageWhenQueryMissing() {
-        RecordingClient client = new RecordingClient();
-        var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
-
-        controller.onUpdate(null,update(1, "/news"));
-
-        assertThat(client.sent.get(0).text()).contains("/news 금리");
-    }
-
-    @Test
-    @DisplayName("답을 기다리지 않고 200을 준다 — 늦으면 텔레그램이 같은 명령을 다시 보낸다")
-    void answersBeforeBuildingTheReply() {
-        RecordingClient client = new RecordingClient();
-        List<Runnable> deferred = new ArrayList<>();
-        var controller = new TelegramWebhookController(
-                facade(Optional.of(item("유가 상승"))), crypto(Optional.empty()), fx(Optional.empty()),
-                stock(Optional.empty()), client, new LogoCatalog(), deferred::add, "", "", "");
-
-        var response = controller.onUpdate(null, update(1, "/news 유가"));
-
-        assertThat(response.getStatusCode().value()).isEqualTo(200);
-        assertThat(client.sent).as("답은 아직 만들지도 않았다").isEmpty();
-
-        deferred.forEach(Runnable::run);
-        assertThat(client.sent).hasSize(1);
-    }
-
-    @Test
-    @DisplayName("일반 대화에는 반응하지 않는다 — 그룹 채팅을 오염시키지 않는다")
-    void ignoresPlainConversation() {
-        RecordingClient client = new RecordingClient();
-        var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
-
-        controller.onUpdate(null,update(1, "안녕하세요"));
-        controller.onUpdate(null,update(1, "환율 알려줘"));
-
-        assertThat(client.sent).isEmpty();
-    }
-
-    @Test
-    @DisplayName("'/'로 시작하는 모르는 명령에만 안내한다 — 오타가 고장으로 보이면 안 된다")
-    void guidesOnUnknownCommandOnly() {
-        RecordingClient client = new RecordingClient();
-        var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
-
-        controller.onUpdate(null,update(1, "/exchange"));
-
-        assertThat(client.sent).hasSize(1);
-        assertThat(client.sent.get(0).text()).contains("모르는 명령").contains("/fx");
-    }
-
-    @Test
-    @DisplayName("/crypto는 코인 시세로 답한다 — 뉴스와 다른 서비스로 간다")
-    void routesCryptoCommand() {
-        RecordingClient client = new RecordingClient();
-        CryptoQuote btc = new CryptoQuote("비트코인", "KRW-BTC", NOW,
-                CryptoQuote.Quote.of(new BigDecimal("89848000")),
-                CryptoQuote.Quote.of(new BigDecimal("63703.69")));
-        var controller = defaultController(facade(Optional.empty()), crypto(Optional.of(btc)), fx(Optional.empty()), stock(Optional.empty()), client);
-
-        controller.onUpdate(null,update(1, "/crypto 비트코인"));
-
-        assertThat(client.sent.get(0).text()).contains("비트코인").contains("89,848,000");
-    }
-
-    @Test
-    @DisplayName("시총 상위 코인은 제 아이콘, 나머지는 공용 아이콘 — 283개를 다 채우면 목록을 쫓아다녀야 한다")
-    void attachesLogoToCryptoReply() {
-        RecordingClient client = new RecordingClient();
-        CryptoQuote btc = new CryptoQuote("비트코인", "KRW-BTC", NOW,
-                CryptoQuote.Quote.of(new BigDecimal("89848000")), CryptoQuote.Quote.NOT_LISTED);
-        CryptoQuote unlisted = new CryptoQuote("이름없는코인", "KRW-ZZZ", NOW,
-                CryptoQuote.Quote.of(new BigDecimal("100")), CryptoQuote.Quote.NOT_LISTED);
-
-        defaultController(facade(Optional.empty()), crypto(Optional.of(btc)), fx(Optional.empty()),
-                stock(Optional.empty()), client).onUpdate(null, update(1, "/crypto 비트코인"));
-        defaultController(facade(Optional.empty()), crypto(Optional.of(unlisted)), fx(Optional.empty()),
-                stock(Optional.empty()), client).onUpdate(null, update(1, "/crypto zzz"));
-
-        assertThat(client.sent).extracting(Sent::logo).containsExactly("btc", LogoCatalog.FALLBACK);
-    }
-
-    @Test
-    @DisplayName("찾지 못한 답에는 아이콘을 붙이지 않는다 — 붙일 대상이 없다")
-    void sendsNotFoundWithoutLogo() {
-        RecordingClient client = new RecordingClient();
-
-        defaultController(facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.empty()),
-                stock(Optional.empty()), client).onUpdate(null, update(1, "/fx"));
-
-        assertThat(client.sent).extracting(Sent::logo).containsExactly((String) null);
-    }
-
-    @Test
     @DisplayName("못 찾은 코인은 찾지 못했다고 알린다 — 무응답이면 고장으로 보인다")
     void tellsUserWhenCryptoNotFound() {
         RecordingClient client = new RecordingClient();
@@ -465,7 +345,7 @@ class TelegramWebhookControllerTest {
                                                                StockService stockService,
                                                                TelegramClient telegramClient) {
         return new TelegramWebhookController(
-                newsFacade, cryptoService, fxService, stockService, telegramClient, new LogoCatalog(), SAME_THREAD, "", "", "");
+                newsFacade, cryptoService, fxService, stockService, telegramClient, SAME_THREAD, "", "", "");
     }
 
     /** 방어를 켠 컨트롤러. {@code /news 유가}가 항상 결과를 내도록 고정해 둔다. */
@@ -477,7 +357,7 @@ class TelegramWebhookControllerTest {
             String secret, String allowedChatId, String searchTopicId, TelegramClient client) {
         return new TelegramWebhookController(
                 facade(Optional.of(item("유가 상승"))), crypto(Optional.empty()), fx(Optional.empty()),
-                stock(Optional.empty()), client, new LogoCatalog(), SAME_THREAD, secret, allowedChatId, searchTopicId);
+                stock(Optional.empty()), client, SAME_THREAD, secret, allowedChatId, searchTopicId);
     }
 
     /** 토픽 없는 메시지 — 포럼이 아닌 방과 General 토픽이 이 모양이다. */
@@ -558,20 +438,20 @@ class TelegramWebhookControllerTest {
 
         @Override
         public void send(String chatId, Integer topicId, String text) {
-            sent.add(new Sent(chatId, topicId, text, null));
+            sent.add(new Sent(chatId, topicId, text, false));
         }
 
         @Override
         public void send(String text) {
-            sent.add(new Sent("default-chat", null, text, null));
+            sent.add(new Sent("default-chat", null, text, false));
         }
 
         @Override
-        public void sendPhoto(String chatId, Integer topicId, String caption, LogoCatalog.Logo logo) {
-            sent.add(new Sent(chatId, topicId, caption, logo == null ? null : logo.name()));
+        public void send(String chatId, Integer topicId, String text, boolean preview) {
+            sent.add(new Sent(chatId, topicId, text, preview));
         }
     }
 
-    /** @param logo 붙은 아이콘 이름. 글로만 보냈으면 {@code null} */
-    private record Sent(String chatId, Integer topicId, String text, String logo) {}
+    /** @param preview 링크 미리보기를 켜고 보냈는지 */
+    private record Sent(String chatId, Integer topicId, String text, boolean preview) {}
 }

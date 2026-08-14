@@ -24,16 +24,6 @@ import java.time.Instant;
 public record CryptoQuote(String name, String market, Instant at, Quote upbit, Quote binance) {
 
     /**
-     * 아이콘을 찾을 때 쓰는 티커.
-     *
-     * <p>업비트 마켓 코드가 있으면 거기서 떼고, 없으면 이름이 곧 티커다 — 업비트에 없는
-     * 코인은 이름 자리에 티커를 쓰기 때문이다.
-     */
-    public String ticker() {
-        return market == null ? name : market.substring(market.indexOf('-') + 1);
-    }
-
-    /**
      * 거래소 한 곳의 값.
      *
      * <p><b>값이 없을 때 왜 없는지를 함께 들고 있어야 한다.</b> 예전에는 {@code null} 하나로

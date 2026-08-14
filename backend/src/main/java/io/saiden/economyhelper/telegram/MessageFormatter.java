@@ -21,9 +21,19 @@ import java.util.Locale;
  * {@code *}·{@code _}·{@code [}가 Markdown 파싱 오류를 내 발송이 실패했기 때문이다.
  * HTML에서는 그 문자들이 무해하고 {@code & < >} 세 자만 처리하면 된다({@link Html} 참조).
  *
- * <p><b>{@code <pre>}·{@code <code>}로 감싸지 않는다.</b> 모노스페이스면 자릿수를 세로로 맞출 수
- * 있지만 텔레그램이 그 블록에 복사 버튼을 띄운다 — 읽으라고 보낸 시세에 붙을 이유가 없다.
- * 정렬 대신 이름을 굵게 하고 거래소를 들여써서 계층으로 읽히게 한다.
+ * <p><b>마크업 규칙은 하나다 — 굵게는 제목·소제목뿐이고 값과 설명은 평문이다.</b>
+ * 값까지 굵으면 무엇이 계층인지 드러나지 않는다.
+ *
+ * <p><b>{@code <pre>}·{@code <code>}를 쓰지 않는다.</b> 모노스페이스면 자릿수를 세로로 맞출 수
+ * 있지만 텔레그램이 그 블록에 복사 버튼을 띄운다 — 읽으라고 보낸 글에 붙을 이유가 없다.
+ * 명령 예시도 평문으로 적는다.
+ *
+ * <p>예외는 둘뿐이다. {@code <blockquote>}는 뉴스 요약에 쓴다(복사 버튼이 안 붙고 제목과
+ * 본문을 가른다). {@code <i>}는 번역 실패 경고 한 곳에만 쓴다 — 그건 값이 아니라 시스템이
+ * 붙인 주석이고, 굵게 쓰면 제목으로 오해된다.
+ *
+ * <p><b>모든 덩어리가 같은 모양이다: 굵은 제목 / 값 / 빈 줄 / 시각 한 줄.</b>
+ * 시각을 통마다 다른 자리에 두던 것을 맨 아래로 통일했다.
  *
  * <p><b>바깥에서 온 문자열은 예외 없이 {@link Html#escape}를 통과한다.</b>
  * 하나라도 빠뜨리면 그 메시지는 발송 자체가 실패한다 — 평문일 때는 없던 위험이다.
@@ -65,8 +75,7 @@ public final class MessageFormatter {
      */
     public static String format(NewsItem item) {
         StringBuilder message = new StringBuilder();
-        message.append("<b>").append(Html.escape(item.sourceName())).append("</b>")
-                .append(" · ").append(DATE_TIME.format(item.publishedAt().atZone(SEOUL))).append("\n")
+        message.append("<b>").append(Html.escape(item.sourceName())).append("</b>\n")
                 .append("<a href=\"").append(Html.escape(item.link())).append("\">")
                 .append(Html.escape(item.title())).append("</a>");
 
@@ -78,7 +87,9 @@ public final class MessageFormatter {
             // 왜 영문인지 밝히지 않으면 고장으로 보인다
             message.append("\n<i>번역이 일시적으로 불가해 원문 그대로 보냅니다.</i>");
         }
-        return message.toString();
+        // 시각은 값 아래 한 줄 — 다른 모든 통과 같은 자리다. 항목이 하나든 다섯이든 같다
+        return message.append("\n\n")
+                .append(DATE_TIME.format(item.publishedAt().atZone(SEOUL))).toString();
     }
 
     /** 아침 브리핑의 뉴스 통 — 매체별 1건을 한 메시지에 묶는다. */
@@ -159,8 +170,7 @@ public final class MessageFormatter {
     public static String stockNotFound(String query) {
         return "'" + Html.escape(query) + "'에 해당하는 종목을 찾지 못했습니다.\n\n"
                 + "국내(코스피·코스닥)와 미국(나스닥·뉴욕) 종목·지수를 조회할 수 있습니다.\n"
-                + "예) <code>/stock 삼성전자</code> · <code>/stock 애플</code> · "
-                + "<code>/stock 코스피</code> · <code>/stock 나스닥</code>";
+                + "예) /stock 삼성전자 · /stock 애플 · /stock 코스피 · /stock 나스닥";
     }
 
     /**
@@ -327,7 +337,7 @@ public final class MessageFormatter {
     public static String cryptoNotFound(String query) {
         return "'" + Html.escape(query) + "'에 해당하는 코인을 찾지 못했습니다.\n\n"
                 + "업비트 또는 바이낸스에 상장된 이름이나 심볼로 입력해 주세요.\n"
-                + "예) <code>/crypto 비트코인</code> · <code>/crypto BTC</code>";
+                + "예) /crypto 비트코인 · /crypto BTC";
     }
 
     // --- 공통 ---------------------------------------------------------------
@@ -374,8 +384,8 @@ public final class MessageFormatter {
 
     /** 인자가 필요한 명령을 인자 없이 보냈을 때. 명령마다 예시가 다르다. */
     public static String usage(Command command) {
-        return "검색어를 함께 입력해 주세요.\n예) <code>"
-                + Html.escape(command.example()) + "</code>";
+        return "검색어를 함께 입력해 주세요.\n예) "
+                + Html.escape(command.example());
     }
 
     /**
@@ -398,7 +408,7 @@ public final class MessageFormatter {
     public static String help() {
         StringBuilder message = new StringBuilder("<b>사용할 수 있는 명령</b>");
         for (Command command : Command.values()) {
-            message.append("\n\n<code>").append(Html.escape(command.example())).append("</code>\n")
+            message.append("\n\n").append(Html.escape(command.example())).append("\n")
                     .append(describe(command));
         }
         return message.toString();

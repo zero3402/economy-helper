@@ -54,7 +54,6 @@ public class TelegramWebhookController {
     private final FxService fxService;
     private final StockService stockService;
     private final TelegramClient telegramClient;
-    private final LogoCatalog logoCatalog;
     private final String webhookSecret;
     private final String allowedChatId;
     private final Integer searchTopicId;
@@ -75,7 +74,6 @@ public class TelegramWebhookController {
                                      FxService fxService,
                                      StockService stockService,
                                      TelegramClient telegramClient,
-                                     LogoCatalog logoCatalog,
                                      @Qualifier("replyExecutor") Executor replyExecutor,
                                      @Value("${economy-helper.telegram.webhook-secret:}") String webhookSecret,
                                      @Value("${economy-helper.telegram.chat-id:}") String allowedChatId,
@@ -86,7 +84,6 @@ public class TelegramWebhookController {
         this.fxService = fxService;
         this.stockService = stockService;
         this.telegramClient = telegramClient;
-        this.logoCatalog = logoCatalog;
         // 다듬어 둔다. 대시보드에 붙여 넣은 값은 끝에 줄바꿈이나 공백이 붙기 쉽고,
         // 그러면 비교가 조용히 어긋나 모든 요청이 403이 된다
         this.webhookSecret = webhookSecret == null ? "" : webhookSecret.trim();
@@ -184,12 +181,7 @@ public class TelegramWebhookController {
         long startedAt = System.nanoTime();
         // 물어본 토픽으로 답한다 — 다른 토픽에 답이 뜨면 대화가 어긋난다
         Reply reply = reply(command);
-        if (reply.logoSymbol() == null) {
-            telegramClient.send(chatId, topicId, reply.text());
-        } else {
-            telegramClient.sendPhoto(chatId, topicId, reply.text(),
-                    logoCatalog.find(reply.logoSymbol()).orElse(null));
-        }
+        telegramClient.send(chatId, topicId, reply.text(), reply.preview());
 
         // 성공 경로에 유일하게 남는 줄이다. 세 가지를 여기서만 알 수 있다.
         //   · 토픽 번호 — 거절할 때만 찍으면 SEARCH_TOPIC_ID가 비었을 때(=아무것도 거절하지
@@ -212,10 +204,10 @@ public class TelegramWebhookController {
      *                   보낸다 — {@code /fx}·{@code /help}·못 찾음 안내에는 붙일 대상이 없고,
      *                   {@code /news}는 답이 길어 캡션 상한(1024)을 넘긴다
      */
-    private record Reply(String text, String logoSymbol) {
+    private record Reply(String text, boolean preview) {
 
         static Reply plain(String text) {
-            return new Reply(text, null);
+            return new Reply(text, false);
         }
     }
 
@@ -227,14 +219,15 @@ public class TelegramWebhookController {
      */
     private Reply reply(ParsedCommand command) {
         return switch (command.command()) {
-            case NEWS -> Reply.plain(newsFacade.search(command.argument())
-                    .map(MessageFormatter::format)
-                    .orElseGet(() -> MessageFormatter.noResults(command.argument())));
+            // 답이 기사 한 건이라 미리보기 카드가 하나만 붙는다 — 브리핑 뉴스 통은
+            // 다섯을 묶어 보내므로 거기서는 계속 끈다
+            case NEWS -> newsFacade.search(command.argument())
+                    .map(item -> new Reply(MessageFormatter.format(item), true))
+                    .orElseGet(() -> Reply.plain(MessageFormatter.noResults(command.argument())));
             case CRYPTO -> cryptoService.quote(command.argument())
                     // 바이낸스가 붙었을 때만 USDT 환율을 묻는다 — 안 쓸 값을 미리 부르지 않는다
-                    .map(quote -> new Reply(MessageFormatter.formatCrypto(quote,
-                            quote.binance().hasPrice() ? cryptoService.usdtKrw().orElse(null) : null),
-                            quote.ticker()))
+                    .map(quote -> Reply.plain(MessageFormatter.formatCrypto(quote,
+                            quote.binance().hasPrice() ? cryptoService.usdtKrw().orElse(null) : null)))
                     .orElseGet(() -> Reply.plain(MessageFormatter.cryptoNotFound(command.argument())));
             case FX -> Reply.plain(fxService.usdToKrw()
                     .map(MessageFormatter::formatFx)
@@ -242,9 +235,7 @@ public class TelegramWebhookController {
             // 미국 종목이면 원화도 함께 보여준다. 환율 조회가 실패하면 달러만 나간다 —
             // 환산을 못 한다고 시세 자체를 막을 이유가 없다.
             case STOCK -> stockService.quote(command.argument())
-                    .map(quote -> new Reply(MessageFormatter.formatStock(quote, currentFx()),
-                            // 국내 지수는 종목코드가 없다 — 이름이 유일한 식별자다
-                            quote.code() == null ? quote.name() : quote.code()))
+                    .map(quote -> Reply.plain(MessageFormatter.formatStock(quote, currentFx())))
                     .orElseGet(() -> Reply.plain(MessageFormatter.stockNotFound(command.argument())));
             case HELP -> Reply.plain(MessageFormatter.help());
         };

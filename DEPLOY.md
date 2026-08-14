@@ -55,10 +55,20 @@ CI가 구운 것이고, 그쪽이 빌드 시간을 아낀다. 무료 빌더에�
 | `TELEGRAM_NOTICE_TOPIC_ID` · `TELEGRAM_SEARCH_TOPIC_ID` | 토픽 번호 | 포럼(토픽) 그룹일 때만. 아래 참조 |
 | 시크릿 6개 | `.env.example` 참조 | `TELEGRAM_*` · `GEMINI_API_KEY` · `KEXIM_API_KEY` · `DATA_API_KEY` · `FMP_API_KEY` |
 
-그리고 GitHub 저장소에 **변수** `SERVICE_URL`을 넣는다(Settings → Secrets and variables →
-Actions → Variables). `.github/workflows/keep-warm.yml`이 그 주소의 `/actuator/health/liveness`를
-5분마다 쳐 인스턴스를 깨워 둔다. 실행 요약에 `200 0.3s`처럼 상태 코드와 소요 시간이 남으므로,
-`200 45s`가 찍혔다면 그 시각에 잠들어 있었다는 뜻이다.
+**깨어 있게 유지하는 일은 앱이 한다.** `SELF_PING_URL`에 공개 주소를 주면 앱이 10분마다
+자기를 친다(`SelfPing`). ⚠️ **반드시 공개 주소여야 한다** — `localhost`로 치면 호스트
+라우터를 거치지 않아 유휴 타이머가 리셋되지 않는다. Render라면 대시보드에서
+`SELF_PING_URL = ${RENDER_EXTERNAL_URL}/actuator/health/liveness`로 이어 준다.
+비워 두면 이 기능은 없는 것과 같으므로, 잠들지 않는 호스트로 옮기면 값만 비우면 된다.
+
+**깨우는 일만 GitHub이 맡는다.** 저장소 **변수** `SERVICE_URL`을 넣으면
+(Settings → Secrets and variables → Actions → Variables) `keep-warm.yml`이
+KST 06:00~08:59에만 친다 — 앱이 자는 창(04:00~05:59) 다음이고 09시 브리핑 전이다.
+
+> GitHub 예약 실행은 **전달률이 6~11%**다(실측: 4시간 28분에 3회, 예정 27~53회).
+> 그래서 15분 박자에는 못 쓰고 기상 한 번에만 쓴다 — 3시간 창에서 36회 시도면
+> 전달률 10%여도 성공 확률이 98%다. 그마저 못 미더우면 cron-job.org나
+> Cloudflare Workers Cron으로 옮기면 되고, 앱 코드는 그대로다.
 
 ### 무료 티어의 제약과 대응
 
