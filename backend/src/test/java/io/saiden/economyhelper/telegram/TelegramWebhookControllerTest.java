@@ -109,7 +109,7 @@ class TelegramWebhookControllerTest {
     @DisplayName("/crypto는 코인 시세로 답한다 — 뉴스와 다른 서비스로 간다")
     void routesCryptoCommand() {
         RecordingClient client = new RecordingClient();
-        CryptoQuote btc = new CryptoQuote("비트코인", "KRW-BTC", "BTCUSDT", NOW,
+        CryptoQuote btc = new CryptoQuote("비트코인", "KRW-BTC", NOW,
                 CryptoQuote.Quote.of(new BigDecimal("89848000")),
                 CryptoQuote.Quote.of(new BigDecimal("63703.69")));
         var controller = defaultController(facade(Optional.empty()), crypto(Optional.of(btc)), fx(Optional.empty()), stock(Optional.empty()), client);

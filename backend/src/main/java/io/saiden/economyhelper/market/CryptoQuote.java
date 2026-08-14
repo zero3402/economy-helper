@@ -13,13 +13,15 @@ import java.time.Instant;
  * <p>원화 환산값은 담지 않는다. 환산은 <b>표시 시점의 관심사</b>고, {@code formatStock}이 환율을
  * 인자로 받는 것과 같은 이유다 — 모델에 넣어 두면 시세와 환율의 시각이 엇갈린 채로 굳는다.
  *
- * @param name          화면에 쓸 이름. 업비트 한글명이 있으면 그것, 없으면 심볼({@code BNB})
- * @param market        업비트 마켓 코드({@code KRW-BTC}). <b>업비트 미상장이면 {@code null}</b>
- * @param binanceSymbol 바이낸스 심볼({@code BTCUSDT}). 바이낸스 미상장이면 {@code null}
- * @param at            체결 시각
+ * <p>바이낸스 심볼은 담지 않는다. {@code BTCUSDT}는 티커에 {@code USDT}를 붙인 것뿐이라
+ * 화면에 적어도 알려 주는 것이 없고, 업비트에 없는 코인은 이름 자리에 이미 티커가 찍힌다.
+ *
+ * @param name   화면에 쓸 이름. <b>업비트 한글명이 있으면 그것, 없으면 티커</b>({@code BNB}).
+ *               지어낸 한글 표기({@code 비앤비})를 쓰지 않는 이유는 아무도 그렇게 부르지 않아서다
+ * @param market 업비트 마켓 코드({@code KRW-BTC}). <b>업비트 미상장이면 {@code null}</b>
+ * @param at     체결 시각
  */
-public record CryptoQuote(String name, String market, String binanceSymbol, Instant at,
-                          Quote upbit, Quote binance) {
+public record CryptoQuote(String name, String market, Instant at, Quote upbit, Quote binance) {
 
     /**
      * 거래소 한 곳의 값.

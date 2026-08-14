@@ -247,25 +247,33 @@ class MessageFormatterTest {
                 .as("영영 안 나오는 것").contains("바이낸스 미상장");
 
         assertThat(MessageFormatter.formatCrypto(
-                new CryptoQuote("비트코인", "KRW-BTC", "BTCUSDT", NOW,
+                new CryptoQuote("비트코인", "KRW-BTC", NOW,
                         Quote.of(new BigDecimal("89848000")), Quote.FAILED), null))
                 .as("잠시 뒤 다시 치면 되는 것").contains("바이낸스 조회 실패");
     }
 
     @Test
-    @DisplayName("업비트에 없는 코인은 바이낸스만 적고 꼬리표도 바이낸스 심볼 하나뿐이다")
+    @DisplayName("업비트에 없는 코인은 제목이 티커이고 꼬리표에 마켓 코드가 없다")
     void showsBinanceOnlyCoin() {
         String message = MessageFormatter.formatCrypto(
-                new CryptoQuote("비앤비", null, "BNBUSDT", NOW,
+                new CryptoQuote("BNB", null, NOW,
                         Quote.NOT_LISTED, Quote.of(new BigDecimal("612.40"))),
                 new BigDecimal("1384"));
 
         assertThat(message)
+                .contains("🪙 <b>BNB</b>")
                 .contains("업비트 미상장")
                 .contains("바이낸스 612.4 USDT")
-                .contains("BNBUSDT")
-                .as("업비트 마켓 코드가 없으니 꼬리표에 구분자만 남으면 안 된다")
-                .doesNotContain(" · BNBUSDT");
+                .as("BNBUSDT는 티커에 USDT를 붙인 것뿐이라 제목과 같은 말을 두 번 적는 셈이다")
+                .doesNotContain("BNBUSDT");
+    }
+
+    @Test
+    @DisplayName("꼬리표는 업비트 마켓 코드뿐이다 — 바이낸스 심볼은 알려 주는 것이 없다")
+    void tailShowsUpbitMarketOnly() {
+        String message = MessageFormatter.formatCrypto(btc(new BigDecimal("63703.69")), null);
+
+        assertThat(message).contains("KRW-BTC").doesNotContain("BTCUSDT");
     }
 
     @Test
@@ -302,7 +310,7 @@ class MessageFormatterTest {
     void dropsCoinWithNoPriceFromDigest() {
         String message = MessageFormatter.formatCryptoDigest(
                 List.of(btc(new BigDecimal("63703.69")),
-                        new CryptoQuote("이더리움", "KRW-ETH", "ETHUSDT", NOW,
+                        new CryptoQuote("이더리움", "KRW-ETH", NOW,
                                 Quote.FAILED, Quote.FAILED)),
                 new BigDecimal("1384"));
 
@@ -310,14 +318,14 @@ class MessageFormatterTest {
     }
 
     private static CryptoQuote btc(BigDecimal binanceUsdt) {
-        return new CryptoQuote("비트코인", "KRW-BTC", binanceUsdt == null ? null : "BTCUSDT", NOW,
+        return new CryptoQuote("비트코인", "KRW-BTC", NOW,
                 Quote.of(new BigDecimal("89848000")),
                 binanceUsdt == null ? Quote.NOT_LISTED : Quote.of(binanceUsdt));
     }
 
     /** 바이낸스에 {@code USDTUSDT}가 없다 — 브리핑 기본 설정에 들어 있어 실제로 밟는 길이다. */
     private static CryptoQuote usdt() {
-        return new CryptoQuote("테더", "KRW-USDT", null, NOW,
+        return new CryptoQuote("테더", "KRW-USDT", NOW,
                 Quote.of(new BigDecimal("1384")), Quote.NOT_LISTED);
     }
 

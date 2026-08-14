@@ -96,8 +96,9 @@ public class CryptoService {
         }
         // 업비트에 걸리는 것이 없다. 여기서만 LLM에게 티커를 묻는다
         return resolver.resolve(CryptoResolver.cacheKeyOf(query))
-                .filter(coin -> coin.upperSymbol() != null)
-                .flatMap(coin -> quoteOf(coin.upperSymbol(), coin.displayName()));
+                .map(ResolvedCoin::upperSymbol)
+                .filter(Objects::nonNull)
+                .flatMap(this::quoteOf);
     }
 
     /**
@@ -106,7 +107,7 @@ public class CryptoService {
      * <p>한쪽이 없어도 다른 쪽을 내보낸다 — 그게 이 명령의 요지다. 다만 없는 쪽을 빼지 않고
      * {@code NOT_LISTED}로 적는다. 둘 다 없을 때만 "찾지 못했다"가 된다.
      */
-    private Optional<CryptoQuote> quoteOf(String symbol, String displayName) {
+    private Optional<CryptoQuote> quoteOf(String symbol) {
         UpbitSide upbit = upbitSide("KRW-" + symbol);
         Quote binance = binancePrice(symbol + "USDT");
 
@@ -116,10 +117,11 @@ public class CryptoService {
             return Optional.empty();
         }
         UpbitMarket listed = upbit.market();
+        // 업비트가 없으면 티커를 그대로 쓴다. LLM에게 한글 이름을 받아 쓰면 아무도 그렇게
+        // 부르지 않는 표기(BNB → '비앤비')가 제목에 찍힌다
         return Optional.of(new CryptoQuote(
-                listed == null ? displayName : listed.koreanName(),
+                listed == null ? symbol : listed.koreanName(),
                 listed == null ? null : listed.market(),
-                binance.state() == Quote.State.NOT_LISTED ? null : symbol + "USDT",
                 upbit.at() == null ? Instant.now() : upbit.at(),
                 upbit.quote(), binance));
     }
@@ -234,8 +236,8 @@ public class CryptoService {
                         .map(symbol -> Map.entry(quote.market(), symbol)).stream())
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         if (symbolByMarket.isEmpty()) {
-            return quotes.stream().map(quote -> quote.binanceSymbol() == null
-                    ? withBinanceState(quote, Quote.NOT_LISTED) : quote).toList();
+            // 심볼을 유도할 수 있는 마켓이 하나도 없다(예: KRW-USDT뿐) — 부를 것이 없다
+            return quotes.stream().map(quote -> withBinanceState(quote, Quote.NOT_LISTED)).toList();
         }
 
         Map<String, BigDecimal> priceBySymbol;
@@ -252,18 +254,13 @@ public class CryptoService {
 
         return quotes.stream().map(quote -> {
             String symbol = symbolByMarket.get(quote.market());
-            if (symbol == null) {
-                return withBinanceState(quote, Quote.NOT_LISTED);
-            }
-            BigDecimal price = priceBySymbol.get(symbol);
-            return new CryptoQuote(quote.name(), quote.market(), symbol, quote.at(), quote.upbit(),
-                    price == null ? Quote.NOT_LISTED : Quote.of(price));
+            BigDecimal price = symbol == null ? null : priceBySymbol.get(symbol);
+            return withBinanceState(quote, price == null ? Quote.NOT_LISTED : Quote.of(price));
         }).toList();
     }
 
     private static CryptoQuote withBinanceState(CryptoQuote quote, Quote binance) {
-        return new CryptoQuote(quote.name(), quote.market(), quote.binanceSymbol(), quote.at(),
-                quote.upbit(), binance);
+        return new CryptoQuote(quote.name(), quote.market(), quote.at(), quote.upbit(), binance);
     }
 
     /**
@@ -290,7 +287,7 @@ public class CryptoService {
     private static CryptoQuote toQuote(UpbitMarket market, UpbitTicker ticker) {
         Instant at = tradedAt(ticker);
         // 바이낸스 쪽은 withBinance가 나중에 채운다 — 업비트 조회와 별개 호출이다
-        return new CryptoQuote(market.koreanName(), market.market(), null,
+        return new CryptoQuote(market.koreanName(), market.market(),
                 at == null ? Instant.now() : at,
                 Quote.of(ticker.tradePrice()), Quote.FAILED);
     }

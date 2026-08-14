@@ -328,7 +328,7 @@ class DailyDigestJobTest {
             @Override
             public List<CryptoQuote> quotesOf(List<String> markets) {
                 return List.of(btc(new BigDecimal("63703.69")),
-                        new CryptoQuote("테더", "KRW-USDT", null, NOW,
+                        new CryptoQuote("테더", "KRW-USDT", NOW,
                                 Quote.of(new BigDecimal("1384")), Quote.NOT_LISTED));
             }
 
@@ -380,7 +380,7 @@ class DailyDigestJobTest {
 
     /** 업비트 값은 항상 있고, 바이낸스는 인자로 준다({@code null}이면 미상장). */
     private static CryptoQuote btc(BigDecimal binanceUsdt) {
-        return new CryptoQuote("비트코인", "KRW-BTC", binanceUsdt == null ? null : "BTCUSDT", NOW,
+        return new CryptoQuote("비트코인", "KRW-BTC", NOW,
                 Quote.of(new BigDecimal("89848000")),
                 binanceUsdt == null ? Quote.NOT_LISTED : Quote.of(binanceUsdt));
     }

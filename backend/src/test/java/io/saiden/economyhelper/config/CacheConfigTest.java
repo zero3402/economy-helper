@@ -117,7 +117,7 @@ class CacheConfigTest {
     void roundTripsResolvedCoin() {
         JacksonJsonRedisSerializer<Optional<ResolvedCoin>> serializer =
                 CacheConfig.serializer(new TypeReference<Optional<ResolvedCoin>>() {});
-        Optional<ResolvedCoin> original = Optional.of(new ResolvedCoin("BNB", "비앤비"));
+        Optional<ResolvedCoin> original = Optional.of(new ResolvedCoin("BNB"));
 
         assertThat(serializer.deserialize(serializer.serialize(original))).isEqualTo(original);
     }

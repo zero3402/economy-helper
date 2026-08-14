@@ -36,17 +36,16 @@ public class CryptoResolver {
     private static final Logger log = LoggerFactory.getLogger(CryptoResolver.class);
 
     private static final String PROMPT = """
-            사용자가 암호화폐 시세를 묻고 있습니다. 아래 입력에서 어떤 코인을 찾는지 판단하세요.
+            사용자가 암호화폐 시세를 묻고 있습니다. 아래 입력이 어떤 코인의 티커인지 판단하세요.
 
             규칙:
             - symbol은 거래소에서 쓰는 대문자 티커입니다. 예) 비트코인 → BTC, 이더리움 → ETH,
               바이낸스코인·비앤비 → BNB, 솔라나 → SOL
-            - name은 한국에서 통용되는 이름입니다. 없으면 티커를 그대로 쓰세요.
-            - 코인이 아니거나 특정할 수 없으면 둘 다 null을 주세요.
+            - 코인이 아니거나 특정할 수 없으면 null을 주세요. 추측해서 지어내지 마세요.
             - "시세", "가격", "얼마", "알려줘" 같은 군더더기는 무시하세요.
-            - 스테이블코인·법정화폐(USD, KRW 등)는 코인이 아니면 null입니다.
+            - 법정화폐(USD, KRW 등)는 코인이 아니므로 null입니다.
 
-            JSON만 출력하세요: {"symbol": "...", "name": "..."}
+            JSON만 출력하세요: {"symbol": "..."}
 
             입력: %s
             """;
@@ -75,7 +74,7 @@ public class CryptoResolver {
                 log.info("[crypto] LLM이 '{}'를 특정하지 못했습니다", normalizedQuery);
                 return Optional.empty();
             }
-            log.info("[crypto] '{}' → {} ({})", normalizedQuery, parsed.upperSymbol(), parsed.displayName());
+            log.info("[crypto] '{}' → {}", normalizedQuery, parsed.upperSymbol());
             return Optional.of(parsed);
         } catch (Exception e) {
             log.error("[crypto] '{}' LLM 해석 실패: {}", normalizedQuery, e.toString());
@@ -89,18 +88,17 @@ public class CryptoResolver {
     }
 
     /**
+     * <p><b>이름은 받지 않는다.</b> 업비트에 없는 코인이라 한글명을 확인할 곳이 없고, LLM에게
+     * 물으면 {@code BNB → 비앤비}처럼 아무도 그렇게 부르지 않는 표기가 제목에 찍힌다.
+     * 그럴 바에는 티커가 정확하다.
+     *
      * @param symbol 대문자 티커({@code BNB}). 바이낸스 심볼은 여기에 {@code USDT}를 붙여 만든다
-     * @param name   화면에 쓸 이름. 없으면 티커를 쓴다
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record ResolvedCoin(String symbol, String name) {
+    public record ResolvedCoin(String symbol) {
 
         public String upperSymbol() {
             return symbol == null ? null : symbol.trim().toUpperCase(Locale.ROOT);
-        }
-
-        public String displayName() {
-            return name == null || name.isBlank() ? upperSymbol() : name;
         }
     }
 }

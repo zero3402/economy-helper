@@ -233,13 +233,14 @@ class CryptoServiceTest {
     @DisplayName("업비트에 없는 코인도 바이낸스로 답한다 — 이름 매칭만 쓰면 시작조차 못 하던 것들이다")
     void answersCoinsMissingFromUpbit() {
         CryptoService service = cryptoService(new RecordingApi(), Map.of("BNBUSDT", "612.40"),
-                resolverOf("BNB", "비앤비"));
+                resolverOf("BNB"));
 
         CryptoQuote quote = service.quote("바이낸스코인").orElseThrow();
 
-        assertThat(quote.name()).as("업비트 한글명이 없으니 LLM이 준 이름을 쓴다").isEqualTo("비앤비");
+        assertThat(quote.name())
+                .as("업비트 한글명이 없으면 티커다 — LLM에게 '비앤비' 같은 표기를 받아 쓰지 않는다")
+                .isEqualTo("BNB");
         assertThat(quote.market()).as("업비트 마켓 코드가 없으므로 비운다").isNull();
-        assertThat(quote.binanceSymbol()).isEqualTo("BNBUSDT");
         assertThat(quote.upbit().state()).isEqualTo(CryptoQuote.Quote.State.NOT_LISTED);
         assertThat(quote.binance().price()).isEqualByComparingTo("612.40");
     }
@@ -257,7 +258,7 @@ class CryptoServiceTest {
     @DisplayName("두 거래소 어디에도 없으면 빈 결과 — LLM 환각이 여기서 걸러진다")
     void returnsEmptyWhenNeitherExchangeHasTheTicker() {
         CryptoService service = cryptoService(new RecordingApi(), Map.of(),
-                resolverOf("ZZZ", "없는코인"));
+                resolverOf("ZZZ"));
 
         assertThat(service.quote("없는코인zzz")).isEmpty();
     }
@@ -267,10 +268,10 @@ class CryptoServiceTest {
     void separatesInvalidSymbolFromOutage() {
         CryptoService invalidSymbol = new CryptoService(new RecordingApi(),
                 explodingBinance(new HttpClientErrorException(HttpStatus.BAD_REQUEST)),
-                resolverOf("BNB", "비앤비"));
+                resolverOf("BNB"));
         CryptoService blocked = new CryptoService(new RecordingApi(),
                 explodingBinance(new HttpClientErrorException(HttpStatus.UNAVAILABLE_FOR_LEGAL_REASONS)),
-                resolverOf("BNB", "비앤비"));
+                resolverOf("BNB"));
 
         assertThat(invalidSymbol.quote("바이낸스코인"))
                 .as("Invalid symbol — 업비트에도 바이낸스에도 없으니 '찾지 못했다'가 맞다")
@@ -292,7 +293,7 @@ class CryptoServiceTest {
         };
 
         CryptoQuote quote = cryptoService(exploding, Map.of("BTCUSDT", "63703.69"),
-                resolverOf("BTC", "비트코인")).quote("비트코인").orElseThrow();
+                resolverOf("BTC")).quote("비트코인").orElseThrow();
 
         assertThat(quote.upbit().state()).isEqualTo(CryptoQuote.Quote.State.FAILED);
         assertThat(quote.binance().price())
@@ -357,11 +358,11 @@ class CryptoServiceTest {
     }
 
     /** LLM이 티커를 준 상태. 프롬프트·파싱은 이 클래스의 관심사가 아니다. */
-    private static CryptoResolver resolverOf(String symbol, String name) {
+    private static CryptoResolver resolverOf(String symbol) {
         return new CryptoResolver(null, null) {
             @Override
             public Optional<ResolvedCoin> resolve(String query) {
-                return Optional.of(new ResolvedCoin(symbol, name));
+                return Optional.of(new ResolvedCoin(symbol));
             }
         };
     }

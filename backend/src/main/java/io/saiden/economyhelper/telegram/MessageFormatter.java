@@ -252,13 +252,12 @@ public final class MessageFormatter {
      * 명령마다 정보 밀도가 달라지는 것도 피한다.
      */
     public static String formatCrypto(CryptoQuote quote, BigDecimal usdtKrw) {
-        String identity = java.util.stream.Stream.of(quote.market(), quote.binanceSymbol())
-                .filter(java.util.Objects::nonNull)
-                .map(Html::escape)
-                .collect(java.util.stream.Collectors.joining(" · "));
+        // 꼬리표는 업비트 마켓 코드뿐이다. 바이낸스 심볼은 티커에 USDT를 붙인 것이라 알려 주는
+        // 것이 없고, 업비트에 없는 코인은 제목이 이미 티커라 같은 말을 두 번 적는 셈이 된다
+        String market = quote.market() == null ? "" : Html.escape(quote.market()) + "\n";
         return "🪙 <b>" + Html.escape(quote.name()) + "</b>\n"
                 + exchangeLines(quote, usdtKrw, true) + "\n\n"
-                + (identity.isEmpty() ? "" : identity + "\n")
+                + market
                 + DATE_TIME.format(quote.at().atZone(SEOUL));
     }
 
