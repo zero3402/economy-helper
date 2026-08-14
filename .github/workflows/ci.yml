@@ -12,7 +12,10 @@ name: CI
 on:
   push:
     branches: [main]
+    # 문서만 고쳤는데 이미지를 다시 굽고 GHCR에 올릴 이유가 없다
+    paths-ignore: ['**.md']
   pull_request:
+    paths-ignore: ['**.md']
 
 # 같은 브랜치에 연달아 푸시하면 앞선 실행을 취소한다 — 무료 러너 시간을 아낀다
 concurrency:
@@ -37,9 +40,12 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v6
 
+      # --no-daemon을 쓰지 않는다. setup-gradle이 데몬을 통해 캐시를 저장하므로
+      # 끄면 오히려 다음 실행이 느려진다(액션 문서가 명시한다).
+      # --build-cache는 바뀌지 않은 태스크의 산출물을 러너 간에 재사용한다
       - name: 테스트
         working-directory: backend
-        run: ./gradlew test --no-daemon
+        run: ./gradlew test --build-cache
 
       # 실패했을 때 어느 테스트가 왜 깨졌는지 로그만으로는 알기 어렵다
       - name: 실패 시 리포트 업로드
@@ -62,7 +68,9 @@ jobs:
 
       # arm64 레이어를 amd64 러너에서 굽기 위한 에뮬레이터.
       # Gradle 빌드는 Dockerfile의 --platform=$BUILDPLATFORM 덕에 네이티브로 도므로
-      # 여기서 에뮬레이션되는 건 런타임 스테이지의 useradd 정도다.
+      # 여기서 에뮬레이션되는 건 런타임 스테이지의 useradd 정도다 — 그래서 아직 QEMU로 둔다.
+      # 이게 병목이 되면 ubuntu-24.04-arm 러너로 아키별 빌드를 나누고 manifest로 합치면 된다
+      # (공개 저장소는 무료, 비공개는 유료라 저장소 공개 여부를 확인한 뒤 옮길 것).
       - uses: docker/setup-qemu-action@v4
 
       # 러너의 기본 buildx 드라이버는 'docker'이고 캐시 export를 지원하지 않는다
@@ -98,3 +106,7 @@ jobs:
           # 의존성 레이어를 러너 간에 재사용한다. 없으면 매번 Gradle 의존성을 처음부터 받는다
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          # 증명(provenance)·SBOM 첨부를 끈다. 기본값이 켜져 있어 매 푸시마다 추가
+          # 매니페스트를 만들고 올리는데, 우리는 SHA 태그로 되돌아갈 지점을 이미 남긴다
+          provenance: false
+          sbom: false
