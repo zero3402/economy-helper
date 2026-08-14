@@ -28,6 +28,14 @@ public class PopularityScorer {
     /** 이만큼 맞으면 keywordMatch 만점. 재테크 사전처럼 항목이 많아도 몇 개면 충분하다. */
     private static final int KEYWORD_SATURATION = 3;
 
+    /**
+     * 본문에만 걸렸을 때의 몫. 제목에 걸린 것의 절반으로 센다.
+     *
+     * <p>0으로 두면 제목에 단어가 없는 좋은 기사를 통째로 잃고, 1이면 예전 동작(둘을 구분하지
+     * 않음)으로 돌아간다. 절반이면 <b>제목에 걸린 기사가 이기되 본문 매칭도 살아 있다.</b>
+     */
+    private static final double BODY_MATCH_WEIGHT = 0.5;
+
     /** HN 반응은 꼬리가 길다(1~900+). 로그로 눌러 상위 소수가 점수를 독식하지 않게 한다. */
     private static final double BUZZ_SATURATION = 300.0;
 
@@ -56,7 +64,7 @@ public class PopularityScorer {
                                     Collection<KeywordGroup> keywords,
                                     Map<String, Integer> buzzByLink,
                                     Instant now) {
-        return rankBy(articles, article -> keywordScore(article.text(), keywords), buzzByLink, now);
+        return rankBy(articles, article -> keywordScore(article, keywords), buzzByLink, now);
     }
 
     /**
@@ -96,7 +104,7 @@ public class PopularityScorer {
                                Collection<KeywordGroup> keywords,
                                int buzzRaw,
                                Instant now) {
-        return score(article, feedSize, keywordScore(article.text(), keywords), buzzRaw, now);
+        return score(article, feedSize, keywordScore(article, keywords), buzzRaw, now);
     }
 
     /**
@@ -166,7 +174,17 @@ public class PopularityScorer {
      * {@code [semiconductor, chip, chips]}로 확장했을 때 표현 단위로 세면 하나만 걸려도 0.33이 되어
      * 번역 확장이 오히려 점수를 깎는다. 묶음 단위로 세면 검색어 하나당 만점 1개로 유지된다.
      */
-    static double keywordScore(String text, Collection<KeywordGroup> keywords) {
+    static double keywordScore(Article article, Collection<KeywordGroup> keywords) {
+        return keywordScore(article.title(), article.description(), keywords);
+    }
+
+    /**
+     * <p><b>제목과 본문을 갈라 센다.</b> 예전에는 둘을 한 덩어리로 봐서 본문에 단어가 한 번
+     * 스친 기사가 제목에 걸린 기사와 같은 점수를 받았다 — {@code /news 금리}에 "환율 기사인데
+     * 금리를 한 줄 언급"한 것이 1위로 올라오던 이유다. 제목에 있으면 그 기사가 그 주제를
+     * <b>다루는</b> 것이고, 본문에만 있으면 <b>언급한</b> 것이다.
+     */
+    static double keywordScore(String title, String body, Collection<KeywordGroup> keywords) {
         if (keywords == null || keywords.isEmpty()) {
             return 0.0;
         }
@@ -178,10 +196,14 @@ public class PopularityScorer {
             return 0.0;
         }
 
-        String haystack = text.toLowerCase(Locale.ROOT);
-        long matched = normalized.stream().filter(group -> group.matches(haystack)).count();
+        String titleHay = title == null ? "" : title.toLowerCase(Locale.ROOT);
+        String bodyHay = body == null ? "" : body.toLowerCase(Locale.ROOT);
+        double matched = normalized.stream()
+                .mapToDouble(group -> group.matches(titleHay) ? 1.0
+                        : group.matches(bodyHay) ? BODY_MATCH_WEIGHT : 0.0)
+                .sum();
         int denominator = Math.min(normalized.size(), KEYWORD_SATURATION);
-        return clamp((double) matched / denominator);
+        return clamp(matched / denominator);
     }
 
     /** HN 반응을 로그 스케일로 0~1에 매핑한다. HN에 없는 기사는 0. */

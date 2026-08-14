@@ -156,6 +156,26 @@ class NewsServiceTest {
     }
 
     @Test
+    @DisplayName("스쳐 지나간 기사는 답이 아니다 — 관련 없는 걸 주느니 못 찾았다고 한다")
+    void searchDropsArticlesTheLlmRejects() {
+        NewsService service = service(Map.of(
+                NewsSource.BLOOMBERG, List.of(article(NewsSource.BLOOMBERG, "Fed signals rate cut", 0))),
+                rejectingSearchScorer());
+
+        assertThat(service.search(groups("rate"), "금리")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("검색어 원문을 안 주면 LLM 검증을 건너뛴다 — 예전 경로가 그대로 남는다")
+    void searchWithoutQuerySkipsVerification() {
+        NewsService service = service(Map.of(
+                NewsSource.BLOOMBERG, List.of(article(NewsSource.BLOOMBERG, "Fed signals rate cut", 0))),
+                rejectingSearchScorer());
+
+        assertThat(service.search(groups("rate"))).isPresent();
+    }
+
+    @Test
     @DisplayName("걸리는 기사가 없으면 빈 결과")
     void searchReturnsEmptyWhenNothingMatches() {
         NewsService service = service(Map.of(
@@ -170,6 +190,23 @@ class NewsServiceTest {
         assertThat(service(Map.of()).search(groups())).isEmpty();
         assertThat(service(Map.of()).search(null)).isEmpty();
         assertThat(service(Map.of()).search(List.of(KeywordGroup.of()))).isEmpty();
+    }
+
+    /** 검색어와 무관하다고 답하는 LLM — 매칭은 됐지만 스쳐 지나간 기사의 상황이다. */
+    private static RelevanceScorer rejectingSearchScorer() {
+        return new RelevanceScorer(null, null) {
+            @Override
+            public Map<String, Double> scoreAll(List<Article> candidates) {
+                return candidates.stream().collect(
+                        java.util.stream.Collectors.toMap(Article::link, a -> 1.0, (x, y) -> x));
+            }
+
+            @Override
+            public Map<String, Double> scoreAll(List<Article> candidates, String query) {
+                return candidates.stream().collect(
+                        java.util.stream.Collectors.toMap(Article::link, a -> 0.0, (x, y) -> x));
+            }
+        };
     }
 
     /** 표현마다 1항목 묶음 — 재테크 사전이 이 모양이다. */

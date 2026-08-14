@@ -94,10 +94,22 @@ class PopularityScorerTest {
         @Test
         @DisplayName("검색어가 둘이면 전부 맞아야 만점")
         void fewKeywordsRequireAllToMatch() {
-            assertThat(PopularityScorer.keywordScore("Fed raises rates", groups("fed", "rates")))
+            assertThat(PopularityScorer.keywordScore("Fed raises rates", null, groups("fed", "rates")))
                     .isEqualTo(1.0);
-            assertThat(PopularityScorer.keywordScore("Fed holds steady", groups("fed", "rates")))
+            assertThat(PopularityScorer.keywordScore("Fed holds steady", null, groups("fed", "rates")))
                     .isCloseTo(0.5, within(1e-9));
+        }
+
+        @Test
+        @DisplayName("제목에 걸린 기사가 본문에만 걸린 기사를 이긴다 — 다룬 것과 언급한 것은 다르다")
+        void titleMatchOutranksBodyMatch() {
+            double inTitle = PopularityScorer.keywordScore(
+                    "Fed signals rate cut", "무관한 본문", groups("rate"));
+            double inBodyOnly = PopularityScorer.keywordScore(
+                    "Dollar slips against yen", "traders watch the rate outlook", groups("rate"));
+
+            assertThat(inTitle).isEqualTo(1.0);
+            assertThat(inBodyOnly).as("본문 매칭도 살아 있되 절반이다").isEqualTo(0.5);
         }
 
         @Test
@@ -106,7 +118,7 @@ class PopularityScorerTest {
             List<KeywordGroup> dictionary =
                     groups("금리", "환율", "물가", "증시", "채권", "부동산", "연준", "실적");
 
-            double score = PopularityScorer.keywordScore("금리 인상에 환율과 물가가 출렁", dictionary);
+            double score = PopularityScorer.keywordScore("금리 인상에 환율과 물가가 출렁", null, dictionary);
 
             assertThat(score).isEqualTo(1.0);
         }
@@ -117,7 +129,7 @@ class PopularityScorerTest {
             // 검색어 '반도체'가 세 표현으로 확장된 상황. 표현 단위로 셌다면 1/3 = 0.33이 된다
             KeywordGroup semiconductor = KeywordGroup.of("반도체", "semiconductor", "chip", "chips");
 
-            assertThat(PopularityScorer.keywordScore("Nvidia chip demand surges",
+            assertThat(PopularityScorer.keywordScore("Nvidia chip demand surges", null,
                     List.of(semiconductor)))
                     .as("번역해서 표현을 늘렸다고 관련도가 떨어질 이유가 없다")
                     .isEqualTo(1.0);
@@ -129,9 +141,9 @@ class PopularityScorerTest {
             KeywordGroup bitcoin = KeywordGroup.of("비트코인", "bitcoin", "btc");
             KeywordGroup rate = KeywordGroup.of("금리", "interest rate", "rates");
 
-            assertThat(PopularityScorer.keywordScore("Bitcoin slips", List.of(bitcoin, rate)))
+            assertThat(PopularityScorer.keywordScore("Bitcoin slips", null, List.of(bitcoin, rate)))
                     .isCloseTo(0.5, within(1e-9));
-            assertThat(PopularityScorer.keywordScore("Bitcoin slips as rates rise",
+            assertThat(PopularityScorer.keywordScore("Bitcoin slips as rates rise", null,
                     List.of(bitcoin, rate)))
                     .isEqualTo(1.0);
         }
@@ -139,16 +151,16 @@ class PopularityScorerTest {
         @Test
         @DisplayName("대소문자를 가리지 않는다")
         void isCaseInsensitive() {
-            assertThat(PopularityScorer.keywordScore("BITCOIN surges", groups("bitcoin")))
+            assertThat(PopularityScorer.keywordScore("BITCOIN surges", null, groups("bitcoin")))
                     .isEqualTo(1.0);
         }
 
         @Test
         @DisplayName("키워드가 없으면 이 항은 0 — 정기 발송에서 검색어가 없을 때다")
         void emptyKeywordsContributeNothing() {
-            assertThat(PopularityScorer.keywordScore("anything", List.of())).isZero();
-            assertThat(PopularityScorer.keywordScore("anything", null)).isZero();
-            assertThat(PopularityScorer.keywordScore("anything", List.of(KeywordGroup.of())))
+            assertThat(PopularityScorer.keywordScore("anything", null, List.of())).isZero();
+            assertThat(PopularityScorer.keywordScore("anything", null, null)).isZero();
+            assertThat(PopularityScorer.keywordScore("anything", null, List.of(KeywordGroup.of())))
                     .as("빈 묶음만 있으면 걸러낼 근거가 없다")
                     .isZero();
         }

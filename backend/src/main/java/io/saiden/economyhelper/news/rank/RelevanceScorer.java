@@ -54,6 +54,31 @@ public class RelevanceScorer {
             %s
             """;
 
+    /**
+     * 검색어와의 관련도.
+     *
+     * <p>재테크 관련도와 <b>묻는 것이 다르다.</b> 여기서는 주제가 재테크인지가 아니라
+     * "사용자가 찾는 그것을 <b>다루는</b> 기사인지"를 본다 — 한 줄 언급과 그 주제의 기사는
+     * 사용자에게 전혀 다른 답이다.
+     */
+    private static final String SEARCH_PROMPT = """
+            사용자가 '%s'에 대한 뉴스를 찾고 있습니다.
+            아래 기사 제목들이 그 주제를 **실제로 다루는** 기사인지 0.0~1.0으로 매기세요.
+
+            기준:
+            - 0.8~1.0: 그 주제가 기사의 핵심이다
+            - 0.4~0.7: 그 주제를 비중 있게 다루지만 핵심은 아니다
+            - 0.0~0.3: 스쳐 지나가듯 언급했거나 무관하다. 같은 단어가 다른 뜻으로 쓰인 경우도 여기다
+
+            규칙:
+            - 검색어가 한국어여도 영문 기사에서 같은 개념을 가리키면 관련 있는 것입니다.
+            - **입력 순서 그대로, 개수를 정확히 %d개** 돌려주세요.
+            - 설명 없이 JSON만: {"scores": [0.9, 0.2, ...]}
+
+            제목:
+            %s
+            """;
+
     private final GeminiApi api;
     private final ObjectMapper objectMapper;
 
@@ -73,24 +98,49 @@ public class RelevanceScorer {
      */
     @Cacheable(cacheNames = "relevance", key = "#candidates.![link]", unless = "#result.isEmpty()")
     public Map<String, Double> scoreAll(List<Article> candidates) {
+        return score(candidates, size -> PROMPT.formatted(size, titlesOf(candidates)),
+                "재테크 관련도");
+    }
+
+    /**
+     * 후보들이 <b>검색어와</b> 관련 있는지를 한 번에 매긴다 — {@code /news {검색어}}용.
+     *
+     * <p><b>왜 문자열 매칭만으로는 부족한가.</b> {@code /news 금리}는 본문에 {@code rate}가
+     * 한 번 스친 기사도 통과시킨다. 그러면 "환율 기사인데 금리를 한 줄 언급"한 것이 1위가 되고,
+     * 사용자는 검색이 엉뚱한 답을 준다고 느낀다. 매칭은 후보를 좁히는 데까지만 쓰고,
+     * <b>정말 그 주제의 기사인지는 의미를 아는 쪽</b>이 판단해야 한다.
+     *
+     * <p>비용은 {@link #scoreAll(List)}과 같다 — 상위 후보 몇 건을 <b>한 번에 묶어</b> 묻고,
+     * 검색어와 후보 목록이 같으면 캐시가 받는다.
+     */
+    @Cacheable(cacheNames = "relevance", key = "#query + '|' + #candidates.![link]",
+            unless = "#result.isEmpty()")
+    public Map<String, Double> scoreAll(List<Article> candidates, String query) {
+        return score(candidates, size -> SEARCH_PROMPT.formatted(query, size, titlesOf(candidates)),
+                "'" + query + "' 관련도");
+    }
+
+    private Map<String, Double> score(List<Article> candidates,
+                                      java.util.function.IntFunction<String> prompt, String what) {
         if (candidates.isEmpty()) {
             return Map.of();
         }
         try {
-            return byLlm(candidates);
+            return byLlm(candidates, prompt.apply(candidates.size()));
         } catch (Exception e) {
-            log.error("[relevance] LLM 채점 실패 — 전부 통과시킵니다: {}", e.toString());
+            log.error("[relevance] {} LLM 채점 실패 — 전부 통과시킵니다: {}", what, e.toString());
             return passAll(candidates);
         }
     }
 
-    private Map<String, Double> byLlm(List<Article> candidates) {
-        String titles = IntStream.range(0, candidates.size())
+    private static String titlesOf(List<Article> candidates) {
+        return IntStream.range(0, candidates.size())
                 .mapToObj(i -> (i + 1) + ". " + candidates.get(i).title())
                 .collect(Collectors.joining("\n"));
+    }
 
-        Scores parsed = objectMapper.readValue(
-                api.generate(PROMPT.formatted(candidates.size(), titles)), Scores.class);
+    private Map<String, Double> byLlm(List<Article> candidates, String prompt) {
+        Scores parsed = objectMapper.readValue(api.generate(prompt), Scores.class);
 
         if (parsed == null || parsed.scores() == null || parsed.scores().size() != candidates.size()) {
             // 개수가 어긋나면 어느 점수가 어느 기사인지 알 수 없다. 짝을 잘못 맞추느니 폴백이 낫다

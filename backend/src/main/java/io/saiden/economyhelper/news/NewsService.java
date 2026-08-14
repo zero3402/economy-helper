@@ -138,18 +138,59 @@ public class NewsService {
      * 검색어와 무관한 기사가 다른 지표만으로 1위가 될 수 있다.
      */
     public Optional<ScoredArticle> search(Collection<KeywordGroup> keywords) {
+        return search(keywords, null);
+    }
+
+    /**
+     * @param query 사용자가 친 원문. 주면 상위 후보를 <b>LLM으로 한 번 더 검증</b>한다 —
+     *              문자열 매칭은 "본문에 한 번 스친" 기사도 통과시켜, 환율 기사가
+     *              {@code /news 금리}의 1위가 되곤 했다. {@code null}이면 검증을 건너뛴다
+     */
+    public Optional<ScoredArticle> search(Collection<KeywordGroup> keywords, String query) {
         List<KeywordGroup> groups = usable(keywords);
         if (groups.isEmpty()) {
             return Optional.empty();
         }
 
-        // 매체 다섯을 동시에 긁는다 — 검색은 사용자가 화면을 보고 기다리는 자리라
+        // 매체 전부를 동시에 긁는다 — 검색은 사용자가 화면을 보고 기다리는 자리라
         // 순차로 도는 시간이 그대로 체감된다
         List<Article> matching = Concurrently.map(List.of(NewsSource.values()), fetcher::fetch).stream()
                 .flatMap(List::stream)
                 .filter(article -> matchesAny(article, groups))
                 .toList();
-        return preferReadable(rank(matching, groups));
+
+        return preferReadable(verified(rank(matching, groups), query));
+    }
+
+    /**
+     * 상위 후보가 <b>정말 그 주제의 기사인지</b> LLM에 한 번 묻는다.
+     *
+     * <p>매칭은 후보를 좁히는 데까지만 쓴다. {@code /news 금리}가 본문에 {@code rate}가 한 번
+     * 나온 환율 기사를 1위로 내보내던 것이 이 검증이 없어서였다.
+     *
+     * <p><b>전부 임계값 미만이면 빈 목록</b>이다 — 호출자는 "찾지 못했습니다"로 답한다.
+     * 관련 없는 기사를 답이라고 내미는 것보다 못 찾았다고 하는 편이 낫다.
+     *
+     * <p>비용은 상위 몇 건 <b>한 번</b>이고 검색어+후보 조합으로 캐시된다. LLM이 죽으면
+     * 전부 통과시켜 예전 동작으로 돌아간다 — 검증이 없어지는 것이지 검색이 죽는 것은 아니다.
+     */
+    private List<ScoredArticle> verified(List<ScoredArticle> ranked, String query) {
+        if (query == null || query.isBlank() || ranked.isEmpty()) {
+            return ranked;
+        }
+        List<ScoredArticle> candidates = ranked.stream().limit(llmCandidates).toList();
+        Map<String, Double> relevance = relevanceScorer.scoreAll(
+                candidates.stream().map(ScoredArticle::article).toList(), query);
+
+        List<ScoredArticle> relevant = candidates.stream()
+                .filter(scored -> relevance.getOrDefault(scored.article().link(), 0.0)
+                        >= relevanceThreshold)
+                .toList();
+        if (relevant.isEmpty()) {
+            log.info("[검색] '{}'에 걸린 {}건 중 실제로 그 주제를 다루는 기사가 없습니다",
+                    query, candidates.size());
+        }
+        return relevant;
     }
 
     /**

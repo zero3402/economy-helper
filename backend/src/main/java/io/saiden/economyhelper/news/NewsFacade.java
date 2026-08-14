@@ -62,7 +62,9 @@ public class NewsFacade {
      * <p>기사가 영문이라 한국어 검색어는 {@link QueryExpander}가 영어로 옮겨 준다.
      */
     public Optional<NewsItem> search(String query) {
-        return newsService.search(queryExpander.expand(query))
+        // 원문을 함께 넘긴다 — 확장한 표현 묶음은 매칭용이고, "정말 그 주제인가"를 물으려면
+        // 사용자가 실제로 친 말이 있어야 한다
+        return newsService.search(queryExpander.expand(query), query)
                 .map(scored -> NewsItem.of(scored, translationService.translate(scored.article())));
     }
 }
