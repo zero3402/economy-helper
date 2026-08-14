@@ -229,7 +229,9 @@ public class TelegramWebhookController {
             // 환산을 못 한다고 시세 자체를 막을 이유가 없다.
             case STOCK -> stockService.quote(command.argument())
                     .map(match -> new Reply(MessageFormatter.formatStock(match, currentFx()),
-                            match.quote().code()))
+                            // 국내 지수는 종목코드가 없다 — 이름이 유일한 식별자다
+                            match.quote().code() == null
+                                    ? match.quote().name() : match.quote().code()))
                     .orElseGet(() -> Reply.plain(MessageFormatter.stockNotFound(command.argument())));
             case HELP -> Reply.plain(MessageFormatter.help());
         };

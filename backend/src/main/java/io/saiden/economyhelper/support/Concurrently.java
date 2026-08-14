@@ -5,7 +5,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 /**
  * 외부 호출 여럿을 <b>동시에</b> 돌리고 결과를 순서대로 모은다.
@@ -42,11 +41,6 @@ public final class Concurrently {
                     .toList();
             return futures.stream().map(Concurrently::join).toList();
         }
-    }
-
-    /** 서로 다른 일 여럿을 동시에. 종류가 달라 {@link #map}으로 묶이지 않는 자리에 쓴다. */
-    public static <R> List<R> all(List<Supplier<R>> tasks) {
-        return map(tasks, Supplier::get);
     }
 
     /**
