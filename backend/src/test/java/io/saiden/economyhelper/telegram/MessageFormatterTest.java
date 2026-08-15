@@ -110,7 +110,10 @@ class MessageFormatterTest {
     @Test
     @DisplayName("검색 결과가 없을 때와 검색어가 빠졌을 때를 구분해 안내한다")
     void distinguishesNoResultsFromMissingQuery() {
-        assertThat(MessageFormatter.noResults("금리")).contains("금리").contains("찾지 못했습니다");
+        assertThat(MessageFormatter.noResults("금리", java.time.Duration.ofHours(24)))
+                .contains("금리").contains("찾지 못했습니다")
+                .as("왜 없는지 밝히지 않으면 봇 고장으로 읽힌다")
+                .contains("최근 24시간");
         assertThat(MessageFormatter.usage(Command.NEWS)).contains("/news 금리");
         // 명령마다 예시가 달라야 한다 — 하나로 고정하면 /stock에 /news 예시가 뜬다
         assertThat(MessageFormatter.usage(Command.STOCK)).contains("/stock 삼성전자");
@@ -142,7 +145,8 @@ class MessageFormatterTest {
     @Test
     @DisplayName("안내·오류 답도 예외 없이 굵은 제목으로 시작한다")
     void everyFailureReplyCarriesItsSectionTitle() {
-        assertThat(MessageFormatter.noResults("금리")).startsWith("<b>뉴스</b>\n\n");
+        assertThat(MessageFormatter.noResults("금리", java.time.Duration.ofHours(24)))
+                .startsWith("<b>뉴스</b>\n\n");
         assertThat(MessageFormatter.fxUnavailable()).startsWith("<b>환율</b>\n\n");
         assertThat(MessageFormatter.stockNotFound("없는종목")).startsWith("<b>증시</b>\n\n");
         assertThat(MessageFormatter.cryptoNotFound("없는코인")).startsWith("<b>코인</b>\n\n");

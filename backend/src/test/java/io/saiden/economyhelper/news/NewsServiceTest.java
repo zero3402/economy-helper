@@ -37,6 +37,8 @@ class NewsServiceTest {
 
     /** 예전 필터("키워드가 하나도 안 걸리면 제외")와 같은 뜻이 되도록 0보다 크게만 잡는다. */
     private static final double RELEVANCE_THRESHOLD = 0.01;
+    /** 신선도 창 — 날짜가 아니라 경과 시간이다. 운영 기본값과 같은 24시간으로 둔다. */
+    private static final Duration WINDOW = Duration.ofHours(24);
 
     @Test
     @DisplayName("스쳐 지나간 기사는 답이 아니다 — 관련 없는 걸 주느니 못 찾았다고 한다")
@@ -81,11 +83,11 @@ class NewsServiceTest {
     }
 
     @Test
-    @DisplayName("검색은 오늘(KST) 발행분만 남긴다 — 어제 기사는 조회일자에서 벗어난다")
-    void searchKeepsOnlyToday() {
+    @DisplayName("검색은 최근 창 안의 발행분만 남긴다 — 날짜가 아니라 경과 시간으로 자른다")
+    void searchKeepsOnlyRecent() {
         NewsService service = service(Map.of(NewsSource.CNBC, List.of(
                 article(NewsSource.CNBC, "Rate cut today", 0),
-                yesterday(NewsSource.CNBC, "Old rate story", 1))));
+                aged(NewsSource.CNBC, "Old rate story", 1, Duration.ofHours(25)))));
 
         List<ScoredArticle> result = service.search(groups("rate"), "금리");
 
@@ -94,21 +96,35 @@ class NewsServiceTest {
     }
 
     @Test
-    @DisplayName("브리핑은 전 매체를 통틀어 오늘 발행분 중 점수 상위 3건을 준다")
-    void digestTakesTopThreeAcrossSourcesFromToday() {
+    @DisplayName("23시간 전 기사는 살아남는다 — KST 달력으로 '어제'여도 하루가 안 지났다")
+    void keepsArticleFromYesterdayInKstButWithinWindow() {
+        // 실측(2026-08-15): /news 이더리움이 빈손이던 이유가 이것이었다. 가장 최근 기사가
+        // 23시간 18분 전(08-14 21:36 KST)이라 날짜로 자르면 '어제'가 되어 사라졌다
+        NewsService service = service(Map.of(NewsSource.YAHOO_FINANCE, List.of(
+                aged(NewsSource.YAHOO_FINANCE, "Bitcoin and ethereum prices today", 0,
+                        Duration.ofHours(23)))));
+
+        assertThat(service.search(groups("ethereum"), "이더리움"))
+                .singleElement()
+                .satisfies(scored -> assertThat(scored.article().title()).contains("ethereum"));
+    }
+
+    @Test
+    @DisplayName("브리핑은 전 매체를 통틀어 최근 창 안의 발행분 중 점수 상위 3건을 준다")
+    void digestTakesTopThreeAcrossSourcesFromWindow() {
         NewsService service = service(Map.of(
                 NewsSource.CNBC, List.of(
                         article(NewsSource.CNBC, "cnbc a", 0),
                         article(NewsSource.CNBC, "cnbc b", 1),
-                        yesterday(NewsSource.CNBC, "cnbc old", 2)),
+                        aged(NewsSource.CNBC, "cnbc old", 2, Duration.ofHours(25))),
                 NewsSource.YAHOO_FINANCE, List.of(
                         article(NewsSource.YAHOO_FINANCE, "yahoo a", 0),
                         article(NewsSource.YAHOO_FINANCE, "yahoo b", 1))));
 
         List<ScoredArticle> digest = service.digest();
 
-        assertThat(digest).as("오늘 후보 4건 중 상위 3건").hasSize(3);
-        assertThat(digest).as("어제 기사는 조회일자 필터에서 빠진다")
+        assertThat(digest).as("창 안의 후보 4건 중 상위 3건").hasSize(3);
+        assertThat(digest).as("창을 벗어난 기사는 빠진다")
                 .allSatisfy(scored -> assertThat(scored.article().title()).doesNotContain("old"));
     }
 
@@ -162,6 +178,7 @@ class NewsServiceTest {
                 new PopularityScorer(RankingWeights.defaults(), Duration.ofHours(6)),
                 relevance,
                 CLOCK,
+                WINDOW,
                 8,
                 RELEVANCE_THRESHOLD,
                 3,
@@ -197,11 +214,11 @@ class NewsServiceTest {
                 "https://example.com/" + source + "/" + title.hashCode(), NOW, feedRank);
     }
 
-    /** 어제(KST) 발행 기사 — 조회일자(오늘) 필터가 걸러내야 하는 것. */
-    private static Article yesterday(NewsSource source, String title, int feedRank) {
+    /** 발행된 지 {@code age}만큼 지난 기사 — 창 경계를 재는 데 쓴다. */
+    private static Article aged(NewsSource source, String title, int feedRank, Duration age) {
         return new Article(source, title, null,
                 "https://example.com/" + source + "/" + title.hashCode(),
-                NOW.minus(Duration.ofDays(1)), feedRank);
+                NOW.minus(age), feedRank);
     }
 
     /** 실제 HTTP 없이 소스별 결과를 정해 준다. */

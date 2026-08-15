@@ -7,9 +7,8 @@ import io.saiden.economyhelper.news.rank.PopularityScorer;
 import io.saiden.economyhelper.news.rank.RelevanceScorer;
 import io.saiden.economyhelper.support.Concurrently;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
@@ -34,14 +33,12 @@ public class NewsService {
 
     private static final Logger log = LoggerFactory.getLogger(NewsService.class);
 
-    /** 조회일자를 가르는 기준 — 사용자가 한국에 있으므로 KST 날짜로 "오늘"을 정한다. */
-    private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
-
     private final FeedFetcher fetcher;
     private final HackerNewsBuzzClient buzzClient;
     private final PopularityScorer scorer;
     private final RelevanceScorer relevanceScorer;
     private final Clock clock;
+    private final Duration window;
     private final int llmCandidates;
     private final double relevanceThreshold;
     private final int searchResults;
@@ -52,6 +49,7 @@ public class NewsService {
                        PopularityScorer scorer,
                        RelevanceScorer relevanceScorer,
                        Clock clock,
+                       @Value("${economy-helper.digest.window:24h}") Duration window,
                        @Value("${economy-helper.digest.llm-candidates:8}") int llmCandidates,
                        @Value("${economy-helper.digest.relevance-threshold:0.4}") double relevanceThreshold,
                        @Value("${economy-helper.digest.search-results:3}") int searchResults,
@@ -61,17 +59,23 @@ public class NewsService {
         this.scorer = scorer;
         this.relevanceScorer = relevanceScorer;
         this.clock = clock;
+        this.window = window;
         this.llmCandidates = llmCandidates;
         this.relevanceThreshold = relevanceThreshold;
         this.searchResults = searchResults;
         this.digestResults = digestResults;
     }
 
+    /** 신선도 창 — 화면이 "최근 몇 시간"이라고 말하려면 같은 값을 봐야 한다. */
+    public Duration window() {
+        return window;
+    }
+
     /**
-     * 오늘(KST) 발행분 중 점수 상위 몇 건 — 정기 발송용.
+     * 최근 창(기본 24시간) 안에 발행된 것 중 점수 상위 몇 건 — 정기 발송용.
      *
      * <p><b>매체를 가리지 않고 전 매체를 통틀어 점수로 줄 세운다.</b> 예전에는 매체별 1건이었으나
-     * 검색과 같은 규칙("오늘 발행분 중 점수 상위 3건")으로 통일했다. 매체별 정규화(feedRank)를 거친
+     * 검색과 같은 규칙("최근 창 안의 발행분 중 점수 상위 3건")으로 통일했다. 매체별 정규화(feedRank)를 거친
      * 0~1 점수라 매체가 달라도 비교가 성립한다.
      *
      * <p><b>재테크 관련도가 임계값 이상인 기사만 후보로 삼는다.</b> 필터 없이 순위만 매기면
@@ -93,15 +97,15 @@ public class NewsService {
     }
 
     /**
-     * 매체 하나에서 오늘 발행분의 재테크 기사들을 점수순으로. 그 매체가 죽거나 오늘 재테크 기사가
+     * 매체 하나에서 최근 창 안의 재테크 기사들을 점수순으로. 그 매체가 죽거나 그 사이 재테크 기사가
      * 없으면 비어 있다. 상위 몇 건을 고르는 것은 {@link #digest()}가 전 매체를 모아 한다.
      */
     private List<ScoredArticle> relevantOf(NewsSource source) {
         Instant now = clock.instant();
-        // 조회일자(오늘) 발행분만 남긴다 — "무조건 오늘"이라 어제 기사로 자리를 채우지 않는다
-        List<Article> articles = onToday(fetcher.fetch(source), now);
+        // 최근 창 안의 발행분만 남긴다 — 묵은 기사로 자리를 채우지 않는다
+        List<Article> articles = recent(fetcher.fetch(source), now);
         if (articles.isEmpty()) {
-            log.warn("[{}] 오늘 발행분 수집 결과가 없어 이번 발송에서 제외합니다", source);
+            log.warn("[{}] 최근 {} 발행분이 없어 이번 발송에서 제외합니다", source, window);
             return List.of();
         }
 
@@ -122,7 +126,7 @@ public class NewsService {
                 .filter(article -> relevance.getOrDefault(article.link(), 0.0) >= relevanceThreshold)
                 .toList();
         if (relevant.isEmpty()) {
-            log.info("[{}] 오늘 재테크 관련도가 {} 이상인 기사가 없어 이번 발송에서 제외합니다 (후보 {}건)",
+            log.info("[{}] 재테크 관련도가 {} 이상인 기사가 없어 이번 발송에서 제외합니다 (후보 {}건)",
                     source, relevanceThreshold, candidates.size());
             return List.of();
         }
@@ -131,16 +135,24 @@ public class NewsService {
     }
 
     /**
-     * 조회일자(오늘, KST) 발행 기사만 남긴다.
+     * <b>최근 {@code window} 안에 발행된</b> 기사만 남긴다.
      *
      * <p>신선도는 랭킹 점수에도 반영되지만({@code recency}), 그건 가중치의 한 항일 뿐이라
-     * 피드 앞자리의 어제 기사를 못 막는다. 사용자가 "무조건 조회일자에서"를 요구했으므로
-     * 날짜로 하드 필터한다 — {@code StockService.onlyLatestDate}가 최신 기준일만 남기는 것과 같은 결.
+     * 피드 앞자리의 묵은 기사를 못 막는다. 그래서 하드 필터가 따로 있다.
+     *
+     * <p><b>날짜(KST 달력)가 아니라 경과 시간으로 자른다.</b> 우리가 읽는 것은 전부 외국 기사인데
+     * KST 자정 경계는 그 매체의 하루를 둘로 쪼갠다 — 미국 동부 취재일(09:00~17:00 EDT)이
+     * KST로는 22:00부터 다음 날 06:00까지라, 같은 사건을 다룬 기사들이 이틀로 갈린다.
+     * 09시 브리핑 시점의 "오늘 KST"는 UTC 전날 15:00부터의 9시간뿐이기도 하다.
+     *
+     * <p>실측(2026-08-15): {@code /news 이더리움}이 빈손이었는데, 가장 최근 기사가
+     * 23시간 18분 전({@code 08-14 21:36 KST}) 것이라 <b>하루도 안 지났는데 "어제"라서</b>
+     * 잘려 나간 것이었다. 경과 시간으로 자르면 매체 소재지·발행 시각과 무관하게 창의 폭이 같다.
      */
-    private static List<Article> onToday(List<Article> articles, Instant now) {
-        LocalDate today = now.atZone(SEOUL).toLocalDate();
+    private List<Article> recent(List<Article> articles, Instant now) {
+        Instant cutoff = now.minus(window);
         return articles.stream()
-                .filter(article -> article.publishedAt().atZone(SEOUL).toLocalDate().equals(today))
+                .filter(article -> article.publishedAt().isAfter(cutoff))
                 .toList();
     }
 
@@ -166,8 +178,8 @@ public class NewsService {
         }
 
         // 매체 전부를 동시에 긁는다 — 검색은 사용자가 화면을 보고 기다리는 자리라
-        // 순차로 도는 시간이 그대로 체감된다. 조회일자(오늘) 발행분만 남긴다
-        List<Article> matching = onToday(Concurrently.map(List.of(NewsSource.values()), fetcher::fetch).stream()
+        // 순차로 도는 시간이 그대로 체감된다. 브리핑과 같은 신선도 창을 쓴다
+        List<Article> matching = recent(Concurrently.map(List.of(NewsSource.values()), fetcher::fetch).stream()
                 .flatMap(List::stream)
                 .filter(article -> matchesAny(article, groups))
                 .toList(), clock.instant());

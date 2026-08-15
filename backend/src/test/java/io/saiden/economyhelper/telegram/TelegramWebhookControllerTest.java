@@ -453,6 +453,12 @@ class TelegramWebhookControllerTest {
             public List<NewsItem> search(String query) {
                 return results;
             }
+
+            /** 못 찾음 안내가 "최근 몇 시간"을 말하려면 이 값이 필요하다 — 운영 기본값과 같게 둔다. */
+            @Override
+            public java.time.Duration window() {
+                return java.time.Duration.ofHours(24);
+            }
         };
     }
 

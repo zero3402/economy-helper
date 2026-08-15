@@ -234,7 +234,7 @@ public class TelegramWebhookController {
             case NEWS -> {
                 List<NewsItem> found = newsFacade.search(command.argument());
                 yield found.isEmpty()
-                        ? Reply.plain(MessageFormatter.noResults(command.argument()))
+                        ? Reply.plain(MessageFormatter.noResults(command.argument(), newsFacade.window()))
                         : new Reply(MessageFormatter.formatNews(found), true);
             }
             // 브리핑 코인 통과 같은 함수다 — 항목이 하나뿐일 뿐이다.

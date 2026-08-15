@@ -3,6 +3,7 @@ package io.saiden.economyhelper.news;
 import io.saiden.economyhelper.support.Concurrently;
 import io.saiden.economyhelper.translate.Translation;
 import io.saiden.economyhelper.translate.TranslationService;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -29,7 +30,15 @@ public class NewsFacade {
         this.queryExpander = queryExpander;
     }
 
-    /** 오늘 발행분 중 점수 상위 몇 건 — 정기 발송과 프론트 첫 화면이 같은 목록을 쓴다. */
+    /**
+     * 뉴스 신선도 창 — 못 찾았을 때 그 사유를 말하려면 화면이 이 값을 알아야 한다.
+     * 설정과 문구가 따로 놀면 그 문구가 거짓말이 된다.
+     */
+    public Duration window() {
+        return newsService.window();
+    }
+
+    /** 최근 창 안의 발행분 중 점수 상위 몇 건 — 정기 발송과 프론트 첫 화면이 같은 목록을 쓴다. */
     public List<NewsItem> digest() {
         // NewsService가 이미 점수순으로 상위 몇 건을 준다 — 그 순서 그대로 번역한다.
         // 번역을 겹친다 — 순차로 돌면 건수만큼 곱해져 그것만으로 10~25초였다

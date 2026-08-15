@@ -7,6 +7,7 @@ import io.saiden.economyhelper.news.NewsItem;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.NumberFormat;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -156,8 +157,14 @@ public final class MessageFormatter {
                 : "<b>" + Html.escape(Command.NEWS.section()) + " " + (index + 1) + "/" + total + "</b>";
     }
 
-    public static String noResults(String query) {
-        return section(Command.NEWS) + "'" + Html.escape(query) + "'에 해당하는 뉴스를 찾지 못했습니다.";
+    /**
+     * <b>왜 없는지 함께 말한다.</b> "찾지 못했습니다"만 있으면 사용자는 봇 고장으로 읽는다 —
+     * 실제로는 그 주제 기사가 창 안에 없었을 뿐이다. 창을 인자로 받는 이유는 설정을 바꿨을 때
+     * 문구가 따라오지 않으면 그 자체로 거짓말이 되기 때문이다.
+     */
+    public static String noResults(String query, Duration window) {
+        return section(Command.NEWS)
+                + "'" + Html.escape(query) + "'에 해당하는 최근 " + window.toHours() + "시간 뉴스를 찾지 못했습니다.";
     }
 
     // --- 환율 ---------------------------------------------------------------
