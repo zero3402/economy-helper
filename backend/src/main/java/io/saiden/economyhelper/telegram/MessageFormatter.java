@@ -294,7 +294,7 @@ public final class MessageFormatter {
      * 코인 통 — <b>브리핑도 {@code /crypto} 한 건도 이것 하나를 쓴다.</b>
      * 24시간 거래되므로 기준일이 아니라 시각을 쓴다.
      *
-     * <p>코인 이름 자리는 이름이 아니라 티커(BTC)다 — 코인은 사람들이 티커로 부른다.
+     * <p>코인 제목은 <b>굵은 티커 + 한글 이름</b>이다({@code <b>BTC</b> 비트코인} — {@link #coinTitle}).
      * 마켓 코드({@code KRW-BTC})나 바이낸스 심볼은 적지 않는다. 거래소는 값 줄에 이름으로 적혀 있다.
      *
      * <p><b>값이 없는 코인도 빼지 않는다.</b> 예전에는 브리핑에서만 뺐는데, 그 근거였던
@@ -312,11 +312,29 @@ public final class MessageFormatter {
         boolean first = true;
         for (CryptoQuote quote : quotes) {
             message.append(first ? "" : "\n\n")
-                    .append("<b>").append(Html.escape(quote.ticker())).append("</b>\n\n")
+                    .append(coinTitle(quote)).append("\n\n")
                     .append(exchangeLines(quote, fx));
             first = false;
         }
         return message.toString();
+    }
+
+    /**
+     * 코인 하나의 제목 — <b>굵은 티커에 한글 이름을 곁들인다</b>({@code <b>BTC</b> 비트코인}).
+     *
+     * <p>굵은 것은 티커다 — 코인은 사람들이 티커로 부르고, 값을 찾을 때 눈이 먼저 닿는 것도
+     * 그쪽이다. 다만 티커만으로는 무엇인지 모르는 코인이 많아 한글 이름을 평문으로 뒤에 단다.
+     * 무리 제목이 조회처를 뒤에 다는 것과 같은 모양이다.
+     *
+     * <p><b>이름이 티커와 같으면 붙이지 않는다.</b> 업비트에 없는 코인은 한글 이름을 확인할 곳이
+     * 없어 {@code name}에 티커가 그대로 들어온다({@code BNB}) — 그대로 두면 {@code BNB BNB}가 된다.
+     */
+    private static String coinTitle(CryptoQuote quote) {
+        String ticker = quote.ticker();
+        String title = "<b>" + Html.escape(ticker) + "</b>";
+        return quote.name() == null || quote.name().equalsIgnoreCase(ticker)
+                ? title
+                : title + " " + Html.escape(quote.name());
     }
 
     /**

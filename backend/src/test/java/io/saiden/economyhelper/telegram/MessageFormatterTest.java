@@ -406,6 +406,13 @@ class MessageFormatterTest {
     }
 
     @Test
+    @DisplayName("코인 제목은 굵은 티커에 한글 이름을 곁들인다 — 티커만으로는 무엇인지 모른다")
+    void namesEachCoinInKorean() {
+        assertThat(crypto(btc(new BigDecimal("62000")), null)).contains("<b>BTC</b> 비트코인");
+        assertThat(crypto(usdt(), FX_FLAT)).contains("<b>USDT</b> 테더");
+    }
+
+    @Test
     @DisplayName("업비트에 없는 코인은 이름 자리가 티커이고 심볼을 따로 적지 않는다")
     void showsBinanceOnlyCoin() {
         String message = crypto(new CryptoQuote("BNB", null, NOW,
@@ -413,6 +420,8 @@ class MessageFormatterTest {
 
         assertThat(message)
                 .contains("<b>BNB</b>")
+                .as("한글 이름을 확인할 곳이 없어 티커가 그대로 담긴다 — 그대로 두면 'BNB BNB'가 된다")
+                .doesNotContain("BNB</b> BNB")
                 .contains("업비트 미상장")
                 .contains("바이낸스\n612.4 USDT")
                 .as("BNBUSDT는 티커에 USDT를 붙인 것뿐이라 같은 말을 두 번 적는 셈이다")
@@ -427,7 +436,7 @@ class MessageFormatterTest {
         assertThat(message).isEqualTo("""
                 <b>코인</b> 2026년 8월 11일 09:00:00
 
-                <b>BTC</b>
+                <b>BTC</b> 비트코인
 
                 업비트
                 89,848,000 KRW
@@ -446,11 +455,11 @@ class MessageFormatterTest {
 
         assertThat(message)
                 .as("굵은 제목 다음도 빈 줄이다")
-                .contains("<b>BTC</b>\n\n업비트")
+                .contains("<b>BTC</b> 비트코인\n\n업비트")
                 .as("거래소 블록끼리도 빈 줄로 갈린다")
                 .contains("89,848,000 KRW\n\n바이낸스")
                 .as("코인 경계는 굵은 티커가 진다 — 간격을 두 겹으로 쓰지 않는다")
-                .contains("\n\n<b>USDT</b>\n\n업비트");
+                .contains("\n\n<b>USDT</b> 테더\n\n업비트");
     }
 
     @Test
