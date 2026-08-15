@@ -32,15 +32,19 @@ class MessageFormatterTest {
             FxSource.FRANKFURTER, BASIS);
 
     @Test
-    @DisplayName("매체와 발행 시각은 제목 줄이 인다 — 환율·증시와 같은 자리다")
+    @DisplayName("제목 / 값 / 출처 / 시각 — 다른 통과 같은 순서, 시각은 맨 밑 단독")
     void followsTheSameSkeletonAsEveryOtherSection() {
         assertThat(MessageFormatter.formatNews(List.of(item("유가 상승", "인플레이션 우려.", true))))
                 .singleElement().asString().isEqualTo("""
-                        <b>뉴스</b> CNBC · 2026년 8월 11일 09:00:00
+                        <b>뉴스</b>
 
                         <a href="https://example.com/a"><b>유가 상승</b></a>
 
-                        <blockquote>인플레이션 우려.</blockquote>""");
+                        <blockquote>인플레이션 우려.</blockquote>
+
+                        CNBC
+
+                        2026년 8월 11일 09:00:00""");
     }
 
     @Test
@@ -71,11 +75,13 @@ class MessageFormatterTest {
 
         assertThat(messages).hasSize(3);
         assertThat(messages.get(0))
-                .startsWith("<b>뉴스 1/3</b> CNBC · 2026년 8월 11일 09:00:00\n\n").contains("첫 번째")
+                .startsWith("<b>뉴스 1/3</b>\n\n").contains("첫 번째")
                 .as("한 통에 링크가 하나뿐이어야 카드가 어느 기사 것인지 확정된다")
-                .doesNotContain("두 번째").doesNotContain("세 번째");
-        assertThat(messages.get(1)).startsWith("<b>뉴스 2/3</b> CNBC · ").contains("두 번째");
-        assertThat(messages.get(2)).startsWith("<b>뉴스 3/3</b> CNBC · ").contains("세 번째");
+                .doesNotContain("두 번째").doesNotContain("세 번째")
+                .as("통마다 자기 매체와 발행 시각으로 끝맺는다")
+                .endsWith("CNBC\n\n2026년 8월 11일 09:00:00");
+        assertThat(messages.get(1)).startsWith("<b>뉴스 2/3</b>\n\n").contains("두 번째");
+        assertThat(messages.get(2)).startsWith("<b>뉴스 3/3</b>\n\n").contains("세 번째");
     }
 
     @Test
@@ -84,7 +90,7 @@ class MessageFormatterTest {
         List<String> messages = MessageFormatter.formatNews(List.of(item("유일한 기사", "본문", true)));
 
         assertThat(messages).hasSize(1);
-        assertThat(messages.get(0)).startsWith("<b>뉴스</b> CNBC · ").doesNotContain("1/1");
+        assertThat(messages.get(0)).startsWith("<b>뉴스</b>\n\n").doesNotContain("1/1");
     }
 
     @Test
@@ -184,16 +190,20 @@ class MessageFormatterTest {
     }
 
     @Test
-    @DisplayName("환율도 출처·기준을 제목 줄에 이고 등락률을 단다 — 네 통이 같은 모양이다")
+    @DisplayName("환율도 값 다음에 출처, 한 줄 띄고 기준이다 — 네 통이 같은 순서다")
     void fxCarriesItsChangeToo() {
         FxRate rate = new FxRate("USD", "KRW", new BigDecimal("1414.90"),
                 new BigDecimal("-0.01"), FxSource.KEXIM, BASIS);
 
         assertThat(MessageFormatter.formatFx(rate)).isEqualTo("""
-                <b>환율</b> 수출입은행 매매기준율 · 2026년 8월 11일 (고시)
+                <b>환율</b>
 
                 1 USD = 1,414.9 KRW
-                🔵 -0.01%""");
+                🔵 -0.01%
+
+                수출입은행 매매기준율
+
+                2026년 8월 11일 (고시)""");
     }
 
     @Test
@@ -220,7 +230,7 @@ class MessageFormatterTest {
         assertThat(message).isEqualTo("""
                 <b>증시</b>
 
-                <b>국내</b> 금융위원회 · 2026년 8월 11일 (종가)
+                <b>국내</b>
 
                 코스피
                 6,345.53
@@ -228,14 +238,22 @@ class MessageFormatterTest {
                 삼성전자
                 239,500 KRW
 
-                <b>미국</b> Financial Modeling Prep · 2026년 8월 13일 07:00:00
+                금융위원회
+
+                2026년 8월 11일 (종가)
+
+                <b>미국</b>
 
                 나스닥
                 26,588.49
 
                 애플
                 302.25 USD
-                426,828 KRW""");
+                426,828 KRW
+
+                Financial Modeling Prep
+
+                2026년 8월 13일 07:00:00""");
         assertThat(message)
                 .as("복사 버튼이 붙는 코드 블록을 쓰지 않는다").doesNotContain("<pre>")
                 .as("환율은 바로 앞 환율 통에 이미 있다 — 여기 또 넣으면 중복이다")
@@ -250,11 +268,15 @@ class MessageFormatterTest {
         assertThat(single).isEqualTo("""
                 <b>증시</b>
 
-                <b>미국</b> Financial Modeling Prep · 2026년 8월 13일 07:00:00
+                <b>미국</b>
 
                 애플
                 302.25 USD
-                426,828 KRW""");
+                426,828 KRW
+
+                Financial Modeling Prep
+
+                2026년 8월 13일 07:00:00""");
         assertThat(single).as("굵게는 제목에만 — 값까지 굵으면 무엇이 계층인지 안 드러난다")
                 .doesNotContain("<b>302.25");
     }
@@ -266,10 +288,14 @@ class MessageFormatterTest {
                 .isEqualTo("""
                         <b>증시</b>
 
-                        <b>국내</b> 금융위원회 · 2026년 8월 11일 (종가)
+                        <b>국내</b>
 
                         삼성전자
-                        239,500 KRW""");
+                        239,500 KRW
+
+                        금융위원회
+
+                        2026년 8월 11일 (종가)""");
     }
 
     @Test
@@ -294,8 +320,8 @@ class MessageFormatterTest {
                 BASIS.minus(java.time.Duration.ofDays(1)), false, true, BigDecimal.ZERO);
 
         assertThat(MessageFormatter.formatStock(List.of(krIndex("코스피", "6345.53"), stale), FX))
-                .as("무리 기준은 그 무리 제목 줄에 붙는다 — 아래에 모으면 무리 이름이 네 번 반복된다")
-                .contains("<b>국내</b> 금융위원회 · 2026년 8월 11일 (종가)\n\n코스피")
+                .as("무리 기준은 그 무리 끝에 단독으로 — 모든 통이 같은 순서다")
+                .endsWith("금융위원회\n\n2026년 8월 11일 (종가)")
                 .as("무리 기준이 대표하지 못하는 줄에만 날짜를 붙인다")
                 .contains("코스닥\n857.84 · 2026년 8월 10일")
                 .as("종목끼리는 빈 줄로 갈린다 — 코인 통과 같은 규칙이다")
@@ -303,16 +329,16 @@ class MessageFormatterTest {
     }
 
     @Test
-    @DisplayName("조회처는 무리 제목 줄에 기준과 함께 인다 — 증시만 그 자리가 비어 있었다")
+    @DisplayName("조회처는 무리마다 그 무리 끝에 단다 — 증시만 출처 자리가 비어 있었다")
     void stockNamesItsVendor() {
         String message = MessageFormatter.formatStock(List.of(
                 krStock("삼성전자", "239500"), usStock("애플", "AAPL", "302.25")), FX);
 
         assertThat(message)
-                .contains("<b>국내</b> 금융위원회 · 2026년 8월 11일 (종가)")
-                .contains("<b>미국</b> Financial Modeling Prep · 2026년 8월 13일 07:00:00")
-                .as("같은 말을 아래에 또 모으지 않는다 — 무리 이름이 네 번 반복되던 자리다")
-                .doesNotContain("\n국내 금융위원회");
+                .contains("239,500 KRW\n\n금융위원회\n\n2026년 8월 11일 (종가)")
+                .contains("426,828 KRW\n\nFinancial Modeling Prep\n\n2026년 8월 13일 07:00:00")
+                .as("무리 이름을 접두사로 반복하지 않는다 — 꼬리가 이미 그 무리 안에 있다")
+                .doesNotContain("국내 금융위원회").doesNotContain("미국 Financial");
     }
 
     // --- 코인: 업비트 + 바이낸스 + 김프 --------------------------------------
@@ -434,7 +460,7 @@ class MessageFormatterTest {
         String message = crypto(btc(new BigDecimal("62000")), null);
 
         assertThat(message).isEqualTo("""
-                <b>코인</b> 2026년 8월 11일 09:00:00
+                <b>코인</b>
 
                 <b>BTC</b> 비트코인
 
@@ -442,7 +468,9 @@ class MessageFormatterTest {
                 89,848,000 KRW
 
                 바이낸스
-                62,000 USDT""");
+                62,000 USDT
+
+                2026년 8월 11일 09:00:00""");
         assertThat(message).as("들여쓰기를 쓰지 않는다 — 통마다 제각각이던 것을 하나로 맞췄다")
                 .doesNotContain("  업비트");
     }

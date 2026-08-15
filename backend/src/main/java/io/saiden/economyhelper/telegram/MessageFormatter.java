@@ -40,11 +40,14 @@ import java.util.stream.Collectors;
  * {@code tg-emoji}는 Fragment에서 산 사용자명이 있어야 한다). 색을 내는 유일한 수단이
  * 이모지라서 여기만 남긴다 — 장식이 아니라 값의 일부다.
  *
- * <p><b>출처와 기준 시각은 굵은 제목 줄이 인다</b> — {@code <b>환율</b> 유럽중앙은행 · 2026년 8월 15일 (고시)},
- * {@code <b>국내</b> 금융위원회 · 2026년 8월 14일 (종가)}, {@code <b>뉴스 1/3</b> CNBC · …}.
- * 통마다 자리가 다르면 안 되고, 통 맨 아래 블록으로 모으면 무리가 둘인 증시에서
- * {@code 국내}·{@code 미국}이 네 번 반복되며 값에서도 멀어진다. <b>그 값을 대표하는 제목 줄</b>이
- * 제자리다. 코인만 출처 자리가 비는데, 거래소는 코인마다 둘씩이라 값 줄에 이름으로 적히기 때문이다.
+ * <p><b>모든 통이 같은 순서로 끝맺는다: 굵은 제목 / 값 / 출처 / 시각.</b> 출처와 시각은 각각
+ * 제 블록이라 사이가 빈 줄이고, 시각은 언제나 마지막이다.
+ *
+ * <p><b>무리가 있는 통은 그 꼬리를 무리마다 단다.</b> 증시의 {@code 국내}·{@code 미국}은 조회처도
+ * 기준도 다른데, 둘을 통 맨 아래에 모으면 어느 무리 것인지 밝히려고 무리 이름을 접두사로 네 번
+ * 반복해야 한다. 무리 하나가 통 하나처럼 끝맺으면 그 접두사가 통째로 사라진다.
+ *
+ * <p>코인만 출처 자리가 빈다 — 거래소가 곧 출처인데 코인마다 둘씩이라 값 줄에 이름으로 적혀 있다.
  * 굵은 것은 언제나 사용자가 읽으러 온 것 — 기사 제목이다.
  *
  * <p><b>줄 간격에 규칙이 하나뿐이다 — 빈 줄은 블록 사이, 한 줄은 블록 안.</b>
@@ -116,7 +119,10 @@ public final class MessageFormatter {
             // 왜 영문인지 밝히지 않으면 고장으로 보인다
             message.append("\n<i>번역이 일시적으로 불가해 원문 그대로 보냅니다.</i>");
         }
-        return message.toString();
+        // 매체와 발행 시각 — 환율·증시와 같은 자리, 같은 모양이다
+        return message.append("\n\n").append(Html.escape(item.sourceName()))
+                .append("\n\n").append(DATE_TIME.format(item.publishedAt().atZone(SEOUL)))
+                .toString();
     }
 
     /**
@@ -139,20 +145,15 @@ public final class MessageFormatter {
         }
         List<String> messages = new ArrayList<>(items.size());
         for (int i = 0; i < items.size(); i++) {
-            NewsItem item = items.get(i);
-            // 매체와 발행 시각은 제목 줄이 인다 — 환율·증시·코인과 같은 자리다
-            messages.add(newsHeading(i, items.size(), item) + format(item));
+            messages.add(newsTitle(i, items.size()) + "\n\n" + format(items.get(i)));
         }
         return List.copyOf(messages);
     }
 
-    private static String newsHeading(int index, int total, NewsItem item) {
-        String basis = DATE_TIME.format(item.publishedAt().atZone(SEOUL));
-        if (total == 1) {
-            return heading(Command.NEWS, item.sourceName(), basis);
-        }
-        return "<b>" + Html.escape(Command.NEWS.section()) + " " + (index + 1) + "/" + total + "</b> "
-                + Html.escape(item.sourceName()) + " · " + basis + "\n\n";
+    private static String newsTitle(int index, int total) {
+        return total == 1
+                ? title(Command.NEWS)
+                : "<b>" + Html.escape(Command.NEWS.section()) + " " + (index + 1) + "/" + total + "</b>";
     }
 
     public static String noResults(String query) {
@@ -171,9 +172,11 @@ public final class MessageFormatter {
      */
     public static String formatFx(FxRate rate) {
         String change = change(rate.changePercent());
-        return heading(Command.FX, rate.source().displayName(), basisOf(rate))
+        return section(Command.FX)
                 + "1 USD = " + money(rate.rate()) + " KRW"
-                + (change.isEmpty() ? "" : "\n" + change);
+                + (change.isEmpty() ? "" : "\n" + change) + "\n\n"
+                + Html.escape(rate.source().displayName()) + "\n\n"
+                + basisOf(rate);
     }
 
     public static String fxUnavailable() {
@@ -203,11 +206,9 @@ public final class MessageFormatter {
      * <p><b>{@code (종가)}는 남긴다.</b> 국내는 전일 종가라 그 표시가 없으면 현재가로 읽힌다 —
      * 장식이 아니라 값의 성격이고, 낡은 값을 숨기면 거짓말이 된다.
      *
-     * <p><b>조회처와 기준을 무리 제목 줄에 함께 인다</b>
-     * ({@code <b>국내</b> 금융위원회 · 2026년 8월 14일 (종가)}). 다른 통은 출처와 시각을 맨 아래
-     * 블록에 두지만 증시만 무리가 둘이라, 아래에 모으면 {@code 국내}·{@code 미국}이 네 번 반복되고
-     * 정작 어느 무리 이야기인지는 값에서 멀어진다. 무리 하나가 곧 한 출처·한 기준이므로
-     * 그 제목 줄이 제자리다.
+     * <p><b>조회처와 기준은 무리마다 그 무리 끝에 단다</b>(금융위원회·Financial Modeling Prep).
+     * 다른 통과 같은 순서 — 값 다음에 출처, 한 줄 띄고 시각이다. 둘을 통 맨 아래에 모으면
+     * 어느 무리 것인지 밝히려고 {@code 국내}·{@code 미국}을 접두사로 네 번 반복해야 한다.
      *
      * <p>종목코드·거래소는 여전히 적지 않는다 — 이름이 이미 그 종목을 가리킨다. 환산에 쓴
      * 환율도 적지 않는다 — 환율은 {@code /fx}와 브리핑 환율 통이 따로 있다.
@@ -251,11 +252,7 @@ public final class MessageFormatter {
             return;
         }
         Instant basis = basisOf(quotes);
-        // 무리 제목 줄이 그 무리의 조회처와 기준을 함께 인다. 맨 아래에 따로 모으면
-        // "국내"·"미국"이 통마다 네 번씩 반복되고, 정작 어느 무리 이야기인지는 멀어진다
-        message.append("\n\n<b>").append(title).append("</b> ")
-                .append(Html.escape(sourcesOf(quotes))).append(" · ")
-                .append(basisOf(quotes.get(0), basis));
+        message.append("\n\n<b>").append(title).append("</b>");
 
         for (StockQuote quote : quotes) {
             // 블록 사이는 빈 줄 — 굵은 무리 제목 다음도 마찬가지다
@@ -275,6 +272,10 @@ public final class MessageFormatter {
                 message.append("\n").append(change);
             }
         }
+        // 무리 하나가 통 하나처럼 끝맺는다 — 값 다음에 출처, 한 줄 띄고 기준.
+        // 두 무리 것을 맨 아래에 모으면 "국내"·"미국"을 접두사로 네 번 반복해야 한다
+        message.append("\n\n").append(Html.escape(sourcesOf(quotes)))
+                .append("\n\n").append(basisOf(quotes.get(0), basis));
     }
 
     /** 무리의 기준 시각 — 가장 최근 값이다. */
@@ -302,13 +303,7 @@ public final class MessageFormatter {
      * {@code USDTUSD}로 값이 나온다. 남는 것은 진짜 장애뿐이고 그건 알려야 한다.
      */
     public static String formatCrypto(List<CryptoQuote> quotes, FxRate fx) {
-        // 출처를 제목 줄에 적지 않는다 — 코인은 출처가 거래소이고 그건 코인마다 둘씩이라
-        // 값 줄에 이름으로 이미 적혀 있다. 제목 줄이 이는 것은 기준 시각뿐이다
-        String basis = quotes.stream().findFirst()
-                .map(first -> DATE_TIME.format(first.at().atZone(SEOUL)))
-                .orElse(null);
-
-        StringBuilder message = new StringBuilder(heading(Command.CRYPTO, null, basis));
+        StringBuilder message = new StringBuilder(section(Command.CRYPTO));
         boolean first = true;
         for (CryptoQuote quote : quotes) {
             message.append(first ? "" : "\n\n")
@@ -316,6 +311,10 @@ public final class MessageFormatter {
                     .append(exchangeLines(quote, fx));
             first = false;
         }
+        // 출처 자리는 비운다 — 코인은 출처가 거래소이고 그건 코인마다 둘씩이라 값 줄에
+        // 이름으로 이미 적혀 있다. 맨 아래에 남는 것은 기준 시각뿐이다
+        quotes.stream().findFirst().ifPresent(head ->
+                message.append("\n\n").append(DATE_TIME.format(head.at().atZone(SEOUL))));
         return message.toString();
     }
 
@@ -446,30 +445,6 @@ public final class MessageFormatter {
         return title(command) + "\n\n";
     }
 
-    /**
-     * 굵은 제목 줄에 <b>출처와 기준</b>을 함께 인다 — {@code <b>환율</b> 유럽중앙은행 · 2026년 8월 15일 (고시)}.
-     *
-     * <p><b>통마다 자리가 다르면 안 된다.</b> 예전에는 출처와 시각을 통 맨 아래 블록으로 모았는데,
-     * 무리가 둘인 증시에서는 {@code 국내}·{@code 미국}이 네 번 반복됐고 값에서도 멀어졌다.
-     * 지금은 <b>그 값을 대표하는 제목 줄</b>이 제자리다 — 통 제목(환율·코인·뉴스)이든
-     * 무리 제목(국내·미국)이든 규칙은 하나다.
-     *
-     * @param source 출처. 거래소처럼 <b>항목마다 다른</b> 출처는 여기 오지 않는다({@code null})
-     * @param basis  기준 시각. 값에 시각이 없으면 {@code null}
-     */
-    private static String heading(Command command, String source, String basis) {
-        StringBuilder heading = new StringBuilder(title(command));
-        if (source != null && !source.isBlank()) {
-            heading.append(" ").append(Html.escape(source));
-            if (basis != null) {
-                heading.append(" ·");
-            }
-        }
-        if (basis != null) {
-            heading.append(" ").append(basis);
-        }
-        return heading.append("\n\n").toString();
-    }
 
     /**
      * 제목 줄만. 아래에 무리를 바로 붙이는 통(증시·코인·뉴스 브리핑)이 쓴다.
