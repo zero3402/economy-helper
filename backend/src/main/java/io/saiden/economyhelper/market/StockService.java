@@ -280,14 +280,15 @@ public class StockService {
     private static StockQuote toQuote(StockPrice price) {
         return new StockQuote(price.srtnCd(), price.itmsNm(), price.mrktCtg(),
                 parse(price.clpr()), percent(price.fltRt()), StockQuote.Money.KRW,
-                atSeoulMidnight(price.basDt()), false, false, parse(price.mrktTotAmt()));
+                StockSource.DATA_GO, atSeoulMidnight(price.basDt()), false, false,
+                parse(price.mrktTotAmt()));
     }
 
     /** 국내 지수 — 종목코드가 없고 통화도 없다. */
     private static StockQuote toQuote(MarketIndex index) {
         return new StockQuote(null, index.idxNm(), index.idxCsf(), parse(index.clpr()),
                 percent(index.fltRt()), StockQuote.Money.NONE,
-                atSeoulMidnight(index.basDt()), false, true, BigDecimal.ZERO);
+                StockSource.DATA_GO, atSeoulMidnight(index.basDt()), false, true, BigDecimal.ZERO);
     }
 
     /**
@@ -312,7 +313,7 @@ public class StockService {
         return new StockQuote(quote.symbol(), name, quote.exchange(),
                 quote.price(), quote.changePercentage(),
                 index ? StockQuote.Money.NONE : StockQuote.Money.USD,
-                at, true, index,
+                StockSource.FMP, at, true, index,
                 quote.marketCap() == null ? BigDecimal.ZERO : quote.marketCap());
     }
 

@@ -51,9 +51,6 @@ public class CryptoService {
 
     private static final Logger log = LoggerFactory.getLogger(CryptoService.class);
 
-    /** 업비트 원화 마켓의 USDT. 바이낸스 USDT 가격을 원화로 옮길 때 쓴다. */
-    private static final String USDT_MARKET = "KRW-USDT";
-
     private final UpbitApi upbitApi;
     private final BinanceApi binanceApi;
     private final CryptoResolver resolver;
@@ -62,25 +59,6 @@ public class CryptoService {
         this.upbitApi = upbitApi;
         this.binanceApi = binanceApi;
         this.resolver = resolver;
-    }
-
-    /**
-     * USDT 1개의 원화값 — 바이낸스 시세를 원화로 옮기는 기준.
-     *
-     * <p><b>USD/KRW 환율이 아니라 업비트 실거래가를 쓴다.</b> 한국에서 실제로 바꿀 수 있는 값이
-     * 이쪽이고 김치 프리미엄이 반영돼 있다. 환율로 환산하면 "USDT는 1달러"라는 가정이 들어가
-     * 국내 시세와 나란히 놓았을 때 차이가 실제보다 커 보인다.
-     */
-    public Optional<BigDecimal> usdtKrw() {
-        try {
-            return upbitApi.tickers(List.of(USDT_MARKET)).stream()
-                    .map(UpbitTicker::tradePrice)
-                    .filter(Objects::nonNull)
-                    .findFirst();
-        } catch (RuntimeException e) {
-            log.warn("[crypto] USDT 원화 시세 조회 실패 — 바이낸스는 USDT로만 표시합니다: {}", e.toString());
-            return Optional.empty();
-        }
     }
 
     /**
@@ -108,8 +86,11 @@ public class CryptoService {
      * {@code NOT_LISTED}로 적는다. 둘 다 없을 때만 "찾지 못했다"가 된다.
      */
     private Optional<CryptoQuote> quoteOf(String symbol) {
-        UpbitSide upbit = upbitSide("KRW-" + symbol);
-        Quote binance = binancePrice(symbol + "USDT");
+        String market = "KRW-" + symbol;
+        UpbitSide upbit = upbitSide(market);
+        // 심볼 조립을 여기서 하지 않는다 — 테더만 USDTUSD인 규칙이 두 군데로 갈리면
+        // 이 경로(LLM이 티커를 준 코인)만 조용히 옛 규칙을 따르게 된다
+        Quote binance = BinanceSymbol.of(market).map(this::binancePrice).orElse(Quote.NOT_LISTED);
 
         if (upbit.quote().state() == Quote.State.NOT_LISTED
                 && binance.state() == Quote.State.NOT_LISTED) {
@@ -237,7 +218,7 @@ public class CryptoService {
                         .map(symbol -> Map.entry(quote.market(), symbol)).stream())
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         if (symbolByMarket.isEmpty()) {
-            // 심볼을 유도할 수 있는 마켓이 하나도 없다(예: KRW-USDT뿐) — 부를 것이 없다
+            // 원화 마켓이 아니어서 심볼을 유도할 수 없는 것들뿐이다 — 부를 것이 없다
             return quotes.stream().map(quote -> withBinanceState(quote, Quote.NOT_LISTED)).toList();
         }
 

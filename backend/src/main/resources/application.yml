@@ -64,6 +64,12 @@ economy-helper:
     investing:
       url: https://www.investing.com/rss/news_25.rss  # 10건
       type: rss
+    investing-crypto:
+      # 같은 매체의 암호화폐 섹션. 매체를 늘린 게 아니라 섹션을 하나 더 연 것이다.
+      # 코인 기사는 금융 일반 피드에 거의 안 실린다 — 2026-08-15 실측으로 Yahoo만 49건 중 3건이었고
+      # CNBC Markets·BBC Business·Investing 본 피드는 오늘자 0건이었다.
+      url: https://www.investing.com/rss/news_301.rss  # 10건, 오늘자 비트코인 기사 3건
+      type: rss
     cnbc:
       # id=10000664는 Markets 섹션이다. 홈 피드는 일반 뉴스가 섞인다
       url: https://www.cnbc.com/id/10000664/device/rss/rss.html   # 30건

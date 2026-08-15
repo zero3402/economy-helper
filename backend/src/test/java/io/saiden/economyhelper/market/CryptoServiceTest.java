@@ -175,31 +175,27 @@ class CryptoServiceTest {
     }
 
     @Test
-    @DisplayName("USDT 원화값은 업비트 KRW-USDT를 쓴다 — 환율이 아니라 실제로 바꿀 수 있는 값이다")
-    void readsUsdtPriceFromUpbit() {
-        assertThat(cryptoService(new RecordingApi()).usdtKrw()).isEmpty();
+    @DisplayName("테더는 USDTUSD로 묻는다 — USDTUSDT가 없다고 미상장으로 찍던 자리다")
+    void asksBinanceForTetherWithUsdSymbol() {
+        UpbitApi upbit = new RecordingApi() {
+            @Override
+            public List<UpbitMarket> krwMarkets() {
+                return List.of(UpbitMarket.of("KRW-USDT", "테더", "Tether"));
+            }
 
-        UpbitApi withUsdt = new RecordingApi() {
             @Override
             public List<UpbitTicker> tickers(List<String> markets) {
-                return List.of(new UpbitTicker("KRW-USDT", BigDecimal.valueOf(1_384), null,null,  null));
+                return List.of(new UpbitTicker("KRW-USDT", BigDecimal.valueOf(1_425), null, null, null));
             }
         };
-        assertThat(cryptoService(withUsdt).usdtKrw())
-                .contains(BigDecimal.valueOf(1_384));
-    }
+        CryptoService service = cryptoService(upbit, Map.of("USDTUSD", "0.99906"));
 
-    @Test
-    @DisplayName("업비트가 죽으면 USDT 환산도 포기한다 — 예외를 위로 던지면 시세 전체가 막힌다")
-    void returnsEmptyUsdtWhenUpbitFails() {
-        UpbitApi exploding = new RecordingApi() {
-            @Override
-            public List<UpbitTicker> tickers(List<String> markets) {
-                throw new IllegalStateException("업비트 502");
-            }
-        };
+        CryptoQuote quote = service.quotesOf(List.of("KRW-USDT")).get(0);
 
-        assertThat(cryptoService(exploding).usdtKrw()).isEmpty();
+        assertThat(quote.binance().price()).isEqualByComparingTo("0.99906");
+        assertThat(quote.binanceUnit())
+                .as("호가가 USD라 원화 환산은 환율로 해야 한다")
+                .isEqualTo("USD");
     }
 
     // --- LLM은 업비트가 못 풀 때만 부른다 -------------------------------------

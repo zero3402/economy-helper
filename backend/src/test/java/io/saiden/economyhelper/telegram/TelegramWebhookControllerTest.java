@@ -91,8 +91,8 @@ class TelegramWebhookControllerTest {
     @DisplayName("/stock은 기준일과 함께 답한다 — 전일 종가라 날짜를 숨기면 실시간으로 오해한다")
     void routesStockCommandWithBasisDate() {
         RecordingClient client = new RecordingClient();
-        StockQuote match = new StockQuote("005930", "삼성전자", "KOSPI", new BigDecimal("239500"),null, 
-                StockQuote.Money.KRW,
+        StockQuote match = new StockQuote("005930", "삼성전자", "KOSPI", new BigDecimal("239500"), null,
+                StockQuote.Money.KRW, io.saiden.economyhelper.market.StockSource.DATA_GO,
                 java.time.LocalDate.of(2026, 8, 11)
                         .atStartOfDay(java.time.ZoneId.of("Asia/Seoul")).toInstant(),
                 false, false, new BigDecimal("1400183726616000"));
@@ -124,8 +124,8 @@ class TelegramWebhookControllerTest {
     }
 
     @Test
-    @DisplayName("/news는 상위 여러 건을 한 통에 묶어 준다 — 1건뿐이면 다시 치는 수밖에 없다")
-    void repliesWithSeveralArticles() {
+    @DisplayName("/news는 기사마다 통을 쪼갠다 — 브리핑과 같은 규칙이라 검색 답도 카드가 제 기사에 붙는다")
+    void repliesWithOneMessagePerArticle() {
         RecordingClient client = new RecordingClient();
         var controller = defaultController(
                 facade(List.of(item("첫 번째"), item("두 번째"), item("세 번째"))),
@@ -133,13 +133,13 @@ class TelegramWebhookControllerTest {
 
         controller.onUpdate(null, update(1, "/news 금리"));
 
-        assertThat(client.sent).hasSize(1);
-        assertThat(client.sent.get(0).text())
-                .startsWith("<b>뉴스</b>")
-                .contains("첫 번째").contains("두 번째").contains("세 번째");
-        assertThat(client.sent.get(0).preview())
-                .as("링크가 있는 답이라 미리보기를 켠다 — 첫 기사에만 카드가 붙는다")
-                .isTrue();
+        assertThat(client.sent).hasSize(3);
+        assertThat(client.sent.get(0).text()).startsWith("<b>뉴스 1/3</b>")
+                .contains("첫 번째").doesNotContain("두 번째");
+        assertThat(client.sent.get(2).text()).startsWith("<b>뉴스 3/3</b>").contains("세 번째");
+        assertThat(client.sent).allSatisfy(sent -> assertThat(sent.preview())
+                .as("통마다 링크가 하나뿐이라 카드가 그 기사 것으로 확정된다")
+                .isTrue());
     }
 
     @Test

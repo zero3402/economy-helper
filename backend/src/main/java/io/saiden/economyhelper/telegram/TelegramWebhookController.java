@@ -182,7 +182,16 @@ public class TelegramWebhookController {
         long startedAt = System.nanoTime();
         // 물어본 토픽으로 답한다 — 다른 토픽에 답이 뜨면 대화가 어긋난다
         Reply reply = reply(command);
-        telegramClient.send(chatId, topicId, reply.text(), reply.preview());
+        boolean first = true;
+        for (String part : reply.texts()) {
+            // 뉴스 검색은 기사마다 한 통이다(브리핑과 같은 규칙). 텔레그램이 같은 방에
+            // 초당 한 통을 권고하므로 브리핑과 같은 간격으로 쉬어 간다
+            if (!first) {
+                TelegramClient.pause();
+            }
+            first = false;
+            telegramClient.send(chatId, topicId, part, reply.preview());
+        }
 
         // 성공 경로에 유일하게 남는 줄이다. 세 가지를 여기서만 알 수 있다.
         //   · 토픽 번호 — 거절할 때만 찍으면 SEARCH_TOPIC_ID가 비었을 때(=아무것도 거절하지
@@ -205,10 +214,10 @@ public class TelegramWebhookController {
      *                   보낸다 — {@code /fx}·{@code /help}·못 찾음 안내에는 붙일 대상이 없고,
      *                   {@code /news}는 답이 길어 캡션 상한(1024)을 넘긴다
      */
-    private record Reply(String text, boolean preview) {
+    private record Reply(List<String> texts, boolean preview) {
 
         static Reply plain(String text) {
-            return new Reply(text, false);
+            return new Reply(List.of(text), false);
         }
     }
 
@@ -228,10 +237,11 @@ public class TelegramWebhookController {
                         ? Reply.plain(MessageFormatter.noResults(command.argument()))
                         : new Reply(MessageFormatter.formatNews(found), true);
             }
+            // 브리핑 코인 통과 같은 함수다 — 항목이 하나뿐일 뿐이다.
+            // 바이낸스가 붙었을 때만 환율을 묻는다 — 안 쓸 값을 미리 부르지 않는다
             case CRYPTO -> cryptoService.quote(command.argument())
-                    // 바이낸스가 붙었을 때만 USDT 환율을 묻는다 — 안 쓸 값을 미리 부르지 않는다
-                    .map(quote -> Reply.plain(MessageFormatter.formatCrypto(quote,
-                            quote.binance().hasPrice() ? cryptoService.usdtKrw().orElse(null) : null)))
+                    .map(quote -> Reply.plain(MessageFormatter.formatCrypto(List.of(quote),
+                            quote.binance().hasPrice() ? currentFx() : null)))
                     .orElseGet(() -> Reply.plain(MessageFormatter.cryptoNotFound(command.argument())));
             case FX -> Reply.plain(fxService.usdToKrw()
                     .map(MessageFormatter::formatFx)
@@ -239,7 +249,7 @@ public class TelegramWebhookController {
             // 미국 종목이면 원화도 함께 보여준다. 환율 조회가 실패하면 달러만 나간다 —
             // 환산을 못 한다고 시세 자체를 막을 이유가 없다.
             case STOCK -> stockService.quote(command.argument())
-                    .map(quote -> Reply.plain(MessageFormatter.formatStock(quote, currentFx())))
+                    .map(quote -> Reply.plain(MessageFormatter.formatStock(List.of(quote), currentFx())))
                     .orElseGet(() -> Reply.plain(MessageFormatter.stockNotFound(command.argument())));
             case HELP -> Reply.plain(MessageFormatter.help());
         };

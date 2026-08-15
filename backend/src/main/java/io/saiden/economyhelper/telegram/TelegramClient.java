@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import java.time.Duration;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +28,24 @@ public class TelegramClient {
 
     /** Bot API 메시지 길이 상한. 넘기면 400이 떨어져 발송 자체가 실패한다. */
     private static final int MAX_MESSAGE_LENGTH = 4096;
+
+    /**
+     * 같은 방에 연달아 보낼 때 쉬는 간격.
+     *
+     * <p>텔레그램은 같은 채팅방에 <b>초당 한 통</b>을 권고한다. 붙여 쏘면 429와
+     * {@code retry_after}를 맞을 수 있는데, 그냥 쉬어 가는 편이 재시도 로직을 얹는 것보다
+     * 단순하고 확실하다. <b>브리핑과 검색이 같은 값을 쓴다</b> — 둘 다 여러 통을 연달아 보낸다.
+     */
+    public static final Duration BETWEEN_MESSAGES = Duration.ofSeconds(1);
+
+    /** 다음 통을 보내기 전에 쉰다. 인터럽트는 삼키지 않고 플래그를 되살린다. */
+    public static void pause() {
+        try {
+            Thread.sleep(BETWEEN_MESSAGES.toMillis());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
 
     private final RestClient restClient;
     private final String botToken;
@@ -83,11 +102,11 @@ public class TelegramClient {
 
     /**
      * @param preview 링크 미리보기를 띄울지. <b>기본은 끈다</b> — 시세 통에는 링크 자체가
-     *                없어 켜 봐야 달라지는 것이 없다. 기사를 담은 통만 켠다
-     *                ({@code /news} 단건과 브리핑 뉴스 통).
-     *                <p><b>텔레그램은 한 메시지에 미리보기를 하나만 붙인다.</b> 그래서 다섯 건을
-     *                묶어 보내는 브리핑 뉴스 통에서는 첫 기사에만 카드가 뜬다 — 켜 두는 것이
-     *                안 뜨는 것보다 낫다는 판단이고, 전부 띄우려면 통을 쪼개야 한다
+     *                없어 켜 봐야 달라지는 것이 없다. 기사를 담은 통만 켠다.
+     *                <p><b>텔레그램은 한 메시지에 미리보기를 하나만, 그것도 맨 아래에 붙인다.</b>
+     *                그래서 기사를 묶어 보내면 첫 기사의 카드가 마지막 기사 것처럼 보였다 —
+     *                지금은 {@code MessageFormatter.formatNews}가 기사마다 통을 쪼개므로
+     *                통마다 링크가 하나뿐이고 카드가 어느 기사 것인지 확정된다
      */
     @CircuitBreaker(name = "telegram")
     public void send(String chatId, Integer topicId, String text, boolean preview) {

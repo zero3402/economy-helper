@@ -15,8 +15,13 @@ import java.util.Set;
  * <p>페이월 우회(archive.ph 따위)로 유료 매체를 되살리지 않는다. 매체의 수익 모델을
  * 우회하는 일이고, 그런 서비스는 언제 막혀도 이상하지 않아 기반으로 삼을 수 없다.
  *
- * <p>다섯은 <b>글로벌 점유율 순</b>이다. 더 늘리지 않는 이유는 비용이다 — 매체마다
+ * <p>다섯은 <b>글로벌 점유율 순</b>이다. 더 늘리지 않는 이유는 비용이다 — 항목마다
  * 피드 수집 + HN 조회 + Gemini 관련도 채점이 한 번씩 붙는다.
+ *
+ * <p><b>매체는 다섯이지만 항목은 여섯이다.</b> Investing.com만 본 섹션과 암호화폐 섹션 둘을
+ * 단다 — 매체를 늘린 것이 아니라 그 매체 안에서 섹션을 하나 더 여는 것이라 표시 이름이 같다.
+ * 코인 기사는 금융 일반 피드에 거의 안 실려서, 하류에서 걸러 낼 것이 아니라 상류에서
+ * 그 섹션을 열어야 들어온다.
  *
  * <p><b>매체마다 자기 주소를 들고 있다.</b> 무료 매체를 골라 놓아도 <b>그 매체의 피드가
  * 남의 기사를 실어 나른다</b> — Yahoo 피드는 48건 중 8건이 wsj.com·investors.com이었고
@@ -33,6 +38,15 @@ public enum NewsSource {
 
     YAHOO_FINANCE("Yahoo Finance", "yahoo.com"),
     INVESTING("Investing.com", "investing.com"),
+    /**
+     * 같은 매체의 <b>암호화폐 섹션</b>이다. 매체를 늘린 것이 아니라 섹션을 하나 더 단 것이라
+     * 표시 이름도 {@link #INVESTING}과 같다.
+     *
+     * <p><b>왜 필요한가.</b> 코인 기사가 잡히는 피드가 Yahoo뿐이었고 그마저 49건 중 3건이었다.
+     * CNBC Markets·BBC Business·Investing 본 피드는 오늘자 코인 기사가 0건이다(2026-08-15 실측).
+     * 그래서 {@code /news 비트코인}이 자주 빈손이었다 — 랭킹이 아니라 소스의 문제였다.
+     */
+    INVESTING_CRYPTO("Investing.com", "investing.com"),
     CNBC("CNBC", "cnbc.com"),
     // BBC는 영국 안팎으로 bbc.co.uk와 bbc.com을 함께 쓴다
     BBC("BBC Business", "bbc.co.uk", "bbc.com"),

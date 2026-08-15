@@ -7,6 +7,7 @@ import io.saiden.economyhelper.market.CryptoQuote.Quote;
 import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.FxSource;
 import io.saiden.economyhelper.market.StockQuote;
+import io.saiden.economyhelper.market.StockSource;
 import io.saiden.economyhelper.news.NewsItem;
 import io.saiden.economyhelper.news.NewsSource;
 import java.math.BigDecimal;
@@ -26,20 +27,20 @@ class MessageFormatterTest {
     private static final Instant US_AT = Instant.parse("2026-08-12T22:00:00Z");
     private static final FxRate FX = new FxRate("USD", "KRW", new BigDecimal("1412.17"),
             FxSource.FRANKFURTER, BASIS);
+    /** 김프 산수를 눈으로 검산하려고 소수점을 턴 환율. */
+    private static final FxRate FX_FLAT = new FxRate("USD", "KRW", new BigDecimal("1412.00"),
+            FxSource.FRANKFURTER, BASIS);
 
     @Test
-    @DisplayName("제목 / 본문 / 출처 / 시각 — 다른 통과 같은 순서, 시각은 맨 밑 단독")
+    @DisplayName("매체와 발행 시각은 제목 줄이 인다 — 환율·증시와 같은 자리다")
     void followsTheSameSkeletonAsEveryOtherSection() {
-        String message = MessageFormatter.format(item("유가 상승", "인플레이션 우려.", true));
+        assertThat(MessageFormatter.formatNews(List.of(item("유가 상승", "인플레이션 우려.", true))))
+                .singleElement().asString().isEqualTo("""
+                        <b>뉴스</b> CNBC · 2026년 8월 11일 09:00:00
 
-        assertThat(message).isEqualTo("""
-                <a href="https://example.com/a"><b>유가 상승</b></a>
+                        <a href="https://example.com/a"><b>유가 상승</b></a>
 
-                <blockquote>인플레이션 우려.</blockquote>
-
-                CNBC
-
-                2026년 8월 11일 09:00:00""");
+                        <blockquote>인플레이션 우려.</blockquote>""");
     }
 
     @Test
@@ -58,29 +59,46 @@ class MessageFormatterTest {
         assertThat(message).contains("Fed signals cut").doesNotContain("\n\n\n");
     }
 
-    @Test
-    @DisplayName("여러 건은 번호를 붙여 묶는다 — 빈 줄만으로는 어디까지가 한 건인지 흐려진다")
-    void joinsDigestWithSeparator() {
-        String message = MessageFormatter.formatNews(List.of(
-                item("첫 번째", "본문1", true),
-                item("두 번째", "본문2", true)));
+    // --- 뉴스: 기사마다 한 통 ------------------------------------------------
 
-        assertThat(message).contains("<b>뉴스</b>")
-                .contains("1. ").contains("첫 번째")
-                .contains("2. ").contains("두 번째");
+    @Test
+    @DisplayName("여러 건은 기사마다 통을 쪼갠다 — 묶으면 첫 기사 카드가 마지막 기사 것처럼 보인다")
+    void splitsEachArticleIntoItsOwnMessage() {
+        List<String> messages = MessageFormatter.formatNews(List.of(
+                item("첫 번째", "본문1", true),
+                item("두 번째", "본문2", true),
+                item("세 번째", "본문3", true)));
+
+        assertThat(messages).hasSize(3);
+        assertThat(messages.get(0))
+                .startsWith("<b>뉴스 1/3</b> CNBC · 2026년 8월 11일 09:00:00\n\n").contains("첫 번째")
+                .as("한 통에 링크가 하나뿐이어야 카드가 어느 기사 것인지 확정된다")
+                .doesNotContain("두 번째").doesNotContain("세 번째");
+        assertThat(messages.get(1)).startsWith("<b>뉴스 2/3</b> CNBC · ").contains("두 번째");
+        assertThat(messages.get(2)).startsWith("<b>뉴스 3/3</b> CNBC · ").contains("세 번째");
     }
 
     @Test
-    @DisplayName("한 건뿐이면 외로운 번호를 붙이지 않는다")
+    @DisplayName("한 건뿐이면 외로운 1/1을 붙이지 않는다")
     void doesNotNumberASingleArticle() {
-        assertThat(MessageFormatter.formatNews(List.of(item("유일한 기사", "본문", true))))
-                .doesNotContain("1. ");
+        List<String> messages = MessageFormatter.formatNews(List.of(item("유일한 기사", "본문", true)));
+
+        assertThat(messages).hasSize(1);
+        assertThat(messages.get(0)).startsWith("<b>뉴스</b> CNBC · ").doesNotContain("1/1");
     }
 
     @Test
     @DisplayName("수집 결과가 하나도 없으면 그 사실을 알린다")
     void tellsUserWhenDigestIsEmpty() {
-        assertThat(MessageFormatter.formatNews(List.of())).contains("가져올 수 있는 뉴스가 없습니다");
+        assertThat(MessageFormatter.formatNews(List.of()))
+                .singleElement().asString().contains("가져올 수 있는 뉴스가 없습니다");
+    }
+
+    @Test
+    @DisplayName("브리핑의 뉴스에도 같은 일시가 붙는다 — 두 채널이 다른 모양이 되면 안 된다")
+    void showsPublishedTimeInDigestToo() {
+        assertThat(MessageFormatter.formatNews(List.of(item("유가 상승", "본문", true))))
+                .singleElement().asString().contains("2026년 8월 11일 09:00:00");
     }
 
     @Test
@@ -130,32 +148,30 @@ class MessageFormatterTest {
     @Test
     @DisplayName("상승은 빨강, 하락은 파랑 — 텔레그램이 글자에 색을 못 입혀 이모지가 유일한 수단이다")
     void marksDirectionWithColour() {
-        assertThat(MessageFormatter.formatStock(
-                krStock("삼성전자", "268000", "4.89"), null)).contains("🔴 4.89%");
-        assertThat(MessageFormatter.formatStock(
-                krStock("삼성전자", "268000", "-1.45"), null)).contains("🔵 1.45%");
+        assertThat(stock(krStock("삼성전자", "268000", "4.89"))).contains("🔴 +4.89%");
+        assertThat(stock(krStock("삼성전자", "268000", "-1.45"))).contains("🔵 -1.45%");
     }
 
     @Test
-    @DisplayName("부호를 원과 겹쳐 쓰지 않는다 — 원이 이미 방향이다")
-    void doesNotRepeatDirectionWithASign() {
-        assertThat(MessageFormatter.formatStock(krStock("삼성전자", "268000", "-1.45"), null))
-                .doesNotContain("-1.45").doesNotContain("+1.45");
+    @DisplayName("부호를 숫자 옆에 붙인다 — 이모지가 안 뜨는 기기에서는 그것만이 방향이다")
+    void signsEveryChange() {
+        assertThat(stock(krStock("삼성전자", "268000", "4.89"))).contains("+4.89%");
+        assertThat(stock(krStock("삼성전자", "268000", "-1.45"))).contains("-1.45%");
     }
 
     @Test
-    @DisplayName("보합은 원을 붙이지 않는다 — 방향이 없는 값에 방향 표시를 붙일 이유가 없다")
+    @DisplayName("보합은 원도 부호도 붙이지 않는다 — 방향이 없는 값이다")
     void showsFlatWithoutAColour() {
-        assertThat(MessageFormatter.formatStock(krStock("삼성전자", "268000", "0"), null))
-                .contains("0.00%").doesNotContain("🔴").doesNotContain("🔵");
+        assertThat(stock(krStock("삼성전자", "268000", "0")))
+                .contains("0.00%").doesNotContain("🔴").doesNotContain("🔵")
+                .doesNotContain("+0.00").doesNotContain("-0.00");
     }
 
     @Test
     @DisplayName("등락률을 못 구하면 표시만 빠지고 시세는 그대로 나간다")
     void omitsUnknownChangeButKeepsThePrice() {
-        String message = MessageFormatter.formatStock(krStock("삼성전자", "268000", null), null);
-
-        assertThat(message).contains("268,000 KRW")
+        assertThat(stock(krStock("삼성전자", "268000", null)))
+                .contains("268,000 KRW")
                 .doesNotContain("%").doesNotContain("🔴").doesNotContain("🔵");
     }
 
@@ -163,19 +179,21 @@ class MessageFormatterTest {
     @DisplayName("출처마다 자릿수가 달라도 소수 둘째 자리로 맞춘다")
     void roundsToTwoDecimalsRegardlessOfSource() {
         // FMP는 0.99586, 바이낸스는 -1.451, 공공데이터포털은 4.89로 준다
-        assertThat(MessageFormatter.formatStock(krStock("A", "100", "0.99586"), null))
-                .contains("🔴 1.00%");
-        assertThat(MessageFormatter.formatStock(krStock("B", "100", "-1.451"), null))
-                .contains("🔵 1.45%");
+        assertThat(stock(krStock("A", "100", "0.99586"))).contains("🔴 +1.00%");
+        assertThat(stock(krStock("B", "100", "-1.451"))).contains("🔵 -1.45%");
     }
 
     @Test
-    @DisplayName("환율도 등락률을 단다 — 세 통이 같은 밀도여야 한다")
+    @DisplayName("환율도 출처·기준을 제목 줄에 이고 등락률을 단다 — 네 통이 같은 모양이다")
     void fxCarriesItsChangeToo() {
         FxRate rate = new FxRate("USD", "KRW", new BigDecimal("1414.90"),
                 new BigDecimal("-0.01"), FxSource.KEXIM, BASIS);
 
-        assertThat(MessageFormatter.formatFx(rate)).contains("1,414.9 KRW").contains("🔵 0.01%");
+        assertThat(MessageFormatter.formatFx(rate)).isEqualTo("""
+                <b>환율</b> 수출입은행 매매기준율 · 2026년 8월 11일 (고시)
+
+                1 USD = 1,414.9 KRW
+                🔵 -0.01%""");
     }
 
     @Test
@@ -188,22 +206,12 @@ class MessageFormatterTest {
                 .doesNotContain("\n\n\n");
     }
 
-    @Test
-    @DisplayName("코인은 거래소마다 등락률이 따로다 — 업비트와 바이낸스는 다른 시장이다")
-    void cryptoCarriesPerExchangeChange() {
-        CryptoQuote quote = new CryptoQuote("비트코인", "KRW-BTC", NOW,
-                CryptoQuote.Quote.of(new BigDecimal("88922000"), new BigDecimal("-0.71")),
-                CryptoQuote.Quote.of(new BigDecimal("62910"), new BigDecimal("-1.451")));
-
-        assertThat(MessageFormatter.formatCrypto(quote, null))
-                .contains("업비트\n88,922,000 KRW\n🔵 0.71%")
-                .contains("바이낸스\n62,910 USDT\n🔵 1.45%");
-    }
+    // --- 증시 ---------------------------------------------------------------
 
     @Test
-    @DisplayName("국내와 미국을 무리로 갈라 각각 기준을 밝힌다 — 종가와 현재가를 한 덩어리로 붙이면 안 된다")
-    void stockDigestSeparatesByFreshness() {
-        String message = MessageFormatter.formatStockDigest(List.of(
+    @DisplayName("국내와 미국을 무리로 갈라 각각 조회처와 기준을 밝힌다")
+    void stockSeparatesByFreshness() {
+        String message = MessageFormatter.formatStock(List.of(
                 krIndex("코스피", "6345.53"),
                 krStock("삼성전자", "239500"),
                 usIndex("나스닥", "26588.49"),
@@ -212,17 +220,22 @@ class MessageFormatterTest {
         assertThat(message).isEqualTo("""
                 <b>증시</b>
 
-                <b>국내</b>
-                코스피 6,345.53
-                삼성전자 239,500 KRW
+                <b>국내</b> 금융위원회 · 2026년 8월 11일 (종가)
 
-                <b>미국</b>
-                나스닥 26,588.49
-                애플 302.25 USD
-                426,828 KRW
+                코스피
+                6,345.53
 
-                국내 2026년 8월 11일 (종가)
-                미국 2026년 8월 13일 07:00:00""");
+                삼성전자
+                239,500 KRW
+
+                <b>미국</b> Financial Modeling Prep · 2026년 8월 13일 07:00:00
+
+                나스닥
+                26,588.49
+
+                애플
+                302.25 USD
+                426,828 KRW""");
         assertThat(message)
                 .as("복사 버튼이 붙는 코드 블록을 쓰지 않는다").doesNotContain("<pre>")
                 .as("환율은 바로 앞 환율 통에 이미 있다 — 여기 또 넣으면 중복이다")
@@ -230,68 +243,242 @@ class MessageFormatterTest {
     }
 
     @Test
+    @DisplayName("검색 답도 브리핑과 같은 함수를 쓴다 — 종목이 하나뿐인 통일 뿐이다")
+    void singleStockLooksExactlyLikeItsDigestBlock() {
+        String single = MessageFormatter.formatStock(List.of(usStock("애플", "AAPL", "302.25")), FX);
+
+        assertThat(single).isEqualTo("""
+                <b>증시</b>
+
+                <b>미국</b> Financial Modeling Prep · 2026년 8월 13일 07:00:00
+
+                애플
+                302.25 USD
+                426,828 KRW""");
+        assertThat(single).as("굵게는 제목에만 — 값까지 굵으면 무엇이 계층인지 안 드러난다")
+                .doesNotContain("<b>302.25");
+    }
+
+    @Test
     @DisplayName("한쪽만 있으면 그 무리만 나온다 — 없는 무리 자리에 제목을 남기지 않는다")
-    void stockDigestOmitsEmptyGroup() {
-        assertThat(MessageFormatter.formatStockDigest(List.of(krStock("삼성전자", "239500")), FX))
+    void stockOmitsEmptyGroup() {
+        assertThat(MessageFormatter.formatStock(List.of(krStock("삼성전자", "239500")), FX))
                 .isEqualTo("""
                         <b>증시</b>
 
-                        <b>국내</b>
-                        삼성전자 239,500 KRW
+                        <b>국내</b> 금융위원회 · 2026년 8월 11일 (종가)
 
-                        국내 2026년 8월 11일 (종가)""");
+                        삼성전자
+                        239,500 KRW""");
     }
 
     @Test
     @DisplayName("지수에는 원화 환산을 붙이지 않는다 — 지수는 통화가 아니다")
-    void stockDigestNeverConvertsIndices() {
-        assertThat(MessageFormatter.formatStockDigest(List.of(usIndex("나스닥", "26588.49")), FX))
-                .contains("26,588.49").doesNotContain("약").doesNotContain("KRW)");
+    void stockNeverConvertsIndices() {
+        assertThat(MessageFormatter.formatStock(List.of(usIndex("나스닥", "26588.49")), FX))
+                .contains("26,588.49").doesNotContain("KRW");
     }
 
     @Test
     @DisplayName("환율이 없으면 달러만 보낸다 — 환산을 못 한다고 시세를 빼면 안 된다")
-    void stockDigestFallsBackToUsdWithoutFx() {
-        String message = MessageFormatter.formatStockDigest(List.of(usStock("애플", "AAPL", "302.25")), null);
-
-        assertThat(message).contains("302.25 USD").doesNotContain("약").doesNotContain("1 USD =");
+    void stockFallsBackToUsdWithoutFx() {
+        assertThat(MessageFormatter.formatStock(List.of(usStock("애플", "AAPL", "302.25")), null))
+                .contains("302.25 USD").doesNotContain("KRW").doesNotContain("1 USD =");
     }
 
     @Test
     @DisplayName("무리 안에서 기준일이 어긋나면 묵은 줄에 날짜를 붙인다 — 조용히 섞으면 거짓말이 된다")
-    void stockDigestMarksStaleLines() {
-        StockQuote stale = new StockQuote(null, "코스닥", "KOSDAQ시리즈", new BigDecimal("857.84"),null, 
-                StockQuote.Money.NONE, BASIS.minus(java.time.Duration.ofDays(1)),
-                false, true, BigDecimal.ZERO);
+    void stockMarksStaleLines() {
+        StockQuote stale = new StockQuote(null, "코스닥", "KOSDAQ시리즈", new BigDecimal("857.84"), null,
+                StockQuote.Money.NONE, StockSource.DATA_GO,
+                BASIS.minus(java.time.Duration.ofDays(1)), false, true, BigDecimal.ZERO);
 
-        assertThat(MessageFormatter.formatStockDigest(List.of(krIndex("코스피", "6345.53"), stale), FX))
-                .as("무리 기준은 맨 밑에 단독으로 — 모든 통이 같은 자리에 둔다")
-                .endsWith("국내 2026년 8월 11일 (종가)")
-                .as("맨 밑 기준이 대표하지 못하는 줄에만 날짜를 붙인다")
-                .contains("코스닥 857.84 · 2026년 8월 10일")
-                .as("기준과 같은 줄에는 안 붙인다").contains("코스피 6,345.53\n");
+        assertThat(MessageFormatter.formatStock(List.of(krIndex("코스피", "6345.53"), stale), FX))
+                .as("무리 기준은 그 무리 제목 줄에 붙는다 — 아래에 모으면 무리 이름이 네 번 반복된다")
+                .contains("<b>국내</b> 금융위원회 · 2026년 8월 11일 (종가)\n\n코스피")
+                .as("무리 기준이 대표하지 못하는 줄에만 날짜를 붙인다")
+                .contains("코스닥\n857.84 · 2026년 8월 10일")
+                .as("종목끼리는 빈 줄로 갈린다 — 코인 통과 같은 규칙이다")
+                .contains("코스피\n6,345.53\n\n코스닥");
     }
 
     @Test
-    @DisplayName("검색 결과도 달러와 원화를 함께 보여준다")
-    void formatsUsStockWithKrw() {
-        String message = MessageFormatter.formatStock(
-                usStock("애플", "AAPL", "302.25"), FX);
+    @DisplayName("조회처는 무리 제목 줄에 기준과 함께 인다 — 증시만 그 자리가 비어 있었다")
+    void stockNamesItsVendor() {
+        String message = MessageFormatter.formatStock(List.of(
+                krStock("삼성전자", "239500"), usStock("애플", "AAPL", "302.25")), FX);
+
+        assertThat(message)
+                .contains("<b>국내</b> 금융위원회 · 2026년 8월 11일 (종가)")
+                .contains("<b>미국</b> Financial Modeling Prep · 2026년 8월 13일 07:00:00")
+                .as("같은 말을 아래에 또 모으지 않는다 — 무리 이름이 네 번 반복되던 자리다")
+                .doesNotContain("\n국내 금융위원회");
+    }
+
+    // --- 코인: 업비트 + 바이낸스 + 김프 --------------------------------------
+
+    @Test
+    @DisplayName("업비트 다음에 바이낸스, 그 아래 원화 환산 — 환산은 환율로 한다")
+    void showsBothExchangesInOrder() {
+        String message = crypto(btc(new BigDecimal("62000")), FX_FLAT);
+
+        assertThat(message.indexOf("업비트")).isLessThan(message.indexOf("바이낸스"));
+        assertThat(message)
+                .contains("89,848,000 KRW")
+                .contains("62,000 USDT")
+                // 62,000 × 1,412.00 = 87,544,000
+                .contains("87,544,000 KRW");
+    }
+
+    @Test
+    @DisplayName("김프는 업비트 값을 환율 환산값으로 나눈 것이다 — 화면의 두 원화값이 곧 검산이다")
+    void showsKimchiPremium() {
+        // 89,848,000 ÷ (62,000 × 1,412.00 = 87,544,000) − 1 = +2.63%
+        assertThat(crypto(btc(new BigDecimal("62000")), FX_FLAT))
+                .as("김프도 거래소 블록과 같은 모양이다 — 라벨 윗줄, 값 아랫줄")
+                .contains("\n\n김프\n🔴 +2.63%");
+    }
+
+    @Test
+    @DisplayName("역프면 파랑에 음수다 — 국내가 더 싸다는 뜻이다")
+    void showsNegativePremium() {
+        CryptoQuote cheap = new CryptoQuote("비트코인", "KRW-BTC", NOW,
+                Quote.of(new BigDecimal("85000000"), null),
+                Quote.of(new BigDecimal("62000"), null));
+
+        // 85,000,000 ÷ 87,544,000 − 1 = -2.9059…%
+        assertThat(crypto(cheap, FX_FLAT)).contains("김프\n🔵 -2.91%");
+    }
+
+    @Test
+    @DisplayName("환율이 없으면 원화 환산도 김프도 빠지고 시세만 나간다")
+    void omitsPremiumWithoutFx() {
+        assertThat(crypto(btc(new BigDecimal("62000")), null))
+                .contains("62,000 USDT").doesNotContain("김프");
+    }
+
+    @Test
+    @DisplayName("한쪽 거래소만 있으면 김프를 계산하지 않는다 — 비교 대상이 없다")
+    void omitsPremiumWithOneExchange() {
+        assertThat(crypto(btc(null), FX_FLAT)).doesNotContain("김프");
+    }
+
+    @Test
+    @DisplayName("테더는 바이낸스 USDTUSD라 값이 USD고 원화는 환율로 만든다 — 미상장이 아니다")
+    void showsTetherInUsd() {
+        String message = crypto(usdt(), FX_FLAT);
+
+        assertThat(message)
+                .contains("<b>USDT</b>")
+                .as("USDTUSDT가 없다고 미상장으로 찍던 자리다")
+                .doesNotContain("미상장")
+                .contains("바이낸스\n0.99906 USD")
+                // 0.99906 × 1,412.00 = 1,410.67272 → 1,411
+                .contains("1,411 KRW")
+                // 1,425 ÷ 1,410.67272 − 1 = +1.0157…%
+                .contains("김프\n🔴 +1.02%");
+    }
+
+    @Test
+    @DisplayName("코인은 거래소마다 등락률이 따로다 — 업비트와 바이낸스는 다른 시장이다")
+    void cryptoCarriesPerExchangeChange() {
+        CryptoQuote quote = new CryptoQuote("비트코인", "KRW-BTC", NOW,
+                Quote.of(new BigDecimal("88922000"), new BigDecimal("-0.71")),
+                Quote.of(new BigDecimal("62910"), new BigDecimal("-1.451")));
+
+        assertThat(crypto(quote, null))
+                .contains("업비트\n88,922,000 KRW\n🔵 -0.71%")
+                .contains("바이낸스\n62,910 USDT\n🔵 -1.45%")
+                .as("블록 안은 붙이고 블록 사이만 띄운다")
+                .contains("🔵 -0.71%\n\n바이낸스");
+    }
+
+    @Test
+    @DisplayName("값이 없는 거래소는 이유를 적는다 — 다시 시도해야 하는지가 여기서 갈린다")
+    void explainsMissingExchange() {
+        assertThat(crypto(btc(null), null))
+                .contains("업비트\n89,848,000 KRW")
+                .as("영영 안 나오는 것").contains("바이낸스 미상장");
+
+        assertThat(crypto(new CryptoQuote("비트코인", "KRW-BTC", NOW,
+                Quote.of(new BigDecimal("89848000"), null), Quote.FAILED), null))
+                .as("잠시 뒤 다시 치면 되는 것").contains("바이낸스 조회 실패");
+    }
+
+    @Test
+    @DisplayName("업비트에 없는 코인은 이름 자리가 티커이고 심볼을 따로 적지 않는다")
+    void showsBinanceOnlyCoin() {
+        String message = crypto(new CryptoQuote("BNB", null, NOW,
+                Quote.NOT_LISTED, Quote.of(new BigDecimal("612.40"), null)), null);
+
+        assertThat(message)
+                .contains("<b>BNB</b>")
+                .contains("업비트 미상장")
+                .contains("바이낸스\n612.4 USDT")
+                .as("BNBUSDT는 티커에 USDT를 붙인 것뿐이라 같은 말을 두 번 적는 셈이다")
+                .doesNotContain("BNBUSDT");
+    }
+
+    @Test
+    @DisplayName("검색 답도 브리핑과 같은 함수를 쓴다 — 코인이 하나뿐인 통일 뿐이다")
+    void singleCryptoLooksExactlyLikeItsDigestBlock() {
+        String message = crypto(btc(new BigDecimal("62000")), null);
 
         assertThat(message).isEqualTo("""
-                <b>애플</b>
+                <b>코인</b> 2026년 8월 11일 09:00:00
 
-                302.25 USD
-                약 426,828 KRW
+                <b>BTC</b>
 
-                2026년 8월 13일 07:00:00""");
-        assertThat(message).as("굵게는 제목에만 — 값까지 굵으면 무엇이 계층인지 안 드러난다")
-                .doesNotContain("<b>302.25");
+                업비트
+                89,848,000 KRW
+
+                바이낸스
+                62,000 USDT""");
+        assertThat(message).as("들여쓰기를 쓰지 않는다 — 통마다 제각각이던 것을 하나로 맞췄다")
+                .doesNotContain("  업비트");
+    }
+
+    @Test
+    @DisplayName("블록 사이는 전부 빈 줄이고 코인 경계는 굵은 티커가 진다")
+    void separatesEveryBlockWithABlankLine() {
+        String message = MessageFormatter.formatCrypto(
+                List.of(btc(new BigDecimal("62000")), usdt()), FX_FLAT);
+
+        assertThat(message)
+                .as("굵은 제목 다음도 빈 줄이다")
+                .contains("<b>BTC</b>\n\n업비트")
+                .as("거래소 블록끼리도 빈 줄로 갈린다")
+                .contains("89,848,000 KRW\n\n바이낸스")
+                .as("코인 경계는 굵은 티커가 진다 — 간격을 두 겹으로 쓰지 않는다")
+                .contains("\n\n<b>USDT</b>\n\n업비트");
+    }
+
+    @Test
+    @DisplayName("값이 없는 코인도 빼지 않는다 — 진짜 장애면 알려야 한다")
+    void keepsCoinWithNoPrice() {
+        String message = MessageFormatter.formatCrypto(
+                List.of(btc(new BigDecimal("62000")),
+                        new CryptoQuote("이더리움", "KRW-ETH", NOW, Quote.FAILED, Quote.FAILED)),
+                FX_FLAT);
+
+        assertThat(message).contains("<b>BTC</b>")
+                .contains("<b>ETH</b>")
+                .contains("업비트 조회 실패");
+    }
+
+    // --- 헬퍼 ---------------------------------------------------------------
+
+    private static String stock(StockQuote quote) {
+        return MessageFormatter.formatStock(List.of(quote), null);
+    }
+
+    private static String crypto(CryptoQuote quote, FxRate fx) {
+        return MessageFormatter.formatCrypto(List.of(quote), fx);
     }
 
     private static StockQuote krIndex(String name, String price) {
-        return new StockQuote(null, name, "KOSPI시리즈", new BigDecimal(price),null, 
-                StockQuote.Money.NONE, BASIS, false, true, BigDecimal.ZERO);
+        return new StockQuote(null, name, "KOSPI시리즈", new BigDecimal(price), null,
+                StockQuote.Money.NONE, StockSource.DATA_GO, BASIS, false, true, BigDecimal.ZERO);
     }
 
     private static StockQuote krStock(String name, String price) {
@@ -302,123 +489,19 @@ class MessageFormatterTest {
     private static StockQuote krStock(String name, String price, String change) {
         return new StockQuote("005930", name, "KOSPI", new BigDecimal(price),
                 change == null ? null : new BigDecimal(change),
-                StockQuote.Money.KRW, BASIS, false, false, new BigDecimal("1400183726616000"));
+                StockQuote.Money.KRW, StockSource.DATA_GO, BASIS, false, false,
+                new BigDecimal("1400183726616000"));
     }
 
     private static StockQuote usIndex(String name, String price) {
-        return new StockQuote("^IXIC", name, "", new BigDecimal(price),null, 
-                StockQuote.Money.NONE, US_AT, true, true, BigDecimal.ZERO);
+        return new StockQuote("^IXIC", name, "", new BigDecimal(price), null,
+                StockQuote.Money.NONE, StockSource.FMP, US_AT, true, true, BigDecimal.ZERO);
     }
 
     private static StockQuote usStock(String name, String symbol, String price) {
-        return new StockQuote(symbol, name, "NASDAQ", new BigDecimal(price),null, 
-                StockQuote.Money.USD, US_AT, true, false, new BigDecimal("4439253351000"));
-    }
-
-    // --- 뉴스 날짜 ---------------------------------------------------------
-
-    @Test
-    @DisplayName("브리핑의 뉴스에도 같은 일시가 붙는다 — 두 채널이 다른 모양이 되면 안 된다")
-    void showsPublishedTimeInDigestToo() {
-        assertThat(MessageFormatter.formatNews(List.of(item("유가 상승", "본문", true))))
-                .contains("2026년 8월 11일 09:00:00");
-    }
-
-    // --- 코인: 업비트 + 바이낸스 -------------------------------------------
-
-    @Test
-    @DisplayName("업비트 다음에 바이낸스, 그 옆에 원화 환산")
-    void showsBothExchangesInOrder() {
-        String message = MessageFormatter.formatCrypto(
-                btc(new BigDecimal("63703.69")), new BigDecimal("1384"));
-
-        assertThat(message.indexOf("업비트")).isLessThan(message.indexOf("바이낸스"));
-        assertThat(message)
-                .contains("89,848,000 KRW")
-                .contains("63,703.69 USDT")
-                // 63,703.69 × 1,384 = 88,165,906.96 → 88,165,907
-                .contains("88,165,907 KRW");
-    }
-
-    @Test
-    @DisplayName("단건은 값이 없는 이유를 적는다 — 다시 시도해야 하는지가 여기서 갈린다")
-    void explainsMissingExchangeInSingleQuote() {
-        assertThat(MessageFormatter.formatCrypto(btc(null), new BigDecimal("1384")))
-                .contains("업비트\n89,848,000 KRW")
-                .as("영영 안 나오는 것").contains("바이낸스 미상장");
-
-        assertThat(MessageFormatter.formatCrypto(
-                new CryptoQuote("비트코인", "KRW-BTC", NOW,
-                        Quote.of(new BigDecimal("89848000"), null), Quote.FAILED), null))
-                .as("잠시 뒤 다시 치면 되는 것").contains("바이낸스 조회 실패");
-    }
-
-    @Test
-    @DisplayName("업비트에 없는 코인은 제목이 티커이고 꼬리표에 마켓 코드가 없다")
-    void showsBinanceOnlyCoin() {
-        String message = MessageFormatter.formatCrypto(
-                new CryptoQuote("BNB", null, NOW,
-                        Quote.NOT_LISTED, Quote.of(new BigDecimal("612.40"), null)),
-                new BigDecimal("1384"));
-
-        assertThat(message)
-                .contains("<b>BNB</b>")
-                .contains("업비트 미상장")
-                .contains("바이낸스\n612.4 USDT")
-                .as("BNBUSDT는 티커에 USDT를 붙인 것뿐이라 제목과 같은 말을 두 번 적는 셈이다")
-                .doesNotContain("BNBUSDT");
-    }
-
-    @Test
-    @DisplayName("이름과 값과 시각뿐이다 — 마켓 코드도 이모지도 적지 않는다")
-    void showsOnlyNameValueAndTime() {
-        String message = MessageFormatter.formatCrypto(btc(new BigDecimal("63703.69")), null);
-
-        assertThat(message).isEqualTo("""
-                <b>BTC</b>
-
-                업비트
-                89,848,000 KRW
-
-                바이낸스
-                63,703.69 USDT
-
-                2026년 8월 11일 09:00:00""");
-        assertThat(message).as("들여쓰기를 쓰지 않는다 — 통마다 제각각이던 것을 하나로 맞췄다")
-                .doesNotContain("  업비트");
-    }
-
-    @Test
-    @DisplayName("브리핑 코인 통도 코인마다 두 거래소를 보여준다")
-    void showsBothExchangesInDigest() {
-        String message = MessageFormatter.formatCryptoDigest(
-                List.of(btc(new BigDecimal("63703.69")), usdt()), new BigDecimal("1384"));
-
-        assertThat(message).contains("<b>BTC</b>").contains("바이낸스").contains("63,703.69 USDT");
-    }
-
-    @Test
-    @DisplayName("브리핑에서는 값이 없는 거래소 줄을 뺀다 — 매일 같은 코인이라 첫날 이후 소음이다")
-    void omitsMissingExchangeInDigest() {
-        String message = MessageFormatter.formatCryptoDigest(
-                List.of(btc(new BigDecimal("63703.69")), usdt()), new BigDecimal("1384"));
-
-        assertThat(message.substring(message.indexOf("<b>USDT</b>")))
-                .as("테더(USDT)는 바이낸스에 USDTUSDT가 없다 — 매일 아침 그 사실을 알릴 이유가 없다")
-                .doesNotContain("바이낸스")
-                .contains("업비트\n1,384 KRW");
-    }
-
-    @Test
-    @DisplayName("양쪽 다 값이 없는 코인은 브리핑에서 통째로 뺀다 — 이름만 찍히고 아래가 비면 고장으로 보인다")
-    void dropsCoinWithNoPriceFromDigest() {
-        String message = MessageFormatter.formatCryptoDigest(
-                List.of(btc(new BigDecimal("63703.69")),
-                        new CryptoQuote("이더리움", "KRW-ETH", NOW,
-                                Quote.FAILED, Quote.FAILED)),
-                new BigDecimal("1384"));
-
-        assertThat(message).contains("<b>BTC</b>").doesNotContain("ETH");
+        return new StockQuote(symbol, name, "NASDAQ", new BigDecimal(price), null,
+                StockQuote.Money.USD, StockSource.FMP, US_AT, true, false,
+                new BigDecimal("4439253351000"));
     }
 
     private static CryptoQuote btc(BigDecimal binanceUsdt) {
@@ -427,10 +510,11 @@ class MessageFormatterTest {
                 binanceUsdt == null ? Quote.NOT_LISTED : Quote.of(binanceUsdt, null));
     }
 
-    /** 바이낸스에 {@code USDTUSDT}가 없다 — 브리핑 기본 설정에 들어 있어 실제로 밟는 길이다. */
+    /** 테더는 바이낸스 호가가 USD다({@code USDTUSD}) — 2026-08-15 실측 0.99906. */
     private static CryptoQuote usdt() {
         return new CryptoQuote("테더", "KRW-USDT", NOW,
-                Quote.of(new BigDecimal("1384"), null), Quote.NOT_LISTED);
+                Quote.of(new BigDecimal("1425"), null),
+                Quote.of(new BigDecimal("0.99906"), null));
     }
 
     private static NewsItem item(String title, String body, boolean translated) {

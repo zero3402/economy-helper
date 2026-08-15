@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market;
 
+import io.saiden.economyhelper.market.binance.BinanceSymbol;
 import java.math.BigDecimal;
 import java.time.Instant;
 
@@ -31,6 +32,17 @@ public record CryptoQuote(String name, String market, Instant at, Quote upbit, Q
      */
     public String ticker() {
         return market == null ? name : market.substring(market.indexOf('-') + 1);
+    }
+
+    /**
+     * 바이낸스 값의 <b>단위</b>({@code USDT}·{@code USD}).
+     *
+     * <p>테더만 {@code USD}로 갈린다({@code USDTUSD}). 화면이 스스로 판단하지 않고 값에게
+     * 묻는다 — 단위와 심볼 유도가 다른 곳에 있으면 언젠가 어긋나 {@code 0.99906 USDT} 같은
+     * 거짓말이 나간다.
+     */
+    public String binanceUnit() {
+        return BinanceSymbol.quoteAssetOf(ticker());
     }
 
     /**

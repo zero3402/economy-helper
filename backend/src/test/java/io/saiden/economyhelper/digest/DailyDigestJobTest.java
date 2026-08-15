@@ -239,6 +239,24 @@ class DailyDigestJobTest {
     }
 
     @Test
+    @DisplayName("뉴스는 기사마다 한 통이라 세 건이면 여섯 통이 나간다 — 카드가 제 기사에 붙는다")
+    void splitsNewsIntoOneMessagePerArticle() {
+        RecordingClient telegram = new RecordingClient();
+
+        DigestResult result = job(telegram, new InMemoryHistory(),
+                new CountingFacade(List.of(item("첫 번째"), item("두 번째"), item("세 번째"))),
+                fx(true), stock(true), crypto(true)).run(false);
+
+        assertThat(result.delivered())
+                .as("통이 늘어도 결과는 이름 단위다 — '뉴스'가 세 번 남으면 무엇이 나갔는지 흐려진다")
+                .containsExactly("환율", "증시", "코인", "뉴스");
+        assertThat(telegram.sent).hasSize(6);
+        assertThat(telegram.sent.get(3)).startsWith("<b>뉴스 1/3</b>").contains("첫 번째");
+        assertThat(telegram.sent.get(5)).startsWith("<b>뉴스 3/3</b>").contains("세 번째");
+        assertThat(telegram.previews).containsExactly(false, false, false, true, true, true);
+    }
+
+    @Test
     @DisplayName("뉴스 통만 링크 미리보기를 켠다 — 시세 통에는 링크가 없어 켤 것이 없다")
     void enablesLinkPreviewOnlyForTheNewsSection() {
         RecordingClient telegram = new RecordingClient();
@@ -313,86 +331,60 @@ class DailyDigestJobTest {
             @Override
             public List<StockQuote> indicesOf(List<String> names) {
                 return indicesAlive
-                        ? List.of(new StockQuote(null, "코스피", "KOSPI시리즈", new BigDecimal("6345.53"),null, 
-                                StockQuote.Money.NONE, BASIS, false, true, BigDecimal.ZERO))
+                        ? List.of(new StockQuote(null, "코스피", "KOSPI시리즈", new BigDecimal("6345.53"), null,
+                                StockQuote.Money.NONE, io.saiden.economyhelper.market.StockSource.DATA_GO,
+                                BASIS, false, true, BigDecimal.ZERO))
                         : List.of();
             }
 
             @Override
             public List<StockQuote> quotesOf(List<String> codes) {
                 return stocksAlive
-                        ? List.of(new StockQuote("005930", "삼성전자", "KOSPI", new BigDecimal("239500"),null, 
-                                StockQuote.Money.KRW, BASIS, false, false,
-                                new BigDecimal("1400183726616000")))
+                        ? List.of(new StockQuote("005930", "삼성전자", "KOSPI", new BigDecimal("239500"), null,
+                                StockQuote.Money.KRW, io.saiden.economyhelper.market.StockSource.DATA_GO,
+                                BASIS, false, false, new BigDecimal("1400183726616000")))
                         : List.of();
             }
         };
     }
 
     @Test
-    @DisplayName("브리핑 코인 통에 바이낸스와 원화 환산이 함께 나간다")
-    void cryptoMessageCarriesBinanceWithKrw() {
-        RecordingClient telegram = new RecordingClient();
-
-        job(telegram, new InMemoryHistory(), new CountingFacade(List.of()),
-                fx(false), stock(false, false), cryptoWithBinance(new BigDecimal("1384"))).run(false);
-
-        assertThat(telegram.sent).hasSize(1);
-        assertThat(telegram.sent.get(0))
-                .contains("<b>코인</b>")
-                .contains("업비트").contains("89,848,000 KRW")
-                .contains("바이낸스").contains("63,703.69 USDT")
-                // 63,703.69 × 1,384 = 88,165,906.96 → 88,165,907
-                .as("잡이 usdtKrw를 넘기지 않으면 USDT만 나오고 원화가 빠진다")
-                .contains("88,165,907 KRW");
-    }
-
-    @Test
-    @DisplayName("USDT 원화값을 못 가져오면 USDT만 나간다 — 환산 실패가 코인 통을 통째로 막지 않는다")
-    void cryptoMessageSurvivesMissingUsdtRate() {
+    @DisplayName("코인 통의 원화 환산과 김프는 잡이 들고 있던 환율로 만든다")
+    void cryptoMessageConvertsWithTheSameFxRate() {
         RecordingClient telegram = new RecordingClient();
 
         DigestResult result = job(telegram, new InMemoryHistory(), new CountingFacade(List.of()),
-                fx(false), stock(false, false), cryptoWithBinance(null)).run(false);
+                fx(true), stock(false, false), cryptoWithBinance()).run(false);
+
+        assertThat(result.delivered()).containsExactly("환율", "코인");
+        assertThat(telegram.sent.get(1))
+                .contains("<b>코인</b>")
+                .contains("업비트").contains("89,848,000 KRW")
+                .contains("바이낸스").contains("63,703.69 USDT")
+                // 63,703.69 × 1,415 = 90,140,721.35 → 90,140,721
+                .as("환율 통에 찍힌 값과 같은 환율로 환산해야 두 통이 어긋나지 않는다")
+                .contains("90,140,721 KRW")
+                // 89,848,000 ÷ 90,140,721.35 − 1 = -0.3247…%
+                .contains("김프\n🔵 -0.32%");
+    }
+
+    @Test
+    @DisplayName("환율을 못 가져오면 USDT 값만 나간다 — 환산 실패가 코인 통을 통째로 막지 않는다")
+    void cryptoMessageSurvivesMissingFxRate() {
+        RecordingClient telegram = new RecordingClient();
+
+        DigestResult result = job(telegram, new InMemoryHistory(), new CountingFacade(List.of()),
+                fx(false), stock(false, false), cryptoWithBinance()).run(false);
 
         assertThat(result.delivered()).containsExactly("코인");
         assertThat(telegram.sent.get(0))
                 .contains("63,703.69 USDT")
-                .doesNotContain("88,165,907");
+                .doesNotContain("90,140,721")
+                .doesNotContain("김프");
     }
 
-    @Test
-    @DisplayName("KRW-USDT가 이미 목록에 있으면 다시 묻지 않는다 — 캐시 키가 달라 그대로 호출로 나간다")
-    void reusesUsdtPriceAlreadyFetched() {
-        RecordingClient telegram = new RecordingClient();
-        CryptoService withUsdtInList = new CryptoService(
-                new UpbitApi(RestClient.builder(), "https://example.invalid"),
-                new io.saiden.economyhelper.market.binance.BinanceApi(
-                        RestClient.builder(), "https://example.invalid"),
-                noCryptoResolver()) {
-            @Override
-            public List<CryptoQuote> quotesOf(List<String> markets) {
-                return List.of(btc(new BigDecimal("63703.69")),
-                        new CryptoQuote("테더", "KRW-USDT", NOW,
-                                Quote.of(new BigDecimal("1384"), null), Quote.NOT_LISTED));
-            }
-
-            @Override
-            public Optional<BigDecimal> usdtKrw() {
-                throw new AssertionError("이미 받아 온 KRW-USDT를 두고 업비트를 또 불렀습니다");
-            }
-        };
-
-        DigestResult result = job(telegram, new InMemoryHistory(), new CountingFacade(List.of()),
-                fx(false), stock(false, false), withUsdtInList).run(false);
-
-        assertThat(result.delivered()).containsExactly("코인");
-        assertThat(telegram.sent.get(0))
-                .as("목록 안의 1,384원으로 환산한다").contains("88,165,907 KRW");
-    }
-
-    /** 바이낸스 값이 붙은 코인 하나. {@code usdtKrw}가 {@code null}이면 환산 실패 상황이다. */
-    private static CryptoService cryptoWithBinance(BigDecimal usdtKrw) {
+    /** 바이낸스 값이 붙은 코인 하나. 원화 환산은 잡이 넘기는 환율이 정한다. */
+    private static CryptoService cryptoWithBinance() {
         return new CryptoService(new UpbitApi(RestClient.builder(), "https://example.invalid"),
                 new io.saiden.economyhelper.market.binance.BinanceApi(
                         RestClient.builder(), "https://example.invalid"),
@@ -400,11 +392,6 @@ class DailyDigestJobTest {
             @Override
             public List<CryptoQuote> quotesOf(List<String> markets) {
                 return List.of(btc(new BigDecimal("63703.69")));
-            }
-
-            @Override
-            public Optional<BigDecimal> usdtKrw() {
-                return Optional.ofNullable(usdtKrw);
             }
         };
     }

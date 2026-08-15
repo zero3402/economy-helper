@@ -10,9 +10,11 @@ import java.text.NumberFormat;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.stream.Collectors;
 
 /**
  * 값들을 텔레그램 메시지로 옮긴다.
@@ -38,10 +40,26 @@ import java.util.Locale;
  * {@code tg-emoji}는 Fragment에서 산 사용자명이 있어야 한다). 색을 내는 유일한 수단이
  * 이모지라서 여기만 남긴다 — 장식이 아니라 값의 일부다.
  *
- * <p><b>모든 덩어리가 같은 모양이다: 굵은 제목 / 값 / 출처 / 시각.</b> 덩어리 사이는 빈 줄로
- * 가르고 시각은 언제나 맨 아래 단독이다. 출처가 없는 통(주식·코인)은 그 자리를 비운다.
- * 뉴스의 매체명은 환율의 {@code 유럽중앙은행}과 같은 <b>출처</b> 자리이며, 굵은 것은
- * 언제나 사용자가 읽으러 온 것 — 기사 제목이다.
+ * <p><b>출처와 기준 시각은 굵은 제목 줄이 인다</b> — {@code <b>환율</b> 유럽중앙은행 · 2026년 8월 15일 (고시)},
+ * {@code <b>국내</b> 금융위원회 · 2026년 8월 14일 (종가)}, {@code <b>뉴스 1/3</b> CNBC · …}.
+ * 통마다 자리가 다르면 안 되고, 통 맨 아래 블록으로 모으면 무리가 둘인 증시에서
+ * {@code 국내}·{@code 미국}이 네 번 반복되며 값에서도 멀어진다. <b>그 값을 대표하는 제목 줄</b>이
+ * 제자리다. 코인만 출처 자리가 비는데, 거래소는 코인마다 둘씩이라 값 줄에 이름으로 적히기 때문이다.
+ * 굵은 것은 언제나 사용자가 읽으러 온 것 — 기사 제목이다.
+ *
+ * <p><b>줄 간격에 규칙이 하나뿐이다 — 빈 줄은 블록 사이, 한 줄은 블록 안.</b>
+ * 블록은 {@code 이름 / 값 / 환산 / 등락률} 한 덩어리다: 종목 하나, 거래소 하나, 김프 하나.
+ * 굵은 제목(통 제목·무리 제목·티커) 다음도 빈 줄이다. 붙여 놓으면 업비트·바이낸스·김프가
+ * 구분 없이 이어져 어디까지가 한 덩어리인지 읽는 사람이 셀 수 없다.
+ *
+ * <p>그래서 <b>코인끼리의 경계는 굵은 티커가 진다</b> — 증시에서 무리 경계를 굵은
+ * {@code 국내}·{@code 미국}이 지는 것과 같다. 간격으로 계층을 두 단계 표현하려 들면
+ * 빈 줄이 두 겹 되어 오히려 읽기 어려워진다.
+ *
+ * <p><b>검색 답과 브리핑이 같은 함수를 쓴다.</b> {@code /stock}·{@code /crypto}·{@code /news}는
+ * 브리핑 통에 항목이 하나뿐인 경우일 뿐이므로 포매터를 나누지 않는다 — 나누면 같은 값이
+ * 두 모양으로 그려지고, 실제로 그렇게 갈려 있었다(제목이 한쪽은 {@code 증시}, 다른 쪽은
+ * 종목명이었고 거래소 간격도 서로 달랐다).
  *
  * <p><b>성공하든 실패하든 굵은 제목으로 시작한다</b>({@link #section}). 그룹 채팅에서는
  * 답이 여러 대화 사이에 끼므로 제목이 없으면 무엇에 대한 답인지 알 수 없다. 제목 문자열은
@@ -91,43 +109,50 @@ public final class MessageFormatter {
                 .append(Html.escape(item.title())).append("</b></a>");
 
         if (!item.body().isBlank()) {
-            // 인용 블록으로 감싸면 제목과 본문이 갈려 다섯 건이 훨씬 잘 읽힌다
+            // 인용 블록으로 감싸면 제목과 본문이 갈려 훨씬 잘 읽힌다
             message.append("\n\n<blockquote>").append(Html.escape(item.body())).append("</blockquote>");
         }
         if (!item.translated()) {
             // 왜 영문인지 밝히지 않으면 고장으로 보인다
             message.append("\n<i>번역이 일시적으로 불가해 원문 그대로 보냅니다.</i>");
         }
-        // 출처와 시각 — 환율 통과 같은 자리, 같은 모양이다
-        return message.append("\n\n").append(Html.escape(item.sourceName()))
-                .append("\n\n").append(DATE_TIME.format(item.publishedAt().atZone(SEOUL)))
-                .toString();
+        return message.toString();
     }
 
     /**
-     * 기사 여러 건을 한 통에 묶는다 — <b>브리핑과 검색이 같은 메서드를 쓴다.</b>
+     * 기사 여러 건 — <b>기사마다 한 통이다.</b> 브리핑과 검색이 같은 메서드를 쓴다.
      *
-     * <p>둘 다 오늘 발행분 중 점수 상위 몇 건이다. 담기는 기준이 같고 보여 주는 모양도
-     * 같아야 하므로 여기를 나누지 않는다.
+     * <p><b>왜 묶지 않고 쪼개는가.</b> 텔레그램은 한 메시지에 미리보기 카드를 하나만 붙이고,
+     * 그 카드를 <b>메시지 맨 아래</b>에 그린다. 세 건을 한 통에 묶으면 첫 기사의 카드가 셋째
+     * 기사 밑에 붙어 <b>셋째 기사의 카드처럼 보인다</b> — 실제로 그렇게 나갔다. 통을 쪼개면
+     * 통마다 링크가 하나뿐이라 카드가 어느 기사 것인지 확정된다.
      *
-     * <p><b>두 건 이상이면 앞에 번호를 붙인다.</b> 기사끼리는 빈 줄로만 갈라 두면 제목·요약·출처·시각이
-     * 줄줄이 이어져 어디까지가 한 건인지 흐려진다. 번호가 그 경계를 못 박는다. 한 건뿐이면
-     * 외로운 "1."이 오히려 어색하므로 붙이지 않는다.
+     * <p>통마다 제목을 다시 단다({@code 뉴스 1/3}). 모든 메시지가 굵은 제목으로 시작한다는
+     * 규칙을 지키면서, 번호가 몇 번째 기사인지와 전부 몇 건인지를 함께 알려 준다.
+     * 한 건뿐이면 외로운 {@code 1/1}이 어색하므로 제목만 쓴다.
+     *
+     * @return 통 목록. 호출자가 순서대로, 텔레그램 권고대로 사이를 띄워 보낸다
      */
-    public static String formatNews(List<NewsItem> items) {
+    public static List<String> formatNews(List<NewsItem> items) {
         if (items.isEmpty()) {
-            return section(Command.NEWS) + "지금은 가져올 수 있는 뉴스가 없습니다.";
+            return List.of(section(Command.NEWS) + "지금은 가져올 수 있는 뉴스가 없습니다.");
         }
-        StringBuilder message = new StringBuilder(title(Command.NEWS));
-        boolean numbered = items.size() > 1;
+        List<String> messages = new ArrayList<>(items.size());
         for (int i = 0; i < items.size(); i++) {
-            message.append("\n\n");
-            if (numbered) {
-                message.append(i + 1).append(". ");
-            }
-            message.append(format(items.get(i)));
+            NewsItem item = items.get(i);
+            // 매체와 발행 시각은 제목 줄이 인다 — 환율·증시·코인과 같은 자리다
+            messages.add(newsHeading(i, items.size(), item) + format(item));
         }
-        return message.toString();
+        return List.copyOf(messages);
+    }
+
+    private static String newsHeading(int index, int total, NewsItem item) {
+        String basis = DATE_TIME.format(item.publishedAt().atZone(SEOUL));
+        if (total == 1) {
+            return heading(Command.NEWS, item.sourceName(), basis);
+        }
+        return "<b>" + Html.escape(Command.NEWS.section()) + " " + (index + 1) + "/" + total + "</b> "
+                + Html.escape(item.sourceName()) + " · " + basis + "\n\n";
     }
 
     public static String noResults(String query) {
@@ -146,11 +171,9 @@ public final class MessageFormatter {
      */
     public static String formatFx(FxRate rate) {
         String change = change(rate.changePercent());
-        return section(Command.FX)
+        return heading(Command.FX, rate.source().displayName(), basisOf(rate))
                 + "1 USD = " + money(rate.rate()) + " KRW"
-                + (change.isEmpty() ? "" : "\n" + change) + "\n\n"
-                + Html.escape(rate.source().displayName()) + "\n\n"
-                + basisOf(rate);
+                + (change.isEmpty() ? "" : "\n" + change);
     }
 
     public static String fxUnavailable() {
@@ -165,54 +188,31 @@ public final class MessageFormatter {
 
     // --- 주식·지수 -----------------------------------------------------------
 
-    /**
-     * 종목·지수 하나 — <b>이름 / 값 / 근거</b> 세 덩어리다. 코인·환율과 같은 뼈대다.
-     *
-     * <p><b>{@code (종가)}는 남긴다.</b> 국내는 전일 종가라 그 표시가 없으면 현재가로 읽힌다 —
-     * 장식이 아니라 값의 성격이고, 낡은 값을 숨기면 거짓말이 된다.
-     *
-     * <p>반대로 <b>조회처 이름(FMP·공공데이터포털)은 적지 않는다.</b> 사용자에게 의미 없는
-     * 벤더명이고 코인도 적지 않는다. 종목코드·거래소도 같은 이유로 뺐다 — 이름이 이미 그 종목을
-     * 가리킨다.
-     *
-     * <p>환산에 쓴 환율도 적지 않는다. 환율은 {@code /fx}와 브리핑 환율 통이 따로 있고,
-     * 브리핑 증시 통에서는 이미 같은 이유로 뺐다.
-     */
-    public static String formatStock(StockQuote quote, FxRate fx) {
-        StringBuilder message = new StringBuilder("<b>")
-                .append(Html.escape(quote.name())).append("</b>\n\n")
-                .append(priceOf(quote));
-
-        // 값 → 원화 환산 → 등락률 순으로 각각 제 줄에. 환산값과 등락률을 한 줄에 붙이면 엉킨다
-        if (convertible(quote, fx)) {
-            message.append("\n약 ").append(money(krw(quote.price(), fx))).append(" KRW");
-        }
-        String change = change(quote.changePercent());
-        if (!change.isEmpty()) {
-            message.append("\n").append(change);
-        }
-        return message.append("\n\n").append(basisOf(quote)).toString();
-    }
-
-    /** 값의 시각. 전일 종가면 그 사실을 함께 적는다. */
-    private static String basisOf(StockQuote quote) {
-        return quote.realtime()
-                ? DATE_TIME.format(quote.at().atZone(SEOUL))
-                : DATE.format(quote.at().atZone(SEOUL)) + " (종가)";
-    }
-
     public static String stockNotFound(String query) {
         return section(Command.STOCK)
                 + "'" + Html.escape(query) + "'에 해당하는 종목을 찾지 못했습니다.";
     }
 
     /**
-     * 아침 브리핑의 증시 통.
+     * 증시 통 — <b>브리핑도 {@code /stock} 한 건도 이것 하나를 쓴다.</b>
      *
      * <p>국내(전일 종가)와 미국(현재가)은 <b>신선도가 다르다.</b> 한 덩어리로 붙이면
-     * 어느 것이 종가인지 알 수 없으므로 무리를 갈라 각각 기준을 밝힌다.
+     * 어느 것이 종가인지 알 수 없으므로 무리를 갈라 각각 기준을 밝힌다. 종목이 하나뿐이면
+     * 그 무리 하나만 남는다.
+     *
+     * <p><b>{@code (종가)}는 남긴다.</b> 국내는 전일 종가라 그 표시가 없으면 현재가로 읽힌다 —
+     * 장식이 아니라 값의 성격이고, 낡은 값을 숨기면 거짓말이 된다.
+     *
+     * <p><b>조회처와 기준을 무리 제목 줄에 함께 인다</b>
+     * ({@code <b>국내</b> 금융위원회 · 2026년 8월 14일 (종가)}). 다른 통은 출처와 시각을 맨 아래
+     * 블록에 두지만 증시만 무리가 둘이라, 아래에 모으면 {@code 국내}·{@code 미국}이 네 번 반복되고
+     * 정작 어느 무리 이야기인지는 값에서 멀어진다. 무리 하나가 곧 한 출처·한 기준이므로
+     * 그 제목 줄이 제자리다.
+     *
+     * <p>종목코드·거래소는 여전히 적지 않는다 — 이름이 이미 그 종목을 가리킨다. 환산에 쓴
+     * 환율도 적지 않는다 — 환율은 {@code /fx}와 브리핑 환율 통이 따로 있다.
      */
-    public static String formatStockDigest(List<StockQuote> quotes, FxRate fx) {
+    public static String formatStock(List<StockQuote> quotes, FxRate fx) {
         List<StockQuote> closing = quotes.stream().filter(q -> !q.realtime()).toList();
         List<StockQuote> live = quotes.stream().filter(StockQuote::realtime).toList();
 
@@ -220,23 +220,30 @@ public final class MessageFormatter {
         appendGroup(message, "국내", closing, fx);
         appendGroup(message, "미국", live, fx);
 
-        // 시각은 맨 밑에 단독으로 — 모든 통이 같은 자리에 둔다. 국내는 전일 종가고 미국은
-        // 현재가라 기준이 서로 다르므로 무리 이름을 붙여 두 줄로 적는다
-        StringBuilder basis = new StringBuilder();
-        appendBasis(basis, "국내", closing);
-        appendBasis(basis, "미국", live);
-        if (!basis.isEmpty()) {
-            message.append("\n\n").append(basis);
-        }
-
         // 환율 줄을 붙이지 않는다. 브리핑은 환율 통을 이 통 바로 앞에 보내므로 중복이다
         return message.toString();
+    }
+
+    /**
+     * 무리의 조회처. 한 무리에 조회처가 여럿이면 모아 적는다 — 지금은 무리와 조회처가 1:1이지만
+     * 국내에 현재가 출처를 하나 더 붙이는 날 이 줄이 조용히 거짓말이 되지 않게 한다.
+     */
+    private static String sourcesOf(List<StockQuote> quotes) {
+        return quotes.stream()
+                .map(quote -> quote.source().displayName())
+                .distinct()
+                .collect(Collectors.joining(" · "));
     }
 
     /**
      * 무리 하나. 비어 있으면 제목도 남기지 않는다.
      *
      * <p>굵게는 <b>제목에만</b> 쓴다 — 값까지 굵으면 무엇이 계층인지 드러나지 않는다.
+     *
+     * <p><b>종목 하나가 블록 하나다</b> — 이름을 제 줄에 올리고 블록끼리는 빈 줄로 가른다.
+     * 코인 통이 거래소마다 그렇게 하는 것과 같은 규칙이다. 예전에는 {@code 삼성전자 82,000 KRW}가
+     * 한 줄이고 종목 사이도 한 줄이라, 이름·값·환산·등락률이 줄줄이 이어져 어디까지가 한 종목인지
+     * 읽는 사람이 셀 수 없었다.
      */
     private static void appendGroup(StringBuilder message, String title,
                                     List<StockQuote> quotes, FxRate fx) {
@@ -244,11 +251,16 @@ public final class MessageFormatter {
             return;
         }
         Instant basis = basisOf(quotes);
-        message.append("\n\n<b>").append(title).append("</b>");
+        // 무리 제목 줄이 그 무리의 조회처와 기준을 함께 인다. 맨 아래에 따로 모으면
+        // "국내"·"미국"이 통마다 네 번씩 반복되고, 정작 어느 무리 이야기인지는 멀어진다
+        message.append("\n\n<b>").append(title).append("</b> ")
+                .append(Html.escape(sourcesOf(quotes))).append(" · ")
+                .append(basisOf(quotes.get(0), basis));
 
         for (StockQuote quote : quotes) {
-            message.append("\n").append(Html.escape(quote.name())).append(" ")
-                    .append(priceOf(quote));
+            // 블록 사이는 빈 줄 — 굵은 무리 제목 다음도 마찬가지다
+            message.append("\n\n").append(Html.escape(quote.name()))
+                    .append("\n").append(priceOf(quote));
             // 무리 기준과 어긋난 줄에만 표시한다. 맨 밑 기준 줄이 그 값까지 대표하는 것처럼
             // 보이면 거짓말이 된다. 값의 시각이라 값 줄에 함께 둔다
             if (!quote.at().equals(basis)) {
@@ -265,14 +277,6 @@ public final class MessageFormatter {
         }
     }
 
-    private static void appendBasis(StringBuilder basis, String title, List<StockQuote> quotes) {
-        if (quotes.isEmpty()) {
-            return;
-        }
-        basis.append(basis.isEmpty() ? "" : "\n")
-                .append(title).append(" ").append(basisOf(quotes.get(0), basisOf(quotes)));
-    }
-
     /** 무리의 기준 시각 — 가장 최근 값이다. */
     private static Instant basisOf(List<StockQuote> quotes) {
         return quotes.stream().map(StockQuote::at).max(Comparator.naturalOrder()).orElseThrow();
@@ -287,81 +291,105 @@ public final class MessageFormatter {
     // --- 코인 ---------------------------------------------------------------
 
     /**
-     * 코인 현재가.
+     * 코인 통 — <b>브리핑도 {@code /crypto} 한 건도 이것 하나를 쓴다.</b>
+     * 24시간 거래되므로 기준일이 아니라 시각을 쓴다.
      *
-     * <p>등락률을 넣지 않는다 — {@code CLAUDE.md}가 요구하는 것은 "현재 가격"이고,
-     * 명령마다 정보 밀도가 달라지는 것도 피한다.
-     */
-    public static String formatCrypto(CryptoQuote quote, BigDecimal usdtKrw) {
-        // 제목은 이름이 아니라 티커(BTC)다 — 코인은 사람들이 티커로 부른다. 마켓 코드(KRW-BTC)나
-        // 바이낸스 심볼을 따로 적지 않는 건 그대로다. 거래소는 값 줄에 이름으로 적혀 있다
-        return "<b>" + Html.escape(quote.ticker()) + "</b>\n\n"
-                + exchangeLines(quote, usdtKrw, true) + "\n\n"
-                + DATE_TIME.format(quote.at().atZone(SEOUL));
-    }
-
-    /**
-     * 아침 브리핑의 코인 통. 24시간 거래되므로 기준일이 아니라 시각을 쓴다.
+     * <p>코인 이름 자리는 이름이 아니라 티커(BTC)다 — 코인은 사람들이 티커로 부른다.
+     * 마켓 코드({@code KRW-BTC})나 바이낸스 심볼은 적지 않는다. 거래소는 값 줄에 이름으로 적혀 있다.
      *
-     * <p><b>값이 없는 거래소 줄은 뺀다.</b> 단건 {@code /crypto}와 갈리는 지점이다 —
-     * 브리핑은 매일 같은 코인이 나가므로 {@code KRW-USDT}의 "바이낸스 미상장"은 첫날 이후
-     * 정보가 아니라 소음이다. 사용자가 방금 물은 것이 아니라 우리가 매일 밀어 넣는 것이다.
+     * <p><b>값이 없는 코인도 빼지 않는다.</b> 예전에는 브리핑에서만 뺐는데, 그 근거였던
+     * "{@code KRW-USDT}의 바이낸스 미상장은 매일 나가는 소음"이 사라졌다 — 테더도
+     * {@code USDTUSD}로 값이 나온다. 남는 것은 진짜 장애뿐이고 그건 알려야 한다.
      */
-    public static String formatCryptoDigest(List<CryptoQuote> quotes, BigDecimal usdtKrw) {
-        // 양쪽 다 값이 없으면 이름만 굵게 찍히고 아래가 빈다. 그런 코인은 통째로 뺀다
-        List<CryptoQuote> shown = quotes.stream()
-                .filter(quote -> quote.upbit().hasPrice() || quote.binance().hasPrice())
-                .toList();
+    public static String formatCrypto(List<CryptoQuote> quotes, FxRate fx) {
+        // 출처를 제목 줄에 적지 않는다 — 코인은 출처가 거래소이고 그건 코인마다 둘씩이라
+        // 값 줄에 이름으로 이미 적혀 있다. 제목 줄이 이는 것은 기준 시각뿐이다
+        String basis = quotes.stream().findFirst()
+                .map(first -> DATE_TIME.format(first.at().atZone(SEOUL)))
+                .orElse(null);
 
-        StringBuilder message = new StringBuilder(title(Command.CRYPTO));
-        for (CryptoQuote quote : shown) {
-            message.append("\n\n<b>").append(Html.escape(quote.ticker())).append("</b>\n")
-                    .append(exchangeLines(quote, usdtKrw, false));
+        StringBuilder message = new StringBuilder(heading(Command.CRYPTO, null, basis));
+        boolean first = true;
+        for (CryptoQuote quote : quotes) {
+            message.append(first ? "" : "\n\n")
+                    .append("<b>").append(Html.escape(quote.ticker())).append("</b>\n\n")
+                    .append(exchangeLines(quote, fx));
+            first = false;
         }
-        // 시각은 맨 밑에 단독으로 — 모든 통이 같은 자리에 둔다
-        shown.stream().findFirst().ifPresent(first ->
-                message.append("\n\n").append(DATE_TIME.format(first.at().atZone(SEOUL))));
         return message.toString();
     }
 
     /**
-     * 거래소마다 <b>이름 한 줄, 그 아래 값 줄</b> — <b>업비트 먼저, 바이낸스 다음.</b>
+     * 블록마다 <b>이름 한 줄, 그 아래 값 줄</b> — <b>업비트 먼저, 바이낸스 다음, 김프 마지막.</b>
+     * 블록 사이는 빈 줄로 가른다.
      *
-     * <p>{@code single}(단건 {@code /crypto})이면 값이 없는 쪽도 이유를 적는다. 사용자가 방금 그
-     * 코인을 물었을 때는 줄을 빼 버리면 그 거래소를 조회하지 않은 것처럼 보이고, 무엇보다 다시
-     * 시도해야 할지 알 수 없다. 그래서 이유를 갈라 쓴다 — {@code 미상장}은 영영 안 나오는 것이고
-     * {@code 조회 실패}는 잠시 뒤 다시 치면 되는 것이다. 브리핑에서는 그 줄을 아예 뺀다.
+     * <p><b>김프도 블록이다</b> — 라벨을 윗줄에 올리고 값을 아랫줄에 둔다. 예전에는
+     * {@code 김프 🔴 +2.63%}처럼 한 줄에 붙어 있어 거래소 블록들과 모양이 갈렸다.
      *
-     * <p><b>한 거래소 안에서 값·원화 환산·등락률을 각각 제 줄에 둔다.</b> 한 줄에 {@code ·}로 붙이면
-     * USDT와 KRW 두 값이 엉킨다. 순서는 값 → 원화 환산 → 등락률이다.
+     * <p><b>값이 없는 쪽도 이유를 적는다.</b> 줄을 빼 버리면 그 거래소를 조회하지 않은 것처럼
+     * 보이고, 무엇보다 다시 시도해야 할지 알 수 없다. 그래서 이유를 갈라 쓴다 — {@code 미상장}은
+     * 영영 안 나오는 것이고 {@code 조회 실패}는 잠시 뒤 다시 치면 되는 것이다.
      *
-     * <p>{@code usdtKrw}가 없으면 USDT만 적는다 — 환산을 못 한다고 시세를 빼는 것은 과하다.
+     * <p><b>바이낸스 값의 단위는 코인이 안다</b>({@link CryptoQuote#binanceUnit()}) — 테더만
+     * {@code USD}로 갈린다. 원화 환산은 어느 쪽이든 <b>환율(USD/KRW)</b>을 곱한다.
+     *
+     * <p>{@code fx}가 없으면 원화 환산과 김프가 함께 빠지고 USDT/USD 값만 나간다 —
+     * 환산을 못 한다고 시세를 빼는 것은 과하다.
      */
-    private static String exchangeLines(CryptoQuote quote, BigDecimal usdtKrw, boolean single) {
+    private static String exchangeLines(CryptoQuote quote, FxRate fx) {
         StringBuilder lines = new StringBuilder();
         // 업비트는 원화가 기본이라 환산 줄이 없다 — 이름 한 줄, 값 한 줄, 등락률 한 줄
         if (quote.upbit().hasPrice()) {
             lines.append("업비트\n").append(money(quote.upbit().price())).append(" KRW");
             appendChangeLine(lines, quote.upbit().changePercent());
-        } else if (single) {
+        } else {
             lines.append("업비트 ").append(reasonOf(quote.upbit()));
         }
 
+        lines.append("\n\n");
         if (!quote.binance().hasPrice()) {
-            if (single) {
-                lines.append(exchangeGap(lines, single)).append("바이낸스 ").append(reasonOf(quote.binance()));
-            }
-            return lines.toString();
+            return lines.append("바이낸스 ").append(reasonOf(quote.binance())).toString();
         }
-        // 바이낸스: 이름 한 줄, 그 아래 값(USDT) → 원화 환산 → 등락률, 각각 제 줄에
-        lines.append(exchangeGap(lines, single))
-                .append("바이낸스\n").append(money(quote.binance().price())).append(" USDT");
-        if (usdtKrw != null) {
-            BigDecimal krw = quote.binance().price().multiply(usdtKrw).setScale(0, RoundingMode.HALF_UP);
-            lines.append("\n").append(money(krw)).append(" KRW");
+        // 바이낸스: 이름 한 줄, 그 아래 값 → 원화 환산 → 등락률, 각각 제 줄에
+        lines.append("바이낸스\n").append(money(quote.binance().price()))
+                .append(" ").append(quote.binanceUnit());
+        if (fx != null) {
+            lines.append("\n").append(money(krw(quote.binance().price(), fx))).append(" KRW");
         }
         appendChangeLine(lines, quote.binance().changePercent());
+
+        BigDecimal premium = premium(quote, fx);
+        if (premium != null) {
+            lines.append("\n\n김프\n").append(change(premium));
+        }
         return lines.toString();
+    }
+
+    /**
+     * 김치 프리미엄 — <b>국내 값이 글로벌 값보다 얼마나 비싼가.</b>
+     *
+     * <pre>업비트(KRW) ÷ (바이낸스 가격 × 환율) − 1</pre>
+     *
+     * <p><b>분모는 환율(USD/KRW)이어야 한다.</b> 업비트 {@code KRW-USDT} 실거래가로 나누면
+     * 테더 자신의 프리미엄이 상쇄돼 김프가 실제보다 작게 나온다. 화면의 두 원화값(업비트 값과
+     * 바이낸스 환산값)이 같은 환율 위에 서 있어야 그 차이가 곧 이 숫자가 되어 검산도 된다.
+     *
+     * <p>보통 코인은 바이낸스 호가가 USDT지만 1 USDT를 1 USD로 보고 곱한다 — 김치 프리미엄의
+     * 통용 정의이고, 테더는 애초에 USD 호가라 그대로 맞다.
+     *
+     * @return 퍼센트. 두 거래소 값이나 환율이 없으면 {@code null} — 그때는 줄 자체가 없다
+     */
+    private static BigDecimal premium(CryptoQuote quote, FxRate fx) {
+        if (fx == null || !quote.upbit().hasPrice() || !quote.binance().hasPrice()) {
+            return null;
+        }
+        BigDecimal global = quote.binance().price().multiply(fx.rate());
+        if (global.signum() == 0) {
+            return null;
+        }
+        return quote.upbit().price().divide(global, 6, RoundingMode.HALF_UP)
+                .subtract(BigDecimal.ONE)
+                .multiply(BigDecimal.valueOf(100));
     }
 
     /** 등락률을 제 줄에 붙인다 — 값과 원화 환산 다음이다. 없으면 붙이지 않는다. */
@@ -370,18 +398,6 @@ public final class MessageFormatter {
         if (!change.isEmpty()) {
             lines.append("\n").append(change);
         }
-    }
-
-    /**
-     * 거래소 블록 사이 간격 — 앞 블록이 있을 때만 띄운다(브리핑에서 업비트 줄을 뺐을 때 빈 줄이
-     * 앞서지 않게 한다). 단건은 빈 줄로 띄워 두 거래소를 또렷이 가르고, 브리핑은 한 줄로 촘촘히
-     * 둔다 — 브리핑에서 빈 줄은 코인 사이 경계라 거래소 사이에도 쓰면 계층이 흐려진다.
-     */
-    private static String exchangeGap(StringBuilder lines, boolean single) {
-        if (lines.isEmpty()) {
-            return "";
-        }
-        return single ? "\n\n" : "\n";
     }
 
     /** 값이 없는 이유. 사용자가 다시 시도해야 하는지가 여기서 갈린다. */
@@ -413,6 +429,31 @@ public final class MessageFormatter {
     }
 
     /**
+     * 굵은 제목 줄에 <b>출처와 기준</b>을 함께 인다 — {@code <b>환율</b> 유럽중앙은행 · 2026년 8월 15일 (고시)}.
+     *
+     * <p><b>통마다 자리가 다르면 안 된다.</b> 예전에는 출처와 시각을 통 맨 아래 블록으로 모았는데,
+     * 무리가 둘인 증시에서는 {@code 국내}·{@code 미국}이 네 번 반복됐고 값에서도 멀어졌다.
+     * 지금은 <b>그 값을 대표하는 제목 줄</b>이 제자리다 — 통 제목(환율·코인·뉴스)이든
+     * 무리 제목(국내·미국)이든 규칙은 하나다.
+     *
+     * @param source 출처. 거래소처럼 <b>항목마다 다른</b> 출처는 여기 오지 않는다({@code null})
+     * @param basis  기준 시각. 값에 시각이 없으면 {@code null}
+     */
+    private static String heading(Command command, String source, String basis) {
+        StringBuilder heading = new StringBuilder(title(command));
+        if (source != null && !source.isBlank()) {
+            heading.append(" ").append(Html.escape(source));
+            if (basis != null) {
+                heading.append(" ·");
+            }
+        }
+        if (basis != null) {
+            heading.append(" ").append(basis);
+        }
+        return heading.append("\n\n").toString();
+    }
+
+    /**
      * 제목 줄만. 아래에 무리를 바로 붙이는 통(증시·코인·뉴스 브리핑)이 쓴다.
      *
      * <p>제목 문자열이 {@link Command}에만 있으므로 검색 답과 브리핑 답의 제목이 갈릴 수 없다.
@@ -422,9 +463,11 @@ public final class MessageFormatter {
     }
 
     /**
-     * 등락률 한 조각 — <b>상승 🔴 / 하락 🔵 / 보합 무표시</b>.
+     * 등락률 한 조각 — <b>상승 🔴 +1.20% / 하락 🔵 -1.20% / 보합 0.00%</b>.
      *
-     * <p>부호({@code +}·{@code -})는 붙이지 않는다. 원이 이미 방향이라 겹친다.
+     * <p><b>부호를 숫자 옆에 붙인다.</b> 원과 겹친다고 생략했었는데, 이모지는 기기·글꼴에 따라
+     * 색이 흐릿하거나 아예 안 뜨는 곳이 있어 그때는 방향이 통째로 사라진다. 부호는 어디서나
+     * 같은 글자다. 보합은 방향이 없으므로 부호도 붙이지 않는다.
      *
      * <p><b>{@code null}이면 빈 문자열이다.</b> "못 구했다"와 "보합(0%)"은 다른 말이므로
      * 못 구한 값을 {@code 0.00%}로 찍어서는 안 된다. 그때는 시세만 나간다.
@@ -441,7 +484,7 @@ public final class MessageFormatter {
         if (direction == 0) {
             return "0.00%";
         }
-        return (direction > 0 ? "🔴 " : "🔵 ") + rounded.abs().toPlainString() + "%";
+        return (direction > 0 ? "🔴 +" : "🔵 -") + rounded.abs().toPlainString() + "%";
     }
 
     /** 통화 코드까지 붙인 값. 지수는 통화가 없어 숫자만 나간다. */

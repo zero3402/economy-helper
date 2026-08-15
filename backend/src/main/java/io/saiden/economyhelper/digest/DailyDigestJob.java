@@ -29,10 +29,13 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * 매일 오전 9시(KST) 아침 브리핑을 보낸다 — 환율·증시·코인·뉴스 <b>네 통</b>이다.
+ * 매일 오전 9시(KST) 아침 브리핑을 보낸다 — 환율·증시·코인·뉴스 <b>네 갈래</b>다.
  *
  * <p>한 통에 다 담지 않는 이유는 성격이 다르기 때문이다. 시세는 한눈에 훑고 뉴스는 읽는다.
  * 게다가 넷을 합치면 텔레그램 한 통 상한(4,096자)에 닿을 수 있다.
+ *
+ * <p><b>뉴스 갈래는 기사마다 한 통이라 실제 발송은 최대 여섯 통이다.</b> 텔레그램이 미리보기
+ * 카드를 메시지 맨 아래에 하나만 붙여, 세 건을 묶으면 첫 기사 카드가 셋째 기사 것처럼 보인다.
  *
  * <p><b>부분 실패를 허용한다.</b> 넷 중 하나가 죽어도 나머지는 나간다 — 환율이 안 된다고
  * 뉴스까지 막을 이유가 없다. <b>전부 실패했을 때만</b> 슬롯을 되돌려 다음 시도를 열어 둔다.
@@ -53,18 +56,6 @@ public class DailyDigestJob {
      * 한 번만 나가고, "정확히 09시에 깨어 있어야 한다"는 요구가 사라진다.
      */
     private static final DateTimeFormatter SLOT_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-
-    /**
-     * 통 사이 간격.
-     *
-     * <p>텔레그램은 같은 채팅방에 <b>초당 한 통</b>을 권고한다. 네 통을 붙여 쏘면 429와
-     * {@code retry_after}를 맞을 수 있는데, 하루 한 번 도는 잡이라 그냥 쉬어 가는 편이
-     * 재시도 로직을 얹는 것보다 단순하고 확실하다.
-     */
-    private static final Duration BETWEEN_MESSAGES = Duration.ofSeconds(1);
-
-    /** 브리핑 설정에 대개 들어 있는 코인. 들어 있으면 USDT 원화값을 따로 물을 필요가 없다. */
-    private static final String USDT_MARKET = "KRW-USDT";
 
     private final NewsFacade facade;
     private final FxService fxService;
@@ -175,12 +166,12 @@ public class DailyDigestJob {
         // 네 통의 수집을 겹친다. 서로 무관한 외부 호출인데 줄줄이 기다렸고, 그중 뉴스 하나가
         // (피드 5 + Gemini 10) 대부분을 차지했다.
         List<Section> sections = Concurrently.map(List.of(
-                section("환율", () -> fx.map(MessageFormatter::formatFx)),
+                section("환율", () -> fx.map(MessageFormatter::formatFx).stream().toList()),
                 section("증시", () -> stockMessage(fx.orElse(null))),
-                section("코인", this::cryptoMessage),
+                section("코인", () -> cryptoMessage(fx.orElse(null))),
                 // 뉴스 통만 미리보기를 켠다 — 링크가 있는 통이 여기뿐이다.
-                // 텔레그램이 메시지당 카드를 하나만 붙이므로 첫 기사에만 뜬다
-                section("뉴스", this::newsMessage, true)), Supplier::get);
+                // 기사마다 통을 쪼개므로 통마다 그 기사의 카드가 붙는다
+                section("뉴스", this::newsMessages, true)), Supplier::get);
 
         // 발송은 순서대로 — 텔레그램이 같은 방에 초당 한 통을 권고한다(BETWEEN_MESSAGES)
         for (Section section : sections) {
@@ -201,11 +192,16 @@ public class DailyDigestJob {
     /**
      * 통 하나의 수집 결과.
      *
-     * @param text    보낼 본문. 비어 있으면 {@code failure}에 이유가 있다
+     * <p><b>본문이 목록이다.</b> 뉴스는 기사마다 한 통으로 나가고(텔레그램이 미리보기 카드를
+     * 메시지 맨 아래에 하나만 붙여서, 묶어 보내면 첫 기사 카드가 마지막 기사 것처럼 보인다)
+     * 나머지 셋은 한 통짜리 목록일 뿐이다. 성격이 다른 게 아니라 개수가 다를 뿐이라
+     * 뉴스만 다른 경로로 보내지 않는다.
+     *
+     * @param texts   보낼 본문들. 비어 있으면 {@code failure}에 이유가 있다
      * @param failure 실패 사유. 성공이면 {@code null}
      * @param preview 링크 미리보기를 띄울지. 기사를 담은 통만 참이다
      */
-    private record Section(String name, Optional<String> text, String failure, boolean preview) {}
+    private record Section(String name, List<String> texts, String failure, boolean preview) {}
 
     /**
      * 수집을 <b>예외 없이</b> 끝낸다.
@@ -213,23 +209,23 @@ public class DailyDigestJob {
      * <p>동시에 도는 자리라 예외가 그대로 올라가면 <b>다른 통까지 함께 죽는다</b> —
      * "넷 중 하나가 실패해도 나머지는 나간다"가 여기서 깨진다. 사유를 값으로 바꿔 들고 간다.
      */
-    private Supplier<Section> section(String name, Supplier<Optional<String>> message) {
+    private Supplier<Section> section(String name, Supplier<List<String>> message) {
         return section(name, message, false);
     }
 
-    private Supplier<Section> section(String name, Supplier<Optional<String>> message,
+    private Supplier<Section> section(String name, Supplier<List<String>> message,
                                       boolean preview) {
         return () -> {
             try {
-                Optional<String> text = message.get();
-                if (text.isEmpty()) {
+                List<String> texts = message.get();
+                if (texts.isEmpty()) {
                     log.info("[digest] {} 통에 보낼 내용이 없습니다", name);
-                    return new Section(name, Optional.empty(), "보낼 내용이 없습니다", preview);
+                    return new Section(name, List.of(), "보낼 내용이 없습니다", preview);
                 }
-                return new Section(name, text, null, preview);
+                return new Section(name, texts, null, preview);
             } catch (RuntimeException e) {
                 log.error("[digest] {} 통 수집 실패: {}", name, e.toString());
-                return new Section(name, Optional.empty(), reasonOf(e), preview);
+                return new Section(name, List.of(), reasonOf(e), preview);
             }
         };
     }
@@ -247,11 +243,18 @@ public class DailyDigestJob {
             return;
         }
         try {
-            if (!delivered.isEmpty()) {
-                pause();
+            // 통이 여럿이어도 간격은 하나의 규칙이다 — 앞서 보낸 것이 있으면 쉬고 보낸다
+            for (String text : section.texts()) {
+                if (!delivered.isEmpty()) {
+                    TelegramClient.pause();
+                }
+                telegram.send(text, section.preview());
+                // 통 단위가 아니라 이름 단위로 센다. 뉴스 세 통이 '뉴스'로 한 번만 남아야
+                // 결과가 "무엇이 나갔나"로 읽힌다
+                if (!delivered.contains(section.name())) {
+                    delivered.add(section.name());
+                }
             }
-            telegram.send(section.text().orElseThrow(), section.preview());
-            delivered.add(section.name());
         } catch (RuntimeException e) {
             log.error("[digest] {} 통 발송 실패: {}", section.name(), e.toString());
             failed.add(new DigestResult.Failure(section.name(), reasonOf(e)));
@@ -280,54 +283,25 @@ public class DailyDigestJob {
      *
      * @param fx 미국 종목의 원화 환산에 쓸 환율. {@code null}이면 달러로만 나간다
      */
-    private Optional<String> stockMessage(FxRate fx) {
+    private List<String> stockMessage(FxRate fx) {
         List<StockQuote> quotes = new ArrayList<>(stockService.indicesOf(indexNames));
         quotes.addAll(stockService.quotesOf(stockCodes));
         quotes.addAll(stockService.usQuotesOf(usSymbols));
-        return quotes.isEmpty() ? Optional.empty()
-                : Optional.of(MessageFormatter.formatStockDigest(quotes, fx));
-    }
-
-    private Optional<String> cryptoMessage() {
-        List<CryptoQuote> quotes = cryptoService.quotesOf(cryptoMarkets);
-        if (quotes.isEmpty()) {
-            return Optional.empty();
-        }
-        return Optional.of(MessageFormatter.formatCryptoDigest(quotes, usdtKrw(quotes)));
+        return quotes.isEmpty() ? List.of() : List.of(MessageFormatter.formatStock(quotes, fx));
     }
 
     /**
-     * 바이낸스 USDT 값을 원화로 옮길 기준.
-     *
-     * <p><b>부르지 않아도 되면 부르지 않는다.</b> 두 가지다. 하나, 바이낸스가 하나도 안 붙었으면
-     * 환산할 대상이 없다. 둘, 브리핑 설정에 {@code KRW-USDT}가 들어 있으면 그 값은 <b>방금 받아
-     * 온 목록 안에</b> 있다 — {@code crypto-price} 캐시는 마켓 목록 단위로 키를 잡아
-     * {@code [KRW-USDT]} 단건 조회는 캐시에 걸리지 않고 그대로 업비트 호출로 나간다.
-     *
-     * @return 원화값. 구할 수 없거나 쓸 일이 없으면 {@code null}
+     * @param fx 바이낸스 값의 원화 환산과 김프에 쓴다. {@code null}이면 둘 다 빠지고
+     *           USDT/USD 값만 나간다 — 환산을 못 한다고 시세를 빼는 것은 과하다
      */
-    private BigDecimal usdtKrw(List<CryptoQuote> quotes) {
-        if (quotes.stream().noneMatch(quote -> quote.binance().hasPrice())) {
-            return null;
-        }
-        return quotes.stream()
-                .filter(quote -> USDT_MARKET.equals(quote.market()) && quote.upbit().hasPrice())
-                .map(quote -> quote.upbit().price())
-                .findFirst()
-                .orElseGet(() -> cryptoService.usdtKrw().orElse(null));
+    private List<String> cryptoMessage(FxRate fx) {
+        List<CryptoQuote> quotes = cryptoService.quotesOf(cryptoMarkets);
+        return quotes.isEmpty() ? List.of() : List.of(MessageFormatter.formatCrypto(quotes, fx));
     }
 
-    private Optional<String> newsMessage() {
+    private List<String> newsMessages() {
         List<NewsItem> items = facade.digest();
-        return items.isEmpty() ? Optional.empty() : Optional.of(MessageFormatter.formatNews(items));
-    }
-
-    private static void pause() {
-        try {
-            Thread.sleep(BETWEEN_MESSAGES.toMillis());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+        return items.isEmpty() ? List.of() : MessageFormatter.formatNews(items);
     }
 
     private void releaseIfClaimed(boolean claimed, String slot) {

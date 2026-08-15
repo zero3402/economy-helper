@@ -14,6 +14,8 @@ import java.time.Instant;
  * @param code      {@code 005930} · {@code AAPL} · {@code ^IXIC}. 국내 지수는 코드가 없어 {@code null}
  * @param market    {@code KOSPI} · {@code NASDAQ} · {@code KOSPI시리즈}
  * @param currency  가격의 통화. 지수는 통화가 없으므로 {@link Money#NONE}
+ * @param source    조회처. 화면의 <b>출처</b> 자리에 그대로 나간다 — {@code FxRate.source()}와
+ *                  같은 역할이다. 화면이 {@code realtime}으로 출처를 넘겨짚지 않게 값에 담는다
  * @param at        이 값의 시각 — {@code realtime}이면 조회 시각, 아니면 종가일 00시(KST)
  * @param realtime  현재가면 true, 종가면 false
  * @param index     지수인가. 통화 단위도 원화 환산도 붙이지 않는다
@@ -24,7 +26,7 @@ import java.time.Instant;
  */
 public record StockQuote(String code, String name, String market,
                          BigDecimal price, BigDecimal changePercent, Money currency,
-                         Instant at, boolean realtime,
+                         StockSource source, Instant at, boolean realtime,
                          boolean index, BigDecimal marketCap) {
 
     /**
