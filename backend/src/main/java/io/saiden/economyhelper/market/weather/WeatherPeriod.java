@@ -1,7 +1,9 @@
 package io.saiden.economyhelper.market.weather;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 
 /**
  * 사용자가 물은 <b>날짜 범위</b>.
@@ -66,9 +68,12 @@ public record WeatherPeriod(LocalDate from, LocalDate to) {
     /**
      * 연도 없이 적은 날({@code 8월 16일})을 <b>가장 가까운 그 날</b>로 편다.
      *
-     * <p><b>왜 LLM에게 연도를 맡기지 않는가.</b> 맡겼더니 지어냈다 — {@code 8월 16일 날씨}를
-     * 물었는데 2024년 8월 16일이 나왔다. 모델은 오늘이 몇 년인지 모르므로 물어보면 안 되는
-     * 것이었고, 상대 표현을 {@code offsetDays}로 받는 것과 같은 이유다.
+     * <p><b>적은 것은 쓰고, 안 적은 것만 채운다.</b> 연도를 적었으면 그대로, 월까지만 적었으면
+     * 연도를 고르고, 일자만 적었으면 월과 연도를 함께 고른다.
+     *
+     * <p><b>왜 LLM에게 맡기지 않는가.</b> 맡겼더니 지어냈다 — {@code 8월 16일 날씨}를
+     * 물었는데 2024년 8월 16일이 나왔다. 모델은 오늘이 몇 년 몇 월인지 모르므로 물어보면 안
+     * 되는 것이었고, 상대 표현을 {@code offsetDays}로 받는 것과 같은 이유다.
      *
      * <p><b>작년·올해·내년 중 오늘에서 가장 가까운 것을 고른다.</b> 8월 17일에 {@code 8월 16일}을
      * 물으면 어제(하루 전)이지 내년(364일 뒤)이 아니다. 반대로 8월에 {@code 12월 25일}을 물으면
@@ -78,16 +83,18 @@ public record WeatherPeriod(LocalDate from, LocalDate to) {
      * @return 못 읽었으면 {@code null}
      */
     public static LocalDate nearestOccurrence(LocalDate today, Integer month, Integer day) {
-        if (month == null || day == null) {
+        if (day == null) {
             return null;
         }
         LocalDate nearest = null;
         long best = Long.MAX_VALUE;
-        for (int year = today.getYear() - 1; year <= today.getYear() + 1; year++) {
-            LocalDate candidate = occurrenceIn(year, month, day);
-            if (candidate == null) {
+        for (YearMonth candidateMonth : candidateMonths(today, month)) {
+            // 4월 31일·평년 2월 29일처럼 그 달에 없는 날은 건너뛴다.
+            // 여기서 던지면 날짜 하나 때문에 검색 전체가 죽는다
+            if (!candidateMonth.isValidDay(day)) {
                 continue;
             }
+            LocalDate candidate = candidateMonth.atDay(day);
             long distance = Math.abs(ChronoUnit.DAYS.between(today, candidate));
             if (distance < best) {
                 best = distance;
@@ -97,13 +104,26 @@ public record WeatherPeriod(LocalDate from, LocalDate to) {
         return nearest;
     }
 
-    /** 2월 29일처럼 그 해에 없는 날이면 건너뛴다 — 던지면 검색 전체가 죽는다. */
-    private static LocalDate occurrenceIn(int year, int month, int day) {
-        try {
-            return LocalDate.of(year, month, day);
-        } catch (java.time.DateTimeException e) {
-            return null;
+    /**
+     * 어느 달들을 후보로 볼 것인가 — <b>적지 않은 것만 채운다.</b>
+     *
+     * <ul>
+     *   <li>월을 적었으면: 그 달의 <b>작년·올해·내년</b> — 연도만 고르면 된다
+     *   <li>월도 안 적었으면: <b>지난달·이번달·다음달</b> — 월과 연도를 함께 고른다
+     * </ul>
+     *
+     * <p>{@link YearMonth}로 세는 덕분에 <b>연 경계가 저절로 처리된다.</b> 1월 2일에
+     * {@code 31일}을 물으면 후보가 작년 12월·올해 1월·올해 2월이 되고, 이틀 전인
+     * 작년 12월 31일이 29일 뒤인 1월 31일보다 가깝다.
+     */
+    private static List<YearMonth> candidateMonths(LocalDate today, Integer month) {
+        if (month != null) {
+            return List.of(YearMonth.of(today.getYear() - 1, month),
+                    YearMonth.of(today.getYear(), month),
+                    YearMonth.of(today.getYear() + 1, month));
         }
+        YearMonth thisMonth = YearMonth.from(today);
+        return List.of(thisMonth.minusMonths(1), thisMonth, thisMonth.plusMonths(1));
     }
 
     /**

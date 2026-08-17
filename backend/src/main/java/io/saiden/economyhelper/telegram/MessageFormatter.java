@@ -671,6 +671,18 @@ public final class MessageFormatter {
                 + "예) /weather 서울 · /weather 내일 성남 · /weather 일주일치 파리";
     }
 
+    /**
+     * 날짜를 적었는데 펼 수 없었다 — <b>조용히 오늘로 만들지 않는다.</b>
+     *
+     * <p>{@code 2025년 8월}처럼 일자 없이 연·월만 적으면 펼 날이 없다. 그때 오늘 날씨를
+     * 답하면 사용자는 자기가 적은 날짜가 무시된 줄 모른다 — 그럴듯한 숫자가 나와서 더 나쁘다.
+     */
+    public static String weatherUnreadableDate() {
+        return section(Command.WEATHER)
+                + "날짜를 읽지 못했습니다. 하루를 짚어 적어 주세요.\n\n"
+                + "예) /weather 16일 서울 · /weather 8월 16일 서울 · /weather 2025년 8월 19일 서울";
+    }
+
     /** 예보가 닿지 않는 날. <b>며칠까지 되는지를 함께 말한다</b> — 빈손만 주면 고장으로 보인다. */
     public static String weatherTooFarAhead() {
         return section(Command.WEATHER)

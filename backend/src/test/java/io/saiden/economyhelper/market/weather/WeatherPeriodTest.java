@@ -141,10 +141,47 @@ class WeatherPeriodTest {
     }
 
     @Test
-    @DisplayName("월·일을 못 읽었으면 아무것도 고르지 않는다")
-    void returnsNullWhenMonthOrDayIsMissing() {
-        assertThat(WeatherPeriod.nearestOccurrence(TODAY, null, 16)).isNull();
+    @DisplayName("일자를 못 읽었으면 아무것도 고르지 않는다 — 그때만 offsetDays로 간다")
+    void returnsNullWhenTheDayIsMissing() {
         assertThat(WeatherPeriod.nearestOccurrence(TODAY, 8, null)).isNull();
+        assertThat(WeatherPeriod.nearestOccurrence(TODAY, null, null)).isNull();
+    }
+
+    // --- 일자만 적은 날 (월도 코드가 채운다) -----------------------------------
+
+    @Test
+    @DisplayName("'16일'은 이번 달 16일이다 — 예전에는 조용히 오늘 날씨가 나왔다")
+    void resolvesADayAloneWithinTheNearestMonth() {
+        // 오늘이 2026-08-17이므로 16일은 어제다. 월을 안 적었어도 채워 준다
+        assertThat(WeatherPeriod.nearestOccurrence(TODAY, null, 16))
+                .isEqualTo(LocalDate.of(2026, 8, 16));
+    }
+
+    @Test
+    @DisplayName("앞으로 올 날도 이번 달에서 찾는다")
+    void resolvesAnUpcomingDayInTheSameMonth() {
+        assertThat(WeatherPeriod.nearestOccurrence(TODAY, null, 20))
+                .isEqualTo(LocalDate.of(2026, 8, 20));
+    }
+
+    @Test
+    @DisplayName("월을 넘겨야 더 가까우면 넘어간다 — 연 경계도 함께 넘는다")
+    void crossesTheMonthAndYearBoundaryWhenThatIsCloser() {
+        LocalDate newYear = LocalDate.of(2026, 1, 2);
+
+        assertThat(WeatherPeriod.nearestOccurrence(newYear, null, 31))
+                .as("이틀 전인 2025-12-31이지 29일 뒤인 2026-01-31이 아니다")
+                .isEqualTo(LocalDate.of(2025, 12, 31));
+    }
+
+    @Test
+    @DisplayName("그 달에 없는 날이면 있는 달을 고른다 — 4월엔 31일이 없다")
+    void skipsAMonthThatDoesNotHaveTheDay() {
+        LocalDate midApril = LocalDate.of(2026, 4, 15);
+
+        assertThat(WeatherPeriod.nearestOccurrence(midApril, null, 31))
+                .as("3월 31일(15일 전)이 5월 31일(46일 뒤)보다 가깝다")
+                .isEqualTo(LocalDate.of(2026, 3, 31));
     }
 
     @Test

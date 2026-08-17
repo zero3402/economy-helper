@@ -265,6 +265,7 @@ public class TelegramWebhookController {
                     // 지역을 안 적은 것과 적었는데 못 찾은 것은 사용자가 할 일이 다르다
                     case NO_PLACE -> MessageFormatter.weatherNeedsPlace();
                     case NOT_FOUND -> MessageFormatter.weatherNotFound(command.argument());
+                    case UNREADABLE_DATE -> MessageFormatter.weatherUnreadableDate();
                     case TOO_FAR_AHEAD -> MessageFormatter.weatherTooFarAhead();
                     case UNAVAILABLE -> MessageFormatter.weatherUnavailable();
                 });

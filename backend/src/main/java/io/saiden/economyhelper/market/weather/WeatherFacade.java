@@ -53,6 +53,14 @@ public class WeatherFacade {
                     : Lookup.notFound();
         }
 
+        // 날짜를 적었는데 우리가 못 폈으면 그렇게 말한다 — 조용히 오늘로 만들지 않는다.
+        // '2025년 8월'처럼 일자가 없으면 펼 날이 없는데, 그때 오늘 날씨를 답하면
+        // 사용자는 자기가 적은 날짜가 무시된 줄 모른다
+        if (resolved.isPresent() && resolved.get().mentionsDate()
+                && dateOf(place.get(), resolved.get()) == null) {
+            return Lookup.unreadableDate();
+        }
+
         WeatherPeriod period = periodOf(place.get(), resolved.orElse(null));
         if (period.beyondForecast(weatherService.today(place.get()))) {
             // 빈손으로 두지 않고 며칠까지 되는지 밝힌다
@@ -95,10 +103,23 @@ public class WeatherFacade {
         if (resolved == null) {
             return WeatherPeriod.of(today, null, null, null);
         }
-        LocalDate date = resolved.absoluteDate() != null
-                ? resolved.absoluteDate()
-                : WeatherPeriod.nearestOccurrence(today, resolved.month(), resolved.day());
-        return WeatherPeriod.of(today, date, resolved.offsetDays(), resolved.days());
+        return WeatherPeriod.of(today, dateOf(place, resolved),
+                resolved.offsetDays(), resolved.days());
+    }
+
+    /**
+     * 사용자가 적은 날짜 — <b>적은 것은 쓰고 안 적은 것만 채운다.</b>
+     *
+     * <p>연도까지 적었으면 그대로, 아니면 {@link WeatherPeriod#nearestOccurrence}가 안 적은
+     * 연도·월을 오늘 기준으로 고른다. 날짜를 아예 안 적었으면 {@code null}이고 호출자가
+     * {@code offsetDays}로 간다.
+     */
+    private LocalDate dateOf(GeoLocation place, ResolvedPlace resolved) {
+        if (resolved.absoluteDate() != null) {
+            return resolved.absoluteDate();
+        }
+        return WeatherPeriod.nearestOccurrence(
+                weatherService.today(place), resolved.month(), resolved.day());
     }
 
     /**
@@ -109,7 +130,12 @@ public class WeatherFacade {
      */
     public record Lookup(List<Weather> places, Reason reason) {
 
-        public enum Reason { FOUND, NO_PLACE, NOT_FOUND, TOO_FAR_AHEAD, UNAVAILABLE }
+        public enum Reason { FOUND, NO_PLACE, NOT_FOUND, UNREADABLE_DATE, TOO_FAR_AHEAD, UNAVAILABLE }
+
+        /** 날짜를 적었는데 펼 수 없었다 — 조용히 오늘로 만들지 않는다. */
+        static Lookup unreadableDate() {
+            return new Lookup(List.of(), Reason.UNREADABLE_DATE);
+        }
 
         static Lookup found(List<Weather> places) {
             return new Lookup(List.copyOf(places), Reason.FOUND);

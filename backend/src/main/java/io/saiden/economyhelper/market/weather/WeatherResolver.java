@@ -56,7 +56,9 @@ public class WeatherResolver {
                 예) "2025년 8월 19일" → date: "2025-08-19", month: null, day: null
               · **연도 없이 월·일만 적었으면 date를 null로 두고 month·day에 숫자만 넣으세요.**
                 예) "8월 16일 날씨" → date: null, month: 8, day: 16
-                (연도는 코드가 오늘 기준으로 가장 가까운 해를 고릅니다)
+              · **일자만 적었으면 month도 null로 두고 day만 넣으세요. 월도 추측하지 마세요.**
+                예) "16일 날씨" → date: null, month: null, day: 16
+                (안 적은 연도·월은 코드가 오늘 기준으로 가장 가까운 것을 고릅니다)
             - days: 며칠치인지 숫자로. 안 적었으면 1입니다.
               · "일주일치" → 7 · "3일치" → 3 · "열흘치" → 10 · "이번 주" → 7 · "주말" → 2
             - "날씨", "알려줘", "어때" 같은 군더더기는 무시하세요.
@@ -118,6 +120,18 @@ public class WeatherResolver {
     public record ResolvedPlace(String query, String country, String date,
                                 Integer month, Integer day,
                                 Integer offsetDays, Integer days) {
+
+        /**
+         * 사용자가 <b>날짜를 적기는 했는가.</b>
+         *
+         * <p>적었는데 우리가 못 편 경우를 <b>조용히 오늘로 만들지 않기 위해</b> 있다.
+         * {@code 2025년 8월}처럼 일자 없이 연·월만 적으면 펼 날이 없는데, 그때 오늘 날씨를
+         * 답하면 사용자는 자기가 적은 날짜가 무시된 줄 모른다 — 연도를 지어내던 버그와
+         * 같은 부류다(그럴듯한 숫자가 나와서 더 나쁘다).
+         */
+        public boolean mentionsDate() {
+            return absoluteDate() != null || month != null || day != null;
+        }
 
         public boolean hasPlace() {
             return query != null && !query.isBlank() && !"null".equalsIgnoreCase(query.trim());
