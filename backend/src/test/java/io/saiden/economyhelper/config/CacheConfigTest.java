@@ -168,7 +168,7 @@ class CacheConfigTest {
                         io.saiden.economyhelper.market.weather.WeatherResolver.ResolvedPlace>>() {});
         var original = Optional.of(
                 new io.saiden.economyhelper.market.weather.WeatherResolver.ResolvedPlace(
-                        "성남", "KR", null, 1, 7));
+                        "성남", "KR", null, null, null, 1, 7));
 
         assertThat(serializer.deserialize(serializer.serialize(original))).isEqualTo(original);
     }

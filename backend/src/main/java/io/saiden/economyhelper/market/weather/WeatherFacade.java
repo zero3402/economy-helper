@@ -84,14 +84,21 @@ public class WeatherFacade {
         return geocoding.find(query.trim(), null);
     }
 
-    /** 기간을 편다. <b>기준은 그 지역의 오늘</b>이고, 해석이 없으면 오늘 하루치다. */
+    /**
+     * 기간을 편다. <b>기준은 그 지역의 오늘</b>이고, 해석이 없으면 오늘 하루치다.
+     *
+     * <p>연도를 적은 날짜가 먼저다. 없으면 월·일만 적은 것으로 보고 <b>가장 가까운 해</b>를
+     * 코드가 고른다 — LLM에게 연도를 맡겼더니 {@code 8월 16일}에 2024년을 지어냈다.
+     */
     private WeatherPeriod periodOf(GeoLocation place, ResolvedPlace resolved) {
         LocalDate today = weatherService.today(place);
         if (resolved == null) {
             return WeatherPeriod.of(today, null, null, null);
         }
-        return WeatherPeriod.of(today, resolved.absoluteDate(),
-                resolved.offsetDays(), resolved.days());
+        LocalDate date = resolved.absoluteDate() != null
+                ? resolved.absoluteDate()
+                : WeatherPeriod.nearestOccurrence(today, resolved.month(), resolved.day());
+        return WeatherPeriod.of(today, date, resolved.offsetDays(), resolved.days());
     }
 
     /**

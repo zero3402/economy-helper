@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.saiden.economyhelper.market.weather.GeoLocation;
 import java.time.ZoneId;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -37,6 +38,14 @@ public class GeocodingApi {
 
     private static final Logger log = LoggerFactory.getLogger(GeocodingApi.class);
 
+    /**
+     * 한 번에 받아 볼 후보 수.
+     *
+     * <p>열이면 충분하다 — 실측에서 가장 나빴던 경우(경기도 성남시가 9번째)를 덮는다.
+     * 응답이 몇 KB라 늘려도 비용이 사실상 같지만, 넓힐수록 엉뚱한 동명이 섞여 들어온다.
+     */
+    private static final int CANDIDATES = 10;
+
     private final RestClient restClient;
 
     public GeocodingApi(RestClient.Builder builder,
@@ -61,9 +70,11 @@ public class GeocodingApi {
                 .uri(uriBuilder -> {
                     uriBuilder.path("/v1/search")
                             .queryParam("name", query)
-                            // 여러 개를 받아 봐야 고를 기준이 없다. 지오코딩은 인구순으로 주고
-                            // 그게 사람이 기대하는 순서다 — 1순위를 그대로 쓴다
-                            .queryParam("count", 1)
+                            // ⚠️ 여러 개를 받아 인구로 고른다. 1건만 받으면 안 된다 —
+                            // 이 API는 인구순으로 주지 않는다. 2026-08-17 실측에서 '성남'의
+                            // 경기도 성남시는 10건 중 9번째였고, count=1이던 시절에는
+                            // 전라북도 남원시의 마을(35.54, 127.40)을 집었다. 분당에서 200km다.
+                            .queryParam("count", CANDIDATES)
                             .queryParam("language", "ko")
                             .queryParam("format", "json");
                     if (countryCode != null && !countryCode.isBlank()) {
@@ -79,7 +90,24 @@ public class GeocodingApi {
             log.info("[weather] '{}'({})에 해당하는 지명을 찾지 못했습니다", query, countryCode);
             return Optional.empty();
         }
-        return Optional.of(toLocation(response.results().get(0)));
+        return Optional.of(toLocation(best(response.results())));
+    }
+
+    /**
+     * 후보 중 <b>사람이 물었을 법한 곳</b>을 고른다 — 인구가 가장 많은 것이다.
+     *
+     * <p>같은 이름이 여러 곳에 있을 때 사람이 뜻하는 것은 거의 언제나 가장 큰 곳이다.
+     * {@code 성남}은 경기도 성남시이지 남원시의 마을이 아니다.
+     *
+     * <p><b>인구가 붙은 후보가 하나도 없으면 첫 번째를 쓴다.</b> 작은 마을만 있는 검색어가
+     * 그렇다 — 그때는 API가 준 순서가 유일한 단서다. 실측에서 {@code 잠실}이 이 경우였다
+     * (10건 전부 인구 없음).
+     */
+    private static Place best(List<Place> candidates) {
+        return candidates.stream()
+                .filter(place -> place.population() != null)
+                .max(Comparator.comparingLong(Place::population))
+                .orElseGet(() -> candidates.get(0));
     }
 
     /**
@@ -98,8 +126,11 @@ public class GeocodingApi {
     record Results(List<Place> results) {}
 
     /**
-     * @param country {@code language=ko}면 한국어다({@code 아르헨티나}). 없을 수 있다
+     * @param country    {@code language=ko}면 한국어다({@code 아르헨티나}). 없을 수 있다
+     * @param population 인구. <b>작은 마을에는 아예 없다</b>({@code null}) — 그 없음 자체가
+     *                   "여기가 사람이 물은 곳은 아니다"라는 신호라서 {@link #best}가 이걸로 고른다
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record Place(String name, String country, double latitude, double longitude, String timezone) {}
+    record Place(String name, String country, double latitude, double longitude, String timezone,
+                 Long population) {}
 }

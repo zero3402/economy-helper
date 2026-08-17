@@ -64,6 +64,49 @@ public record WeatherPeriod(LocalDate from, LocalDate to) {
     }
 
     /**
+     * 연도 없이 적은 날({@code 8월 16일})을 <b>가장 가까운 그 날</b>로 편다.
+     *
+     * <p><b>왜 LLM에게 연도를 맡기지 않는가.</b> 맡겼더니 지어냈다 — {@code 8월 16일 날씨}를
+     * 물었는데 2024년 8월 16일이 나왔다. 모델은 오늘이 몇 년인지 모르므로 물어보면 안 되는
+     * 것이었고, 상대 표현을 {@code offsetDays}로 받는 것과 같은 이유다.
+     *
+     * <p><b>작년·올해·내년 중 오늘에서 가장 가까운 것을 고른다.</b> 8월 17일에 {@code 8월 16일}을
+     * 물으면 어제(하루 전)이지 내년(364일 뒤)이 아니다. 반대로 8월에 {@code 12월 25일}을 물으면
+     * 올해 크리스마스(130일 뒤)이지 작년(235일 전)이 아니다 — 그건 예보 범위를 넘으므로
+     * "16일까지만 볼 수 있다"고 답하게 되는데, 그게 작년 값을 슬쩍 내미는 것보다 옳다.
+     *
+     * @return 못 읽었으면 {@code null}
+     */
+    public static LocalDate nearestOccurrence(LocalDate today, Integer month, Integer day) {
+        if (month == null || day == null) {
+            return null;
+        }
+        LocalDate nearest = null;
+        long best = Long.MAX_VALUE;
+        for (int year = today.getYear() - 1; year <= today.getYear() + 1; year++) {
+            LocalDate candidate = occurrenceIn(year, month, day);
+            if (candidate == null) {
+                continue;
+            }
+            long distance = Math.abs(ChronoUnit.DAYS.between(today, candidate));
+            if (distance < best) {
+                best = distance;
+                nearest = candidate;
+            }
+        }
+        return nearest;
+    }
+
+    /** 2월 29일처럼 그 해에 없는 날이면 건너뛴다 — 던지면 검색 전체가 죽는다. */
+    private static LocalDate occurrenceIn(int year, int month, int day) {
+        try {
+            return LocalDate.of(year, month, day);
+        } catch (java.time.DateTimeException e) {
+            return null;
+        }
+    }
+
+    /**
      * 시작일이 예보 범위를 벗어났는가 — 그렇다면 보여 줄 것이 하나도 없다.
      *
      * <p>호출자는 빈손으로 두지 않고 <b>며칠까지 되는지를 문구에 실어</b> 답한다.

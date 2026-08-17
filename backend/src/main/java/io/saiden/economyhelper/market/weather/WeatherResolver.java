@@ -49,14 +49,19 @@ public class WeatherResolver {
               · 지역을 안 적었으면 null로 두세요. 추측해서 지어내지 마세요.
             - country: 그 지역이 속한 나라의 ISO 3166-1 alpha-2 코드. 예) 한국 → KR, 프랑스 → FR
               확실하지 않으면 null로 두세요.
-            - **날짜를 직접 계산하지 마세요.** 오늘이 며칠인지 모른다고 가정하세요.
+            - **날짜를 직접 계산하지 마세요. 연도를 절대 추측하지 마세요.**
+              오늘이 몇 년 며칠인지 모른다고 가정하세요.
               · "내일" → offsetDays: 1 · "모레" → 2 · "어제" → -1 · 안 적었으면 0
-              · date는 사용자가 **연·월·일을 직접 적었을 때만** "YYYY-MM-DD"로 채우고,
-                그 밖에는 반드시 null로 두세요.
+              · date는 사용자가 **연도까지 직접 적었을 때만** "YYYY-MM-DD"로 채우세요.
+                예) "2025년 8월 19일" → date: "2025-08-19", month: null, day: null
+              · **연도 없이 월·일만 적었으면 date를 null로 두고 month·day에 숫자만 넣으세요.**
+                예) "8월 16일 날씨" → date: null, month: 8, day: 16
+                (연도는 코드가 오늘 기준으로 가장 가까운 해를 고릅니다)
             - days: 며칠치인지 숫자로. 안 적었으면 1입니다.
               · "일주일치" → 7 · "3일치" → 3 · "열흘치" → 10 · "이번 주" → 7 · "주말" → 2
             - "날씨", "알려줘", "어때" 같은 군더더기는 무시하세요.
-            - 다른 말 없이 JSON만: {"query": "성남", "country": "KR", "date": null, "offsetDays": 1, "days": 1}
+            - 다른 말 없이 JSON만:
+              {"query": "성남", "country": "KR", "date": null, "month": null, "day": null, "offsetDays": 1, "days": 1}
 
             입력: %s
             """;
@@ -103,12 +108,15 @@ public class WeatherResolver {
     /**
      * @param query      지오코딩에 넘길 지명. 지역을 못 읽었으면 {@code null}
      * @param country    ISO 3166-1 alpha-2. 같은 지명이 여러 나라에 있을 때 좁힌다
-     * @param date       사용자가 연·월·일을 직접 적었을 때만 찬다. 그 밖에는 {@code null}
+     * @param date       사용자가 <b>연도까지</b> 적었을 때만 찬다. 그 밖에는 {@code null}
+     * @param month      연도 없이 월·일만 적었을 때의 월. 연도는 코드가 고른다
+     * @param day        위와 같은 자리의 일
      * @param offsetDays 오늘로부터 며칠 뒤. <b>절대 날짜로 굳히지 않는 이유가 여기 있다</b>
      * @param days       며칠치. 비어 있으면 하루
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record ResolvedPlace(String query, String country, String date,
+                                Integer month, Integer day,
                                 Integer offsetDays, Integer days) {
 
         public boolean hasPlace() {

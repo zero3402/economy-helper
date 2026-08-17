@@ -98,6 +98,55 @@ class WeatherPeriodTest {
         assertThat(WeatherPeriod.of(TODAY, null, 0, -5).length()).isEqualTo(1);
     }
 
+    // --- 연도 없이 적은 날 ----------------------------------------------------
+
+    @Test
+    @DisplayName("'8월 16일'은 어제다 — LLM에 연도를 맡겼더니 2024년을 지어냈다")
+    void resolvesAMonthAndDayToTheNearestYear() {
+        // 오늘이 2026-08-17이므로 8월 16일은 하루 전이지, 364일 뒤(2027)도 2024년도 아니다
+        assertThat(WeatherPeriod.nearestOccurrence(TODAY, 8, 16))
+                .isEqualTo(LocalDate.of(2026, 8, 16));
+    }
+
+    @Test
+    @DisplayName("해를 넘겨야 더 가까우면 넘어간다 — 12월 31일을 1월에 물으면 지난 연말이다")
+    void crossesTheYearBoundaryWhenThatIsCloser() {
+        LocalDate newYear = LocalDate.of(2026, 1, 2);
+
+        assertThat(WeatherPeriod.nearestOccurrence(newYear, 12, 31))
+                .as("이틀 전인 2025-12-31이지 363일 뒤인 2026-12-31이 아니다")
+                .isEqualTo(LocalDate.of(2025, 12, 31));
+    }
+
+    @Test
+    @DisplayName("먼 미래의 그 날은 올해로 본다 — 작년 값을 슬쩍 내미는 것보다 '못 본다'가 옳다")
+    void prefersThisYearForADistantDateRatherThanLastYear() {
+        LocalDate christmas = WeatherPeriod.nearestOccurrence(TODAY, 12, 25);
+
+        assertThat(christmas).isEqualTo(LocalDate.of(2026, 12, 25));
+        assertThat(WeatherPeriod.of(TODAY, christmas, null, 1).beyondForecast(TODAY))
+                .as("예보 범위 밖이라 '16일까지만'이라고 답하게 된다")
+                .isTrue();
+    }
+
+    @Test
+    @DisplayName("그 해에 없는 날(2월 29일)이면 있는 해를 고른다 — 던지면 검색 전체가 죽는다")
+    void skipsAYearThatDoesNotHaveTheDay() {
+        // 후보는 작년·올해·내년뿐이다. 2026 기준이면 2025·2026·2027 모두 평년이라 없다
+        assertThat(WeatherPeriod.nearestOccurrence(TODAY, 2, 29)).isNull();
+
+        // 2025년 기준이면 후보에 윤년(2024)이 들어온다
+        assertThat(WeatherPeriod.nearestOccurrence(LocalDate.of(2025, 3, 1), 2, 29))
+                .isEqualTo(LocalDate.of(2024, 2, 29));
+    }
+
+    @Test
+    @DisplayName("월·일을 못 읽었으면 아무것도 고르지 않는다")
+    void returnsNullWhenMonthOrDayIsMissing() {
+        assertThat(WeatherPeriod.nearestOccurrence(TODAY, null, 16)).isNull();
+        assertThat(WeatherPeriod.nearestOccurrence(TODAY, 8, null)).isNull();
+    }
+
     @Test
     @DisplayName("끝이 시작보다 앞서면 만들지 못한다 — 조용히 뒤집힌 범위가 돌아다니면 안 된다")
     void rejectsAnInvertedRange() {
