@@ -47,12 +47,13 @@ CI가 구운 것이고, 그쪽이 빌드 시간을 아낀다. 무료 빌더에�
 |---|---|---|
 | `PORT` | `8080` | Render 기본값은 10000이고 덮어쓸 수 있다. 앱은 `${PORT:8080}`을 읽는다 |
 | `MANAGEMENT_PORT` | `8080` | **`PORT`와 같게.** 액추에이터가 같은 포트로 합쳐져 `/actuator/health`가 열린다 — `SelfPing`과 Render 헬스체크가 이걸 친다. keep-warm은 `/actuator/health/liveness`를 친다 — `/actuator/health`는 Redis가 끊기면 503이라 깨우는 용도로는 시끄럽다 |
-| `MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE` | `health,info,metrics` | **`digest`를 뺀다.** 포트를 합치면 공개되므로 시크릿으로 막는 대신 엔드포인트 자체를 없앤다 |
+| `MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE` | `health,info,metrics` | **`digest`와 `weather`를 뺀다.** 둘 다 구독자 전원에게 즉시 방송을 날리는 트리거다 — 포트를 합치면 공개되므로 시크릿으로 막는 대신 엔드포인트 자체를 없앤다 |
 | `REDIS_HOST` · `REDIS_PORT` | Key Value의 내부 주소 | |
 | `REDIS_PASSWORD` · `REDIS_SSL` | 필요 시 | 관리형 Redis는 대개 요구한다 |
 | `TZ` | `Asia/Seoul` | 이미지 기본값이지만 명시해 둔다 |
 | `TELEGRAM_WEBHOOK_SECRET` | `openssl rand -hex 32` | **웹훅 엔드포인트의 유일한 자물쇠.** 아래 참조 |
 | `TELEGRAM_NOTICE_TOPIC_ID` · `TELEGRAM_SEARCH_TOPIC_ID` | 토픽 번호 | 포럼(토픽) 그룹일 때만. 아래 참조 |
+| `MET_NO_USER_AGENT` | `economy-helper/1.0 (github.com/<계정>/economy-helper)` | 날씨 2순위(met.no)가 **연락처가 든 User-Agent를 요구한다 — 없으면 403이다.** 시크릿이 아니라 `.env.example`에는 없다. 기본값이 원 저장소 주소로 박혀 있어 비워도 돌지만, **포크했거나 저장소를 옮겼다면 반드시 바꾼다** — 안 바꾸면 남의 연락처로 met.no 약관을 지키는 셈이고, 나중에 막혔을 때 원인이 증상에서 멀다 |
 | 시크릿 6개 | `.env.example` 참조 | `TELEGRAM_*` · `GEMINI_API_KEY` · `KEXIM_API_KEY` · `DATA_API_KEY` · `FMP_API_KEY` |
 
 **깨어 있게 유지하는 일은 앱이 한다.** `SELF_PING_URL`에 공개 주소를 주면 앱이 10분마다

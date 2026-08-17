@@ -2,6 +2,8 @@ package io.saiden.economyhelper.translate;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.saiden.economyhelper.news.Article;
+import java.util.ArrayList;
+import java.util.List;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 
@@ -38,6 +40,26 @@ public class GeminiTranslator {
             요약문: %s
             """;
 
+    /**
+     * 여러 건을 한 번에 옮기는 프롬프트. 규칙은 {@link #PROMPT}와 <b>한 글자도 다르지 않아야
+     * 한다</b> — 갈리면 같은 기사가 묶였는지 아닌지에 따라 다른 문체로 나온다.
+     */
+    private static final String BATCH_PROMPT = """
+            다음 영문 경제 뉴스 %d건을 각각 한국어로 번역하세요.
+
+            규칙:
+            - 원문에 없는 사실, 배경, 해설을 절대 추가하지 마세요.
+            - 요약하거나 줄이지 말고 원문의 내용을 그대로 옮기세요.
+            - 뉴스 기사체(~다)로 쓰세요. 존댓말을 쓰지 마세요.
+            - 가격·금리·수익률이 오르내리는 방향을 원문 그대로 유지하세요.
+            - 경제·금융 용어는 한국 언론에서 통용되는 표현을 쓰세요.
+            - 요약문이 비어 있으면 body도 빈 문자열로 두세요.
+            - **입력 순서 그대로, 개수를 정확히 %<d개** 돌려주세요.
+            - 다른 말 없이 JSON만: {"articles": [{"title": "...", "body": "..."}, ...]}
+
+            %s
+            """;
+
     private final GeminiApi api;
     private final ObjectMapper objectMapper;
 
@@ -54,6 +76,62 @@ public class GeminiTranslator {
         return parse(api.generate(prompt));
     }
 
+    /**
+     * 여러 건을 <b>Gemini 한 번</b>으로 번역한다.
+     *
+     * <p><b>왜 묶는가.</b> 건별로 부르면 브리핑 한 번에 번역만 세 번이고, 관련도 채점(매체당 1회)
+     * 뒤에 오므로 <b>리미터가 소진됐을 때 잘려 나가는 쪽이 정확히 번역</b>이다. 실제로
+     * "번역이 일시적으로 불가"가 자주 뜨던 원인이 이것이다. {@code RelevanceScorer}가 후보를
+     * 한 번에 묶어 채점하는 것과 같은 처방이다.
+     *
+     * <p><b>개수가 어긋나면 통째로 실패시킨다.</b> 짝이 밀리면 A 기사에 B 번역이 붙는데,
+     * 그건 번역이 없는 것보다 훨씬 나쁘다 — 조용히 틀린 내용이 나간다.
+     *
+     * @return 입력과 같은 순서, 같은 개수
+     */
+    public List<Translation> translateAll(List<Article> articles) {
+        if (articles.isEmpty()) {
+            return List.of();
+        }
+        // 한 건이면 묶을 것이 없다. 배치 프롬프트는 지시가 길어 한 건에는 오히려 손해다
+        if (articles.size() == 1) {
+            return List.of(translate(articles.get(0)));
+        }
+        TranslatedBatch parsed = objectMapper.readValue(
+                api.generate(BATCH_PROMPT.formatted(articles.size(), sourceOf(articles))),
+                TranslatedBatch.class);
+
+        if (parsed == null || parsed.articles() == null
+                || parsed.articles().size() != articles.size()) {
+            throw new IllegalStateException("번역 결과 개수가 맞지 않습니다: 기대 " + articles.size()
+                    + ", 실제 " + (parsed == null || parsed.articles() == null
+                            ? "없음" : parsed.articles().size()));
+        }
+
+        List<Translation> translations = new ArrayList<>(articles.size());
+        for (TranslatedText text : parsed.articles()) {
+            if (text == null || text.title() == null || text.title().isBlank()) {
+                throw new IllegalStateException("번역 결과에 title이 없습니다");
+            }
+            translations.add(Translation.of(text.title().trim(),
+                    text.body() == null ? "" : text.body().trim()));
+        }
+        return List.copyOf(translations);
+    }
+
+    /** 번호를 매겨 넘긴다 — 모델이 순서를 지키게 하는 가장 값싼 장치다. */
+    private static String sourceOf(List<Article> articles) {
+        StringBuilder source = new StringBuilder();
+        for (int i = 0; i < articles.size(); i++) {
+            Article article = articles.get(i);
+            source.append(i + 1).append(". 제목: ").append(article.title()).append('\n')
+                    .append("   요약문: ")
+                    .append(article.description() == null ? "" : article.description())
+                    .append('\n');
+        }
+        return source.toString();
+    }
+
     private Translation parse(String json) {
         TranslatedText parsed = objectMapper.readValue(json, TranslatedText.class);
         if (parsed == null || parsed.title() == null || parsed.title().isBlank()) {
@@ -64,4 +142,7 @@ public class GeminiTranslator {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     record TranslatedText(String title, String body) {}
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record TranslatedBatch(List<TranslatedText> articles) {}
 }

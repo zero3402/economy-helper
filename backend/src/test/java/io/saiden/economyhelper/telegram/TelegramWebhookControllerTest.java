@@ -9,6 +9,7 @@ import io.saiden.economyhelper.market.FxService;
 import io.saiden.economyhelper.market.FxSource;
 import io.saiden.economyhelper.market.StockQuote;
 import io.saiden.economyhelper.market.StockService;
+import io.saiden.economyhelper.market.weather.WeatherFacade;
 import io.saiden.economyhelper.market.StockResolver;
 import io.saiden.economyhelper.market.data.MarketIndexApi;
 import io.saiden.economyhelper.market.data.StockPriceApi;
@@ -104,7 +105,7 @@ class TelegramWebhookControllerTest {
         assertThat(client.sent.get(0).text())
                 .contains("삼성전자").contains("239,500 KRW")
                 .as("전일 종가라는 사실은 값의 성격이라 반드시 남긴다")
-                .contains("2026년 8월 11일 (종가)")
+                .contains("2026년 8월 11일(화) (종가)")
                 .as("이름·값·시각 셋뿐이다 — 종목코드도 거래소도 적지 않는다")
                 .doesNotContain("005930").doesNotContain("KOSPI");
     }
@@ -119,7 +120,8 @@ class TelegramWebhookControllerTest {
         controller.onUpdate(null,update(1, "/stock AAPL"));
 
         assertThat(client.sent.get(0).text())
-                .startsWith("<b>증시</b>")
+                .as("못 찾음 답도 제목에 검색어를 싣는다 — 여럿이 동시에 치면 어느 검색이 실패했는지 알아야 한다")
+                .startsWith("<b>증시 'AAPL'</b>")
                 .contains("찾지 못했습니다");
     }
 
@@ -134,12 +136,27 @@ class TelegramWebhookControllerTest {
         controller.onUpdate(null, update(1, "/news 금리"));
 
         assertThat(client.sent).hasSize(3);
-        assertThat(client.sent.get(0).text()).startsWith("<b>뉴스 1/3</b>")
+        assertThat(client.sent.get(0).text()).startsWith("<b>뉴스 '금리' 1/3</b>")
                 .contains("첫 번째").doesNotContain("두 번째");
-        assertThat(client.sent.get(2).text()).startsWith("<b>뉴스 3/3</b>").contains("세 번째");
+        assertThat(client.sent.get(2).text()).startsWith("<b>뉴스 '금리' 3/3</b>").contains("세 번째");
         assertThat(client.sent).allSatisfy(sent -> assertThat(sent.preview())
                 .as("통마다 링크가 하나뿐이라 카드가 그 기사 것으로 확정된다")
                 .isTrue());
+        assertThat(client.sent).allSatisfy(sent -> assertThat(sent.replyTo())
+                .as("세 통 모두 같은 명령을 인용해야 한다 — 통이 쪼개질수록 답이 섞이기 쉽다")
+                .isEqualTo(MESSAGE_ID));
+    }
+
+    @Test
+    @DisplayName("답은 물어본 명령에 답글로 단다 — 여럿이 동시에 검색하면 누구 답인지 알 수 없다")
+    void repliesToTheAskingCommand() {
+        RecordingClient client = new RecordingClient();
+        var controller = defaultController(facade(List.of()), crypto(Optional.empty()),
+                fx(Optional.empty()), stock(Optional.empty()), client);
+
+        controller.onUpdate(null, update(1, "/fx"));
+
+        assertThat(client.sent.get(0).replyTo()).isEqualTo(MESSAGE_ID);
     }
 
     @Test
@@ -376,7 +393,21 @@ class TelegramWebhookControllerTest {
                                                                StockService stockService,
                                                                TelegramClient telegramClient) {
         return new TelegramWebhookController(
-                newsFacade, cryptoService, fxService, stockService, telegramClient, SAME_THREAD, "", "", "");
+                newsFacade, cryptoService, fxService, stockService, weather(), telegramClient,
+                SAME_THREAD, "", "", "");
+    }
+
+    /**
+     * 날씨는 이 테스트가 보는 대상이 아니다 — 라우팅만 확인하므로 늘 못 찾음으로 둔다.
+     * 실제 조회 경로는 {@code WeatherFacade}·{@code WeatherService} 쪽에서 따로 본다.
+     */
+    private static WeatherFacade weather() {
+        return new WeatherFacade(null, null, null) {
+            @Override
+            public Lookup search(String query) {
+                return new Lookup(List.of(), Lookup.Reason.NOT_FOUND);
+            }
+        };
     }
 
     /** 방어를 켠 컨트롤러. {@code /news 유가}가 항상 결과를 내도록 고정해 둔다. */
@@ -388,7 +419,8 @@ class TelegramWebhookControllerTest {
             String secret, String allowedChatId, String searchTopicId, TelegramClient client) {
         return new TelegramWebhookController(
                 facade(Optional.of(item("유가 상승"))), crypto(Optional.empty()), fx(Optional.empty()),
-                stock(Optional.empty()), client, SAME_THREAD, secret, allowedChatId, searchTopicId);
+                stock(Optional.empty()), weather(), client, SAME_THREAD, secret, allowedChatId,
+                searchTopicId);
     }
 
     /** 토픽 없는 메시지 — 포럼이 아닌 방과 General 토픽이 이 모양이다. */
@@ -396,8 +428,11 @@ class TelegramWebhookControllerTest {
         return update(chatId, null, text);
     }
 
+    /** 명령 메시지 번호 — 답이 여기에 답글로 달려야 한다. */
+    private static final int MESSAGE_ID = 4821;
+
     private static Update update(long chatId, Integer topicId, String text) {
-        return new Update(new Message(new Chat(chatId), text, topicId));
+        return new Update(new Message(new Chat(chatId), text, MESSAGE_ID, topicId));
     }
 
     private static NewsItem item(String title) {
@@ -471,16 +506,21 @@ class TelegramWebhookControllerTest {
         }
 
         @Override
-        public void send(String chatId, Integer topicId, String text) {
-            sent.add(new Sent(chatId, topicId, text, false));
+        public void send(String chatId, Integer topicId, Integer replyTo, String text) {
+            sent.add(new Sent(chatId, topicId, replyTo, text, false));
         }
 
         @Override
-        public void send(String chatId, Integer topicId, String text, boolean preview) {
-            sent.add(new Sent(chatId, topicId, text, preview));
+        public void send(String chatId, Integer topicId, Integer replyTo, String text,
+                         boolean preview) {
+            sent.add(new Sent(chatId, topicId, replyTo, text, preview));
         }
     }
 
-    /** @param preview 링크 미리보기를 켜고 보냈는지 */
-    private record Sent(String chatId, Integer topicId, String text, boolean preview) {}
+    /**
+     * @param replyTo 어느 명령에 답글로 달았는지. 검색 답은 반드시 채워져 있어야 한다
+     * @param preview 링크 미리보기를 켜고 보냈는지
+     */
+    private record Sent(String chatId, Integer topicId, Integer replyTo, String text,
+                        boolean preview) {}
 }

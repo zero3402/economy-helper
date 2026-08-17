@@ -82,10 +82,14 @@ public class TelegramClient {
         }
     }
 
-    /** 정기 발송 — 설정된 방의 Notice 토픽으로. 미리보기는 뉴스 통만 켠다. */
+    /**
+     * 정기 발송 — 설정된 방의 Notice 토픽으로. 미리보기는 뉴스 통만 켠다.
+     *
+     * <p><b>답글로 달지 않는다.</b> 브리핑은 아무도 묻지 않은 것에 대한 답이라 인용할 명령이 없다.
+     */
     @CircuitBreaker(name = "telegram")
     public void send(String text, boolean preview) {
-        send(defaultChatId, noticeTopicId, text, preview);
+        send(defaultChatId, noticeTopicId, null, text, preview);
     }
 
     /**
@@ -93,11 +97,12 @@ public class TelegramClient {
      * General 토픽으로 간다.
      *
      * <p>토픽을 뺀 2-인자 오버로드는 두지 않는다. 있으면 토픽을 깜빡한 호출이 조용히 General로
-     * 떨어지고, 그건 아무 오류도 내지 않아 발견이 늦다.
+     * 떨어지고, 그건 아무 오류도 내지 않아 발견이 늦다. {@code replyTo}도 같은 이유로 뺄 수 없게
+     * 두었다 — 답글을 깜빡하면 여럿이 함께 쓸 때 답이 섞인다.
      */
     @CircuitBreaker(name = "telegram")
-    public void send(String chatId, Integer topicId, String text) {
-        send(chatId, topicId, text, false);
+    public void send(String chatId, Integer topicId, Integer replyTo, String text) {
+        send(chatId, topicId, replyTo, text, false);
     }
 
     /**
@@ -109,9 +114,9 @@ public class TelegramClient {
      *                통마다 링크가 하나뿐이고 카드가 어느 기사 것인지 확정된다
      */
     @CircuitBreaker(name = "telegram")
-    public void send(String chatId, Integer topicId, String text, boolean preview) {
-        call("sendMessage", new SendMessage(chatId, topicId, truncate(text), "HTML", !preview),
-                SendAck.class);
+    public void send(String chatId, Integer topicId, Integer replyTo, String text, boolean preview) {
+        call("sendMessage", new SendMessage(chatId, topicId, truncate(text), "HTML", !preview,
+                replyTo, replyTo == null ? null : true), SendAck.class);
     }
 
     /**
@@ -215,12 +220,23 @@ public class TelegramClient {
     }
 
     /**
-     * 링크 미리보기를 끈다 — 매체별 1건씩 묶어 보내면 미리보기 카드가 줄줄이 붙어
-     * 정작 본문이 밀린다.
-     *
-     * <p><b>{@code NON_NULL}이 필요하다.</b> {@code message_thread_id}는 "for forum supergroups
+     * <b>{@code NON_NULL}이 필요하다.</b> {@code message_thread_id}는 "for forum supergroups
      * only"라 토픽이 없을 때는 필드 자체가 없어야 한다 — {@code null}을 실어 보내면 포럼이
-     * 아닌 방에서 거절당할 수 있다.
+     * 아닌 방에서 거절당할 수 있다. 답글 두 필드도 같은 규칙에 기댄다.
+     *
+     * <p>⚠️ javadoc 블록을 둘 연달아 두면 <b>앞 블록이 통째로 버려진다</b>(마지막 것만 붙는다).
+     * 예전에 그 상태였고, 하필 버려지던 쪽에 이 {@code NON_NULL} 근거가 적혀 있었다.
+     *
+     * @param disableWebPagePreview 링크 미리보기를 끌지. <b>호출자가 정한다</b> — 기사를 담은
+     *                         통만 켠다. 예전에는 매체별로 묶어 보내느라 늘 껐지만, 지금은
+     *                         기사마다 통을 쪼개 통마다 카드가 그 기사 것으로 확정된다
+     * @param replyToMessageId 이 답이 어느 명령에 대한 것인지. 텔레그램이 원 명령을 인용해 그려 주므로
+     *                         <b>여럿이 같은 방에서 동시에 검색해도 답이 섞이지 않는다.</b>
+     *                         정기 발송은 인용할 명령이 없어 {@code null}이다
+     * @param allowSendingWithoutReply 원 명령이 지워졌을 때 <b>답 자체가 실패하지 않게</b> 한다.
+     *                         이게 없으면 텔레그램이 {@code message to be replied not found}로
+     *                         거절해, 인용을 붙인 대가로 답을 통째로 잃는다.
+     *                         답글이 아닐 때는 보내지 않는다({@code null})
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     record SendMessage(
@@ -228,7 +244,9 @@ public class TelegramClient {
             @JsonProperty("message_thread_id") Integer messageThreadId,
             String text,
             @JsonProperty("parse_mode") String parseMode,
-            @JsonProperty("disable_web_page_preview") boolean disableWebPagePreview) {}
+            @JsonProperty("disable_web_page_preview") boolean disableWebPagePreview,
+            @JsonProperty("reply_to_message_id") Integer replyToMessageId,
+            @JsonProperty("allow_sending_without_reply") Boolean allowSendingWithoutReply) {}
 
     record GetChat(@JsonProperty("chat_id") String chatId) {}
 

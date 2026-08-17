@@ -15,7 +15,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  */
 @ConfigurationProperties(prefix = "economy-helper")
 public record EconomyHelperProperties(
-        Map<NewsSource, Feed> feeds, Ranking ranking, Digest digest, CacheTtl cacheTtl) {
+        Map<NewsSource, Feed> feeds, Ranking ranking, Digest digest, CacheTtl cacheTtl,
+        Weather weather) {
 
 
     /** {@code type}이 어느 파서를 쓸지 정한다 — AP만 GOOGLE_NEWS다. */
@@ -64,5 +65,27 @@ public record EconomyHelperProperties(
                            Duration relevance, Duration upbitMarkets, Duration cryptoPrice,
                            Duration binancePrice, Duration stockResolve, Duration cryptoResolve,
                            Duration stockPrice, Duration usQuote,
-                           Duration fx, Duration fxKexim) {}
+                           Duration fx, Duration fxKexim,
+                           Duration weather, Duration geocode, Duration weatherResolve) {}
+
+    /**
+     * 오전 6시 날씨 알람.
+     *
+     * <p><b>지역을 좌표로 박는다.</b> 지오코딩은 역 이름을 못 찾는다 — {@code 서현}을 물으면
+     * 김포시 서현이 1순위로 나온다(실측). 덤으로 이 경로가 지오코딩을 아예 타지 않게 되어,
+     * 지명 검색이 죽어도 아침 알람은 나간다. 브리핑이 종목코드를 박아 LLM을 안 타는 것과
+     * 같은 구조다.
+     *
+     * @param cron 발송 창. 슬롯(KST 날짜)이 하루 한 번을 보장하므로 창 안에서 몇 번을 돌아도
+     *             한 번만 나간다 — "정확히 6시에 깨어 있어야 한다"는 요구가 사라진다
+     */
+    public record Weather(String zone, String cron, List<WeatherLocation> locations) {}
+
+    /**
+     * 알람에 넣을 지점 하나.
+     *
+     * <p><b>{@code Map}이 아니라 목록이다.</b> 키가 한글이면 relaxed binding이 걸러낸다 —
+     * 6단계에서 별칭 표가 그렇게 조용히 사라진 적이 있다. 값(List 원소)이면 한글이어도 안전하다.
+     */
+    public record WeatherLocation(String name, double latitude, double longitude) {}
 }

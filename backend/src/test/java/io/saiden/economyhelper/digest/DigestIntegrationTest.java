@@ -151,7 +151,7 @@ class DigestIntegrationTest {
         int before = circuitBreakerRegistry.circuitBreaker("telegram")
                 .getMetrics().getNumberOfFailedCalls();
 
-        assertThatThrownBy(() -> telegramClient.send("1", null, "연결 거부될 주소"))
+        assertThatThrownBy(() -> telegramClient.send("1", null, null, "연결 거부될 주소"))
                 .isInstanceOf(Exception.class);
 
         assertThat(circuitBreakerRegistry.circuitBreaker("telegram")
@@ -168,9 +168,9 @@ class DigestIntegrationTest {
                 "https://example.com/cache-proof-" + System.nanoTime(), NOW, 0);
 
         int before = CountingTranslatorConfig.calls.get();
-        Translation first = translationService.translate(article);
+        Translation first = translationService.translateAll(List.of(article)).get(0);
         awaitCached(article.link());
-        Translation second = translationService.translate(article);
+        Translation second = translationService.translateAll(List.of(article)).get(0);
 
         assertThat(second).isEqualTo(first);
         assertThat(CountingTranslatorConfig.calls.get() - before)
@@ -205,7 +205,7 @@ class DigestIntegrationTest {
         Article article = new Article(NewsSource.YAHOO_FINANCE, "Fed signals rate cut", null,
                 "https://example.com/json-proof-" + System.nanoTime(), NOW, 0);
 
-        translationService.translate(article);
+        translationService.translateAll(List.of(article)).get(0);
         awaitCached(article.link());
 
         Set<String> keys = redisTemplate.keys("*" + article.link());

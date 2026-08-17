@@ -23,6 +23,11 @@ import io.saiden.economyhelper.news.rank.RelevanceScorer;
 import io.saiden.economyhelper.translate.QueryTranslator;
 import io.saiden.economyhelper.translate.Translation;
 import io.saiden.economyhelper.translate.TranslationService;
+import io.saiden.economyhelper.market.weather.WeatherResolver;
+import io.saiden.economyhelper.market.weather.metno.MetNoClient;
+import io.saiden.economyhelper.market.weather.openmeteo.GeocodingApi;
+import io.saiden.economyhelper.market.weather.openmeteo.OpenMeteoArchiveClient;
+import io.saiden.economyhelper.market.weather.openmeteo.OpenMeteoForecastClient;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -123,6 +128,57 @@ class CacheConfigTest {
     }
 
     @Test
+    @DisplayName("weather 캐시 — Weather가 그대로 돌아온다 (LocalDate 포함)")
+    void roundTripsWeather() {
+        JacksonJsonRedisSerializer<io.saiden.economyhelper.market.weather.Weather> serializer =
+                CacheConfig.serializer(
+                        new TypeReference<io.saiden.economyhelper.market.weather.Weather>() {});
+        var original = new io.saiden.economyhelper.market.weather.Weather(
+                seongnam(),
+                java.util.List.of(io.saiden.economyhelper.market.weather.Weather.Daily.withChance(
+                        java.time.LocalDate.of(2026, 8, 17),
+                        io.saiden.economyhelper.market.weather.SkyCondition.CLOUDY,
+                        new BigDecimal("18.2"), new BigDecimal("29.6"), 20)),
+                io.saiden.economyhelper.market.weather.WeatherSource.OPEN_METEO);
+
+        assertThat(serializer.deserialize(serializer.serialize(original))).isEqualTo(original);
+    }
+
+    @Test
+    @DisplayName("geocode 캐시 — ZoneId가 그대로 돌아온다. 틀리면 날짜가 하루 어긋난다")
+    void roundTripsGeoLocation() {
+        JacksonJsonRedisSerializer<Optional<io.saiden.economyhelper.market.weather.GeoLocation>>
+                serializer = CacheConfig.serializer(
+                        new TypeReference<Optional<
+                                io.saiden.economyhelper.market.weather.GeoLocation>>() {});
+        var original = Optional.of(seongnam());
+
+        // ZoneId.of(...)는 실제로 package-private ZoneRegion이라 상위 타입으로 직렬화기를
+        // 찾아 돈다 — "되긴 되는" 자리라 못 박아 둔다. 이 값이 틀리면 그 지역의 하루가
+        // 우리 달력으로 잘려 날짜가 하루 밀린다
+        assertThat(serializer.deserialize(serializer.serialize(original))).isEqualTo(original);
+    }
+
+    @Test
+    @DisplayName("weather-resolve 캐시 — Optional<ResolvedPlace>가 그대로 돌아온다")
+    void roundTripsResolvedPlace() {
+        JacksonJsonRedisSerializer<Optional<
+                io.saiden.economyhelper.market.weather.WeatherResolver.ResolvedPlace>> serializer =
+                CacheConfig.serializer(new TypeReference<Optional<
+                        io.saiden.economyhelper.market.weather.WeatherResolver.ResolvedPlace>>() {});
+        var original = Optional.of(
+                new io.saiden.economyhelper.market.weather.WeatherResolver.ResolvedPlace(
+                        "성남", "KR", null, 1, 7));
+
+        assertThat(serializer.deserialize(serializer.serialize(original))).isEqualTo(original);
+    }
+
+    private static io.saiden.economyhelper.market.weather.GeoLocation seongnam() {
+        return new io.saiden.economyhelper.market.weather.GeoLocation(
+                "성남시", "대한민국", 37.3851167, 127.1232944, java.time.ZoneId.of("Asia/Seoul"));
+    }
+
+    @Test
     @DisplayName("@Cacheable을 단 캐시는 전부 CacheConfig에 등록돼 있다")
     void configuresEveryDeclaredCache() {
         Set<String> declared = Stream.of(
@@ -130,9 +186,17 @@ class CacheConfigTest {
                         StockPriceApi.class, MarketIndexApi.class, FmpApi.class,
                         FrankfurterFxClient.class, KeximFxClient.class,
                         FeedFetcher.class, HackerNewsApi.class, RelevanceScorer.class,
-                        QueryTranslator.class, TranslationService.class)
+                        QueryTranslator.class, TranslationService.class,
+                        // 날씨. 여기에 안 적으면 새 캐시를 감시가 아예 안 본다
+                        OpenMeteoForecastClient.class, OpenMeteoArchiveClient.class,
+                        MetNoClient.class, GeocodingApi.class, WeatherResolver.class)
                 .flatMap(type -> cacheNamesOf(type).stream())
-                .collect(Collectors.toSet());
+                .collect(Collectors.toCollection(java.util.HashSet::new));
+
+        // ⚠️ 애너테이션이 없는 캐시는 위 훑기에 안 걸린다. translation은 CacheManager로 직접
+        // 읽고 쓰는데(캐시 미스만 골라 묶어 번역하려면 그래야 한다), 그렇다고 감시에서 빠지면
+        // 등록 누락이 조용히 지나간다 — 이름을 직접 더해 그물을 유지한다
+        declared.add(TranslationService.CACHE);
 
         assertThat(configuredCacheNames())
                 .as("등록이 빠지면 Redis 기본값(JDK 직렬화·무기한)으로 떨어져 레코드를 담는 순간 "
@@ -151,7 +215,9 @@ class CacheConfigTest {
     private static EconomyHelperProperties propertiesWithTtl() {
         Duration any = Duration.ofMinutes(1);
         return new EconomyHelperProperties(null, null, null,
-                new CacheTtl(any, any, any, any, any, any, any, any, any, any, any, any, any, any));
+                new CacheTtl(any, any, any, any, any, any, any, any, any, any, any, any, any, any,
+                        any, any, any),
+                null);
     }
 
     @Test

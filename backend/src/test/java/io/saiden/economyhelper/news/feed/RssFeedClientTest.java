@@ -63,10 +63,38 @@ class RssFeedClientTest {
         List<Article> articles = client.parse(NewsSource.INVESTING, fixture("investing.xml"));
 
         // RSS 2.0은 pubDate를 RFC 822로 규정하는데 Investing은 '2026-08-14 07:54:20'으로 준다.
-        // 되돌려 주지 않으면 Rome이 날짜를 못 읽어 열 건이 전부 버려진다 — 실제로 그랬다
-        assertThat(articles).hasSize(10);
+        // 되돌려 주지 않으면 Rome이 날짜를 못 읽어 열 건이 전부 버려진다 — 실제로 그랬다.
+        // 여덟인 이유는 열 건 중 둘이 Reuters 재게재본이라 따로 걸러지기 때문이다
+        assertThat(articles).hasSize(8);
         assertThat(articles).allSatisfy(article ->
                 assertThat(article.publishedAt()).isNotNull());
+    }
+
+    @Test
+    @DisplayName("페이월 매체의 재게재본은 버린다 — 주소가 investing.com이라 호스트 필터를 통과한다")
+    void dropsArticlesSyndicatedFromPaywalledPublishers() {
+        List<Article> articles = client.parse(NewsSource.INVESTING, fixture("investing.xml"));
+
+        // 이 피드는 열 건 중 둘이 <author>Reuters</author>다. 링크는 investing.com이라
+        // NewsSource.owns가 못 막는다 — 안에 얹힌 남의 기사는 author로 가른다
+        assertThat(articles)
+                .as("Reuters 재게재본 두 건이 빠진다")
+                .hasSize(8)
+                .as("그 매체 자신의 기사는 그대로 남는다")
+                .allSatisfy(article -> assertThat(article.link()).contains("investing.com"));
+    }
+
+    @Test
+    @DisplayName("author가 비어 있으면 통과시킨다 — AP 프록시 피드가 그렇다")
+    void keepsArticlesWithoutAnAuthor() {
+        String xml = """
+                <?xml version="1.0" encoding="utf-8"?>
+                <rss version="2.0"><channel><title>t</title><link>https://x</link>
+                <item><title>제목</title><link>https://apnews.com/a</link>
+                <pubDate>Thu, 14 Aug 2026 07:54:20 GMT</pubDate></item>
+                </channel></rss>""";
+
+        assertThat(client.parse(NewsSource.AP, new java.io.StringReader(xml))).hasSize(1);
     }
 
     @Test

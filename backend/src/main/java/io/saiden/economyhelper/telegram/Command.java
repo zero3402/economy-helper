@@ -23,6 +23,14 @@ public enum Command {
     /** {@code /crypto 비트코인} — 현재 코인 시세. */
     CRYPTO("/crypto", "코인", true, "/crypto 비트코인"),
 
+    /**
+     * {@code /weather 내일 성남} — 일일 날씨. 전 세계를 다룬다.
+     *
+     * <p>인자에 지역과 기간이 함께 들어온다({@code CommandParser}가 첫 공백 뒤를 통째로 넘긴다).
+     * 둘을 가르는 일은 LLM({@code WeatherResolver})이 한다.
+     */
+    WEATHER("/weather", "날씨", true, "/weather 내일 성남"),
+
     /** {@code /help} — 명령 목록. */
     HELP("/help", "사용할 수 있는 명령", false, "/help");
 
@@ -38,7 +46,7 @@ public enum Command {
         this.example = example;
     }
 
-    public String token() {
+    String token() {
         return token;
     }
 

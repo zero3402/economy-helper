@@ -1,6 +1,5 @@
 package io.saiden.economyhelper.news;
 
-import io.saiden.economyhelper.support.Concurrently;
 import io.saiden.economyhelper.translate.Translation;
 import io.saiden.economyhelper.translate.TranslationService;
 import java.time.Duration;
@@ -41,7 +40,8 @@ public class NewsFacade {
     /** 최근 창 안의 발행분 중 점수 상위 몇 건 — 정기 발송과 프론트 첫 화면이 같은 목록을 쓴다. */
     public List<NewsItem> digest() {
         // NewsService가 이미 점수순으로 상위 몇 건을 준다 — 그 순서 그대로 번역한다.
-        // 번역을 겹친다 — 순차로 돌면 건수만큼 곱해져 그것만으로 10~25초였다
+        // 번역은 한 번에 묶어 부른다 — 건별로 부르면 호출이 건수만큼 늘고, 그 호출들이
+        // 관련도 채점 뒤에 줄을 서서 리미터가 소진되면 번역부터 잘려 나갔다
         return translated(newsService.digest());
     }
 
@@ -60,15 +60,16 @@ public class NewsFacade {
     }
 
     /**
-     * 번역을 겹쳐 {@link NewsItem}으로 옮긴다.
+     * 번역을 묶어 {@link NewsItem}으로 옮긴다.
      *
-     * <p>기사당 Gemini 한 번이고 서로 무관한데 줄줄이 기다리면 건수만큼 곱해진다.
-     * 한 번에 묶어 보내지 않는 이유는 캐시다 — 링크 단위로 캐시해야 이미 번역한 기사를
-     * 다시 태우지 않는다.
+     * <p><b>한 번에 묶어 보낸다.</b> 예전에는 기사마다 한 번씩 불렀는데, 그러면 브리핑 한 번에
+     * 번역만 세 번이 나가고 그 셋이 관련도 채점(매체당 1회) <b>뒤에</b> 줄을 선다 —
+     * Gemini 리미터가 소진되면 잘려 나가는 쪽이 정확히 번역이라 "번역이 일시적으로 불가"가
+     * 자주 떴다. 캐시는 그대로다: {@code translateAll}이 캐시에 없는 것만 골라 묶는다.
      */
     private List<NewsItem> translated(List<ScoredArticle> ordered) {
-        List<Translation> translations =
-                Concurrently.map(ordered, scored -> translationService.translate(scored.article()));
+        List<Translation> translations = translationService.translateAll(
+                ordered.stream().map(ScoredArticle::article).toList());
 
         List<NewsItem> items = new ArrayList<>(ordered.size());
         for (int i = 0; i < ordered.size(); i++) {

@@ -6,6 +6,7 @@ import io.saiden.economyhelper.market.CryptoService;
 import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.FxService;
 import io.saiden.economyhelper.market.StockService;
+import io.saiden.economyhelper.market.weather.WeatherFacade;
 import io.saiden.economyhelper.news.NewsFacade;
 import io.saiden.economyhelper.news.NewsItem;
 import java.util.List;
@@ -54,6 +55,7 @@ public class TelegramWebhookController {
     private final CryptoService cryptoService;
     private final FxService fxService;
     private final StockService stockService;
+    private final WeatherFacade weatherFacade;
     private final TelegramClient telegramClient;
     private final String webhookSecret;
     private final String allowedChatId;
@@ -74,6 +76,7 @@ public class TelegramWebhookController {
                                      CryptoService cryptoService,
                                      FxService fxService,
                                      StockService stockService,
+                                     WeatherFacade weatherFacade,
                                      TelegramClient telegramClient,
                                      @Qualifier("replyExecutor") Executor replyExecutor,
                                      @Value("${economy-helper.telegram.webhook-secret:}") String webhookSecret,
@@ -84,6 +87,7 @@ public class TelegramWebhookController {
         this.cryptoService = cryptoService;
         this.fxService = fxService;
         this.stockService = stockService;
+        this.weatherFacade = weatherFacade;
         this.telegramClient = telegramClient;
         // 다듬어 둔다. 대시보드에 붙여 넣은 값은 끝에 줄바꿈이나 공백이 붙기 쉽고,
         // 그러면 비교가 조용히 어긋나 모든 요청이 403이 된다
@@ -150,6 +154,8 @@ public class TelegramWebhookController {
         String text = message.text();
         // 포럼이 아닌 방과 General 토픽에서는 이 필드가 아예 오지 않는다 → null
         Integer topicId = message.messageThreadId();
+        // 답을 이 명령에 답글로 단다 — 여럿이 동시에 검색해도 어느 물음의 답인지 확정된다
+        Integer replyTo = message.messageId();
 
         // 걸러낸 것은 답하지 않고 조용히 끝낸다. 답하면 봇이 살아 있다는 걸 확인해 주고
         // 발송 한 번을 쓴다. 대신 번호를 로그에 남긴다 — 설정할 값을 여기서 그대로 읽는다
@@ -168,14 +174,14 @@ public class TelegramWebhookController {
         if (parsed.isEmpty()) {
             // '/'로 시작하는 오타에만 안내한다. 일반 대화는 조용히 무시해 그룹 채팅을 오염시키지 않는다
             if (CommandParser.isUnknownCommand(text)) {
-                telegramClient.send(chatId, topicId, MessageFormatter.unknownCommand());
+                telegramClient.send(chatId, topicId, replyTo, MessageFormatter.unknownCommand());
             }
             return;
         }
 
         ParsedCommand command = parsed.get();
         if (command.missingRequiredArgument()) {
-            telegramClient.send(chatId, topicId, MessageFormatter.usage(command.command()));
+            telegramClient.send(chatId, topicId, replyTo, MessageFormatter.usage(command.command()));
             return;
         }
 
@@ -190,7 +196,7 @@ public class TelegramWebhookController {
                 TelegramClient.pause();
             }
             first = false;
-            telegramClient.send(chatId, topicId, part, reply.preview());
+            telegramClient.send(chatId, topicId, replyTo, part, reply.preview());
         }
 
         // 성공 경로에 유일하게 남는 줄이다. 세 가지를 여기서만 알 수 있다.
@@ -210,9 +216,8 @@ public class TelegramWebhookController {
     /**
      * 답 한 건.
      *
-     * @param logoSymbol 아이콘을 찾을 티커·종목코드. <b>{@code null}이면 아이콘 없이</b> 글로만
-     *                   보낸다 — {@code /fx}·{@code /help}·못 찾음 안내에는 붙일 대상이 없고,
-     *                   {@code /news}는 답이 길어 캡션 상한(1024)을 넘긴다
+     * @param texts   보낼 본문들. 뉴스만 여럿이고 나머지는 한 통짜리 목록이다
+     * @param preview 링크 미리보기를 띄울지. 링크가 있는 통(뉴스)만 참이다
      */
     private record Reply(List<String> texts, boolean preview) {
 
@@ -229,19 +234,19 @@ public class TelegramWebhookController {
      */
     private Reply reply(ParsedCommand command) {
         return switch (command.command()) {
-            // 답이 기사 한 건이라 미리보기 카드가 하나만 붙는다 — 브리핑 뉴스 통은
-            // 다섯을 묶어 보내므로 거기서는 계속 끈다
+            // 기사마다 통을 쪼개므로 통마다 카드가 그 기사 것으로 확정된다 — 브리핑도 같은
+            // 규칙이라 거기서도 미리보기를 켠다
             case NEWS -> {
                 List<NewsItem> found = newsFacade.search(command.argument());
                 yield found.isEmpty()
                         ? Reply.plain(MessageFormatter.noResults(command.argument(), newsFacade.window()))
-                        : new Reply(MessageFormatter.formatNews(found), true);
+                        : new Reply(MessageFormatter.formatNews(found, command.argument()), true);
             }
             // 브리핑 코인 통과 같은 함수다 — 항목이 하나뿐일 뿐이다.
             // 바이낸스가 붙었을 때만 환율을 묻는다 — 안 쓸 값을 미리 부르지 않는다
             case CRYPTO -> cryptoService.quote(command.argument())
                     .map(quote -> Reply.plain(MessageFormatter.formatCrypto(List.of(quote),
-                            quote.binance().hasPrice() ? currentFx() : null)))
+                            quote.binance().hasPrice() ? currentFx() : null, command.argument())))
                     .orElseGet(() -> Reply.plain(MessageFormatter.cryptoNotFound(command.argument())));
             case FX -> Reply.plain(fxService.usdToKrw()
                     .map(MessageFormatter::formatFx)
@@ -249,8 +254,21 @@ public class TelegramWebhookController {
             // 미국 종목이면 원화도 함께 보여준다. 환율 조회가 실패하면 달러만 나간다 —
             // 환산을 못 한다고 시세 자체를 막을 이유가 없다.
             case STOCK -> stockService.quote(command.argument())
-                    .map(quote -> Reply.plain(MessageFormatter.formatStock(List.of(quote), currentFx())))
+                    .map(quote -> Reply.plain(MessageFormatter.formatStock(List.of(quote), currentFx(),
+                            command.argument())))
                     .orElseGet(() -> Reply.plain(MessageFormatter.stockNotFound(command.argument())));
+            // 답이 일일 예보라 링크가 없다 — 미리보기를 켤 이유가 없다
+            case WEATHER -> {
+                WeatherFacade.Lookup found = weatherFacade.search(command.argument());
+                yield Reply.plain(switch (found.reason()) {
+                    case FOUND -> MessageFormatter.formatWeather(found.places(), command.argument());
+                    // 지역을 안 적은 것과 적었는데 못 찾은 것은 사용자가 할 일이 다르다
+                    case NO_PLACE -> MessageFormatter.weatherNeedsPlace();
+                    case NOT_FOUND -> MessageFormatter.weatherNotFound(command.argument());
+                    case TOO_FAR_AHEAD -> MessageFormatter.weatherTooFarAhead();
+                    case UNAVAILABLE -> MessageFormatter.weatherUnavailable();
+                });
+            }
             case HELP -> Reply.plain(MessageFormatter.help());
         };
     }
@@ -271,14 +289,21 @@ public class TelegramWebhookController {
     public record Update(Message message) {}
 
     /**
-     * {@code message_thread_id}는 <b>선택 필드다</b> — 포럼 슈퍼그룹의 토픽 메시지에만 붙고
-     * General 토픽과 일반 방에서는 오지 않는다.
-     *
-     * <p>{@code @JsonProperty}가 필요하다. 이 프로젝트는 전역 snake_case 전략을 쓰지 않아
+     * <b>{@code @JsonProperty}가 필요하다.</b> 이 프로젝트는 전역 snake_case 전략을 쓰지 않아
      * 이름이 다른 필드는 하나씩 짚어 줘야 한다.
+     *
+     * <p>⚠️ javadoc 블록을 둘 연달아 두면 <b>앞 블록이 통째로 버려진다</b>(마지막 것만 붙는다).
+     * 예전에 그 상태였고, 하필 버려지던 쪽에 이 {@code @JsonProperty} 근거가 적혀 있었다.
+     *
+     * @param messageId 이 명령 메시지의 번호. <b>답을 여기에 답글로 단다</b> — 그룹에서 여럿이
+     *                  동시에 검색하면 답이 누구 것인지 알 수 없고, {@code /news}는 통이 셋으로
+     *                  쪼개져 특히 섞인다. 텔레그램이 원 명령을 인용해 그려 주면 그게 사라진다
+     * @param messageThreadId <b>선택 필드다</b> — 포럼 슈퍼그룹의 토픽 메시지에만 붙고
+     *                  General 토픽과 일반 방에서는 아예 오지 않는다({@code null})
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Message(Chat chat, String text,
+                          @JsonProperty("message_id") Integer messageId,
                           @JsonProperty("message_thread_id") Integer messageThreadId) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)

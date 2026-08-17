@@ -30,6 +30,26 @@ class ResilienceConfigTest {
     }
 
     @Autowired CircuitBreakerRegistry registry;
+    @Autowired io.github.resilience4j.ratelimiter.RateLimiterRegistry limiters;
+
+    @Test
+    @DisplayName("선언한 리미터가 실제로 스로틀이다 — 이름만 애너테이션에 있으면 조용히 무력해진다")
+    void declaredRateLimitersActuallyThrottle() {
+        // ⚠️ ratelimiter에는 configs.default가 없다. 인스턴스를 선언하지 않으면 라이브러리
+        // 기본값(50 permits / 500ns)으로 만들어지는데 그건 사실상 무제한이라,
+        // @RateLimiter가 프록시만 태우고 아무것도 막지 않는다. 실제로 met.no가 그 상태였다
+        for (String name : new String[] {"gemini", "upbit", "binance", "dataGo", "fmp", "kexim",
+                "weatherMetNo"}) {
+            RateLimiterConfig config = limiters.rateLimiter(name).getRateLimiterConfig();
+
+            assertThat(config.getLimitRefreshPeriod())
+                    .as("%s 리미터가 선언되지 않아 기본값(500ns)으로 떨어졌다 — 무제한과 같다", name)
+                    .isGreaterThanOrEqualTo(java.time.Duration.ofSeconds(1));
+            assertThat(config.getLimitForPeriod())
+                    .as("%s 리미터의 허용량이 기본값(50)이다 — 선언이 안 먹었다는 뜻이다", name)
+                    .isLessThan(50);
+        }
+    }
 
     @Test
     @DisplayName("리미터 거절은 브레이커의 실패로 세지 않는다 — 자기 스로틀은 상대 장애가 아니다")
@@ -44,7 +64,11 @@ class ResilienceConfigTest {
         drained.acquirePermission();
         RequestNotPermitted rejection = RequestNotPermitted.createRequestNotPermitted(drained);
 
-        for (String name : new String[] {"translation", "telegram", "fmp", "upbit"}) {
+        // ⚠️ ignoreExceptions를 따로 적은 브레이커(binance·weatherGeocoding)를 반드시 포함한다 —
+        // 그 설정은 baseConfig의 것을 덮어쓰므로 RequestNotPermitted가 조용히 빠질 수 있다.
+        // binance가 실제로 그 상태였고, 목록에 없어서 아무도 몰랐다
+        for (String name : new String[] {"translation", "telegram", "fmp", "upbit", "binance",
+                "weatherOpenMeteo", "weatherMetNo", "weatherOpenMeteoArchive", "weatherGeocoding"}) {
             CircuitBreaker breaker = registry.circuitBreaker(name);
             long before = breaker.getMetrics().getNumberOfFailedCalls();
 

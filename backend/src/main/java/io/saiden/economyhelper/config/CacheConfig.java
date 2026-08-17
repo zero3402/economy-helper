@@ -10,6 +10,9 @@ import io.saiden.economyhelper.market.fmp.FmpApi.FmpQuote;
 import io.saiden.economyhelper.market.data.StockPriceApi.StockPrice;
 import io.saiden.economyhelper.market.upbit.UpbitApi.UpbitTicker;
 import io.saiden.economyhelper.market.upbit.UpbitMarket;
+import io.saiden.economyhelper.market.weather.GeoLocation;
+import io.saiden.economyhelper.market.weather.Weather;
+import io.saiden.economyhelper.market.weather.WeatherResolver.ResolvedPlace;
 import io.saiden.economyhelper.news.Article;
 import io.saiden.economyhelper.translate.Translation;
 import java.time.Duration;
@@ -87,7 +90,17 @@ public class CacheConfig {
                         cache(ttl.fx(), new TypeReference<FxRate>() {}))
                 // 하루 1,000회 한도를 지키는 실질 방어다 — 1시간이면 하루 최대 24회
                 .withCacheConfiguration("fx-kexim",
-                        cache(ttl.fxKexim(), new TypeReference<FxRate>() {}));
+                        cache(ttl.fxKexim(), new TypeReference<FxRate>() {}))
+                // 시세와 같은 급이다 — 길게 잡으면 '오늘 날씨'가 어제 예보가 된다
+                .withCacheConfiguration("weather",
+                        cache(ttl.weather(), new TypeReference<Weather>() {}))
+                // 지명의 좌표는 낡지 않는다. 검색 한 번에 조회가 두 번 나가는 것을 막는다
+                .withCacheConfiguration("geocode",
+                        cache(ttl.geocode(), new TypeReference<java.util.Optional<GeoLocation>>() {}))
+                // LLM 해석. '내일'을 offsetDays로 받으므로 캐시해도 내일이 고정되지 않는다
+                .withCacheConfiguration("weather-resolve",
+                        cache(ttl.weatherResolve(),
+                                new TypeReference<java.util.Optional<ResolvedPlace>>() {}));
     }
 
     private static RedisCacheConfiguration cache(Duration ttl, TypeReference<?> type) {

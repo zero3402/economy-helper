@@ -17,6 +17,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
@@ -91,8 +92,42 @@ public class RssFeedClient implements FeedClient {
                     source, !title.isBlank(), link != null && !link.isBlank(), publishedAt != null);
             return null;
         }
+        if (syndicatedFromPaywall(entry.getAuthor())) {
+            log.debug("[{}] 페이월 매체의 재게재본이라 건너뜁니다 (author={})", source, entry.getAuthor());
+            return null;
+        }
         return new Article(source, title, extractDescription(entry), link, publishedAt, rank);
     }
+
+    /**
+     * 이 항목이 <b>페이월 매체의 기사를 얹어 놓은 것</b>인가.
+     *
+     * <p><b>호스트 필터만으로는 못 막는다.</b> {@link NewsSource#owns}는 링크가 그 매체를 떠났는지를
+     * 보는데, Investing.com은 Reuters·Bloomberg 기사를 <b>자기 도메인에 얹어</b> 낸다 —
+     * 주소가 {@code investing.com}이라 허용 목록을 그대로 통과한다(2026-08-17 실측 피드의
+     * 첫 항목이 {@code <author>Reuters</author>}였다). 그런 재게재본은 가입 벽이 붙는 일이 있어
+     * "링크를 눌러도 못 읽는 기사는 답이 아니다"라는 이 프로젝트의 기준에 걸린다.
+     *
+     * <p>그래서 두 겹이다 — <b>밖으로 나가는 링크는 호스트가, 안에 얹힌 남의 기사는 여기가</b> 막는다.
+     *
+     * <p>목록이 짧은 이유는 {@link NewsSource}의 주석과 같다. 세상의 모든 유료 매체를 쫓지 않고,
+     * <b>우리가 고른 다섯 피드에 실제로 실려 오는 것</b>만 적는다.
+     *
+     * <p>author가 비어 있으면 거짓이다 — AP 프록시 피드가 그렇다. 호스트 필터가 이미 받치고 있어
+     * 모르는 것을 버리는 쪽으로 기울일 이유가 없다.
+     */
+    private static boolean syndicatedFromPaywall(String author) {
+        if (author == null || author.isBlank()) {
+            return false;
+        }
+        String normalized = author.toLowerCase(Locale.ROOT);
+        return PAYWALL_AUTHORS.stream().anyMatch(normalized::contains);
+    }
+
+    /** 전부 소문자로 둘 것 — 비교가 소문자로 이뤄진다. */
+    private static final List<String> PAYWALL_AUTHORS = List.of(
+            "reuters", "bloomberg", "dow jones", "wall street journal", "wsj",
+            "barron", "financial times", "the economist");
 
     /** Google News처럼 제목에 매체명 꼬리가 붙는 피드가 재정의한다. */
     protected String normalizeTitle(String title) {

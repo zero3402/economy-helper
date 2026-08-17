@@ -217,7 +217,8 @@ class FeedFetcherTest {
                 copy,
                 new Ranking(new Weights(0.35, 0.25, 0.25, 0.15), Duration.ofHours(6)),
                 null,   // 수집은 digest 설정을 쓰지 않는다
-                null);  // 캐시 TTL도 마찬가지 (여기선 @Cacheable이 프록시 없이 지나간다)
+                null,   // 캐시 TTL도 마찬가지 (여기선 @Cacheable이 프록시 없이 지나간다)
+                null);  // 날씨 설정도 수집과 무관하다
     }
 
     private FeedFetcher fetcher(Map<NewsSource, Feed> feeds, CircuitBreakerRegistry registry) {

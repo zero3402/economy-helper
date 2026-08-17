@@ -41,7 +41,7 @@ class TelegramClientTest {
     @Test
     @DisplayName("봇 토큰을 경로에 넣고 chat_id·text를 스네이크케이스로 보낸다")
     void postsSendMessageWithSnakeCaseFields() {
-        client().send("12345", null, "안녕하세요");
+        client().send("12345", null, null, "안녕하세요");
 
         server.verify(postRequestedFor(urlPathEqualTo("/bottest-token/sendMessage"))
                 .withRequestBody(equalToJson("""
@@ -51,7 +51,7 @@ class TelegramClientTest {
     @Test
     @DisplayName("토픽을 주면 message_thread_id로 실어 보낸다 — 포럼에서 그 토픽에 뜬다")
     void carriesForumTopicId() {
-        client().send("12345", 7, "안녕하세요");
+        client().send("12345", 7, null, "안녕하세요");
 
         server.verify(postRequestedFor(anyUrl())
                 .withRequestBody(equalToJson("""
@@ -62,7 +62,7 @@ class TelegramClientTest {
     @Test
     @DisplayName("토픽이 없으면 필드 자체를 뺀다 — null을 실으면 포럼이 아닌 방에서 거절당한다")
     void omitsThreadIdEntirelyWhenAbsent() {
-        client().send("12345", null, "안녕하세요");
+        client().send("12345", null, null, "안녕하세요");
 
         server.verify(postRequestedFor(anyUrl())
                 .withRequestBody(equalToJson("""
@@ -80,6 +80,29 @@ class TelegramClientTest {
                 .withRequestBody(equalToJson("""
                         {"chat_id":"default-chat","message_thread_id":3,"text":"정기 발송",\
                         "parse_mode":"HTML","disable_web_page_preview":true}""")));
+    }
+
+    @Test
+    @DisplayName("답글로 달면 원 명령 번호를 실어 보낸다 — 여럿이 동시에 검색해도 답이 섞이지 않는다")
+    void repliesToTheCommandThatAskedForIt() {
+        client().send("12345", 7, 4821, "증시 '삼성전자'");
+
+        server.verify(postRequestedFor(anyUrl())
+                .withRequestBody(equalToJson("""
+                        {"chat_id":"12345","message_thread_id":7,"text":"증시 '삼성전자'",\
+                        "parse_mode":"HTML","disable_web_page_preview":true,\
+                        "reply_to_message_id":4821,"allow_sending_without_reply":true}""")));
+    }
+
+    @Test
+    @DisplayName("정기 발송에는 답글을 달지 않는다 — 브리핑은 인용할 명령이 없다")
+    void digestCarriesNoReplyFields() {
+        client().send("정기 발송", false);
+
+        assertThat(server.getAllServeEvents().get(0).getRequest().getBodyAsString())
+                .as("키가 null로라도 남아 있으면 안 된다")
+                .doesNotContain("reply_to_message_id")
+                .doesNotContain("allow_sending_without_reply");
     }
 
     @Test
@@ -114,7 +137,7 @@ class TelegramClientTest {
                 .withBody("{\"ok\":false,\"error_code\":400,"
                         + "\"description\":\"Bad Request: chat not found\"}")));
 
-        assertThatThrownBy(() -> client().send("12345", null, "안녕하세요"))
+        assertThatThrownBy(() -> client().send("12345", null, null, "안녕하세요"))
                 .as("무엇을 고쳐야 하는지가 description에 적혀 있다 — 그 문장을 그대로 실어 올린다")
                 .hasMessageContaining("chat not found")
                 .hasMessageContaining("400");
@@ -129,7 +152,7 @@ class TelegramClientTest {
                 .withBody("{\"ok\":false,\"error_code\":400,"
                         + "\"description\":\"Bad Request: message thread not found\"}")));
 
-        assertThatThrownBy(() -> client().send("12345", 3, "안녕하세요"))
+        assertThatThrownBy(() -> client().send("12345", 3, null, "안녕하세요"))
                 .hasMessageContaining("message thread not found");
     }
 

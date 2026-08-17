@@ -45,7 +45,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,digest
+        include: health,info,metrics,digest,weather
   endpoint:
     health:
       show-details: when-authorized
@@ -86,7 +86,7 @@ economy-helper:
 
   ranking:
     # 어느 매체도 조회수/댓글 수를 공개하지 않아 공개 신호로 인기도를 근사한다.
-    # 합이 1.0이 되도록 유지할 것.
+    # 합이 1일 필요는 없다 — PopularityScorer가 합으로 나눠 정규화하므로 비율만 맞으면 된다.
     weights:
       feed-rank: 0.35      # RSS 노출 순서 = 편집자가 매긴 우선순위
       recency: 0.25
@@ -129,6 +129,9 @@ economy-helper:
     stock-price: 1h        # 전일 종가라 자주 바뀌지 않는다. 일 1만회 한도도 이걸로 지킨다
     us-quote: 1m           # 미국은 현재가다. 이보다 길게 잡으면 '현재가'가 아니게 된다 —
                            # 대신 하루 250회 한도는 캐시가 아니라 FmpQuotaGuard가 지킨다
+    weather: 10m           # 시세와 같은 급이다. 길게 잡으면 '오늘 날씨'가 어제 예보가 된다
+    geocode: 30d           # 지명의 좌표는 낡지 않는다. 검색 한 번에 조회가 두 번 나가는 걸 막는다
+    weather-resolve: 7d    # LLM 해석. '내일'은 offsetDays로 받으므로 캐시해도 내일이 고정되지 않는다
     fx: 1m                 # 토스는 1분 주기로 갱신된다(validUntil은 5분이지만 보수적으로)
     fx-kexim: 1h           # 수출입은행 하루 1,000회 한도를 지키는 실질 방어다 (1h면 하루 최대 24회)
 
@@ -205,6 +208,47 @@ economy-helper:
     # 이 미만이면 재테크 뉴스가 아닌 것으로 보고 그 매체를 이번 발송에서 뺀다
     relevance-threshold: 0.4
     sent-history-ttl: 3d   # 발송 완료 표시 보관 기간 (중복 발송 방지)
+
+  weather:
+    zone: Asia/Seoul
+    # 오전 6시. 06:00~07:50에 10분마다 돌고 슬롯(날짜)이 하루 한 번을 보장한다 —
+    # 브리핑(09시)과 같은 구조다. 잠들어 있었으면 깨어난 뒤 첫 틱이 보낸다.
+    cron: "0 0/10 6-7 * * *"
+    # ⚠️ 지오코딩은 역 이름을 못 찾는다 — '서현'을 물으면 김포시 서현(37.646, 126.605)이
+    #    1순위로 나온다. 그래서 알람 지역은 좌표를 직접 박는다. 덤으로 이 경로는
+    #    지오코딩을 아예 타지 않아, 지명 검색이 죽어도 아침 알람은 나간다.
+    #    좌표는 위키백과 확인값이다.
+    locations:
+      - name: "미금역"
+        latitude: 37.35000
+        longitude: 127.10889
+      - name: "서현역"
+        latitude: 37.3851167
+        longitude: 127.1232944
+      - name: "잠실역"
+        latitude: 37.513250
+        longitude: 127.100111
+      - name: "삼성중앙역"
+        latitude: 37.512806
+        longitude: 127.052612
+
+    # 둘 다 API 키가 없다 — .env에 시크릿이 늘지 않고 배포처 IP 허용목록에도 안 걸린다.
+    # Frankfurter를 고른 것과 같은 이유다.
+    open-meteo:
+      # 예보. 2026-08-17 실측으로 16일치가 강수확률까지 빠짐없이 왔다.
+      # 세 출처 중 강수확률을 주는 유일한 곳이라 1순위다.
+      base-url: https://api.open-meteo.com
+      # 지나간 날(ERA5 재분석). 호스트가 다르고 격자도 다르다(~11km) — 예보(~1km)와
+      # 정밀도가 달라 출처 이름도 따로 적는다. 이중화 상대가 없다.
+      archive-base-url: https://archive-api.open-meteo.com
+      # 지명 검색. met.no에는 지명 검색이 없어 이쪽도 이중화 상대가 없다.
+      geocoding-base-url: https://geocoding-api.open-meteo.com
+
+    met-no:
+      base-url: https://api.met.no
+      # ⚠️ 연락처가 든 User-Agent가 없으면 403이다. met.no 약관이 문제가 생겼을 때
+      #    연락할 수단을 요구한다 — 저장소 주소가 그 역할을 한다.
+      user-agent: ${MET_NO_USER_AGENT:economy-helper/1.0 (github.com/zero3402/economy-helper)}
 
   # 시크릿은 환경변수로만 주입한다. 로컬은 backend/.env(gitignore), Phase 3는 k8s Secret.
   # 저장소에 값을 넣으면 지운 뒤에도 git 이력에 영원히 남는다.
@@ -290,6 +334,12 @@ resilience4j:
       translation:
         baseConfig: default
         waitDurationInOpenState: 120s
+        # 429는 "우리가 너무 빨리 물었다"이지 Gemini 장애가 아니다. 실패로 세면 무료 티어를
+        # 스칠 때마다 브레이커가 열려 120초 동안 번역이 통째로 막힌다 — 리미터 거절(위의
+        # RequestNotPermitted)을 빼 둔 것과 같은 이유다. 바이낸스가 4xx를 빼는 것도 같다.
+        ignoreExceptions:
+          - io.github.resilience4j.ratelimiter.RequestNotPermitted
+          - org.springframework.web.client.HttpClientErrorException.TooManyRequests
       telegram:
         baseConfig: default
       # buzz는 랭킹의 부속 신호다. 끊겨도 나머지 세 지표로 순위가 매겨지므로
@@ -305,7 +355,11 @@ resilience4j:
       # 실패로 세면 멀쩡한 거래소에 브레이커가 열려 다른 코인까지 막힌다.
       binance:
         baseConfig: default
+        # ⚠️ ignoreExceptions는 baseConfig의 것을 **덮어쓴다** — 이어 붙이지 않는다.
+        #    RequestNotPermitted를 다시 적지 않으면 default에서 상속받던 그 규칙이 사라져
+        #    우리 스로틀이 거절한 것이 바이낸스 장애로 세어진다. 실제로 그 상태였다.
         ignoreExceptions:
+          - io.github.resilience4j.ratelimiter.RequestNotPermitted
           - org.springframework.web.client.HttpClientErrorException
       # 환율은 출처별로 따로 연다. 하나로 묶으면 토스 장애가 수출입은행까지 끊어
       # CLAUDE.md가 요구한 이중화가 성립하지 않는다.
@@ -317,13 +371,38 @@ resilience4j:
         baseConfig: default
       fmp:
         baseConfig: default
+      # 날씨도 출처별로 따로 연다 — 환율과 같은 이유다. 하나로 묶으면 Open-Meteo 장애가
+      # met.no까지 끊어 이중화가 성립하지 않는다.
+      weatherOpenMeteo:
+        baseConfig: default
+      weatherMetNo:
+        baseConfig: default
+      # 지나간 날짜 전용. 이중화 상대가 없어(met.no에 아카이브가 없다) 여기가 열리면
+      # 과거 조회는 그대로 멈춘다 — 그래서 예보와 한 브레이커를 쓰지 않는다.
+      weatherOpenMeteoArchive:
+        baseConfig: default
+      # 지오코딩은 4xx를 실패로 세지 않는다. 없는 지명이나 이상한 문자가 섞인 검색어에
+      # 400이 오는 건 우리 잘못이지 상대 장애가 아닌데, 그걸 세면 검색 몇 번에 브레이커가
+      # 열려 멀쩡한 지오코딩이 60초 끊긴다 — 바이낸스가 미상장 심볼의 400을 빼는 것과 같다.
+      weatherGeocoding:
+        baseConfig: default
+        # ⚠️ ignoreExceptions는 baseConfig의 것을 **덮어쓴다** — 이어 붙이지 않는다.
+        #    그래서 RequestNotPermitted를 여기 다시 적어야 한다. 안 적으면 default에서
+        #    상속받던 그 규칙이 사라져, 우리 스로틀이 거절한 것이 상대 장애로 세어진다.
+        ignoreExceptions:
+          - io.github.resilience4j.ratelimiter.RequestNotPermitted
+          - org.springframework.web.client.HttpClientErrorException
   ratelimiter:
     instances:
       # Gemini 무료 티어는 보장된 한도가 아니다. 스스로 낮게 잡아 429를 피한다.
       gemini:
         limitForPeriod: 12
         limitRefreshPeriod: 60s
-        timeoutDuration: 5s
+        # 허가가 날 때까지 기다린다. 짧게 잡으면 거절이 곧 실패가 되는데, 그 실패는 언제나
+        # 번역 쪽으로 떨어진다 — 관련도 채점(매체당 1회)이 먼저 줄을 서고 번역이 그 뒤라서다.
+        # 브리핑은 백그라운드이고 /news도 이미 수 초를 기다리므로, 몇 초 더 기다리는 편이
+        # 영문 원문으로 강등되는 것보다 낫다.
+        timeoutDuration: 20s
       # 업비트는 초당 10회/IP(quotation 그룹 공유)를 명시한다. 8로 낮춰 경계에서 429를 피한다.
       upbit:
         limitForPeriod: 8
@@ -353,3 +432,12 @@ resilience4j:
         limitForPeriod: 5
         limitRefreshPeriod: 60s
         timeoutDuration: 3s
+      # met.no는 무료이고 약관이 예의를 요구한다(연락처가 든 User-Agent를 강제할 정도다).
+      # ⚠️ 이 블록이 없으면 @RateLimiter가 조용히 무력해진다 — 여기엔 ratelimiter.configs.default가
+      #    없어서, 선언 없는 인스턴스는 라이브러리 기본값(50 permits / 500ns)으로 만들어진다.
+      #    사실상 무제한이라 애너테이션이 프록시만 태우고 아무것도 막지 않는다.
+      # 알람이 네 곳을 겹쳐 조회해 순간적으로 네 건이 몰리는데, 그걸 초당 2건으로 눕힌다.
+      weatherMetNo:
+        limitForPeriod: 2
+        limitRefreshPeriod: 1s
+        timeoutDuration: 5s

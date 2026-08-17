@@ -442,7 +442,7 @@ class DailyDigestJobTest {
                 new EconomyHelperProperties.Digest(
                         "Asia/Seoul", "0 0 9 * * *", Duration.ofDays(3),
                         List.of("코스피"), List.of("005930"), List.of("KRW-BTC"), List.of()),
-                null);
+                null, null);
     }
 
     static NewsItem item(String title) {

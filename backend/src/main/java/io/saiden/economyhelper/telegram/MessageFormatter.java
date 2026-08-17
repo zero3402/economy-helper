@@ -3,6 +3,8 @@ package io.saiden.economyhelper.telegram;
 import io.saiden.economyhelper.market.CryptoQuote;
 import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.StockQuote;
+import io.saiden.economyhelper.market.weather.Weather;
+import io.saiden.economyhelper.market.weather.WeatherPeriod;
 import io.saiden.economyhelper.news.NewsItem;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -88,9 +90,29 @@ public final class MessageFormatter {
 
     /** 시세는 "언제 값인지"가 값 자체만큼 중요하다. 사용자는 한국에 있으므로 KST로 보여준다. */
     private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
+    /**
+     * 날짜에는 <b>언제나 요일을 붙인다</b> — {@code 2026년 8월 17일(월)}.
+     *
+     * <p>값이 언제 것인지를 사람이 실제로 판단하는 단위가 요일이다. "8월 15일 종가"만 보면
+     * 그게 금요일 종가인지 주말에 멈춘 값인지 세어 봐야 알고, 일주일치 날씨에서 찾는 것도
+     * 날짜가 아니라 "이번 주말"이다. 환율의 {@code (고시)}, 증시의 {@code (종가)}처럼
+     * <b>값의 성격을 밝히는 일</b>의 연장이다.
+     *
+     * <p>⚠️ {@link Locale#KOREAN}을 명시하지 않으면 서버 로케일에 따라 {@code Mon}으로 나온다.
+     */
     private static final DateTimeFormatter DATE_TIME =
-            DateTimeFormatter.ofPattern("yyyy년 M월 d일 HH:mm:ss");
-    private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("yyyy년 M월 d일");
+            DateTimeFormatter.ofPattern("yyyy년 M월 d일(E) HH:mm:ss", Locale.KOREAN);
+    private static final DateTimeFormatter DATE =
+            DateTimeFormatter.ofPattern("yyyy년 M월 d일(E)", Locale.KOREAN);
+
+    /**
+     * 연도를 되풀이하지 않는 자리 — 범위의 끝({@code ~ 8월 24일(월)})과 날짜별 블록 제목.
+     *
+     * <p>둘이 같은 모양이라 상수도 하나다. 범위의 시작에 이미 연도가 적혀 있고, 날짜별 블록은
+     * 맨 아래 기준 줄이 연도를 이고 있다.
+     */
+    private static final DateTimeFormatter SHORT_DATE =
+            DateTimeFormatter.ofPattern("M월 d일(E)", Locale.KOREAN);
 
     private MessageFormatter() {
     }
@@ -107,7 +129,7 @@ public final class MessageFormatter {
      * 강제하고({@code "publishedAt is required"}) {@code RssFeedClient}는 날짜 없는 항목을
      * 아예 버리므로, 여기까지 온 값에는 날짜가 반드시 있다.
      */
-    public static String format(NewsItem item) {
+    static String format(NewsItem item) {
         StringBuilder message = new StringBuilder();
         message.append("<a href=\"").append(Html.escape(item.link())).append("\"><b>")
                 .append(Html.escape(item.title())).append("</b></a>");
@@ -121,7 +143,7 @@ public final class MessageFormatter {
             message.append("\n<i>번역이 일시적으로 불가해 원문 그대로 보냅니다.</i>");
         }
         // 매체와 발행 시각 — 환율·증시와 같은 자리, 같은 모양이다
-        return message.append("\n\n").append(Html.escape(item.sourceName()))
+        return message.append("\n\n").append(unlinkable(Html.escape(item.sourceName())))
                 .append("\n\n").append(DATE_TIME.format(item.publishedAt().atZone(SEOUL)))
                 .toString();
     }
@@ -141,21 +163,61 @@ public final class MessageFormatter {
      * @return 통 목록. 호출자가 순서대로, 텔레그램 권고대로 사이를 띄워 보낸다
      */
     public static List<String> formatNews(List<NewsItem> items) {
+        return formatNews(items, null);
+    }
+
+    /**
+     * @param query 사용자가 친 검색어. 제목에 함께 적어 <b>여럿이 동시에 검색해도</b> 어느 물음의
+     *              답인지 드러나게 한다({@code 뉴스 '이더리움' 1/3}). 답글 인용이 접혀 보이는
+     *              화면에서는 이것이 유일한 단서다. 브리핑은 물어본 사람이 없으므로 {@code null}
+     */
+    public static List<String> formatNews(List<NewsItem> items, String query) {
         if (items.isEmpty()) {
-            return List.of(section(Command.NEWS) + "지금은 가져올 수 있는 뉴스가 없습니다.");
+            return List.of(empty(Command.NEWS, query));
         }
         List<String> messages = new ArrayList<>(items.size());
         for (int i = 0; i < items.size(); i++) {
-            messages.add(newsTitle(i, items.size()) + "\n\n" + format(items.get(i)));
+            messages.add(newsTitle(query, i, items.size()) + "\n\n" + format(items.get(i)));
         }
         return List.copyOf(messages);
     }
 
-    private static String newsTitle(int index, int total) {
+    private static String newsTitle(String query, int index, int total) {
         return total == 1
-                ? title(Command.NEWS)
-                : "<b>" + Html.escape(Command.NEWS.section()) + " " + (index + 1) + "/" + total + "</b>";
+                ? title(Command.NEWS, query)
+                : "<b>" + Html.escape(Command.NEWS.section()) + queryTag(query)
+                        + " " + (index + 1) + "/" + total + "</b>";
     }
+
+    /**
+     * 텔레그램이 <b>스스로 링크로 만들지 못하게</b> 막는다.
+     *
+     * <p><b>왜 필요한가.</b> 출처 줄은 평문인데 {@code Investing.com}처럼 표기에 TLD가 들어 있으면
+     * 텔레그램이 그걸 주소로 알아보고 <b>매체 홈페이지로 가는 링크를 만든다.</b> 그러면 한 통에
+     * 링크가 둘이 되고, 사용자가 기사인 줄 알고 누르면 홈페이지가 열린다. 피드가 준 것이 아니라
+     * (RSS item에는 {@code <link>}가 하나뿐이다) 화면에서 생겨나는 링크다.
+     *
+     * <p><b>점 앞에 폭 없는 문자(U+2060 WORD JOINER)를 끼운다.</b> 눈에 보이지 않고 줄바꿈도
+     * 일으키지 않아 <b>화면 모양이 그대로다</b> — 링크만 사라진다. {@code <code>}로 감싸는 방법도
+     * 있지만 이 파일이 모노스페이스를 쓰지 않기로 했고(복사 버튼이 붙는다), {@code <a>}로 감싸면
+     * "값과 설명은 평문"이라는 규칙이 깨진다.
+     *
+     * <p><b>매체 이름을 지목하지 않는다.</b> 표기에 TLD가 있으면 무엇이든 끊는다 —
+     * {@code .com}이 든 매체가 늘어도 따라온다. 매체 쪽({@code NewsSource.displayName})은
+     * 손대지 않는다: REST 응답과 로그에는 깨끗한 이름이 나가야 한다.
+     */
+    private static String unlinkable(String escaped) {
+        return TLD.matcher(escaped).replaceAll("⁠$0");
+    }
+
+    /**
+     * 표기 안의 TLD 꼬리 — {@code Investing.com}의 {@code .com}이 이것이다.
+     *
+     * <p>점 뒤에 글자 둘 이상이 이어지고 그 뒤가 낱말 경계일 때만 문다. 문장 끝 마침표나
+     * 소수점은 걸리지 않는다.
+     */
+    private static final java.util.regex.Pattern TLD =
+            java.util.regex.Pattern.compile("\\.[a-zA-Z]{2,}\\b");
 
     /**
      * <b>왜 없는지 함께 말한다.</b> "찾지 못했습니다"만 있으면 사용자는 봇 고장으로 읽는다 —
@@ -163,7 +225,9 @@ public final class MessageFormatter {
      * 문구가 따라오지 않으면 그 자체로 거짓말이 되기 때문이다.
      */
     public static String noResults(String query, Duration window) {
-        return section(Command.NEWS)
+        // 제목에도 검색어를 싣는다 — 답글 인용이 접혀 보이는 화면에서는 통 제목만 남는데,
+        // 어느 검색이 실패했는지 알아야 할 때 정확히 그 단서가 없었다. 성공 답은 이미 싣는다
+        return section(Command.NEWS, query)
                 + "'" + Html.escape(query) + "'에 해당하는 최근 " + window.toHours() + "시간 뉴스를 찾지 못했습니다.";
     }
 
@@ -199,7 +263,7 @@ public final class MessageFormatter {
     // --- 주식·지수 -----------------------------------------------------------
 
     public static String stockNotFound(String query) {
-        return section(Command.STOCK)
+        return section(Command.STOCK, query)
                 + "'" + Html.escape(query) + "'에 해당하는 종목을 찾지 못했습니다.";
     }
 
@@ -221,10 +285,18 @@ public final class MessageFormatter {
      * 환율도 적지 않는다 — 환율은 {@code /fx}와 브리핑 환율 통이 따로 있다.
      */
     public static String formatStock(List<StockQuote> quotes, FxRate fx) {
+        return formatStock(quotes, fx, null);
+    }
+
+    /** @param query 검색어. 제목에 함께 적는다 — 브리핑은 {@code null} */
+    public static String formatStock(List<StockQuote> quotes, FxRate fx, String query) {
+        if (quotes.isEmpty()) {
+            return empty(Command.STOCK, query);
+        }
         List<StockQuote> closing = quotes.stream().filter(q -> !q.realtime()).toList();
         List<StockQuote> live = quotes.stream().filter(StockQuote::realtime).toList();
 
-        StringBuilder message = new StringBuilder(title(Command.STOCK));
+        StringBuilder message = new StringBuilder(title(Command.STOCK, query));
         appendGroup(message, "국내", closing, fx);
         appendGroup(message, "미국", live, fx);
 
@@ -266,8 +338,18 @@ public final class MessageFormatter {
             message.append("\n\n").append(Html.escape(quote.name()))
                     .append("\n").append(priceOf(quote));
             // 무리 기준과 어긋난 줄에만 표시한다. 맨 밑 기준 줄이 그 값까지 대표하는 것처럼
-            // 보이면 거짓말이 된다. 값의 시각이라 값 줄에 함께 둔다
-            if (!quote.at().equals(basis)) {
+            // 보이면 거짓말이 된다. 값의 날짜라 값 줄에 함께 둔다.
+            //
+            // ⚠️ 시각이 아니라 <b>날짜</b>로 비교한다. Instant로 비교하면 미국 무리가 통째로 걸렸다 —
+            // at이 심볼마다 제 FMP 체결 초라(StockService.toQuote) 넷이 같은 초일 리가 없어서,
+            // 가장 최근 것 하나만 빼고 전부 날짜가 붙었다. 그런데 찍히는 값은 맨 밑 기준 줄과
+            // 같은 날짜라 알려 주는 것이 없었고, /stock은 한 건이라 이 줄에 닿지 못해
+            // 같은 값이 알람과 검색에서 두 모양으로 나갔다.
+            //
+            // 날짜로 비교하면 남는 경우가 "진짜 다른 날"뿐이다 — 국내 무리가 그렇다.
+            // 지수(MarketIndexApi)와 종목(StockPriceApi)이 각자 날짜를 뒤로 감아 찾으므로
+            // 하루가 어긋날 수 있고, 그때는 반드시 밝혀야 한다.
+            if (!sameDay(quote.at(), basis)) {
                 message.append(" · ").append(DATE.format(quote.at().atZone(SEOUL)));
             }
             // 값 → 원화 환산 → 등락률 순으로 각각 제 줄에. 환산값과 등락률을 한 줄에 붙이면 엉킨다
@@ -283,6 +365,11 @@ public final class MessageFormatter {
         // 두 무리 것을 맨 아래에 모으면 "국내"·"미국"을 접두사로 네 번 반복해야 한다
         message.append("\n\n").append(Html.escape(sourcesOf(quotes)))
                 .append("\n\n").append(basisOf(quotes.get(0), basis));
+    }
+
+    /** 두 시각이 KST 같은 날인가 — 값의 신선도를 가르는 단위는 초가 아니라 하루다. */
+    private static boolean sameDay(Instant left, Instant right) {
+        return left.atZone(SEOUL).toLocalDate().equals(right.atZone(SEOUL).toLocalDate());
     }
 
     /** 무리의 기준 시각 — 가장 최근 값이다. */
@@ -310,7 +397,15 @@ public final class MessageFormatter {
      * {@code USDTUSD}로 값이 나온다. 남는 것은 진짜 장애뿐이고 그건 알려야 한다.
      */
     public static String formatCrypto(List<CryptoQuote> quotes, FxRate fx) {
-        StringBuilder message = new StringBuilder(section(Command.CRYPTO));
+        return formatCrypto(quotes, fx, null);
+    }
+
+    /** @param query 검색어. 제목에 함께 적는다 — 브리핑은 {@code null} */
+    public static String formatCrypto(List<CryptoQuote> quotes, FxRate fx, String query) {
+        if (quotes.isEmpty()) {
+            return empty(Command.CRYPTO, query);
+        }
+        StringBuilder message = new StringBuilder(section(Command.CRYPTO, query));
         boolean first = true;
         for (CryptoQuote quote : quotes) {
             message.append(first ? "" : "\n\n")
@@ -319,9 +414,13 @@ public final class MessageFormatter {
             first = false;
         }
         // 출처 자리는 비운다 — 코인은 출처가 거래소이고 그건 코인마다 둘씩이라 값 줄에
-        // 이름으로 이미 적혀 있다. 맨 아래에 남는 것은 기준 시각뿐이다
-        quotes.stream().findFirst().ifPresent(head ->
-                message.append("\n\n").append(DATE_TIME.format(head.at().atZone(SEOUL))));
+        // 이름으로 이미 적혀 있다. 맨 아래에 남는 것은 기준 시각뿐이다.
+        //
+        // ⚠️ 첫 코인의 시각이 아니라 <b>가장 최근 값</b>을 쓴다(증시의 basisOf와 같은 규칙).
+        // at은 코인마다 제 업비트 체결 시각이고 미상장 코인은 Instant.now()로 채워지는데,
+        // 첫 코인이 그런 경우면 조회 시각이 나머지 전부의 체결 시각인 척 맨 아래에 앉는다.
+        quotes.stream().map(CryptoQuote::at).max(Comparator.naturalOrder()).ifPresent(basis ->
+                message.append("\n\n").append(DATE_TIME.format(basis.atZone(SEOUL))));
         return message.toString();
     }
 
@@ -434,10 +533,152 @@ public final class MessageFormatter {
     }
 
     public static String cryptoNotFound(String query) {
-        return section(Command.CRYPTO)
+        return section(Command.CRYPTO, query)
                 + "'" + Html.escape(query) + "'에 해당하는 코인을 찾지 못했습니다.\n\n"
                 + "업비트 또는 바이낸스에 상장된 이름이나 심볼로 입력해 주세요.\n\n"
                 + "예) /crypto 비트코인 · /crypto BTC";
+    }
+
+    // --- 날씨 ---------------------------------------------------------------
+
+    /**
+     * 날씨 통 — <b>오전 6시 알람도 {@code /weather} 한 지역도 이것 하나를 쓴다.</b>
+     *
+     * <p>{@code /stock}·{@code /crypto}와 같은 규칙이다 — 검색 답은 알람 통에 지역이 하나뿐인
+     * 경우일 뿐이므로 포매터를 나누지 않는다. 나누면 같은 값이 두 모양으로 그려진다.
+     *
+     * <p><b>답은 언제나 일일 예보다.</b> 현재 기온을 적지 않는다 — 현재값과 일일값을 섞으면
+     * "지금 21°C인데 최고가 29°C"처럼 두 시간축이 한 화면에 서고, 6시 알람에서 그 시각 기온은
+     * 하루를 계획하는 데 쓸모도 없다.
+     *
+     * <p><b>계층이 세 겹으로 겹치지 않는다.</b> 알람은 지역 넷 × 하루, 검색은 지역 하나 × 여러 날이라
+     * 「지역 → 날짜 → 값」이 동시에 서는 경우가 없다. 그래서 하루짜리 답은 날짜를 블록 제목으로
+     * 올리지 않고 맨 아래 기준 줄에만 둔다.
+     *
+     * @param query 검색어. 제목에 함께 적는다 — 알람은 {@code null}
+     */
+    public static String formatWeather(List<Weather> places, String query) {
+        if (places.isEmpty()) {
+            return empty(Command.WEATHER, query);
+        }
+        // 출처가 갈렸을 때만 지역마다 밝힌다. 갈리지 않으면(평상시) 맨 아래 한 줄이 전부를
+        // 대표하므로 화면이 한 글자도 안 바뀐다
+        boolean mixed = places.stream().map(Weather::source).distinct().count() > 1;
+
+        StringBuilder message = new StringBuilder(title(Command.WEATHER, query));
+        for (Weather place : places) {
+            message.append("\n\n<b>").append(Html.escape(place.place().displayName())).append("</b>");
+            appendDays(message, place.days());
+            if (mixed) {
+                message.append("\n").append(Html.escape(place.source().displayName()));
+            }
+        }
+        // 출처와 기준은 통 하나처럼 끝맺는다 — 값 다음 빈 줄, 출처, 빈 줄, 기준.
+        // 지역이 여럿이어도 한 번에 조회하므로 출처와 범위가 같다
+        places.stream().findFirst().ifPresent(head ->
+                message.append("\n\n").append(Html.escape(weatherSourcesOf(places)))
+                        .append("\n\n").append(basisOf(head)));
+        return message.toString();
+    }
+
+    /**
+     * 하루면 값만, 여러 날이면 <b>하루가 블록 하나</b>다.
+     *
+     * <p>하루짜리에 날짜 제목을 붙이지 않는 이유는 그 날짜가 이미 맨 아래 기준 줄에 있기
+     * 때문이다 — 같은 사실을 두 번 적으면 어느 쪽이 계층인지 흐려진다.
+     */
+    private static void appendDays(StringBuilder message, List<Weather.Daily> days) {
+        boolean single = days.size() == 1;
+        for (Weather.Daily day : days) {
+            message.append("\n\n");
+            if (!single) {
+                message.append(SHORT_DATE.format(day.date())).append("\n");
+            }
+            if (day.sky().known()) {
+                message.append(day.sky().label()).append("\n");
+            }
+            message.append(money(day.low())).append("°C / ").append(money(day.high())).append("°C");
+            appendRain(message, day);
+        }
+    }
+
+    /**
+     * 강수 — <b>출처가 주는 것을 제 이름으로 적는다.</b>
+     *
+     * <p>강수확률은 Open-Meteo 예보만 준다. met.no는 북유럽 밖에서 주지 않고, 지나간 날은
+     * 확률이라는 개념 자체가 없다. <b>강수량을 확률이라 부르지 않는다</b> — 값을 다른 것인 척
+     * 하지 않는다는 규칙이 {@code (종가)}·{@code (고시)}와 같은 자리에서 여기에도 걸린다.
+     */
+    private static void appendRain(StringBuilder message, Weather.Daily day) {
+        if (day.rainChance() != null) {
+            message.append("\n강수확률 ").append(day.rainChance()).append("%");
+        } else if (day.rainAmount() != null) {
+            message.append("\n강수량 ").append(money(day.rainAmount())).append("mm");
+        }
+    }
+
+    /**
+     * 조회처. 지역마다 폴백이 갈릴 수 있으므로 모아 적는다.
+     *
+     * <p><b>여기에 둘 이상이 찍히면 지역 블록에도 각자의 출처가 적혀 있다</b>({@code formatWeather}의
+     * {@code mixed}). 바닥에만 {@code Open-Meteo · met.no}가 뜨면 어느 곳이 폴백했는지 알 수 없는데,
+     * 본문에는 증상이 보인다 — 그 지역만 강수확률이 아니라 강수량으로 바뀐다. 원인 없이 증상만
+     * 보이는 상태를 만들지 않는다. 증시가 무리마다 꼬리를 다는 것과 같은 이유다.
+     *
+     * <p>이름이 {@code sourcesOf}가 아닌 이유는 제네릭 소거 때문이다 — 증시 쪽과 인자 목록이
+     * 같아져 오버로드가 성립하지 않는다.
+     */
+    private static String weatherSourcesOf(List<Weather> places) {
+        return places.stream()
+                .map(place -> place.source().displayName())
+                .distinct()
+                .collect(Collectors.joining(" · "));
+    }
+
+    /**
+     * 기준 줄 — 날짜와 <b>그 값의 성격</b>이다.
+     *
+     * <p>하루치 값에 시각을 붙이면 그 시각의 값인 것처럼 읽힌다. 그래서 {@code (종가)}·
+     * {@code (고시)}와 같은 규칙으로 {@code (예보)}·{@code (실측)}을 붙인다 — 지나간 날은
+     * 예보가 아니라 실제로 그랬던 값이다.
+     */
+    private static String basisOf(Weather weather) {
+        String kind = weather.source().forecast() ? " (예보)" : " (실측)";
+        return weather.from().equals(weather.to())
+                ? DATE.format(weather.from()) + kind
+                : DATE.format(weather.from()) + " ~ " + SHORT_DATE.format(weather.to()) + kind;
+    }
+
+    public static String weatherNotFound(String query) {
+        return section(Command.WEATHER, query)
+                + "'" + Html.escape(query) + "'에 해당하는 지역을 찾지 못했습니다.\n\n"
+                + "도시나 지역 이름으로 입력해 주세요.\n\n"
+                + "예) /weather 서울 · /weather 내일 성남 · /weather 일주일치 파리";
+    }
+
+    /**
+     * 지역을 안 적었다 — <b>우리가 골라 주지 않고 묻는다.</b>
+     *
+     * <p>사용자가 고르지 않은 지역으로 답하면 그 값이 맞는지 사용자가 알 수 없다. 인자 없이
+     * {@code /stock}을 쳤을 때 사용법을 띄우는 것과 같은 자리다.
+     *
+     * <p>못 찾은 것({@link #weatherNotFound})과 다른 답이다 — 이미 지역을 적은 사람에게
+     * 적으라고 하면 안 된다.
+     */
+    public static String weatherNeedsPlace() {
+        return section(Command.WEATHER)
+                + "어느 지역인지 함께 적어 주세요.\n\n"
+                + "예) /weather 서울 · /weather 내일 성남 · /weather 일주일치 파리";
+    }
+
+    /** 예보가 닿지 않는 날. <b>며칠까지 되는지를 함께 말한다</b> — 빈손만 주면 고장으로 보인다. */
+    public static String weatherTooFarAhead() {
+        return section(Command.WEATHER)
+                + "날씨 예보는 오늘부터 " + WeatherPeriod.MAX_FORECAST_DAYS + "일까지만 볼 수 있습니다.";
+    }
+
+    public static String weatherUnavailable() {
+        return section(Command.WEATHER) + "날씨를 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.";
     }
 
     // --- 공통 ---------------------------------------------------------------
@@ -452,6 +693,35 @@ public final class MessageFormatter {
         return title(command) + "\n\n";
     }
 
+    private static String section(Command command, String query) {
+        return title(command, query) + "\n\n";
+    }
+
+    /**
+     * 보여줄 값이 하나도 없을 때 — <b>네 통이 같은 문장으로 답한다.</b>
+     *
+     * <p>예전에는 포매터마다 달랐다: 증시·날씨는 굵은 제목 한 마디만 내보내고(값도 출처도
+     * 시각도 없이), 코인은 거기에 빈 줄이 붙고, 뉴스만 사실을 말했다. 지금은 호출자가 다
+     * 막고 있어 도달하지 않지만, <b>넷이 제각각인 것 자체가 다음에 누가 막는 걸 잊었을 때
+     * 무슨 일이 벌어질지 알 수 없게 만든다.</b>
+     */
+    private static String empty(Command command, String query) {
+        return section(command, query) + "지금은 가져올 수 있는 값이 없습니다.";
+    }
+
+    /**
+     * 검색어를 제목 뒤에 덧댄 조각 — {@code  '이더리움'}.
+     *
+     * <p><b>왜 제목에 적는가.</b> 답을 명령에 답글로 달아도 인용이 접혀 보이는 화면이 있고,
+     * 그때는 통 제목만 남는다. 같은 방에서 여럿이 동시에 검색하면 {@code 증시}·{@code 코인}이
+     * 줄줄이 뜨는데 무엇을 물어 나온 답인지 알 수 없다.
+     *
+     * <p>검색어가 없으면({@code /fx}·{@code /help}·브리핑) 빈 문자열이라 제목이 지금 그대로다.
+     */
+    private static String queryTag(String query) {
+        return query == null || query.isBlank() ? "" : " '" + Html.escape(query.trim()) + "'";
+    }
+
 
     /**
      * 제목 줄만. 아래에 무리를 바로 붙이는 통(증시·코인·뉴스 브리핑)이 쓴다.
@@ -459,7 +729,11 @@ public final class MessageFormatter {
      * <p>제목 문자열이 {@link Command}에만 있으므로 검색 답과 브리핑 답의 제목이 갈릴 수 없다.
      */
     private static String title(Command command) {
-        return "<b>" + Html.escape(command.section()) + "</b>";
+        return title(command, null);
+    }
+
+    private static String title(Command command, String query) {
+        return "<b>" + Html.escape(command.section()) + queryTag(query) + "</b>";
     }
 
     /**
@@ -565,10 +839,11 @@ public final class MessageFormatter {
 
     private static String describe(Command command) {
         return switch (command) {
-            case NEWS -> "검색어에 해당하는 뉴스";
-            case FX -> "원/달러 환율";
-            case STOCK -> "국내·미국 주식과 지수의 현재가";
-            case CRYPTO -> "코인 현재가";
+            case NEWS -> "뉴스";
+            case FX -> "환율";
+            case STOCK -> "주식";
+            case CRYPTO -> "코인";
+            case WEATHER -> "날씨";
             case HELP -> "도움말";
         };
     }
