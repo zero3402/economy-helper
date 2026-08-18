@@ -91,12 +91,19 @@ public class CacheConfig {
                 // 하루 1,000회 한도를 지키는 실질 방어다 — 1시간이면 하루 최대 24회
                 .withCacheConfiguration("fx-kexim",
                         cache(ttl.fxKexim(), new TypeReference<FxRate>() {}))
+                // 하루 중에도 움직이는 값이다 — 화면에 '읽은 시각'을 찍으므로 1분이 상한이다
+                .withCacheConfiguration("fx-kis",
+                        cache(ttl.fxKis(), new TypeReference<FxRate>() {}))
                 // 시세와 같은 급이다 — 길게 잡으면 '오늘 날씨'가 어제 예보가 된다
                 .withCacheConfiguration("weather",
                         cache(ttl.weather(), new TypeReference<Weather>() {}))
                 // 지명의 좌표는 낡지 않는다. 검색 한 번에 조회가 두 번 나가는 것을 막는다
                 .withCacheConfiguration("geocode",
                         cache(ttl.geocode(), new TypeReference<java.util.Optional<GeoLocation>>() {}))
+                // 좌표에 대응하는 AccuWeather 지점 키도 낡지 않는다. 이게 하루 50회 한도의
+                // 실질 방어다 — 없으면 날씨 조회 한 번마다 호출이 두 번 나간다
+                .withCacheConfiguration("accu-location",
+                        cache(ttl.accuLocation(), new TypeReference<String>() {}))
                 // LLM 해석. '내일'을 offsetDays로 받으므로 캐시해도 내일이 고정되지 않는다
                 .withCacheConfiguration("weather-resolve",
                         cache(ttl.weatherResolve(),

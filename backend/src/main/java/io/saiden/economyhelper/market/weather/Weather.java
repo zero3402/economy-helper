@@ -38,7 +38,7 @@ public record Weather(GeoLocation place, List<Daily> days, WeatherSource source)
      * 하루치.
      *
      * <p><b>강수는 두 칸이고 보통 한쪽만 찬다.</b> Open-Meteo 예보만 확률을 주고
-     * (met.no는 북유럽 전용, 재분석은 지나간 날이라 확률이라는 개념이 없다) 나머지는 강수량이다.
+     * (재분석은 지나간 날이라 확률이라는 개념이 없다) 나머지는 강수량이다.
      * 한 칸으로 합쳐 담으면 화면에서 <b>강수량을 확률이라 부르게 된다</b> — 값을 다른 것인 척
      * 하지 않는다는 규칙이 이 저장소 전체에 걸려 있어서, 애초에 섞이지 않게 칸을 나눠 둔다.
      *
@@ -57,7 +57,7 @@ public record Weather(GeoLocation place, List<Daily> days, WeatherSource source)
             return new Daily(date, sky, low, high, rainChance, null);
         }
 
-        /** 강수량만 아는 출처(met.no·재분석)가 쓰는 생성자. */
+        /** 강수량만 아는 출처(재분석, 그리고 확률이 빠진 예보 응답)가 쓰는 생성자. */
         public static Daily withAmount(LocalDate date, SkyCondition sky,
                                        BigDecimal low, BigDecimal high, BigDecimal rainAmount) {
             return new Daily(date, sky, low, high, null, rainAmount);

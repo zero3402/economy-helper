@@ -197,7 +197,7 @@ class StockServiceTest {
 
         StockQuote match = service.quote("애플").orElseThrow();
 
-        assertThat(match.code()).isEqualTo("AAPL");
+        assertThat(match.name()).isEqualTo("Apple Inc.");
         assertThat(match.currency()).isEqualTo(StockQuote.Money.USD);
         assertThat(match.realtime()).as("미국은 현재가다").isTrue();
         assertThat(api.byName).as("미국인데 국내 검색을 태우면 안 된다").isEmpty();
@@ -214,9 +214,8 @@ class StockServiceTest {
 
         StockQuote quote = service.quote("나스닥").orElseThrow();
 
-        assertThat(quote.index()).isTrue();
         assertThat(quote.currency())
-                .as("지수는 통화가 없다 — 원화 환산 대상이 아니다")
+                .as("통화가 없는 것이 곧 지수라는 뜻이다 — 원화 환산 대상이 아니다")
                 .isEqualTo(StockQuote.Money.NONE);
     }
 
@@ -255,8 +254,8 @@ class StockServiceTest {
 
         assertThat(service.usQuotesOf(List.of(
                 usSymbol("AAPL", "애플"), usSymbol("BAD", "없는것"), usSymbol("NVDA", "엔비디아"))))
-                .extracting(StockQuote::code)
-                .containsExactly("AAPL", "NVDA");
+                .extracting(StockQuote::name)
+                .containsExactly("애플", "엔비디아");
     }
 
     /** 정해진 한 건을 주는 FMP 스텁. {@code null}이면 없는 심볼이다. */
@@ -342,7 +341,9 @@ class StockServiceTest {
         StockQuote match = service.quote("코스피").orElseThrow();
 
         assertThat(match.name()).isEqualTo("코스피");
-        assertThat(match.index()).isTrue();
+        assertThat(match.currency())
+                .as("통화가 없는 것이 곧 지수라는 뜻이다")
+                .isEqualTo(StockQuote.Money.NONE);
         assertThat(match.price()).isEqualByComparingTo("6345.53");
         assertThat(api.byName).as("지수는 종목 검색을 태우지 않는다").isEmpty();
         assertThat(api.byCode).isEmpty();

@@ -20,9 +20,4 @@ public record RankingWeights(double feedRank, double recency, double keywordMatc
     public double sum() {
         return feedRank + recency + keywordMatch + buzz;
     }
-
-    /** application.yml 기본값과 같아야 한다. */
-    public static RankingWeights defaults() {
-        return new RankingWeights(0.35, 0.25, 0.25, 0.15);
-    }
 }

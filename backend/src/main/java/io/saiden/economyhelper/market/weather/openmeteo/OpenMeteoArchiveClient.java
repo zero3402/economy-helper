@@ -1,6 +1,5 @@
 package io.saiden.economyhelper.market.weather.openmeteo;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.saiden.economyhelper.market.weather.GeoLocation;
 import io.saiden.economyhelper.market.weather.Weather;
@@ -21,7 +20,7 @@ import org.springframework.web.client.RestClient;
  * 서현역 {@code 37.3851,127.1233}을 물었더니 {@code 37.434,127.101}로 답했다). 한 클래스로
  * 묶어 같은 출처 이름을 달면 그 차이가 화면에서 사라진다.
  *
- * <p><b>이중화 상대가 없다.</b> met.no는 예보만 주고 아카이브가 없다. 여기가 죽으면 지난
+ * <p><b>이중화 상대가 없다.</b> AccuWeather 무료 등급에는 아카이브가 없다. 여기가 죽으면 지난
  * 날짜는 답하지 못하고, 그때는 지어내지 않고 못 찾았다고 답한다.
  *
  * <p>강수는 확률이 아니라 <b>실제로 온 양</b>이다 — 지나간 날에 "올 확률"은 말이 되지 않는다.
@@ -52,30 +51,13 @@ public class OpenMeteoArchiveClient implements WeatherClient {
     }
 
     @Override
+    // ⚠️ 예보와 한 캐시를 쓰므로 접두사로 가른다 — OpenMeteoForecastClient의 주석 참조
     @Cacheable(cacheNames = "weather",
-            key = "#a0.latitude() + ',' + #a0.longitude() + ',' + #a1.from() + ',' + #a1.to()",
+            key = "'oma:' + #a0.latitude() + ',' + #a0.longitude() + ',' + #a1.from() + ',' + #a1.to()",
             unless = "#result == null")
     @CircuitBreaker(name = "weatherOpenMeteoArchive")
     public Weather forecast(GeoLocation place, WeatherPeriod period) {
-        Archive response = restClient.get()
-                .uri(uriBuilder -> uriBuilder
-                        .path("/v1/archive")
-                        .queryParam("latitude", place.latitude())
-                        .queryParam("longitude", place.longitude())
-                        .queryParam("start_date", period.from())
-                        .queryParam("end_date", period.to())
-                        .queryParam("daily", DAILY_FIELDS)
-                        .queryParam("timezone", "auto")
-                        .build())
-                .retrieve()
-                .body(Archive.class);
-
-        if (response == null || response.daily() == null || response.daily().isEmpty()) {
-            throw new IllegalStateException("Open-Meteo 재분석 응답에 일일 값이 없습니다");
-        }
-        return new Weather(place, response.daily().toDays(), source());
+        return OpenMeteoRequest.daily(restClient, "/v1/archive", DAILY_FIELDS,
+                place, period, source());
     }
-
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    record Archive(DailyBlock daily) {}
 }

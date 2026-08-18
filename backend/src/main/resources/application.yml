@@ -131,9 +131,13 @@ economy-helper:
                            # 대신 하루 250회 한도는 캐시가 아니라 FmpQuotaGuard가 지킨다
     weather: 10m           # 시세와 같은 급이다. 길게 잡으면 '오늘 날씨'가 어제 예보가 된다
     geocode: 30d           # 지명의 좌표는 낡지 않는다. 검색 한 번에 조회가 두 번 나가는 걸 막는다
+    accu-location: 30d     # 좌표→AccuWeather 지점 키. 낡지 않는다 — 이게 실질 쿼터 방어다.
+                           # 없으면 조회 한 번에 호출이 두 번이라 하루 50회를 금세 쓴다
     weather-resolve: 7d    # LLM 해석. '내일'은 offsetDays로 받으므로 캐시해도 내일이 고정되지 않는다
     fx: 1m                 # 토스는 1분 주기로 갱신된다(validUntil은 5분이지만 보수적으로)
     fx-kexim: 1h           # 수출입은행 하루 1,000회 한도를 지키는 실질 방어다 (1h면 하루 최대 24회)
+    fx-kis: 1m             # 하루 중에도 움직이는 값이라 1분이 상한이다. 화면에 '읽은 시각'을
+                           # 찍으므로 이보다 길게 잡으면 그 시각이 실제보다 신선해 보인다
 
   # 무활동으로 잠드는 호스트에서 깨어 있기 위한 자체 핑. 비우면 이 기능은 없는 것과 같다 —
   # 항상 켜져 있는 곳으로 옮기면 이 값만 비우고 코드는 그대로 둔다.
@@ -232,23 +236,25 @@ economy-helper:
         latitude: 37.512806
         longitude: 127.052612
 
-    # 둘 다 API 키가 없다 — .env에 시크릿이 늘지 않고 배포처 IP 허용목록에도 안 걸린다.
-    # Frankfurter를 고른 것과 같은 이유다.
+    # 1순위. 지점 예보가 동 단위까지 짚어 준다(실측 2026-08-18: 미금역 → 구미1동).
+    # ⚠️ 무료 등급은 하루 50회이고, 좌표로 바로 못 부른다 — 지점 키를 먼저 받아야 해서
+    #    조회 한 번이 호출 두 번이다. cache-ttl.accu-location(30d)이 그 절반을 없앤다.
+    # ⚠️ 무료는 5일까지다. 그보다 긴 기간은 supports()에서 빠져 Open-Meteo가 맡는다.
+    accu-weather:
+      base-url: https://dataservice.accuweather.com
+      api-key: ${ACCU_API_KEY:}
+
+    # 2순위와 과거. API 키가 없어 한도에 안 걸린다 — 받쳐 주는 쪽이 제약이 적어야
+    # 이중화가 성립한다. Frankfurter를 고른 것과 같은 이유다.
     open-meteo:
       # 예보. 2026-08-17 실측으로 16일치가 강수확률까지 빠짐없이 왔다.
-      # 세 출처 중 강수확률을 주는 유일한 곳이라 1순위다.
+      # 5일을 넘는 기간을 줄 수 있는 유일한 곳이다.
       base-url: https://api.open-meteo.com
       # 지나간 날(ERA5 재분석). 호스트가 다르고 격자도 다르다(~11km) — 예보(~1km)와
       # 정밀도가 달라 출처 이름도 따로 적는다. 이중화 상대가 없다.
       archive-base-url: https://archive-api.open-meteo.com
-      # 지명 검색. met.no에는 지명 검색이 없어 이쪽도 이중화 상대가 없다.
+      # 지명 검색. AccuWeather 지점 검색은 지명이 아니라 좌표를 받아, 이쪽도 이중화 상대가 없다.
       geocoding-base-url: https://geocoding-api.open-meteo.com
-
-    met-no:
-      base-url: https://api.met.no
-      # ⚠️ 연락처가 든 User-Agent가 없으면 403이다. met.no 약관이 문제가 생겼을 때
-      #    연락할 수단을 요구한다 — 저장소 주소가 그 역할을 한다.
-      user-agent: ${MET_NO_USER_AGENT:economy-helper/1.0 (github.com/zero3402/economy-helper)}
 
   # 시크릿은 환경변수로만 주입한다. 로컬은 backend/.env(gitignore), Phase 3는 k8s Secret.
   # 저장소에 값을 넣으면 지운 뒤에도 git 이력에 영원히 남는다.
@@ -295,6 +301,19 @@ economy-helper:
       # 유럽중앙은행 고시 환율을 그대로 주는 무인증 공개 서비스.
       # 인증도 IP 제한도 없어 배포 환경에서 그대로 돈다 — 토스를 떠난 이유가 그 IP 허용목록이었다.
       base-url: https://api.frankfurter.dev
+
+    # 환율·국내 주식의 1순위. 셋 중 유일하게 하루 중에도 움직이는 출처다.
+    # ⚠️ 지금 키는 모의투자용이다. 실전은 도메인과 앱키가 둘 다 다르다:
+    #    실전 https://openapi.koreainvestment.com:9443 / 모의 https://openapivts...:29443
+    #    시세 TR ID(FH...)는 실전·모의가 같지만 실전 전용 엔드포인트가 있다 —
+    #    분봉 환율·inquire-index-price(지수)·search-stock-info(종목명)는 모의에서 안 된다.
+    #    그래서 모의에서도 도는 경로만 골라 쓴다(KisStockApi·KisFxClient javadoc 참조).
+    # ⚠️ 토큰은 1분에 한 번만 발급되고 발급마다 계정주에게 알림톡이 간다 — KisTokenStore가
+    #    Redis에 캐시하는 것이 필수다. 초당 한도도 있어 리미터(kis)를 반드시 건다.
+    kis:
+      base-url: https://openapivts.koreainvestment.com:29443
+      app-key: ${KIS_API_KEY:}
+      app-secret: ${KIS_API_SECRET:}
 
     kexim:
       # oapi 도메인을 쓴다. 구 www.koreaexim.go.kr은 2026-04-30에 지원이 끝나 연결되지 않는다.
@@ -367,17 +386,26 @@ resilience4j:
         baseConfig: default
       fxKexim:
         baseConfig: default
+      # KIS는 환율과 국내 주식이 같은 호스트·같은 앱키지만 브레이커를 나눈다 — 하나로 묶으면
+      # 주식 장애가 환율 이중화까지 끊는다. 환율·날씨에서 이미 세운 규칙이다.
+      kisFx:
+        baseConfig: default
+      kisStock:
+        baseConfig: default
       dataGo:
         baseConfig: default
       fmp:
         baseConfig: default
-      # 날씨도 출처별로 따로 연다 — 환율과 같은 이유다. 하나로 묶으면 Open-Meteo 장애가
-      # met.no까지 끊어 이중화가 성립하지 않는다.
+      # 날씨도 출처별로 따로 연다 — 환율과 같은 이유다. 하나로 묶으면 AccuWeather 장애가
+      # Open-Meteo까지 끊어 이중화가 성립하지 않는다.
+      # AccuWeather는 지점 조회와 예보가 한 브레이커를 쓴다 — 같은 키·같은 호스트라 하나가
+      # 죽으면 다른 하나도 못 쓴다. 하루 50회를 넘겨 503이 이어질 때 이 브레이커가 열려
+      # 헛호출을 멈추는 것이, 따로 쿼터 카운터를 두지 않는 대신의 방어다.
+      weatherAccuWeather:
+        baseConfig: default
       weatherOpenMeteo:
         baseConfig: default
-      weatherMetNo:
-        baseConfig: default
-      # 지나간 날짜 전용. 이중화 상대가 없어(met.no에 아카이브가 없다) 여기가 열리면
+      # 지나간 날짜 전용. 이중화 상대가 없어(다른 곳에는 아카이브가 없다) 여기가 열리면
       # 과거 조회는 그대로 멈춘다 — 그래서 예보와 한 브레이커를 쓰지 않는다.
       weatherOpenMeteoArchive:
         baseConfig: default
@@ -432,12 +460,17 @@ resilience4j:
         limitForPeriod: 5
         limitRefreshPeriod: 60s
         timeoutDuration: 3s
-      # met.no는 무료이고 약관이 예의를 요구한다(연락처가 든 User-Agent를 강제할 정도다).
-      # ⚠️ 이 블록이 없으면 @RateLimiter가 조용히 무력해진다 — 여기엔 ratelimiter.configs.default가
-      #    없어서, 선언 없는 인스턴스는 라이브러리 기본값(50 permits / 500ns)으로 만들어진다.
-      #    사실상 무제한이라 애너테이션이 프록시만 태우고 아무것도 막지 않는다.
-      # 알람이 네 곳을 겹쳐 조회해 순간적으로 네 건이 몰리는데, 그걸 초당 2건으로 눕힌다.
-      weatherMetNo:
-        limitForPeriod: 2
+      # KIS는 초당 한도를 실측으로 맞았다 — 4연속 호출의 네 번째가 200 본문에 rt_cd=1
+      # "초당 거래건수를 초과하였습니다"로 왔다. 모의는 초당 1~2건이다(실전은 20건).
+      # ⚠️ 환율과 주식이 이 리미터를 함께 쓴다. 한도가 데이터셋이 아니라 앱키 단위이기 때문이다 —
+      #    따로 걸면 둘이 합쳐 한도를 넘긴다.
+      # ⚠️ 브리핑이 지수 2 + 종목 2 + 환율 1을 연달아 부르므로 timeout을 넉넉히 준다. 짧으면
+      #    거절이 곧 실패가 되어, 1순위가 멀쩡한데도 폴백 값이 나간다.
+      kis:
+        limitForPeriod: 1
         limitRefreshPeriod: 1s
-        timeoutDuration: 5s
+        timeoutDuration: 15s
+      # ⚠️ 날씨에는 @RateLimiter를 달지 않는다. AccuWeather의 제약은 초 단위가 아니라 일 단위라
+      #    이 리미터로 지킬 수 없고, 여기엔 ratelimiter.configs.default가 없어서 선언 없는
+      #    인스턴스는 라이브러리 기본값(50 permits / 500ns)으로 만들어진다 — 사실상 무제한이라
+      #    애너테이션이 프록시만 태우고 아무것도 막지 않는다. 달 거면 이 블록부터 적을 것.

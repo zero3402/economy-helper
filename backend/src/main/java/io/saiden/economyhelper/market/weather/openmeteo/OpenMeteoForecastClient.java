@@ -1,6 +1,5 @@
 package io.saiden.economyhelper.market.weather.openmeteo;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.saiden.economyhelper.market.weather.GeoLocation;
 import io.saiden.economyhelper.market.weather.Weather;
@@ -19,9 +18,11 @@ import org.springframework.web.client.RestClient;
  * <p>인증이 없고 IP 제한도 없어 배포 환경에서 그대로 돈다 — Frankfurter를 고른 것과 같은
  * 이유다. 2026-08-17 실측에서 16일치가 강수확률까지 빠짐없이 왔다.
  *
- * <p><b>강수확률을 주는 유일한 경로다.</b> met.no는 북유럽 밖에서 확률을 주지 않고 재분석은
- * 지나간 날이라 확률이라는 개념이 없다. 그래서 평상시 답이 가장 쓸모 있으려면 이 클라이언트가
- * 1순위여야 한다.
+ * <p><b>2순위이자, 긴 기간의 유일한 경로다.</b> 키가 없어 한도에 안 걸리므로 1순위
+ * (AccuWeather)가 죽거나 하루 50회를 소진해도 이쪽은 답한다 — 받쳐 주는 쪽이 제약이 적어야
+ * 이중화가 성립한다. 예보가 16일까지라, AccuWeather 무료가 못 주는 닷새 밖은 여기만 맡는다.
+ *
+ * <p>강수확률을 주므로 폴백해도 화면 표기가 낮아지지 않는다.
  *
  * <p><b>{@code timezone=auto}로 부른다.</b> 일일 값이 <b>그 지점의 지역시</b>로 잘려야 한다 —
  * 부에노스아이레스를 KST로 자르면 남의 하루가 둘로 쪼개진다. 실측으로 나이로비가
@@ -62,31 +63,15 @@ public class OpenMeteoForecastClient implements WeatherClient {
     }
 
     @Override
+    // ⚠️ 접두사가 출처를 가른다. 재분석과 한 캐시(weather)를 쓰는데 키 모양이 같아서,
+    //    안 붙이면 자정 경계에서 섞인다 — 23:57에 '오늘 예보'로 담긴 항목이 00:00 이후에는
+    //    과거 조회가 되어, TTL(10분)이 끝나기까지 실측 자리에 예보값이 나간다
     @Cacheable(cacheNames = "weather",
-            key = "#a0.latitude() + ',' + #a0.longitude() + ',' + #a1.from() + ',' + #a1.to()",
+            key = "'om:' + #a0.latitude() + ',' + #a0.longitude() + ',' + #a1.from() + ',' + #a1.to()",
             unless = "#result == null")
     @CircuitBreaker(name = "weatherOpenMeteo")
     public Weather forecast(GeoLocation place, WeatherPeriod period) {
-        Forecast response = restClient.get()
-                .uri(uriBuilder -> uriBuilder
-                        .path("/v1/forecast")
-                        .queryParam("latitude", place.latitude())
-                        .queryParam("longitude", place.longitude())
-                        .queryParam("start_date", period.from())
-                        .queryParam("end_date", period.to())
-                        .queryParam("daily", DAILY_FIELDS)
-                        .queryParam("timezone", "auto")
-                        .build())
-                .retrieve()
-                .body(Forecast.class);
-
-        if (response == null || response.daily() == null || response.daily().isEmpty()) {
-            // 던져야 WeatherService가 다음 출처로 넘어간다 — 빈 값을 돌려주면 폴백이 안 일어난다
-            throw new IllegalStateException("Open-Meteo 응답에 일일 예보가 없습니다");
-        }
-        return new Weather(place, response.daily().toDays(), source());
+        return OpenMeteoRequest.daily(restClient, "/v1/forecast", DAILY_FIELDS,
+                place, period, source());
     }
-
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    record Forecast(DailyBlock daily) {}
 }

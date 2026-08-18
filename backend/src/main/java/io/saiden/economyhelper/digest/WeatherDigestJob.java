@@ -167,7 +167,7 @@ public class WeatherDigestJob {
 
         try {
             // 알람은 물어본 사람이 없다 — 제목에 검색어를 적지 않는다
-            telegram.send(MessageFormatter.formatWeather(collected, null), false);
+            telegram.send(MessageFormatter.formatWeather(collected), false);
         } catch (RuntimeException e) {
             releaseIfClaimed(claimed, slot);
             log.error("[weather] {} 슬롯 발송 실패: {}", slot, e.toString());

@@ -331,18 +331,18 @@ class DailyDigestJobTest {
             @Override
             public List<StockQuote> indicesOf(List<String> names) {
                 return indicesAlive
-                        ? List.of(new StockQuote(null, "코스피", "KOSPI시리즈", new BigDecimal("6345.53"), null,
-                                StockQuote.Money.NONE, io.saiden.economyhelper.market.StockSource.DATA_GO,
-                                BASIS, false, true, BigDecimal.ZERO))
+                        ? List.of(new StockQuote("코스피", new BigDecimal("6345.53"), null,
+                                StockQuote.Money.NONE, StockQuote.Market.DOMESTIC, io.saiden.economyhelper.market.StockSource.DATA_GO,
+                                BASIS, false))
                         : List.of();
             }
 
             @Override
             public List<StockQuote> quotesOf(List<String> codes) {
                 return stocksAlive
-                        ? List.of(new StockQuote("005930", "삼성전자", "KOSPI", new BigDecimal("239500"), null,
-                                StockQuote.Money.KRW, io.saiden.economyhelper.market.StockSource.DATA_GO,
-                                BASIS, false, false, new BigDecimal("1400183726616000")))
+                        ? List.of(new StockQuote("삼성전자", new BigDecimal("239500"), null,
+                                StockQuote.Money.KRW, StockQuote.Market.DOMESTIC, io.saiden.economyhelper.market.StockSource.DATA_GO,
+                                BASIS, false))
                         : List.of();
             }
         };
@@ -440,14 +440,14 @@ class DailyDigestJobTest {
     static EconomyHelperProperties properties() {
         return new EconomyHelperProperties(Map.of(), null,
                 new EconomyHelperProperties.Digest(
-                        "Asia/Seoul", "0 0 9 * * *", Duration.ofDays(3),
+                        "Asia/Seoul", Duration.ofDays(3),
                         List.of("코스피"), List.of("005930"), List.of("KRW-BTC"), List.of()),
                 null, null);
     }
 
     static NewsItem item(String title) {
-        return new NewsItem(NewsSource.CNBC, "CNBC", title, "본문",
-                "https://example.com/" + title.hashCode(), NOW, true, 0.9);
+        return new NewsItem("CNBC", title, "본문",
+                "https://example.com/" + title.hashCode(), NOW, true);
     }
 
     /** 수집 호출 횟수까지 세어 "건너뛸 때는 수집도 안 한다"를 확인한다. */

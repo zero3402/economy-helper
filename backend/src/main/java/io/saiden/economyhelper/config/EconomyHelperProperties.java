@@ -34,8 +34,12 @@ public record EconomyHelperProperties(
      *                        종목(NVDA·AAPL)이 같은 엔드포인트라 한 목록으로 둔다
      * @param indices         브리핑에 넣을 지수명. 종목({@code stocks})은 코드로 박지만 지수에는
      *                        코드가 없어 이름으로 쓴다 — {@code MarketIndexApi}가 이름으로만 찾는다
+     *
+     * <p><b>{@code cron}은 담지 않는다.</b> yml 키는 살아 있지만 {@code @Scheduled}의 SpEL
+     * 문자열이 직접 읽으므로({@code "${economy-helper.digest.cron}"}) 자바 쪽에서 꺼내는 곳이
+     * 없다. {@code zone}은 두 방식 모두로 읽혀서 남는다.
      */
-    public record Digest(String zone, String cron, Duration sentHistoryTtl,
+    public record Digest(String zone, Duration sentHistoryTtl,
                          List<String> indices, List<String> stocks, List<String> cryptos,
                          List<UsSymbol> usSymbols) {}
 
@@ -65,8 +69,9 @@ public record EconomyHelperProperties(
                            Duration relevance, Duration upbitMarkets, Duration cryptoPrice,
                            Duration binancePrice, Duration stockResolve, Duration cryptoResolve,
                            Duration stockPrice, Duration usQuote,
-                           Duration fx, Duration fxKexim,
-                           Duration weather, Duration geocode, Duration weatherResolve) {}
+                           Duration fx, Duration fxKexim, Duration fxKis,
+                           Duration weather, Duration geocode, Duration accuLocation,
+                           Duration weatherResolve) {}
 
     /**
      * 오전 6시 날씨 알람.
@@ -79,7 +84,7 @@ public record EconomyHelperProperties(
      * @param cron 발송 창. 슬롯(KST 날짜)이 하루 한 번을 보장하므로 창 안에서 몇 번을 돌아도
      *             한 번만 나간다 — "정확히 6시에 깨어 있어야 한다"는 요구가 사라진다
      */
-    public record Weather(String zone, String cron, List<WeatherLocation> locations) {}
+    public record Weather(String zone, List<WeatherLocation> locations) {}
 
     /**
      * 알람에 넣을 지점 하나.

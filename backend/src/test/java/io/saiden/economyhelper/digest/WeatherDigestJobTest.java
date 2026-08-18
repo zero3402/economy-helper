@@ -117,7 +117,7 @@ class WeatherDigestJobTest {
 
     private static EconomyHelperProperties properties() {
         return new EconomyHelperProperties(null, null, null, null,
-                new EconomyHelperProperties.Weather("Asia/Seoul", "0 0/10 6-7 * * *", List.of(
+                new EconomyHelperProperties.Weather("Asia/Seoul", List.of(
                         new WeatherLocation("미금역", 37.35, 127.10889),
                         new WeatherLocation("서현역", 37.3851167, 127.1232944),
                         new WeatherLocation("잠실역", 37.51325, 127.100111),

@@ -53,8 +53,9 @@ CI가 구운 것이고, 그쪽이 빌드 시간을 아낀다. 무료 빌더에�
 | `TZ` | `Asia/Seoul` | 이미지 기본값이지만 명시해 둔다 |
 | `TELEGRAM_WEBHOOK_SECRET` | `openssl rand -hex 32` | **웹훅 엔드포인트의 유일한 자물쇠.** 아래 참조 |
 | `TELEGRAM_NOTICE_TOPIC_ID` · `TELEGRAM_SEARCH_TOPIC_ID` | 토픽 번호 | 포럼(토픽) 그룹일 때만. 아래 참조 |
-| `MET_NO_USER_AGENT` | `economy-helper/1.0 (github.com/<계정>/economy-helper)` | 날씨 2순위(met.no)가 **연락처가 든 User-Agent를 요구한다 — 없으면 403이다.** 시크릿이 아니라 `.env.example`에는 없다. 기본값이 원 저장소 주소로 박혀 있어 비워도 돌지만, **포크했거나 저장소를 옮겼다면 반드시 바꾼다** — 안 바꾸면 남의 연락처로 met.no 약관을 지키는 셈이고, 나중에 막혔을 때 원인이 증상에서 멀다 |
-| 시크릿 6개 | `.env.example` 참조 | `TELEGRAM_*` · `GEMINI_API_KEY` · `KEXIM_API_KEY` · `DATA_API_KEY` · `FMP_API_KEY` |
+| 시크릿 9개 | `.env.example` 참조 | `TELEGRAM_*` · `GEMINI_API_KEY` · `KEXIM_API_KEY` · `DATA_API_KEY` · `FMP_API_KEY` · `ACCU_API_KEY` · `KIS_API_KEY` · `KIS_API_SECRET` |
+| `KIS_API_KEY` · `KIS_API_SECRET` | 발급받은 앱키/앱시크릿 | 환율 1순위. **실전과 모의의 키가 다르고 도메인도 다르다** — `application.yml`의 `market.kis.base-url`을 함께 맞춘다. ⚠️ **토큰은 1분에 한 번만 발급되고 발급마다 계정주에게 알림톡이 간다.** Redis 캐시(`kis:token`)가 필수이며, Redis가 죽으면 프로세스 사본으로 버틴다. 비워도 앱은 돈다(유럽중앙은행으로 폴백) |
+| `ACCU_API_KEY` | 발급받은 키 | 날씨 1순위. **비워도 앱은 돈다** — 조회가 실패로 잡혀 2순위 Open-Meteo로 폴백한다(키가 없는 쪽이라 한도에 안 걸린다). 다만 그 상태면 매 조회가 헛호출 한 번을 태우므로, 안 쓸 거면 키를 넣지 말고 그대로 두는 편이 낫다 |
 
 **깨어 있게 유지하는 일은 앱이 한다.** `SELF_PING_URL`에 공개 주소를 주면 앱이 10분마다
 자기를 친다(`SelfPing`). ⚠️ **반드시 공개 주소여야 한다** — `localhost`로 치면 호스트

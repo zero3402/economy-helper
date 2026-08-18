@@ -14,48 +14,56 @@ class SkyConditionTest {
 
     @Test
     @DisplayName("맑음·흐림은 두 출처가 같은 말로 나온다 — 폴백이 티나면 안 된다")
-    void bothVendorsAgreeOnTheSameKorean() {
-        assertThat(SkyCondition.ofWmoCode(0)).isEqualTo(SkyCondition.ofSymbolCode("clearsky_day"));
-        assertThat(SkyCondition.ofWmoCode(3)).isEqualTo(SkyCondition.ofSymbolCode("cloudy"));
-        assertThat(SkyCondition.ofWmoCode(61)).isEqualTo(SkyCondition.ofSymbolCode("rain"));
-        assertThat(SkyCondition.ofWmoCode(71)).isEqualTo(SkyCondition.ofSymbolCode("snow"));
-        assertThat(SkyCondition.ofWmoCode(45)).isEqualTo(SkyCondition.ofSymbolCode("fog"));
+    void bothProvidersAgreeOnTheCommonWords() {
+        assertThat(SkyCondition.ofAccuWeatherIcon(1)).isEqualTo(SkyCondition.ofWmoCode(0));
+        assertThat(SkyCondition.ofAccuWeatherIcon(7)).isEqualTo(SkyCondition.ofWmoCode(3));
+        assertThat(SkyCondition.ofAccuWeatherIcon(18)).isEqualTo(SkyCondition.ofWmoCode(61));
+        assertThat(SkyCondition.ofAccuWeatherIcon(22)).isEqualTo(SkyCondition.ofWmoCode(71));
+        assertThat(SkyCondition.ofAccuWeatherIcon(11)).isEqualTo(SkyCondition.ofWmoCode(45));
+        assertThat(SkyCondition.ofAccuWeatherIcon(12)).isEqualTo(SkyCondition.ofWmoCode(80));
+        assertThat(SkyCondition.ofAccuWeatherIcon(15)).isEqualTo(SkyCondition.ofWmoCode(95));
     }
 
     @Test
-    @DisplayName("낮/밤 꼬리를 뗀다 — 하루치 요약에 낮밤 구분은 의미가 없다")
-    void ignoresDayNightSuffixes() {
-        assertThat(SkyCondition.ofSymbolCode("clearsky_day")).isEqualTo(SkyCondition.CLEAR);
-        assertThat(SkyCondition.ofSymbolCode("clearsky_night")).isEqualTo(SkyCondition.CLEAR);
-        assertThat(SkyCondition.ofSymbolCode("clearsky_polartwilight")).isEqualTo(SkyCondition.CLEAR);
+    @DisplayName("낮과 밤 아이콘이 같은 하늘이다 — 하루치 요약에 그 구분은 의미가 없다")
+    void dayAndNightIconsFoldTogether() {
+        assertThat(SkyCondition.ofAccuWeatherIcon(33)).isEqualTo(SkyCondition.CLEAR);
+        assertThat(SkyCondition.ofAccuWeatherIcon(34)).isEqualTo(SkyCondition.MOSTLY_CLEAR);
+        assertThat(SkyCondition.ofAccuWeatherIcon(35)).isEqualTo(SkyCondition.PARTLY_CLOUDY);
+        assertThat(SkyCondition.ofAccuWeatherIcon(38)).isEqualTo(SkyCondition.CLOUDY);
+        assertThat(SkyCondition.ofAccuWeatherIcon(44)).isEqualTo(SkyCondition.SNOW);
     }
 
     @Test
-    @DisplayName("강도 접두사도 뗀다 — WMO 쪽에서 61·63·65를 묶은 것과 같은 이유다")
-    void ignoresIntensityPrefixes() {
-        assertThat(SkyCondition.ofSymbolCode("lightrain")).isEqualTo(SkyCondition.RAIN);
-        assertThat(SkyCondition.ofSymbolCode("heavyrain")).isEqualTo(SkyCondition.RAIN);
-        assertThat(SkyCondition.ofWmoCode(61)).isEqualTo(SkyCondition.RAIN);
-        assertThat(SkyCondition.ofWmoCode(65)).isEqualTo(SkyCondition.RAIN);
+    @DisplayName("구름이 끼어도 소나기는 소나기다 — 중요한 것은 구름이 아니라 비다")
+    void cloudCoverDoesNotHideThePrecipitation() {
+        assertThat(SkyCondition.ofAccuWeatherIcon(13)).isEqualTo(SkyCondition.SHOWERS);
+        assertThat(SkyCondition.ofAccuWeatherIcon(14)).isEqualTo(SkyCondition.SHOWERS);
+        assertThat(SkyCondition.ofAccuWeatherIcon(40)).isEqualTo(SkyCondition.SHOWERS);
+        assertThat(SkyCondition.ofAccuWeatherIcon(16)).isEqualTo(SkyCondition.THUNDERSTORM);
+        assertThat(SkyCondition.ofAccuWeatherIcon(42)).isEqualTo(SkyCondition.THUNDERSTORM);
+        assertThat(SkyCondition.ofAccuWeatherIcon(20)).isEqualTo(SkyCondition.SNOW_SHOWERS);
     }
 
     @Test
-    @DisplayName("뇌우가 섞이면 뇌우로 본다 — 그때 중요한 건 비가 아니라 뇌우다")
-    void thunderWinsOverWhateverItIsMixedWith() {
-        assertThat(SkyCondition.ofSymbolCode("rainandthunder")).isEqualTo(SkyCondition.THUNDERSTORM);
-        assertThat(SkyCondition.ofSymbolCode("heavyrainshowersandthunder_day"))
-                .isEqualTo(SkyCondition.THUNDERSTORM);
-        assertThat(SkyCondition.ofWmoCode(95)).isEqualTo(SkyCondition.THUNDERSTORM);
+    @DisplayName("실측으로 본 아이콘이 제 이름으로 나온다 — 2026-08-18 미금역")
+    void mapsTheIconsSeenInProduction() {
+        // 4 Intermittent clouds, 12 Showers, 6 Mostly cloudy — 그날 닷새치에 실제로 온 셋이다
+        assertThat(SkyCondition.ofAccuWeatherIcon(4)).isEqualTo(SkyCondition.PARTLY_CLOUDY);
+        assertThat(SkyCondition.ofAccuWeatherIcon(12)).isEqualTo(SkyCondition.SHOWERS);
+        assertThat(SkyCondition.ofAccuWeatherIcon(6)).isEqualTo(SkyCondition.CLOUDY);
     }
 
     @Test
-    @DisplayName("모르는 값은 지어내지 않는다 — 아무 날씨나 찍느니 그 줄을 비운다")
-    void neverGuessesAnUnknownCode() {
+    @DisplayName("체감·모르는 값은 하늘 상태가 아니다 — 그 줄만 빠지고 날짜는 살아남는다")
+    void treatsNonSkyIconsAsUnknown() {
+        // 30 Hot · 31 Cold · 32 Windy는 하늘이 아니라 체감이다. 지어내지 않는다
+        assertThat(SkyCondition.ofAccuWeatherIcon(30)).isEqualTo(SkyCondition.UNKNOWN);
+        assertThat(SkyCondition.ofAccuWeatherIcon(31)).isEqualTo(SkyCondition.UNKNOWN);
+        assertThat(SkyCondition.ofAccuWeatherIcon(32)).isEqualTo(SkyCondition.UNKNOWN);
+        assertThat(SkyCondition.ofAccuWeatherIcon(null).known()).isFalse();
+        assertThat(SkyCondition.ofAccuWeatherIcon(99)).isEqualTo(SkyCondition.UNKNOWN);
         assertThat(SkyCondition.ofWmoCode(null).known()).isFalse();
-        assertThat(SkyCondition.ofWmoCode(999).known()).isFalse();
-        assertThat(SkyCondition.ofSymbolCode(null).known()).isFalse();
-        assertThat(SkyCondition.ofSymbolCode("")).isEqualTo(SkyCondition.UNKNOWN);
-        assertThat(SkyCondition.ofSymbolCode("meteorshower")).isEqualTo(SkyCondition.UNKNOWN);
     }
 
     @Test

@@ -26,7 +26,7 @@ public record WeatherPeriod(LocalDate from, LocalDate to) {
      * 예보로 볼 수 있는 마지막 날 — <b>오늘 포함 16일</b>이다.
      *
      * <p>2026-08-17 실측에서 Open-Meteo가 {@code forecast_days=16}에 16건을 전부 채워 줬다
-     * (강수확률까지 null이 없었다). met.no는 ~9일이라 폴백일 때는 더 짧아지지만, 그건 그때
+     * (강수확률까지 null이 없었다). AccuWeather 무료는 5일이라 1순위가 못 맡지만, 그건 그때
      * 받은 만큼만 보여 주면 되고 상한을 이쪽에 맞출 이유는 없다.
      */
     public static final int MAX_FORECAST_DAYS = 16;
@@ -145,10 +145,5 @@ public record WeatherPeriod(LocalDate from, LocalDate to) {
      */
     public boolean past(LocalDate today) {
         return to.isBefore(today);
-    }
-
-    /** 며칠치인가. 하루면 1이다. */
-    long length() {
-        return ChronoUnit.DAYS.between(from, to) + 1;
     }
 }

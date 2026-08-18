@@ -30,7 +30,7 @@ import org.springframework.web.client.RestClient;
  * {@link Optional#empty()}로 돌려준다 — 예외를 던지면 서킷브레이커에 애먼 실패가 쌓인다.
  * 상대가 죽어 응답 자체가 오지 않는 것만 예외다.
  *
- * <p><b>이중화 상대가 없다.</b> met.no에는 지명 검색이 없다. 다만 오전 6시 알람은 좌표가
+ * <p><b>이중화 상대가 없다.</b> AccuWeather 지점 검색은 지명이 아니라 좌표를 받는다. 다만 오전 6시 알람은 좌표가
  * 설정에 박혀 있어 이 경로를 아예 타지 않으므로, 여기가 죽어도 알람은 나간다.
  */
 @Component

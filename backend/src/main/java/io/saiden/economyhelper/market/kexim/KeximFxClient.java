@@ -83,6 +83,10 @@ public class KeximFxClient implements FxRateClient {
     @RateLimiter(name = "kexim")
     @CircuitBreaker(name = "fxKexim")
     public FxRate usdToKrw() {
+        if (authKey.isBlank()) {
+            // 부르기 전에 막는다 — 빈 키로 호출하면 하루 1,000회 한도만 축낸다
+            throw new IllegalStateException("수출입은행 API 키가 없습니다");
+        }
         Quoted current = findAt(LocalDate.ofInstant(clock.instant(), SEOUL));
         return new FxRate(USD, "KRW", current.rate(), changeOf(current),
                 FxSource.KEXIM, current.date().atStartOfDay(SEOUL).toInstant());
@@ -207,6 +211,5 @@ public class KeximFxClient implements FxRateClient {
     @JsonIgnoreProperties(ignoreUnknown = true)
     record Rate(Integer result,
                 @JsonProperty("cur_unit") String currencyUnit,
-                @JsonProperty("cur_nm") String currencyName,
                 @JsonProperty("deal_bas_r") String dealBasisRate) {}
 }

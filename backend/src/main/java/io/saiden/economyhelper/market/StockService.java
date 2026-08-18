@@ -258,9 +258,7 @@ public class StockService {
      * 안 그러면 어제 삼성전자와 그제 삼성전자가 서로 다른 후보로 보인다.
      */
     private static StockQuote pickBest(List<StockPrice> prices) {
-        return toQuote(onlyLatestDate(prices).stream()
-                .max(Comparator.comparing(StockService::marketCap))
-                .orElseThrow());
+        return toQuote(best(prices).orElseThrow());
     }
 
     private static Optional<StockPrice> best(List<StockPrice> prices) {
@@ -278,17 +276,16 @@ public class StockService {
 
     /** 국내 종목 — <b>전일 종가</b>다. {@code realtime=false}가 메시지에서 "종가"로 드러난다. */
     private static StockQuote toQuote(StockPrice price) {
-        return new StockQuote(price.srtnCd(), price.itmsNm(), price.mrktCtg(),
-                parse(price.clpr()), percent(price.fltRt()), StockQuote.Money.KRW,
-                StockSource.DATA_GO, atSeoulMidnight(price.basDt()), false, false,
-                parse(price.mrktTotAmt()));
+        return new StockQuote(price.itmsNm(), parse(price.clpr()), percent(price.fltRt()),
+                StockQuote.Money.KRW, StockQuote.Market.DOMESTIC,
+                StockSource.DATA_GO, atSeoulMidnight(price.basDt()), false);
     }
 
     /** 국내 지수 — 종목코드가 없고 통화도 없다. */
     private static StockQuote toQuote(MarketIndex index) {
-        return new StockQuote(null, index.idxNm(), index.idxCsf(), parse(index.clpr()),
-                percent(index.fltRt()), StockQuote.Money.NONE,
-                StockSource.DATA_GO, atSeoulMidnight(index.basDt()), false, true, BigDecimal.ZERO);
+        return new StockQuote(index.idxNm(), parse(index.clpr()), percent(index.fltRt()),
+                StockQuote.Money.NONE, StockQuote.Market.DOMESTIC,
+                StockSource.DATA_GO, atSeoulMidnight(index.basDt()), false);
     }
 
     /**
@@ -310,11 +307,9 @@ public class StockService {
         boolean index = quote.symbol() != null && quote.symbol().startsWith("^");
         Instant at = quote.timestamp() == null ? Instant.now() : Instant.ofEpochSecond(quote.timestamp());
         String name = preferredName == null || preferredName.isBlank() ? quote.name() : preferredName;
-        return new StockQuote(quote.symbol(), name, quote.exchange(),
-                quote.price(), quote.changePercentage(),
-                index ? StockQuote.Money.NONE : StockQuote.Money.USD,
-                StockSource.FMP, at, true, index,
-                quote.marketCap() == null ? BigDecimal.ZERO : quote.marketCap());
+        return new StockQuote(name, quote.price(), quote.changePercentage(),
+                index ? StockQuote.Money.NONE : StockQuote.Money.USD, StockQuote.Market.US,
+                StockSource.FMP, at, true);
     }
 
     /** 종가일을 시각으로 옮긴다. 그날 장이 끝난 값이므로 KST 자정으로 두고 표기는 날짜만 쓴다. */

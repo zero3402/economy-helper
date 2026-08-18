@@ -121,5 +121,5 @@ public class FrankfurterFxClient implements FxRateClient {
      * @param rates 고시일({@code yyyy-MM-dd}) → 통화별 환율. 비영업일은 <b>키 자체가 없다</b>
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record TimeSeries(String base, Map<String, Map<String, BigDecimal>> rates) {}
+    record TimeSeries(Map<String, Map<String, BigDecimal>> rates) {}
 }

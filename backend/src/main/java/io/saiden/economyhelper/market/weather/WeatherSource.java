@@ -3,8 +3,11 @@ package io.saiden.economyhelper.market.weather;
 /**
  * 날씨를 가져온 곳 — <b>화면에 이름을 그대로 적는다.</b>
  *
- * <p>폴백으로 met.no가 답했는데 Open-Meteo라고 적으면 거짓말이 된다. {@code FxSource}가
+ * <p>폴백으로 Open-Meteo가 답했는데 AccuWeather라고 적으면 거짓말이 된다. {@code FxSource}가
  * {@code 수출입은행 매매기준율}과 {@code 유럽중앙은행}을 구분해 적는 것과 같은 이유다.
+ *
+ * <p><b>선언 순서가 곧 이중화 순서다</b>({@code WeatherService.ORDER}). 화면의 출처 줄도
+ * 이 순서로 정렬하므로({@code MessageFormatter.weatherSourcesOf}) 둘을 함께 고쳐야 한다.
  *
  * <p><b>과거는 다른 출처로 센다.</b> 같은 Open-Meteo지만 예보와 재분석은 성격이 다르다 —
  * 예보 격자가 ~1km인 데 비해 ERA5 재분석은 ~11km라 지점이 "그 동네"로 뭉개진다
@@ -13,19 +16,22 @@ package io.saiden.economyhelper.market.weather;
  */
 public enum WeatherSource {
 
-    /** 1순위. 키가 없고 예보가 16일까지다. */
-    OPEN_METEO("Open-Meteo", true),
+    /**
+     * 1순위. 유일하게 API 키가 필요하고, 무료 등급은 <b>하루 50회·5일까지</b>다.
+     *
+     * <p>5일을 넘는 기간은 아예 부르지 않는다({@code AccuWeatherClient.supports}) — 못 하는
+     * 일을 시켜 실패를 쌓지 않는다. 그 기간은 Open-Meteo가 맡는다.
+     */
+    ACCU_WEATHER("AccuWeather", true),
 
     /**
-     * 2순위. 키가 없지만 연락처가 든 {@code User-Agent}를 요구하고, 예보는 ~9일까지다.
+     * 2순위. 키가 없어 한도에 걸리지 않고 예보가 16일까지다 — 받쳐 주는 자리에 맞다.
      *
-     * <p>강수<b>확률</b>을 주지 않는다(북유럽 전용이다) — 이 출처가 답한 날은 강수량으로
-     * 표기가 바뀐다. 평상시 경로를 여기에 맞춰 낮추지 않는다: 이중화는 장애 대비이고
-     * 이쪽이 답하는 것은 예외 상황이다.
+     * <p>강수확률을 주므로 1순위가 죽어도 화면 표기가 낮아지지 않는다.
      */
-    MET_NO("met.no", true),
+    OPEN_METEO("Open-Meteo", true),
 
-    /** 지난 날짜. 재분석 실측이라 예보가 아니고, 이중화 상대가 없다(met.no에는 아카이브가 없다). */
+    /** 지난 날짜. 재분석 실측이라 예보가 아니고, 이중화 상대가 없다(다른 곳에는 아카이브가 없다). */
     OPEN_METEO_ARCHIVE("Open-Meteo Archive", false);
 
     private final String displayName;

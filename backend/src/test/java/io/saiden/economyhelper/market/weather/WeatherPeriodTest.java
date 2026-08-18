@@ -24,7 +24,7 @@ class WeatherPeriodTest {
 
         assertThat(period.from()).isEqualTo(TODAY);
         assertThat(period.to()).isEqualTo(TODAY);
-        assertThat(period.length()).isEqualTo(1);
+        assertThat(days(period)).isEqualTo(1);
     }
 
     @Test
@@ -46,7 +46,7 @@ class WeatherPeriodTest {
 
         assertThat(period.from()).isEqualTo(TODAY);
         assertThat(period.to()).isEqualTo(LocalDate.of(2026, 8, 23));
-        assertThat(period.length()).isEqualTo(7);
+        assertThat(days(period)).isEqualTo(7);
     }
 
     @Test
@@ -64,7 +64,7 @@ class WeatherPeriodTest {
         WeatherPeriod period = WeatherPeriod.of(TODAY, null, 0, 30);
 
         assertThat(period.to()).isEqualTo(TODAY.plusDays(WeatherPeriod.MAX_FORECAST_DAYS - 1));
-        assertThat(period.length()).isEqualTo(WeatherPeriod.MAX_FORECAST_DAYS);
+        assertThat(days(period)).isEqualTo(WeatherPeriod.MAX_FORECAST_DAYS);
         assertThat(period.beyondForecast(TODAY)).isFalse();
     }
 
@@ -94,8 +94,8 @@ class WeatherPeriodTest {
     @Test
     @DisplayName("0일치를 물어도 하루는 보여준다 — 빈 답은 답이 아니다")
     void neverProducesAnEmptyRange() {
-        assertThat(WeatherPeriod.of(TODAY, null, 0, 0).length()).isEqualTo(1);
-        assertThat(WeatherPeriod.of(TODAY, null, 0, -5).length()).isEqualTo(1);
+        assertThat(days(WeatherPeriod.of(TODAY, null, 0, 0))).isEqualTo(1);
+        assertThat(days(WeatherPeriod.of(TODAY, null, 0, -5))).isEqualTo(1);
     }
 
     // --- 연도 없이 적은 날 ----------------------------------------------------
@@ -189,5 +189,10 @@ class WeatherPeriodTest {
     void rejectsAnInvertedRange() {
         assertThatThrownBy(() -> new WeatherPeriod(TODAY, TODAY.minusDays(1)))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    /** 며칠치인가. 하루면 1이다 — 이 계산이 필요한 곳은 여기뿐이다. */
+    private static long days(WeatherPeriod period) {
+        return java.time.temporal.ChronoUnit.DAYS.between(period.from(), period.to()) + 1;
     }
 }

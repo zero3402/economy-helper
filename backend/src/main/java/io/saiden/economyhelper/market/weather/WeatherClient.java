@@ -5,7 +5,7 @@ import java.time.LocalDate;
 /**
  * 날씨 출처 하나.
  *
- * <p>구현체가 둘 이상인 곳에만 인터페이스를 둔다는 규칙에 맞는다 — Open-Meteo와 met.no가
+ * <p>구현체가 둘 이상인 곳에만 인터페이스를 둔다는 규칙에 맞는다 — AccuWeather와 Open-Meteo가
  * 같은 자리를 번갈아 채운다({@code FxRateClient}와 같은 모양이다).
  *
  * <p><b>실패를 값으로 돌려주지 않는다.</b> {@link WeatherService}가 "이 출처가 죽었다"와
@@ -20,8 +20,8 @@ public interface WeatherClient {
     /**
      * 이 지점의 일일 날씨.
      *
-     * <p>요청한 범위를 <b>다 못 줄 수는 있다</b> — met.no는 ~9일까지라 16일치를 물으면 앞부분만
-     * 온다. 그건 실패가 아니므로 받은 만큼 담아 돌려준다. 화면에는 실제 날짜가 적히므로
+     * <p>요청한 범위를 <b>다 못 줄 수는 있다</b> — 출처마다 예보 길이가 달라 뒷부분이 빌 수
+     * 있다. 그건 실패가 아니므로 받은 만큼 담아 돌려준다. 화면에는 실제 날짜가 적히므로
      * 어디까지인지 사용자가 본다.
      *
      * @throws RuntimeException 조회 실패. 서킷브레이커가 이걸 세고 {@link WeatherService}가 폴백한다
@@ -31,9 +31,9 @@ public interface WeatherClient {
     /**
      * 이 출처가 그 범위를 다룰 수 있는가.
      *
-     * <p><b>지난 날짜에서 갈린다.</b> met.no는 예보만 주고 아카이브가 없어서, 과거를 물으면
-     * 호출해 봐야 빈손이다. 못 하는 줄 알면서 부르면 서킷브레이커에 애먼 실패가 쌓이고
-     * 사용자는 그만큼 더 기다린다.
+     * <p><b>지난 날짜와 예보 길이에서 갈린다.</b> 예보 출처는 아카이브가 없어 과거를 물으면
+     * 호출해 봐야 빈손이고, AccuWeather 무료 등급은 5일을 넘기면 그렇다. 못 하는 줄 알면서
+     * 부르면 서킷브레이커에 애먼 실패가 쌓이고 사용자는 그만큼 더 기다린다.
      */
     boolean supports(WeatherPeriod period, LocalDate today);
 }

@@ -23,7 +23,7 @@ class PopularityScorerTest {
     private static final Duration HALF_LIFE = Duration.ofHours(6);
 
     private final PopularityScorer scorer =
-            new PopularityScorer(RankingWeights.defaults(), HALF_LIFE);
+            new PopularityScorer(new RankingWeights(0.35, 0.25, 0.25, 0.15), HALF_LIFE);
 
     @Nested
     @DisplayName("feedRank — 편집자가 매긴 우선순위")
@@ -250,9 +250,11 @@ class PopularityScorerTest {
                     new PopularityScorer(new RankingWeights(10, 1, 1, 100), HALF_LIFE);
 
             Article a = article("최고 조건", 0, NOW);
-            ScoredArticle best = lopsided.score(a, 20, groups("최고"), 100_000, NOW);
-            ScoredArticle worst = lopsided.score(article("최악 조건", 19, NOW.minusSeconds(9_999_999)),
-                    20, groups("없는말"), 0, NOW);
+            ScoredArticle best = lopsided.score(a, 20,
+                    PopularityScorer.keywordScore(a, groups("최고")), 100_000, NOW);
+            Article bad = article("최악 조건", 19, NOW.minusSeconds(9_999_999));
+            ScoredArticle worst = lopsided.score(bad, 20,
+                    PopularityScorer.keywordScore(bad, groups("없는말")), 0, NOW);
 
             assertThat(best.score()).isCloseTo(1.0, within(1e-9));
             assertThat(worst.score()).isBetween(0.0, 0.05);
@@ -269,7 +271,7 @@ class PopularityScorerTest {
     @Test
     @DisplayName("반감기가 0이면 생성을 거부한다")
     void rejectsZeroHalfLife() {
-        assertThatThrownBy(() -> new PopularityScorer(RankingWeights.defaults(), Duration.ZERO))
+        assertThatThrownBy(() -> new PopularityScorer(new RankingWeights(0.35, 0.25, 0.25, 0.15), Duration.ZERO))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 

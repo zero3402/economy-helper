@@ -11,12 +11,16 @@ import io.saiden.economyhelper.text.QueryNormalizer;
  * @param market  {@code KRW-BTC}
  * @param symbol  {@code btc} — 마켓 코드의 뒷부분. {@code /crypto btc}가 여기 걸린다
  */
-public record UpbitMarket(String market, String koreanName, String englishName,
+public record UpbitMarket(String market, String koreanName,
                           String symbol, String normalizedKorean, String normalizedEnglish) {
 
+    /**
+     * 영문명은 <b>정규화한 것만 남긴다.</b> 원문은 화면에도 매칭에도 쓰지 않는데, 담아 두면
+     * 282건이 6시간 캐시(Redis)에 그대로 실려 다닌다.
+     */
     public static UpbitMarket of(String market, String koreanName, String englishName) {
         String symbol = market.substring(market.indexOf('-') + 1);
-        return new UpbitMarket(market, koreanName, englishName,
+        return new UpbitMarket(market, koreanName,
                 QueryNormalizer.normalize(symbol),
                 QueryNormalizer.normalize(koreanName),
                 QueryNormalizer.normalize(englishName));

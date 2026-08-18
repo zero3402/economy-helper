@@ -46,10 +46,6 @@ public enum Command {
         this.example = example;
     }
 
-    String token() {
-        return token;
-    }
-
     /**
      * 이 명령이 답하는 통의 이름 — <b>메시지 맨 위에 굵게 찍히는 그 제목이다.</b>
      *

@@ -18,7 +18,6 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.function.Supplier;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.slf4j.Logger;
@@ -159,14 +158,14 @@ public class DailyDigestJob {
 
         // 환율은 두 통이 함께 쓴다 — 여기서 한 번만 조회해 증시 통까지 들고 간다. 포매터가
         // 스스로 조회하면 환율 통에 찍힌 값과 미국 종목의 원화 환산이 서로 다를 수 있다.
-        Optional<FxRate> fx = currentFx();
+        FxRate fx = fxService.orNull();
 
         // 네 통의 수집을 겹친다. 서로 무관한 외부 호출인데 줄줄이 기다렸고, 그중 뉴스 하나가
         // (피드 5 + Gemini 10) 대부분을 차지했다.
         List<Section> sections = Concurrently.map(List.of(
-                section("환율", () -> fx.map(MessageFormatter::formatFx).stream().toList()),
-                section("증시", () -> stockMessage(fx.orElse(null))),
-                section("코인", () -> cryptoMessage(fx.orElse(null))),
+                section("환율", () -> fx == null ? List.of() : List.of(MessageFormatter.formatFx(fx))),
+                section("증시", () -> stockMessage(fx)),
+                section("코인", () -> cryptoMessage(fx)),
                 // 뉴스 통만 미리보기를 켠다 — 링크가 있는 통이 여기뿐이다.
                 // 기사마다 통을 쪼개므로 통마다 그 기사의 카드가 붙는다
                 section("뉴스", this::newsMessages, true)), Supplier::get);
@@ -261,16 +260,6 @@ public class DailyDigestJob {
 
     private static String reasonOf(RuntimeException e) {
         return e.getMessage() == null ? e.toString() : e.getMessage();
-    }
-
-    /** 환율 조회가 실패해도 나머지 통은 나가야 한다 — 예외를 밖으로 내보내지 않는다. */
-    private Optional<FxRate> currentFx() {
-        try {
-            return fxService.usdToKrw();
-        } catch (RuntimeException e) {
-            log.error("[digest] 환율 조회 실패 — 원화 환산 없이 보냅니다: {}", e.toString());
-            return Optional.empty();
-        }
     }
 
     /**

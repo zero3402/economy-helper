@@ -19,6 +19,9 @@ import org.junit.jupiter.api.Test;
  *
  * <p>{@code FxServiceTest}와 같은 방식이다: WireMock 없이 SPI를 구현한 가짜에 호출 수를 달아
  * "1순위가 성공하면 2순위를 부르지 않는다"까지 본다.
+ *
+ * <p>순서는 {@code AccuWeather → Open-Meteo → Open-Meteo Archive}다. 1순위가 유일하게 키를
+ * 쓰고 무료 등급이 하루 50회·5일까지라, 받쳐 주는 쪽은 제약이 적은 Open-Meteo다.
  */
 class WeatherServiceTest {
 
@@ -31,28 +34,28 @@ class WeatherServiceTest {
     @Test
     @DisplayName("1순위가 성공하면 2순위를 부르지 않는다 — 폴백은 장애 때만이다")
     void doesNotTouchTheFallbackWhenThePrimaryWorks() {
-        FakeClient primary = FakeClient.returning(WeatherSource.OPEN_METEO);
-        FakeClient fallback = FakeClient.returning(WeatherSource.MET_NO);
+        FakeClient primary = FakeClient.returning(WeatherSource.ACCU_WEATHER);
+        FakeClient fallback = FakeClient.returning(WeatherSource.OPEN_METEO);
 
         Optional<Weather> weather = service(primary, fallback).forecast(SEOUL, today());
 
         assertThat(weather).isPresent();
-        assertThat(weather.get().source()).isEqualTo(WeatherSource.OPEN_METEO);
+        assertThat(weather.get().source()).isEqualTo(WeatherSource.ACCU_WEATHER);
         assertThat(fallback.calls).hasValue(0);
     }
 
     @Test
     @DisplayName("1순위가 죽으면 2순위로 넘어가고 출처도 그쪽으로 바뀐다 — 숨기면 거짓말이 된다")
     void fallsBackAndSaysSo() {
-        FakeClient primary = FakeClient.failing(WeatherSource.OPEN_METEO);
-        FakeClient fallback = FakeClient.returning(WeatherSource.MET_NO);
+        FakeClient primary = FakeClient.failing(WeatherSource.ACCU_WEATHER);
+        FakeClient fallback = FakeClient.returning(WeatherSource.OPEN_METEO);
 
         Optional<Weather> weather = service(primary, fallback).forecast(SEOUL, today());
 
         assertThat(weather).isPresent();
         assertThat(weather.get().source())
-                .as("met.no가 답했는데 Open-Meteo라고 적으면 거짓말이 된다")
-                .isEqualTo(WeatherSource.MET_NO);
+                .as("Open-Meteo가 답했는데 AccuWeather라고 적으면 거짓말이 된다")
+                .isEqualTo(WeatherSource.OPEN_METEO);
         assertThat(primary.calls).hasValue(1);
         assertThat(fallback.calls).hasValue(1);
     }
@@ -61,7 +64,7 @@ class WeatherServiceTest {
     @DisplayName("전부 죽으면 빈손이다 — 지어내지 않는다")
     void returnsEmptyWhenEverySourceFails() {
         WeatherService service = service(
-                FakeClient.failing(WeatherSource.OPEN_METEO), FakeClient.failing(WeatherSource.MET_NO));
+                FakeClient.failing(WeatherSource.ACCU_WEATHER), FakeClient.failing(WeatherSource.OPEN_METEO));
 
         assertThat(service.forecast(SEOUL, today())).isEmpty();
     }
@@ -69,21 +72,21 @@ class WeatherServiceTest {
     @Test
     @DisplayName("주입 순서를 뒤집어도 코드가 정한 순서가 이긴다")
     void orderIsDeclaredNotInjected() {
-        FakeClient primary = FakeClient.returning(WeatherSource.OPEN_METEO);
-        FakeClient fallback = FakeClient.returning(WeatherSource.MET_NO);
+        FakeClient primary = FakeClient.returning(WeatherSource.ACCU_WEATHER);
+        FakeClient fallback = FakeClient.returning(WeatherSource.OPEN_METEO);
 
-        // met.no를 먼저 주입해도 Open-Meteo가 1순위여야 한다
+        // Open-Meteo를 먼저 주입해도 AccuWeather가 1순위여야 한다
         WeatherService service = new WeatherService(List.of(fallback, primary), fixedClock());
 
         assertThat(service.forecast(SEOUL, today()).orElseThrow().source())
-                .isEqualTo(WeatherSource.OPEN_METEO);
+                .isEqualTo(WeatherSource.ACCU_WEATHER);
         assertThat(fallback.calls).hasValue(0);
     }
 
     @Test
     @DisplayName("지난 날짜는 예보 출처를 아예 부르지 않는다 — 못 하는 줄 알면서 부르면 브레이커만 상한다")
     void skipsForecastSourcesForPastDates() {
-        FakeClient forecast = FakeClient.returning(WeatherSource.OPEN_METEO);
+        FakeClient forecast = FakeClient.returning(WeatherSource.ACCU_WEATHER);
         FakeClient archive = FakeClient.returning(WeatherSource.OPEN_METEO_ARCHIVE);
         WeatherPeriod past = WeatherPeriod.of(TODAY, LocalDate.of(2025, 8, 19), null, 1);
 
@@ -95,10 +98,26 @@ class WeatherServiceTest {
     }
 
     @Test
+    @DisplayName("1순위가 못 맡는 기간은 부르지도 않고 2순위가 답한다 — 닷새 넘는 요청이 그렇다")
+    void skipsThePrimaryWhenItCannotCoverTheRange() {
+        // AccuWeather 무료는 5일까지다. 일주일치를 물으면 supports에서 빠지고 Open-Meteo가 받는다
+        FakeClient primary = FakeClient.decliningLongRanges(WeatherSource.ACCU_WEATHER);
+        FakeClient fallback = FakeClient.returning(WeatherSource.OPEN_METEO);
+        WeatherPeriod week = WeatherPeriod.of(TODAY, null, null, 7);
+
+        Optional<Weather> weather = service(primary, fallback).forecast(SEOUL, week);
+
+        assertThat(weather.orElseThrow().source()).isEqualTo(WeatherSource.OPEN_METEO);
+        assertThat(primary.calls)
+                .as("못 하는 줄 알면서 부르면 브레이커도 상하고 하루 50회 한도만 축낸다")
+                .hasValue(0);
+    }
+
+    @Test
     @DisplayName("맡을 출처가 하나도 없으면 빈손이다 — 실패와 구분해 남긴다")
     void returnsEmptyWhenNoSourceCoversTheRange() {
         // 예보 출처만 있는데 지난 날짜를 물었다
-        WeatherService service = service(FakeClient.returning(WeatherSource.OPEN_METEO));
+        WeatherService service = service(FakeClient.returning(WeatherSource.ACCU_WEATHER));
         WeatherPeriod past = WeatherPeriod.of(TODAY, LocalDate.of(2025, 8, 19), null, 1);
 
         assertThat(service.forecast(SEOUL, past)).isEmpty();
@@ -107,7 +126,7 @@ class WeatherServiceTest {
     @Test
     @DisplayName("오늘은 그 지역의 오늘이다 — 우리 달력으로 자르면 남의 하루가 쪼개진다")
     void todayFollowsTheLocationsOwnZone() {
-        WeatherService service = service(FakeClient.returning(WeatherSource.OPEN_METEO));
+        WeatherService service = service(FakeClient.returning(WeatherSource.ACCU_WEATHER));
         GeoLocation buenosAires = new GeoLocation("부에노스아이레스", "아르헨티나",
                 -34.61315, -58.37723, ZoneId.of("America/Argentina/Buenos_Aires"));
 
@@ -134,6 +153,7 @@ class WeatherServiceTest {
         private final WeatherSource source;
         private final boolean fails;
         private final AtomicInteger calls = new AtomicInteger();
+        private int maxDays = Integer.MAX_VALUE;
 
         private FakeClient(WeatherSource source, boolean fails) {
             this.source = source;
@@ -148,6 +168,13 @@ class WeatherServiceTest {
             return new FakeClient(source, true);
         }
 
+        /** 닷새를 넘는 기간을 사양한다 — AccuWeather 무료 등급의 성질을 흉내 낸다. */
+        static FakeClient decliningLongRanges(WeatherSource source) {
+            FakeClient client = new FakeClient(source, false);
+            client.maxDays = 5;
+            return client;
+        }
+
         @Override
         public WeatherSource source() {
             return source;
@@ -155,9 +182,10 @@ class WeatherServiceTest {
 
         @Override
         public boolean supports(WeatherPeriod period, LocalDate today) {
-            return source == WeatherSource.OPEN_METEO_ARCHIVE
-                    ? period.past(today)
-                    : !period.past(today);
+            if (source == WeatherSource.OPEN_METEO_ARCHIVE) {
+                return period.past(today);
+            }
+            return !period.past(today) && !period.to().isAfter(today.plusDays(maxDays - 1L));
         }
 
         @Override

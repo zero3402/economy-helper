@@ -240,13 +240,13 @@ public class TelegramWebhookController {
                 List<NewsItem> found = newsFacade.search(command.argument());
                 yield found.isEmpty()
                         ? Reply.plain(MessageFormatter.noResults(command.argument(), newsFacade.window()))
-                        : new Reply(MessageFormatter.formatNews(found, command.argument()), true);
+                        : new Reply(MessageFormatter.formatNews(found), true);
             }
             // 브리핑 코인 통과 같은 함수다 — 항목이 하나뿐일 뿐이다.
             // 바이낸스가 붙었을 때만 환율을 묻는다 — 안 쓸 값을 미리 부르지 않는다
             case CRYPTO -> cryptoService.quote(command.argument())
                     .map(quote -> Reply.plain(MessageFormatter.formatCrypto(List.of(quote),
-                            quote.binance().hasPrice() ? currentFx() : null, command.argument())))
+                            quote.binance().hasPrice() ? fxService.orNull() : null)))
                     .orElseGet(() -> Reply.plain(MessageFormatter.cryptoNotFound(command.argument())));
             case FX -> Reply.plain(fxService.usdToKrw()
                     .map(MessageFormatter::formatFx)
@@ -254,14 +254,14 @@ public class TelegramWebhookController {
             // 미국 종목이면 원화도 함께 보여준다. 환율 조회가 실패하면 달러만 나간다 —
             // 환산을 못 한다고 시세 자체를 막을 이유가 없다.
             case STOCK -> stockService.quote(command.argument())
-                    .map(quote -> Reply.plain(MessageFormatter.formatStock(List.of(quote), currentFx(),
-                            command.argument())))
+                    .map(quote -> Reply.plain(
+                            MessageFormatter.formatStock(List.of(quote), fxService.orNull())))
                     .orElseGet(() -> Reply.plain(MessageFormatter.stockNotFound(command.argument())));
             // 답이 일일 예보라 링크가 없다 — 미리보기를 켤 이유가 없다
             case WEATHER -> {
                 WeatherFacade.Lookup found = weatherFacade.search(command.argument());
                 yield Reply.plain(switch (found.reason()) {
-                    case FOUND -> MessageFormatter.formatWeather(found.places(), command.argument());
+                    case FOUND -> MessageFormatter.formatWeather(found.places());
                     // 지역을 안 적은 것과 적었는데 못 찾은 것은 사용자가 할 일이 다르다
                     case NO_PLACE -> MessageFormatter.weatherNeedsPlace();
                     case NOT_FOUND -> MessageFormatter.weatherNotFound(command.argument());
@@ -272,16 +272,6 @@ public class TelegramWebhookController {
             }
             case HELP -> Reply.plain(MessageFormatter.help());
         };
-    }
-
-    /** 환율은 원화 환산에만 쓰인다 — 실패해도 시세는 나가야 하므로 {@code null}로 떨어뜨린다. */
-    private FxRate currentFx() {
-        try {
-            return fxService.usdToKrw().orElse(null);
-        } catch (RuntimeException e) {
-            log.warn("[stock] 환율 조회 실패 — 원화 환산 없이 답합니다: {}", e.toString());
-            return null;
-        }
     }
 
     // --- 텔레그램 Update 스키마 (필요한 필드만) ---

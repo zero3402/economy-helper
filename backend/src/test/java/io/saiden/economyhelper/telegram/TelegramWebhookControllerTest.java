@@ -25,7 +25,6 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -92,11 +91,11 @@ class TelegramWebhookControllerTest {
     @DisplayName("/stock은 기준일과 함께 답한다 — 전일 종가라 날짜를 숨기면 실시간으로 오해한다")
     void routesStockCommandWithBasisDate() {
         RecordingClient client = new RecordingClient();
-        StockQuote match = new StockQuote("005930", "삼성전자", "KOSPI", new BigDecimal("239500"), null,
-                StockQuote.Money.KRW, io.saiden.economyhelper.market.StockSource.DATA_GO,
+        StockQuote match = new StockQuote("삼성전자", new BigDecimal("239500"), null,
+                StockQuote.Money.KRW, StockQuote.Market.DOMESTIC, io.saiden.economyhelper.market.StockSource.DATA_GO,
                 java.time.LocalDate.of(2026, 8, 11)
                         .atStartOfDay(java.time.ZoneId.of("Asia/Seoul")).toInstant(),
-                false, false, new BigDecimal("1400183726616000"));
+                false);
         var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()),
                 fx(Optional.empty()), stock(Optional.of(match)), client);
 
@@ -121,7 +120,7 @@ class TelegramWebhookControllerTest {
 
         assertThat(client.sent.get(0).text())
                 .as("못 찾음 답도 제목에 검색어를 싣는다 — 여럿이 동시에 치면 어느 검색이 실패했는지 알아야 한다")
-                .startsWith("<b>증시 'AAPL'</b>")
+                .startsWith("<b>증시</b>")
                 .contains("찾지 못했습니다");
     }
 
@@ -136,9 +135,9 @@ class TelegramWebhookControllerTest {
         controller.onUpdate(null, update(1, "/news 금리"));
 
         assertThat(client.sent).hasSize(3);
-        assertThat(client.sent.get(0).text()).startsWith("<b>뉴스 '금리' 1/3</b>")
+        assertThat(client.sent.get(0).text()).startsWith("<b>뉴스 1/3</b>")
                 .contains("첫 번째").doesNotContain("두 번째");
-        assertThat(client.sent.get(2).text()).startsWith("<b>뉴스 '금리' 3/3</b>").contains("세 번째");
+        assertThat(client.sent.get(2).text()).startsWith("<b>뉴스 3/3</b>").contains("세 번째");
         assertThat(client.sent).allSatisfy(sent -> assertThat(sent.preview())
                 .as("통마다 링크가 하나뿐이라 카드가 그 기사 것으로 확정된다")
                 .isTrue());
@@ -436,8 +435,7 @@ class TelegramWebhookControllerTest {
     }
 
     private static NewsItem item(String title) {
-        return new NewsItem(NewsSource.CNBC, "CNBC", title, "본문",
-                "https://example.com/a", NOW, true, 0.9);
+        return new NewsItem("CNBC", title, "본문", "https://example.com/a", NOW, true);
     }
 
 

@@ -37,9 +37,10 @@ class ResilienceConfigTest {
     void declaredRateLimitersActuallyThrottle() {
         // ⚠️ ratelimiter에는 configs.default가 없다. 인스턴스를 선언하지 않으면 라이브러리
         // 기본값(50 permits / 500ns)으로 만들어지는데 그건 사실상 무제한이라,
-        // @RateLimiter가 프록시만 태우고 아무것도 막지 않는다. 실제로 met.no가 그 상태였다
+        // @RateLimiter가 프록시만 태우고 아무것도 막지 않는다. 실제로 met.no가 그 상태였다.
+        // 날씨는 그래서 리미터를 아예 달지 않는다 — AccuWeather의 제약은 일 단위다
         for (String name : new String[] {"gemini", "upbit", "binance", "dataGo", "fmp", "kexim",
-                "weatherMetNo"}) {
+                "kis"}) {
             RateLimiterConfig config = limiters.rateLimiter(name).getRateLimiterConfig();
 
             assertThat(config.getLimitRefreshPeriod())
@@ -68,7 +69,9 @@ class ResilienceConfigTest {
         // 그 설정은 baseConfig의 것을 덮어쓰므로 RequestNotPermitted가 조용히 빠질 수 있다.
         // binance가 실제로 그 상태였고, 목록에 없어서 아무도 몰랐다
         for (String name : new String[] {"translation", "telegram", "fmp", "upbit", "binance",
-                "weatherOpenMeteo", "weatherMetNo", "weatherOpenMeteoArchive", "weatherGeocoding"}) {
+                "kisFx", "kisStock",
+                "weatherAccuWeather", "weatherOpenMeteo", "weatherOpenMeteoArchive",
+                "weatherGeocoding"}) {
             CircuitBreaker breaker = registry.circuitBreaker(name);
             long before = breaker.getMetrics().getNumberOfFailedCalls();
 

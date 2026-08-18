@@ -15,9 +15,9 @@ import org.springframework.stereotype.Service;
  * 넘어가며, 전부 실패해야 빈손이다. <b>이중화는 장애 대비다</b> — 두 출처가 같은 값을 주게
  * 맞추는 것이 아니라 하나가 죽어도 답이 나가게 하는 것이다.
  *
- * <p><b>못 하는 출처는 부르지 않는다</b>({@link WeatherClient#supports}). met.no에는 아카이브가
- * 없어 지난 날짜를 물으면 빈손인데, 그걸 알면서 부르면 서킷브레이커에 애먼 실패가 쌓이고
- * 사용자는 그만큼 더 기다린다.
+ * <p><b>못 하는 출처는 부르지 않는다</b>({@link WeatherClient#supports}). AccuWeather 무료 등급은
+ * 5일까지이고 지난 날짜도 못 주는데, 그걸 알면서 부르면 서킷브레이커에 애먼 실패가 쌓이고
+ * 사용자는 그만큼 더 기다린다. 하루 50회짜리 한도까지 헛되이 축낸다.
  */
 @Service
 public class WeatherService {
@@ -25,16 +25,21 @@ public class WeatherService {
     private static final Logger log = LoggerFactory.getLogger(WeatherService.class);
 
     /**
-     * 시도 순서. 앞이 1순위다.
+     * 시도 순서. 앞이 1순위다. <b>{@link WeatherSource}의 선언 순서와 같아야 한다</b> —
+     * 화면의 출처 줄이 그 선언 순으로 정렬된다.
      *
-     * <p><b>Open-Meteo가 먼저인 이유는 강수확률이다.</b> 세 출처 중 확률을 주는 것이 여기뿐이고
-     * (met.no는 북유럽 전용, 재분석은 지나간 날), 아침 알람에서 가장 쓸모 있는 값이 그것이다.
+     * <p><b>AccuWeather가 먼저인 이유는 지점 예보의 정확도다.</b> 대신 키가 필요하고 무료
+     * 등급이 하루 50회라, 한도를 넘기거나 죽으면 키가 없어 한도에 걸리지 않는 Open-Meteo가
+     * 받는다 — 받쳐 주는 쪽이 제약이 적어야 이중화가 성립한다.
+     *
+     * <p><b>5일을 넘는 기간은 Open-Meteo만 할 수 있다.</b> AccuWeather 무료 등급이 5일까지라
+     * {@code supports}에서 빠지고, '일주일치 파리' 같은 요청은 그대로 2순위가 답한다.
      *
      * <p>재분석이 목록 맨 뒤인 것은 우선순위가 낮아서가 아니라 <b>맡는 기간이 다르기</b>
      * 때문이다 — 지난 날짜에서는 앞의 둘이 {@code supports}에서 빠져 이쪽만 남는다.
      */
     private static final List<WeatherSource> ORDER = List.of(
-            WeatherSource.OPEN_METEO, WeatherSource.MET_NO, WeatherSource.OPEN_METEO_ARCHIVE);
+            WeatherSource.ACCU_WEATHER, WeatherSource.OPEN_METEO, WeatherSource.OPEN_METEO_ARCHIVE);
 
     private final List<WeatherClient> clients;
     private final Clock clock;

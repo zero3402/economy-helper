@@ -14,6 +14,7 @@ import io.saiden.economyhelper.market.data.StockPriceApi;
 import io.saiden.economyhelper.market.fmp.FmpApi;
 import io.saiden.economyhelper.market.frankfurter.FrankfurterFxClient;
 import io.saiden.economyhelper.market.kexim.KeximFxClient;
+import io.saiden.economyhelper.market.kis.KisFxClient;
 import io.saiden.economyhelper.market.upbit.UpbitApi;
 import io.saiden.economyhelper.news.Article;
 import io.saiden.economyhelper.news.NewsSource;
@@ -24,7 +25,8 @@ import io.saiden.economyhelper.translate.QueryTranslator;
 import io.saiden.economyhelper.translate.Translation;
 import io.saiden.economyhelper.translate.TranslationService;
 import io.saiden.economyhelper.market.weather.WeatherResolver;
-import io.saiden.economyhelper.market.weather.metno.MetNoClient;
+import io.saiden.economyhelper.market.weather.accu.AccuLocationApi;
+import io.saiden.economyhelper.market.weather.accu.AccuWeatherClient;
 import io.saiden.economyhelper.market.weather.openmeteo.GeocodingApi;
 import io.saiden.economyhelper.market.weather.openmeteo.OpenMeteoArchiveClient;
 import io.saiden.economyhelper.market.weather.openmeteo.OpenMeteoForecastClient;
@@ -184,12 +186,13 @@ class CacheConfigTest {
         Set<String> declared = Stream.of(
                         BinanceApi.class, UpbitApi.class, CryptoResolver.class, StockResolver.class,
                         StockPriceApi.class, MarketIndexApi.class, FmpApi.class,
-                        FrankfurterFxClient.class, KeximFxClient.class,
+                        FrankfurterFxClient.class, KeximFxClient.class, KisFxClient.class,
                         FeedFetcher.class, HackerNewsApi.class, RelevanceScorer.class,
                         QueryTranslator.class, TranslationService.class,
                         // 날씨. 여기에 안 적으면 새 캐시를 감시가 아예 안 본다
                         OpenMeteoForecastClient.class, OpenMeteoArchiveClient.class,
-                        MetNoClient.class, GeocodingApi.class, WeatherResolver.class)
+                        AccuWeatherClient.class, AccuLocationApi.class,
+                        GeocodingApi.class, WeatherResolver.class)
                 .flatMap(type -> cacheNamesOf(type).stream())
                 .collect(Collectors.toCollection(java.util.HashSet::new));
 
@@ -216,7 +219,7 @@ class CacheConfigTest {
         Duration any = Duration.ofMinutes(1);
         return new EconomyHelperProperties(null, null, null,
                 new CacheTtl(any, any, any, any, any, any, any, any, any, any, any, any, any, any,
-                        any, any, any),
+                        any, any, any, any, any),
                 null);
     }
 

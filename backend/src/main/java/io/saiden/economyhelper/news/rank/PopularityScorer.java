@@ -99,14 +99,6 @@ public class PopularityScorer {
         return List.copyOf(scored);
     }
 
-    public ScoredArticle score(Article article,
-                               int feedSize,
-                               Collection<KeywordGroup> keywords,
-                               int buzzRaw,
-                               Instant now) {
-        return score(article, feedSize, keywordScore(article, keywords), buzzRaw, now);
-    }
-
     /**
      * @param relevance 0~1. {@code ScoreBreakdown}에서는 여전히 {@code keywordMatch} 자리에 들어간다 —
      *                  가중치({@code keyword-match: 0.25})가 그 자리를 가리키기 때문이다

@@ -19,12 +19,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
@@ -57,7 +54,7 @@ class NewsServiceTest {
                 NewsSource.CNBC, List.of(article(NewsSource.CNBC, "Fed signals rate cut", 0))),
                 rejectingSearchScorer());
 
-        assertThat(service.search(groups("rate"))).isNotEmpty();
+        assertThat(service.search(groups("rate"), null)).isNotEmpty();
     }
 
     @Test
@@ -134,15 +131,15 @@ class NewsServiceTest {
         NewsService service = service(Map.of(
                 NewsSource.CNBC, List.of(article(NewsSource.CNBC, "Oil prices climb", 0))));
 
-        assertThat(service.search(groups("비트코인"))).isEmpty();
+        assertThat(service.search(groups("비트코인"), null)).isEmpty();
     }
 
     @Test
     @DisplayName("키워드가 비면 전체를 훑지 않고 곧바로 빈 결과 — 토큰화는 QueryExpander의 몫이다")
     void searchRejectsEmptyKeywords() {
-        assertThat(service(Map.of()).search(groups())).isEmpty();
-        assertThat(service(Map.of()).search(null)).isEmpty();
-        assertThat(service(Map.of()).search(List.of(KeywordGroup.of()))).isEmpty();
+        assertThat(service(Map.of()).search(groups(), null)).isEmpty();
+        assertThat(service(Map.of()).search(null, null)).isEmpty();
+        assertThat(service(Map.of()).search(List.of(KeywordGroup.of()), null)).isEmpty();
     }
 
     /** 검색어와 무관하다고 답하는 LLM — 매칭은 됐지만 스쳐 지나간 기사의 상황이다. */
@@ -175,7 +172,7 @@ class NewsServiceTest {
         return new NewsService(
                 new StubFetcher(bySource),
                 new StubBuzzClient(),
-                new PopularityScorer(RankingWeights.defaults(), Duration.ofHours(6)),
+                new PopularityScorer(new RankingWeights(0.35, 0.25, 0.25, 0.15), Duration.ofHours(6)),
                 relevance,
                 CLOCK,
                 WINDOW,

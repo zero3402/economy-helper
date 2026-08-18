@@ -144,7 +144,7 @@ public class StockPriceApi {
     record Envelope(Body body) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record Body(int totalCount, Items items) {}
+    record Body(Items items) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     record Items(List<StockPrice> item) {}

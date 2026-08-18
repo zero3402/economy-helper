@@ -36,7 +36,7 @@ public class TelegramClient {
      * {@code retry_after}를 맞을 수 있는데, 그냥 쉬어 가는 편이 재시도 로직을 얹는 것보다
      * 단순하고 확실하다. <b>브리핑과 검색이 같은 값을 쓴다</b> — 둘 다 여러 통을 연달아 보낸다.
      */
-    public static final Duration BETWEEN_MESSAGES = Duration.ofSeconds(1);
+    private static final Duration BETWEEN_MESSAGES = Duration.ofSeconds(1);
 
     /** 다음 통을 보내기 전에 쉰다. 인터럽트는 삼키지 않고 플래그를 되살린다. */
     public static void pause() {
@@ -273,6 +273,6 @@ public class TelegramClient {
      *                떨어지고, 거짓인데 토픽 ID가 있으면 발송이 거절된다
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record ChatInfo(Long id, String type, String title,
+    public record ChatInfo(String type, String title,
                            @JsonProperty("is_forum") Boolean isForum) {}
 }

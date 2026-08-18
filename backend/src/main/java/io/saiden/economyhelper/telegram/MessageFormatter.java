@@ -166,29 +166,21 @@ public final class MessageFormatter {
      * @return 통 목록. 호출자가 순서대로, 텔레그램 권고대로 사이를 띄워 보낸다
      */
     public static List<String> formatNews(List<NewsItem> items) {
-        return formatNews(items, null);
-    }
-
-    /**
-     * @param query 사용자가 친 검색어. 제목에 함께 적어 <b>여럿이 동시에 검색해도</b> 어느 물음의
-     *              답인지 드러나게 한다({@code 뉴스 '이더리움' 1/3}). 답글 인용이 접혀 보이는
-     *              화면에서는 이것이 유일한 단서다. 브리핑은 물어본 사람이 없으므로 {@code null}
-     */
-    public static List<String> formatNews(List<NewsItem> items, String query) {
         if (items.isEmpty()) {
-            return List.of(empty(Command.NEWS, query));
+            return List.of(empty(Command.NEWS));
         }
         List<String> messages = new ArrayList<>(items.size());
         for (int i = 0; i < items.size(); i++) {
-            messages.add(newsTitle(query, i, items.size()) + "\n\n" + format(items.get(i)));
+            messages.add(newsTitle(i, items.size()) + "\n\n" + format(items.get(i)));
         }
         return List.copyOf(messages);
     }
 
-    private static String newsTitle(String query, int index, int total) {
+    /** 한 건이면 번호를 붙이지 않는다 — {@code 1/1}은 알려 주는 것이 없다. */
+    private static String newsTitle(int index, int total) {
         return total == 1
-                ? title(Command.NEWS, query)
-                : "<b>" + Html.escape(Command.NEWS.section()) + queryTag(query)
+                ? title(Command.NEWS)
+                : "<b>" + Html.escape(Command.NEWS.section())
                         + " " + (index + 1) + "/" + total + "</b>";
     }
 
@@ -228,9 +220,7 @@ public final class MessageFormatter {
      * 문구가 따라오지 않으면 그 자체로 거짓말이 되기 때문이다.
      */
     public static String noResults(String query, Duration window) {
-        // 제목에도 검색어를 싣는다 — 답글 인용이 접혀 보이는 화면에서는 통 제목만 남는데,
-        // 어느 검색이 실패했는지 알아야 할 때 정확히 그 단서가 없었다. 성공 답은 이미 싣는다
-        return section(Command.NEWS, query)
+        return section(Command.NEWS)
                 + "'" + Html.escape(query) + "'에 해당하는 최근 " + window.toHours() + "시간 뉴스를 찾지 못했습니다.";
     }
 
@@ -266,7 +256,7 @@ public final class MessageFormatter {
     // --- 주식·지수 -----------------------------------------------------------
 
     public static String stockNotFound(String query) {
-        return section(Command.STOCK, query)
+        return section(Command.STOCK)
                 + "'" + Html.escape(query) + "'에 해당하는 종목을 찾지 못했습니다.";
     }
 
@@ -288,20 +278,16 @@ public final class MessageFormatter {
      * 환율도 적지 않는다 — 환율은 {@code /fx}와 브리핑 환율 통이 따로 있다.
      */
     public static String formatStock(List<StockQuote> quotes, FxRate fx) {
-        return formatStock(quotes, fx, null);
-    }
-
-    /** @param query 검색어. 제목에 함께 적는다 — 브리핑은 {@code null} */
-    public static String formatStock(List<StockQuote> quotes, FxRate fx, String query) {
         if (quotes.isEmpty()) {
-            return empty(Command.STOCK, query);
+            return empty(Command.STOCK);
         }
-        List<StockQuote> closing = quotes.stream().filter(q -> !q.realtime()).toList();
-        List<StockQuote> live = quotes.stream().filter(StockQuote::realtime).toList();
-
-        StringBuilder message = new StringBuilder(title(Command.STOCK, query));
-        appendGroup(message, "국내", closing, fx);
-        appendGroup(message, "미국", live, fx);
+        // ⚠️ 지역으로 가른다. 예전에는 realtime으로 갈랐는데, 국내가 전일 종가뿐이던 시절에만
+        // 맞는 가정이었다 — 국내에 실시간 출처가 붙으면 삼성전자가 「미국」에 찍힌다
+        StringBuilder message = new StringBuilder(title(Command.STOCK));
+        for (StockQuote.Market market : StockQuote.Market.values()) {
+            appendGroup(message, market, quotes.stream()
+                    .filter(quote -> quote.market() == market).toList(), fx);
+        }
 
         // 환율 줄을 붙이지 않는다. 브리핑은 환율 통을 이 통 바로 앞에 보내므로 중복이다
         return message.toString();
@@ -346,13 +332,16 @@ public final class MessageFormatter {
      * 한 줄이고 종목 사이도 한 줄이라, 이름·값·환산·등락률이 줄줄이 이어져 어디까지가 한 종목인지
      * 읽는 사람이 셀 수 없었다.
      */
-    private static void appendGroup(StringBuilder message, String title,
+    private static void appendGroup(StringBuilder message, StockQuote.Market market,
                                     List<StockQuote> quotes, FxRate fx) {
         if (quotes.isEmpty()) {
             return;
         }
-        Instant basis = basisOf(quotes);
-        message.append("\n\n<b>").append(title).append("</b>");
+        // 성격마다 제 기준이 있다 — 한 무리에 실시간(KIS)과 전일 종가(폴백)가 섞일 수 있다.
+        // 브리핑은 지수와 종목을 따로 조회하므로 하나만 폴백하는 일이 실제로 난다
+        Instant live = basisOf(quotes, true);
+        Instant closing = basisOf(quotes, false);
+        message.append("\n\n<b>").append(market.title()).append("</b>");
 
         for (StockQuote quote : quotes) {
             // 블록 사이는 빈 줄 — 굵은 무리 제목 다음도 마찬가지다
@@ -370,22 +359,23 @@ public final class MessageFormatter {
             // 날짜로 비교하면 남는 경우가 "진짜 다른 날"뿐이다 — 국내 무리가 그렇다.
             // 지수(MarketIndexApi)와 종목(StockPriceApi)이 각자 날짜를 뒤로 감아 찾으므로
             // 하루가 어긋날 수 있고, 그때는 반드시 밝혀야 한다.
-            if (!sameDay(quote.at(), basis)) {
+            //
+            // ⚠️ <b>제 성격의 기준</b>과 견준다. 무리 기준(가장 최근)과 견주면, 실시간과 종가가
+            // 섞인 무리에서 종가 줄마다 날짜가 붙어 값 줄이 지저분해진다 — 그 줄은 낡은 것이
+            // 아니라 성격이 다른 것이고, 성격은 아래 꼬리가 밝힌다.
+            if (!sameDay(quote.at(), quote.realtime() ? live : closing)) {
                 message.append(" · ").append(DATE.format(quote.at().atZone(SEOUL)));
             }
             // 값 → 원화 환산 → 등락률 순으로 각각 제 줄에. 환산값과 등락률을 한 줄에 붙이면 엉킨다
             if (convertible(quote, fx)) {
                 message.append("\n").append(money(krw(quote.price(), fx))).append(" KRW");
             }
-            String change = change(quote.changePercent());
-            if (!change.isEmpty()) {
-                message.append("\n").append(change);
-            }
+            appendChangeLine(message, quote.changePercent());
         }
         // 무리 하나가 통 하나처럼 끝맺는다 — 값 다음에 출처, 한 줄 띄고 기준.
         // 두 무리 것을 맨 아래에 모으면 "국내"·"미국"을 접두사로 네 번 반복해야 한다
         message.append("\n\n").append(sourcesOf(quotes))
-                .append("\n\n").append(basisOf(quotes.get(0), basis));
+                .append("\n\n").append(basisLines(live, closing));
     }
 
     /** 두 시각이 KST 같은 날인가 — 값의 신선도를 가르는 단위는 초가 아니라 하루다. */
@@ -393,15 +383,37 @@ public final class MessageFormatter {
         return left.atZone(SEOUL).toLocalDate().equals(right.atZone(SEOUL).toLocalDate());
     }
 
-    /** 무리의 기준 시각 — 가장 최근 값이다. */
-    private static Instant basisOf(List<StockQuote> quotes) {
-        return quotes.stream().map(StockQuote::at).max(Comparator.naturalOrder()).orElseThrow();
+    /**
+     * 그 성격의 기준 시각 — <b>가장 최근 것</b>이다. 그 성격이 없으면 {@code null}.
+     *
+     * <p>첫 줄이 아니라 가장 최근 것을 고른다. 미국 무리는 심볼마다 제 체결 초가 와서
+     * 넷이 같은 초일 리가 없다.
+     */
+    private static Instant basisOf(List<StockQuote> quotes, boolean realtime) {
+        return quotes.stream().filter(quote -> quote.realtime() == realtime)
+                .map(StockQuote::at).max(Comparator.naturalOrder()).orElse(null);
     }
 
-    private static String basisOf(StockQuote sample, Instant basis) {
-        return sample.realtime()
-                ? DATE_TIME.format(basis.atZone(SEOUL))
-                : DATE.format(basis.atZone(SEOUL)) + " (종가)";
+    /**
+     * 꼬리의 기준 — <b>성격마다 한 줄</b>이고 실시간이 위다.
+     *
+     * <p>출처가 여럿이면 한 줄에 하나씩 쌓는 것과 같은 규칙이다({@link #sourceLines}).
+     * 값 줄에 붙이지 않는 이유도 같다 — 넷 중 하나가 폴백했을 뿐인데 값마다 꼬리표를 달면
+     * 읽는 줄이 지저분해진다. <b>대신 어느 값이 낡았는지를 이름으로 짚지는 않는다</b>:
+     * 출처 줄이 이미 같은 맞바꿈을 하고 있고, 날씨에서도 같은 판단을 했다.
+     *
+     * <p>성격이 하나뿐인 평상시에는 한 줄이므로 화면이 예전과 한 글자도 다르지 않다.
+     */
+    private static String basisLines(Instant live, Instant closing) {
+        StringBuilder lines = new StringBuilder();
+        if (live != null) {
+            lines.append(DATE_TIME.format(live.atZone(SEOUL)));
+        }
+        if (closing != null) {
+            lines.append(live == null ? "" : "\n")
+                    .append(DATE.format(closing.atZone(SEOUL))).append(" (종가)");
+        }
+        return lines.toString();
     }
 
     // --- 코인 ---------------------------------------------------------------
@@ -418,15 +430,10 @@ public final class MessageFormatter {
      * {@code USDTUSD}로 값이 나온다. 남는 것은 진짜 장애뿐이고 그건 알려야 한다.
      */
     public static String formatCrypto(List<CryptoQuote> quotes, FxRate fx) {
-        return formatCrypto(quotes, fx, null);
-    }
-
-    /** @param query 검색어. 제목에 함께 적는다 — 브리핑은 {@code null} */
-    public static String formatCrypto(List<CryptoQuote> quotes, FxRate fx, String query) {
         if (quotes.isEmpty()) {
-            return empty(Command.CRYPTO, query);
+            return empty(Command.CRYPTO);
         }
-        StringBuilder message = new StringBuilder(section(Command.CRYPTO, query));
+        StringBuilder message = new StringBuilder(section(Command.CRYPTO));
         boolean first = true;
         for (CryptoQuote quote : quotes) {
             message.append(first ? "" : "\n\n")
@@ -549,12 +556,15 @@ public final class MessageFormatter {
         return switch (quote.state()) {
             case NOT_LISTED -> "미상장";
             case FAILED -> "조회 실패";
-            case OK -> "";
+            // 도달 불가다 — 호출부가 hasPrice()의 else이고 Quote.of는 값이 없으면 FAILED를 준다.
+            // enum switch 완전성 때문에 남기지만, 빈 문자열을 돌려주면 "업비트 " 하나가
+            // 꼬리에 공백을 달고 나간다. 여기 오면 버그이므로 그렇다고 적는다
+            case OK -> throw new IllegalStateException("값이 있는 시세를 결측 사유로 물었습니다");
         };
     }
 
     public static String cryptoNotFound(String query) {
-        return section(Command.CRYPTO, query)
+        return section(Command.CRYPTO)
                 + "'" + Html.escape(query) + "'에 해당하는 코인을 찾지 못했습니다.\n\n"
                 + "업비트 또는 바이낸스에 상장된 이름이나 심볼로 입력해 주세요.\n\n"
                 + "예) /crypto 비트코인 · /crypto BTC";
@@ -575,14 +585,12 @@ public final class MessageFormatter {
      * <p><b>계층이 세 겹으로 겹치지 않는다.</b> 알람은 지역 넷 × 하루, 검색은 지역 하나 × 여러 날이라
      * 「지역 → 날짜 → 값」이 동시에 서는 경우가 없다. 그래서 하루짜리 답은 날짜를 블록 제목으로
      * 올리지 않고 맨 아래 기준 줄에만 둔다.
-     *
-     * @param query 검색어. 제목에 함께 적는다 — 알람은 {@code null}
      */
-    public static String formatWeather(List<Weather> places, String query) {
+    public static String formatWeather(List<Weather> places) {
         if (places.isEmpty()) {
-            return empty(Command.WEATHER, query);
+            return empty(Command.WEATHER);
         }
-        StringBuilder message = new StringBuilder(title(Command.WEATHER, query));
+        StringBuilder message = new StringBuilder(title(Command.WEATHER));
         for (Weather place : places) {
             message.append("\n\n<b>").append(Html.escape(place.place().displayName())).append("</b>");
             appendDays(message, place.days());
@@ -619,8 +627,8 @@ public final class MessageFormatter {
     /**
      * 강수 — <b>출처가 주는 것을 제 이름으로 적는다.</b>
      *
-     * <p>강수확률은 Open-Meteo 예보만 준다. met.no는 북유럽 밖에서 주지 않고, 지나간 날은
-     * 확률이라는 개념 자체가 없다. <b>강수량을 확률이라 부르지 않는다</b> — 값을 다른 것인 척
+     * <p>확률은 예보만 준다 — 지나간 날은 확률이라는 개념 자체가 없고, 예보 응답에서 확률이
+     * 빠지면 강수량으로 떨어진다. <b>강수량을 확률이라 부르지 않는다</b> — 값을 다른 것인 척
      * 하지 않는다는 규칙이 {@code (종가)}·{@code (고시)}와 같은 자리에서 여기에도 걸린다.
      */
     private static void appendRain(StringBuilder message, Weather.Daily day) {
@@ -639,9 +647,9 @@ public final class MessageFormatter {
      * 같은 이름이 다섯 번 찍힌다. 대신 <b>어느 지역이 폴백했는지를 이름으로 밝히지 않는다</b> —
      * 그래도 증상은 본문에 남는다. 그 지역만 강수확률이 아니라 강수량으로 바뀐다({@code appendRain}).
      *
-     * <p><b>선언 순으로 정렬한다.</b> 등장 순이면 첫 지역이 폴백했을 때 {@code met.no}가 위로
-     * 올라오는데, 세로로 쌓이면 그 순서가 눈에 보인다. {@code WeatherSource}의 선언 순이 곧
-     * 이중화 순서({@code WeatherService})라 1순위가 언제나 위다.
+     * <p><b>선언 순으로 정렬한다.</b> 등장 순이면 첫 지역이 폴백했을 때 2순위가 위로 올라오는데,
+     * 세로로 쌓이면 그 순서가 눈에 보인다. {@code WeatherSource}의 선언 순이 곧 이중화
+     * 순서({@code WeatherService})라 1순위가 언제나 위다.
      *
      * <p>이름이 {@code sourcesOf}가 아닌 이유는 제네릭 소거 때문이다 — 증시 쪽과 인자 목록이
      * 같아져 오버로드가 성립하지 않는다.
@@ -666,7 +674,7 @@ public final class MessageFormatter {
     }
 
     public static String weatherNotFound(String query) {
-        return section(Command.WEATHER, query)
+        return section(Command.WEATHER)
                 + "'" + Html.escape(query) + "'에 해당하는 지역을 찾지 못했습니다.\n\n"
                 + "도시나 지역 이름으로 입력해 주세요.\n\n"
                 + "예) /weather 서울 · /weather 내일 성남 · /weather 일주일치 파리";
@@ -721,10 +729,6 @@ public final class MessageFormatter {
         return title(command) + "\n\n";
     }
 
-    private static String section(Command command, String query) {
-        return title(command, query) + "\n\n";
-    }
-
     /**
      * 보여줄 값이 하나도 없을 때 — <b>네 통이 같은 문장으로 답한다.</b>
      *
@@ -733,21 +737,8 @@ public final class MessageFormatter {
      * 막고 있어 도달하지 않지만, <b>넷이 제각각인 것 자체가 다음에 누가 막는 걸 잊었을 때
      * 무슨 일이 벌어질지 알 수 없게 만든다.</b>
      */
-    private static String empty(Command command, String query) {
-        return section(command, query) + "지금은 가져올 수 있는 값이 없습니다.";
-    }
-
-    /**
-     * 검색어를 제목 뒤에 덧댄 조각 — {@code  '이더리움'}.
-     *
-     * <p><b>왜 제목에 적는가.</b> 답을 명령에 답글로 달아도 인용이 접혀 보이는 화면이 있고,
-     * 그때는 통 제목만 남는다. 같은 방에서 여럿이 동시에 검색하면 {@code 증시}·{@code 코인}이
-     * 줄줄이 뜨는데 무엇을 물어 나온 답인지 알 수 없다.
-     *
-     * <p>검색어가 없으면({@code /fx}·{@code /help}·브리핑) 빈 문자열이라 제목이 지금 그대로다.
-     */
-    private static String queryTag(String query) {
-        return query == null || query.isBlank() ? "" : " '" + Html.escape(query.trim()) + "'";
+    private static String empty(Command command) {
+        return section(command) + "지금은 가져올 수 있는 값이 없습니다.";
     }
 
 
@@ -755,13 +746,14 @@ public final class MessageFormatter {
      * 제목 줄만. 아래에 무리를 바로 붙이는 통(증시·코인·뉴스 브리핑)이 쓴다.
      *
      * <p>제목 문자열이 {@link Command}에만 있으므로 검색 답과 브리핑 답의 제목이 갈릴 수 없다.
+     *
+     * <p><b>검색어를 붙이지 않는다.</b> 붙이던 때가 있었는데({@code 증시 '삼성전자'}) 답이
+     * <b>답글로</b> 나가서 텔레그램이 원 명령을 바로 위에 인용해 그린다 — 같은 말을 두 번 하는
+     * 것이었다({@code TelegramClient}의 {@code replyToMessageId} 참조). 덕분에 검색 답과 알람이
+     * 글자 그대로 같은 제목을 쓴다.
      */
     private static String title(Command command) {
-        return title(command, null);
-    }
-
-    private static String title(Command command, String query) {
-        return "<b>" + Html.escape(command.section()) + queryTag(query) + "</b>";
+        return "<b>" + Html.escape(command.section()) + "</b>";
     }
 
     /**

@@ -1,11 +1,10 @@
 package io.saiden.economyhelper.market.weather;
 
-import java.util.Locale;
 
 /**
  * 하늘 상태 — <b>두 출처의 말을 하나로 모은다.</b>
  *
- * <p>Open-Meteo는 WMO 코드(숫자)를 주고 met.no는 {@code symbol_code}(문자열)를 준다.
+ * <p>Open-Meteo는 WMO 코드(숫자)를 주고 AccuWeather는 아이콘 번호(1~44)를 준다.
  * 그대로 두면 폴백이 일어난 날에만 표기가 달라져, 값이 아니라 <b>우리 사정</b>이 화면에
  * 드러난다. 이중화는 상대가 죽었을 때 답이 나가게 하는 장치이지 사용자가 알아야 할 일이
  * 아니므로, 두 어휘를 여기서 같은 한국어로 모은다.
@@ -14,7 +13,7 @@ import java.util.Locale;
  * 거기서 이모지를 쓰는 이유는 상승 빨강·하락 파랑이 관습이라 색 자체가 정보이기 때문이고,
  * 하늘 상태에는 그런 관습이 없다.
  *
- * <p><b>모르는 값은 지어내지 않는다.</b> 새 코드가 생기거나 met.no가 어휘를 늘리면
+ * <p><b>모르는 값은 지어내지 않는다.</b> 새 코드가 생기거나 출처가 어휘를 늘리면
  * {@link #UNKNOWN}으로 떨어지고 화면에는 그 줄만 빠진다 — 아무 날씨나 골라 찍는 것보다 낫다.
  */
 public enum SkyCondition {
@@ -83,52 +82,37 @@ public enum SkyCondition {
     }
 
     /**
-     * met.no {@code symbol_code} → 하늘 상태.
+     * AccuWeather {@code Icon}(1~44) → 하늘 상태.
      *
-     * <p><b>낮/밤 꼬리를 먼저 뗀다.</b> met.no는 같은 날씨를 {@code clearsky_day}·
-     * {@code clearsky_night}·{@code clearsky_polartwilight}로 나눠 주는데, 하루치 요약에는
-     * 그 구분이 의미가 없다.
+     * <p><b>낮/밤 쌍을 같은 것으로 본다.</b> AccuWeather는 같은 날씨에 낮과 밤 아이콘을 따로
+     * 준다({@code 1 Sunny} / {@code 33 Clear}). 하루치 요약에는 그 구분이 의미가 없다 —
+     * 하루를 한 줄로 요약하는 이 통에서는 낮 아이콘 하나면 된다.
      *
-     * <p>강도 접두사({@code light}·{@code heavy})도 뗀다 — WMO 쪽에서 강도를 묶은 것과
-     * 같은 이유이고, 그래야 두 출처가 정말 같은 말로 나온다.
+     * <p><b>구름 낀 소나기·뇌우도 소나기·뇌우다.</b> {@code 13 Mostly cloudy w/ showers}에서
+     * 사용자에게 중요한 것은 구름이 아니라 비다. WMO 쪽에서 강도를 묶은 것과 같은 이유로,
+     * 그래야 두 출처가 정말 같은 말로 나온다.
      *
-     * <p>{@code thunder}가 붙은 것은 전부 뇌우로 본다. met.no는 {@code rainandthunder}처럼
-     * 합쳐 쓰는데, 그때 사용자에게 중요한 것은 비가 아니라 뇌우다.
+     * <p>{@code 30 Hot}·{@code 31 Cold}·{@code 32 Windy}는 하늘 상태가 아니라 체감이라
+     * {@link #UNKNOWN}으로 둔다 — 그 줄만 빠진다. 없는 값을 지어내지 않는다.
      */
-    public static SkyCondition ofSymbolCode(String symbolCode) {
-        if (symbolCode == null || symbolCode.isBlank()) {
+    public static SkyCondition ofAccuWeatherIcon(Integer icon) {
+        if (icon == null) {
             return UNKNOWN;
         }
-        String symbol = symbolCode.toLowerCase(Locale.ROOT).trim();
-        int suffix = symbol.indexOf('_');
-        if (suffix >= 0) {
-            symbol = symbol.substring(0, suffix);
-        }
-        symbol = stripPrefix(symbol, "light");
-        symbol = stripPrefix(symbol, "heavy");
-
-        if (symbol.contains("thunder")) {
-            return THUNDERSTORM;
-        }
-        return switch (symbol) {
-            case "clearsky" -> CLEAR;
-            case "fair" -> MOSTLY_CLEAR;
-            case "partlycloudy" -> PARTLY_CLOUDY;
-            case "cloudy" -> CLOUDY;
-            case "fog" -> FOG;
-            case "rain" -> RAIN;
-            case "rainshowers" -> SHOWERS;
-            case "snow" -> SNOW;
-            case "snowshowers" -> SNOW_SHOWERS;
-            case "sleet", "sleetshowers" -> SLEET;
+        return switch (icon) {
+            case 1, 33 -> CLEAR;
+            case 2, 34 -> MOSTLY_CLEAR;
+            case 3, 4, 5, 35, 36, 37 -> PARTLY_CLOUDY;
+            case 6, 7, 8, 38 -> CLOUDY;
+            case 11 -> FOG;
+            case 12, 13, 14, 39, 40 -> SHOWERS;
+            case 15, 16, 17, 41, 42 -> THUNDERSTORM;
+            case 18 -> RAIN;
+            case 19, 20, 21, 43 -> SNOW_SHOWERS;
+            case 22, 23, 44 -> SNOW;
+            case 24, 26 -> FREEZING_RAIN;
+            case 25, 29 -> SLEET;
             default -> UNKNOWN;
         };
-    }
-
-    /** {@code lightrain}에서 {@code rain}을 남긴다. 접두사가 전부일 때는 손대지 않는다. */
-    private static String stripPrefix(String symbol, String prefix) {
-        return symbol.startsWith(prefix) && symbol.length() > prefix.length()
-                ? symbol.substring(prefix.length())
-                : symbol;
     }
 }

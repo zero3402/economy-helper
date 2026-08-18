@@ -157,16 +157,6 @@ public class NewsService {
     }
 
     /**
-     * {@code /news {검색어}} — 전 매체에서 점수 상위 몇 건(설정값 search-results).
-     *
-     * <p>먼저 검색어가 걸리는 기사만 남기고 그 안에서 순위를 매긴다. 걸러내지 않으면
-     * 검색어와 무관한 기사가 다른 지표만으로 1위가 될 수 있다.
-     */
-    public List<ScoredArticle> search(Collection<KeywordGroup> keywords) {
-        return search(keywords, null);
-    }
-
-    /**
      * @param query 사용자가 친 원문. 주면 상위 후보를 <b>LLM으로 한 번 더 검증</b>한다 —
      *              문자열 매칭은 "본문에 한 번 스친" 기사도 통과시켜, 환율 기사가
      *              {@code /news 금리}의 1위가 되곤 했다. {@code null}이면 검증을 건너뛴다

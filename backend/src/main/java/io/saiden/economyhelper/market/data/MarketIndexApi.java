@@ -126,7 +126,7 @@ public class MarketIndexApi {
     record Envelope(Body body) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record Body(int totalCount, Items items) {}
+    record Body(Items items) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     record Items(List<MarketIndex> item) {}
