@@ -3,6 +3,7 @@ package io.saiden.economyhelper.telegram;
 import io.saiden.economyhelper.market.CryptoQuote;
 import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.StockQuote;
+import io.saiden.economyhelper.market.StockSource;
 import io.saiden.economyhelper.market.weather.Weather;
 import io.saiden.economyhelper.market.weather.WeatherPeriod;
 import io.saiden.economyhelper.market.weather.WeatherSource;
@@ -19,6 +20,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * 값들을 텔레그램 메시지로 옮긴다.
@@ -306,14 +308,32 @@ public final class MessageFormatter {
     }
 
     /**
-     * 무리의 조회처. 한 무리에 조회처가 여럿이면 모아 적는다 — 지금은 무리와 조회처가 1:1이지만
-     * 국내에 현재가 출처를 하나 더 붙이는 날 이 줄이 조용히 거짓말이 되지 않게 한다.
+     * 무리의 조회처 — 꼬리를 <b>무리마다</b> 단다.
+     *
+     * <p>지금은 무리와 조회처가 1:1이다({@code realtime=false}면 공공데이터포털, 아니면 FMP).
+     * 그래도 여럿을 받아 두는 이유는 국내에 현재가 출처를 하나 더 붙이는 날 이 줄이 조용히
+     * 거짓말이 되지 않게 하기 위해서다 — 그날 모양은 {@link #sourceLines}가 정한다.
      */
     private static String sourcesOf(List<StockQuote> quotes) {
-        return quotes.stream()
-                .map(quote -> quote.source().displayName())
-                .distinct()
-                .collect(Collectors.joining(" · "));
+        return sourceLines(quotes.stream().map(StockQuote::source)
+                .distinct().sorted().map(StockSource::displayName));
+    }
+
+    /**
+     * 출처 줄 — <b>둘 이상이면 한 줄에 하나씩 내려 적는다.</b>
+     *
+     * <p>{@code A · B}로 잇지 않는다. 그렇다고 사이를 빈 줄로 벌리지도 않는다 —
+     * <b>출처는 여럿이어도 블록 하나</b>이기 때문이다. 이 통의 규칙이 그대로 걸린다:
+     * 빈 줄은 블록 사이, 한 줄은 블록 안. 그래서 출처 덩어리와 기준 시각 사이만 빈 줄이다.
+     *
+     * <p><b>증시와 날씨가 이 하나를 함께 쓴다</b> — 통마다 규칙이 갈리지 않게 하려고 뽑았다.
+     * 제네릭 소거 탓에 {@code List}를 받는 오버로드가 성립하지 않아, 타입을 벗긴 표시 이름만 받는다.
+     *
+     * <p>이스케이프는 <b>여기서 이름마다</b> 한다. 이어붙인 뒤 통째로 하면 구분자까지 대상이
+     * 되는 모양이라 의도가 흐리고, 호출부가 한 번 더 하면 {@code S&P 500}이 두 번 이스케이프된다.
+     */
+    private static String sourceLines(Stream<String> displayNames) {
+        return displayNames.map(Html::escape).collect(Collectors.joining("\n"));
     }
 
     /**
@@ -364,7 +384,7 @@ public final class MessageFormatter {
         }
         // 무리 하나가 통 하나처럼 끝맺는다 — 값 다음에 출처, 한 줄 띄고 기준.
         // 두 무리 것을 맨 아래에 모으면 "국내"·"미국"을 접두사로 네 번 반복해야 한다
-        message.append("\n\n").append(Html.escape(sourcesOf(quotes)))
+        message.append("\n\n").append(sourcesOf(quotes))
                 .append("\n\n").append(basisOf(quotes.get(0), basis));
     }
 
@@ -612,14 +632,12 @@ public final class MessageFormatter {
     }
 
     /**
-     * 조회처. 지역마다 폴백이 갈릴 수 있으므로 <b>하단에 모으고, 출처 하나가 블록 하나</b>다.
+     * 조회처. 지역마다 폴백이 갈릴 수 있으므로 <b>하단에 모은다</b> — 모양은 {@link #sourceLines}가
+     * 정한다(증시와 같은 규칙이다).
      *
-     * <p>한 줄에 {@code Open-Meteo · met.no}로 잇지 않는다 — 출처와 시각이 각각 제 블록이라
-     * 사이가 빈 줄인 규칙이 출처끼리에도 그대로 걸린다. <b>지역 블록에는 출처를 달지 않는다</b>:
-     * 넷 중 하나가 폴백했을 뿐인데 지역마다 달면 같은 이름이 다섯 번 찍힌다.
-     *
-     * <p>대신 <b>어느 지역이 폴백했는지를 이름으로 밝히지 않는다.</b> 그래도 증상은 본문에 남는다 —
-     * 그 지역만 강수확률이 아니라 강수량으로 바뀐다({@code appendRain}).
+     * <p><b>지역 블록에는 출처를 달지 않는다.</b> 넷 중 하나가 폴백했을 뿐인데 지역마다 달면
+     * 같은 이름이 다섯 번 찍힌다. 대신 <b>어느 지역이 폴백했는지를 이름으로 밝히지 않는다</b> —
+     * 그래도 증상은 본문에 남는다. 그 지역만 강수확률이 아니라 강수량으로 바뀐다({@code appendRain}).
      *
      * <p><b>선언 순으로 정렬한다.</b> 등장 순이면 첫 지역이 폴백했을 때 {@code met.no}가 위로
      * 올라오는데, 세로로 쌓이면 그 순서가 눈에 보인다. {@code WeatherSource}의 선언 순이 곧
@@ -629,13 +647,8 @@ public final class MessageFormatter {
      * 같아져 오버로드가 성립하지 않는다.
      */
     private static String weatherSourcesOf(List<Weather> places) {
-        return places.stream()
-                .map(Weather::source)
-                .distinct()
-                .sorted()
-                .map(WeatherSource::displayName)
-                .map(Html::escape)
-                .collect(Collectors.joining("\n\n"));
+        return sourceLines(places.stream().map(Weather::source)
+                .distinct().sorted().map(WeatherSource::displayName));
     }
 
     /**

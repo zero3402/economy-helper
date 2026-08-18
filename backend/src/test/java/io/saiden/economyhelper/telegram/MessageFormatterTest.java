@@ -393,6 +393,24 @@ class MessageFormatterTest {
                 .doesNotContain("국내 금융위원회").doesNotContain("미국 Financial");
     }
 
+    @Test
+    @DisplayName("한 무리에 조회처가 둘이면 한 줄에 하나씩 내려 적는다 — 통마다 규칙이 달라지지 않는다")
+    void stacksTwoSourcesInOneStockGroup() {
+        // 오늘은 안 나오는 조합이다(국내는 공공데이터포털 하나뿐). 국내에 현재가 출처를 하나
+        // 더 붙이는 날 이 줄이 옛 모양으로 조용히 나가지 않게 계약을 여기서 잠근다
+        StockQuote second = new StockQuote("005930", "삼성전자", "KOSPI", new BigDecimal("239500"),
+                null, StockQuote.Money.KRW, StockSource.FMP, BASIS, false, false,
+                new BigDecimal("1400183726616000"));
+
+        assertThat(MessageFormatter.formatStock(List.of(krStock("코스피", "6345.53"), second), FX))
+                .as("출처는 여럿이어도 블록 하나다 — 사이를 빈 줄로 벌리지 않는다")
+                .contains("금융위원회\nFinancial Modeling Prep\n\n2026년")
+                .as("한 줄에 잇지 않는다")
+                .doesNotContain(" · ")
+                .as("빈 줄이 겹치지 않는다")
+                .doesNotContain("\n\n\n");
+    }
+
     // --- 날씨: 알람과 검색이 한 함수를 쓴다 ------------------------------------
 
     @Test
@@ -439,21 +457,21 @@ class MessageFormatterTest {
     }
 
     @Test
-    @DisplayName("출처가 갈리면 하단에 쌓는다 — 출처 하나가 블록 하나다")
+    @DisplayName("출처가 갈리면 하단에 한 줄씩 내려 적는다 — 출처는 여럿이어도 블록 하나다")
     void stacksEveryDivergedSourceAtTheBottom() {
         String mixed = MessageFormatter.formatWeather(List.of(migeum(), metNoFallback()), null);
 
         assertThat(mixed)
                 .as("지역 블록에는 출처가 붙지 않는다 — 넷 중 하나가 폴백했다고 이름을 다섯 번 적지 않는다")
                 .doesNotContain("2.4mm\nmet.no")
-                .as("한 줄에 잇지 않는다 — 출처끼리도 사이가 빈 줄이다")
-                .endsWith("Open-Meteo\n\nmet.no\n\n2026년 8월 17일(월) (예보)")
+                .as("한 줄에 잇지도, 빈 줄로 벌리지도 않는다 — 출처는 여럿이어도 블록 하나다")
+                .endsWith("Open-Meteo\nmet.no\n\n2026년 8월 17일(월) (예보)")
                 .as("빈 줄이 겹치지 않는다")
                 .doesNotContain("\n\n\n");
 
         assertThat(MessageFormatter.formatWeather(List.of(metNoFallback(), seohyeon()), null))
                 .as("첫 지역이 폴백해도 1순위가 위다 — 등장 순이 아니라 이중화 순서로 적는다")
-                .endsWith("Open-Meteo\n\nmet.no\n\n2026년 8월 17일(월) (예보)");
+                .endsWith("Open-Meteo\nmet.no\n\n2026년 8월 17일(월) (예보)");
 
         assertThat(MessageFormatter.formatWeather(List.of(migeum(), seohyeon()), null))
                 .as("갈리지 않으면 평상시 화면 그대로다 — 지역 블록에 출처가 붙지 않는다")
