@@ -5,6 +5,7 @@ import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.StockQuote;
 import io.saiden.economyhelper.market.weather.Weather;
 import io.saiden.economyhelper.market.weather.WeatherPeriod;
+import io.saiden.economyhelper.market.weather.WeatherSource;
 import io.saiden.economyhelper.news.NewsItem;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -561,22 +562,15 @@ public final class MessageFormatter {
         if (places.isEmpty()) {
             return empty(Command.WEATHER, query);
         }
-        // 출처가 갈렸을 때만 지역마다 밝힌다. 갈리지 않으면(평상시) 맨 아래 한 줄이 전부를
-        // 대표하므로 화면이 한 글자도 안 바뀐다
-        boolean mixed = places.stream().map(Weather::source).distinct().count() > 1;
-
         StringBuilder message = new StringBuilder(title(Command.WEATHER, query));
         for (Weather place : places) {
             message.append("\n\n<b>").append(Html.escape(place.place().displayName())).append("</b>");
             appendDays(message, place.days());
-            if (mixed) {
-                message.append("\n").append(Html.escape(place.source().displayName()));
-            }
         }
         // 출처와 기준은 통 하나처럼 끝맺는다 — 값 다음 빈 줄, 출처, 빈 줄, 기준.
-        // 지역이 여럿이어도 한 번에 조회하므로 출처와 범위가 같다
+        // 출처가 갈리면 하단에 각자 제 블록으로 쌓인다. 범위는 한 번에 조회하므로 같다
         places.stream().findFirst().ifPresent(head ->
-                message.append("\n\n").append(Html.escape(weatherSourcesOf(places)))
+                message.append("\n\n").append(weatherSourcesOf(places))
                         .append("\n\n").append(basisOf(head)));
         return message.toString();
     }
@@ -618,21 +612,30 @@ public final class MessageFormatter {
     }
 
     /**
-     * 조회처. 지역마다 폴백이 갈릴 수 있으므로 모아 적는다.
+     * 조회처. 지역마다 폴백이 갈릴 수 있으므로 <b>하단에 모으고, 출처 하나가 블록 하나</b>다.
      *
-     * <p><b>여기에 둘 이상이 찍히면 지역 블록에도 각자의 출처가 적혀 있다</b>({@code formatWeather}의
-     * {@code mixed}). 바닥에만 {@code Open-Meteo · met.no}가 뜨면 어느 곳이 폴백했는지 알 수 없는데,
-     * 본문에는 증상이 보인다 — 그 지역만 강수확률이 아니라 강수량으로 바뀐다. 원인 없이 증상만
-     * 보이는 상태를 만들지 않는다. 증시가 무리마다 꼬리를 다는 것과 같은 이유다.
+     * <p>한 줄에 {@code Open-Meteo · met.no}로 잇지 않는다 — 출처와 시각이 각각 제 블록이라
+     * 사이가 빈 줄인 규칙이 출처끼리에도 그대로 걸린다. <b>지역 블록에는 출처를 달지 않는다</b>:
+     * 넷 중 하나가 폴백했을 뿐인데 지역마다 달면 같은 이름이 다섯 번 찍힌다.
+     *
+     * <p>대신 <b>어느 지역이 폴백했는지를 이름으로 밝히지 않는다.</b> 그래도 증상은 본문에 남는다 —
+     * 그 지역만 강수확률이 아니라 강수량으로 바뀐다({@code appendRain}).
+     *
+     * <p><b>선언 순으로 정렬한다.</b> 등장 순이면 첫 지역이 폴백했을 때 {@code met.no}가 위로
+     * 올라오는데, 세로로 쌓이면 그 순서가 눈에 보인다. {@code WeatherSource}의 선언 순이 곧
+     * 이중화 순서({@code WeatherService})라 1순위가 언제나 위다.
      *
      * <p>이름이 {@code sourcesOf}가 아닌 이유는 제네릭 소거 때문이다 — 증시 쪽과 인자 목록이
      * 같아져 오버로드가 성립하지 않는다.
      */
     private static String weatherSourcesOf(List<Weather> places) {
         return places.stream()
-                .map(place -> place.source().displayName())
+                .map(Weather::source)
                 .distinct()
-                .collect(Collectors.joining(" · "));
+                .sorted()
+                .map(WeatherSource::displayName)
+                .map(Html::escape)
+                .collect(Collectors.joining("\n\n"));
     }
 
     /**

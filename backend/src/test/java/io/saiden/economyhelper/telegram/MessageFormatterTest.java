@@ -439,16 +439,21 @@ class MessageFormatterTest {
     }
 
     @Test
-    @DisplayName("출처가 갈리면 지역마다 밝힌다 — 바닥에만 모아 적으면 어디가 폴백했는지 알 수 없다")
-    void namesTheSourcePerPlaceOnlyWhenTheyDiverge() {
+    @DisplayName("출처가 갈리면 하단에 쌓는다 — 출처 하나가 블록 하나다")
+    void stacksEveryDivergedSourceAtTheBottom() {
         String mixed = MessageFormatter.formatWeather(List.of(migeum(), metNoFallback()), null);
 
         assertThat(mixed)
-                .as("폴백한 지역 블록에 그 출처가 붙는다")
-                .contains("강수량 2.4mm\nmet.no")
-                .as("멀쩡한 지역에도 제 출처가 붙어야 대조가 된다")
-                .contains("강수확률 20%\nOpen-Meteo")
-                .endsWith("Open-Meteo · met.no\n\n2026년 8월 17일(월) (예보)");
+                .as("지역 블록에는 출처가 붙지 않는다 — 넷 중 하나가 폴백했다고 이름을 다섯 번 적지 않는다")
+                .doesNotContain("2.4mm\nmet.no")
+                .as("한 줄에 잇지 않는다 — 출처끼리도 사이가 빈 줄이다")
+                .endsWith("Open-Meteo\n\nmet.no\n\n2026년 8월 17일(월) (예보)")
+                .as("빈 줄이 겹치지 않는다")
+                .doesNotContain("\n\n\n");
+
+        assertThat(MessageFormatter.formatWeather(List.of(metNoFallback(), seohyeon()), null))
+                .as("첫 지역이 폴백해도 1순위가 위다 — 등장 순이 아니라 이중화 순서로 적는다")
+                .endsWith("Open-Meteo\n\nmet.no\n\n2026년 8월 17일(월) (예보)");
 
         assertThat(MessageFormatter.formatWeather(List.of(migeum(), seohyeon()), null))
                 .as("갈리지 않으면 평상시 화면 그대로다 — 지역 블록에 출처가 붙지 않는다")
