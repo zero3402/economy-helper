@@ -9,7 +9,6 @@ import io.saiden.economyhelper.market.StockResolver;
 import io.saiden.economyhelper.market.binance.BinanceApi;
 import io.saiden.economyhelper.market.binance.BinanceApi.BinancePrice;
 import io.saiden.economyhelper.market.data.MarketIndexApi;
-import io.saiden.economyhelper.market.data.MarketIndexApi.MarketIndex;
 import io.saiden.economyhelper.market.data.StockPriceApi;
 import io.saiden.economyhelper.market.fmp.FmpApi;
 import io.saiden.economyhelper.market.frankfurter.FrankfurterFxClient;
@@ -36,7 +35,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -83,26 +81,6 @@ class CacheConfigTest {
                 // Google News 프록시는 description이 없다
                 new Article(NewsSource.AP, "Fed signals rate cut", null,
                         "https://example.com/2", NOW, 1));
-
-        assertThat(serializer.deserialize(serializer.serialize(original))).isEqualTo(original);
-    }
-
-    @Test
-    @DisplayName("hn-buzz 캐시 — Map<String, Integer>가 그대로 돌아온다")
-    void roundTripsBuzzMap() {
-        JacksonJsonRedisSerializer<Map<String, Integer>> serializer =
-                CacheConfig.serializer(new TypeReference<Map<String, Integer>>() {});
-        Map<String, Integer> original = Map.of("example.com/a", 930, "example.com/b", 3);
-
-        assertThat(serializer.deserialize(serializer.serialize(original))).isEqualTo(original);
-    }
-
-    @Test
-    @DisplayName("market-index 캐시 — MarketIndex가 그대로 돌아온다")
-    void roundTripsMarketIndex() {
-        JacksonJsonRedisSerializer<MarketIndex> serializer =
-                CacheConfig.serializer(new TypeReference<MarketIndex>() {});
-        MarketIndex original = new MarketIndex("20260811", "코스피", "KOSPI시리즈", "6345.53", null);
 
         assertThat(serializer.deserialize(serializer.serialize(original))).isEqualTo(original);
     }

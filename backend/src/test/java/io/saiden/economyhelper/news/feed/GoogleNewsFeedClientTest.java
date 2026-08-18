@@ -3,7 +3,6 @@ package io.saiden.economyhelper.news.feed;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.saiden.economyhelper.news.Article;
-import io.saiden.economyhelper.news.FeedType;
 import io.saiden.economyhelper.news.NewsSource;
 import java.io.InputStream;
 import java.io.InputStreamReader;

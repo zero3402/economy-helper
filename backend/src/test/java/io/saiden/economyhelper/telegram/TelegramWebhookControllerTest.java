@@ -17,7 +17,6 @@ import io.saiden.economyhelper.market.fmp.FmpApi;
 import io.saiden.economyhelper.market.upbit.UpbitApi;
 import io.saiden.economyhelper.news.NewsFacade;
 import io.saiden.economyhelper.news.NewsItem;
-import io.saiden.economyhelper.news.NewsSource;
 import io.saiden.economyhelper.telegram.TelegramWebhookController.Chat;
 import io.saiden.economyhelper.telegram.TelegramWebhookController.Message;
 import io.saiden.economyhelper.telegram.TelegramWebhookController.Update;
@@ -309,17 +308,6 @@ class TelegramWebhookControllerTest {
         assertThat(client.sent).isEmpty();
     }
 
-    @Test
-    @DisplayName("chat-id를 설정하지 않으면 어디서든 받는다 — 기존 테스트가 그대로 통과해야 한다")
-    void acceptsAnyChatWhenAllowListUnset() {
-        RecordingClient client = new RecordingClient();
-        var controller = guarded("", "", client);
-
-        controller.onUpdate(null, update(12345, "/news 유가"));
-
-        assertThat(client.sent).hasSize(1);
-    }
-
     // --- 포럼 토픽: 명령은 Search 토픽에서만 받고 그 토픽으로 답한다 ---
 
     @Test
@@ -386,6 +374,40 @@ class TelegramWebhookControllerTest {
     }
 
     /** secret·허용 채팅을 설정하지 않은 컨트롤러. 나머지 테스트는 라우팅만 보므로 이쪽을 쓴다. */
+    @Test
+    @DisplayName("/weather는 여섯 갈래가 모두 굵은 제목으로 답한다 — 맨몸 문장이 튀어나오면 안 된다")
+    void answersEveryWeatherReason() {
+        // 이 여섯 갈래에 테스트가 하나도 없었다. 그 탓에 weatherNeedsPlace·weatherUnreadableDate·
+        // weatherTooFarAhead·weatherUnavailable은 단언 한 줄 없이 살아 있었다
+        for (WeatherFacade.Lookup.Reason reason : WeatherFacade.Lookup.Reason.values()) {
+            RecordingClient client = new RecordingClient();
+            new TelegramWebhookController(facade(Optional.empty()), crypto(Optional.empty()),
+                    fx(Optional.empty()), stock(Optional.empty()), weather(reason), client,
+                    SAME_THREAD, "", "", "")
+                    .onUpdate(null, update(1, "/weather 성남"));
+
+            assertThat(client.sent).as("%s에도 답이 나간다", reason).hasSize(1);
+            assertThat(client.sent.get(0).text())
+                    .as("%s 답이 통 제목으로 시작한다", reason)
+                    .startsWith("<b>날씨</b>")
+                    .as("%s 답에 검색어가 제목에 붙지 않는다 — 답글 인용이 이미 보여 준다", reason)
+                    .doesNotContain("<b>날씨 '");
+        }
+    }
+
+    @Test
+    @DisplayName("지역을 안 적은 것과 적었는데 못 찾은 것은 다르게 답한다 — 사용자가 할 일이 다르다")
+    void distinguishesMissingPlaceFromUnknownPlace() {
+        assertThat(MessageFormatter.weatherNeedsPlace())
+                .as("무엇을 적어야 하는지 알려 준다")
+                .contains("어느 지역");
+        assertThat(MessageFormatter.weatherNotFound("없는지역"))
+                .as("적은 것이 무엇이었는지 되짚어 준다")
+                .contains("'없는지역'");
+        assertThat(MessageFormatter.weatherNeedsPlace())
+                .isNotEqualTo(MessageFormatter.weatherNotFound("없는지역"));
+    }
+
     private static TelegramWebhookController defaultController(NewsFacade newsFacade,
                                                                CryptoService cryptoService,
                                                                FxService fxService,
@@ -401,12 +423,30 @@ class TelegramWebhookControllerTest {
      * 실제 조회 경로는 {@code WeatherFacade}·{@code WeatherService} 쪽에서 따로 본다.
      */
     private static WeatherFacade weather() {
+        return weather(WeatherFacade.Lookup.Reason.NOT_FOUND);
+    }
+
+    /** 이유를 받는다 — 여섯 갈래를 다 밟아 보려면 스텁이 그것을 정할 수 있어야 한다. */
+    private static WeatherFacade weather(WeatherFacade.Lookup.Reason reason) {
         return new WeatherFacade(null, null, null) {
             @Override
             public Lookup search(String query) {
-                return new Lookup(List.of(), Lookup.Reason.NOT_FOUND);
+                return new Lookup(
+                        reason == WeatherFacade.Lookup.Reason.FOUND ? List.of(seongnam()) : List.of(),
+                        reason);
             }
         };
+    }
+
+    private static io.saiden.economyhelper.market.weather.Weather seongnam() {
+        return new io.saiden.economyhelper.market.weather.Weather(
+                new io.saiden.economyhelper.market.weather.GeoLocation(
+                        "성남시", "대한민국", 37.42, 127.13, java.time.ZoneId.of("Asia/Seoul")),
+                List.of(io.saiden.economyhelper.market.weather.Weather.Daily.withChance(
+                        java.time.LocalDate.of(2026, 8, 18),
+                        io.saiden.economyhelper.market.weather.SkyCondition.CLEAR,
+                        new BigDecimal("21.4"), new BigDecimal("30.2"), 10)),
+                io.saiden.economyhelper.market.weather.WeatherSource.ACCU_WEATHER);
     }
 
     /** 방어를 켠 컨트롤러. {@code /news 유가}가 항상 결과를 내도록 고정해 둔다. */

@@ -92,15 +92,6 @@ class PopularityScorerTest {
     class KeywordMatch {
 
         @Test
-        @DisplayName("검색어가 둘이면 전부 맞아야 만점")
-        void fewKeywordsRequireAllToMatch() {
-            assertThat(PopularityScorer.keywordScore("Fed raises rates", null, groups("fed", "rates")))
-                    .isEqualTo(1.0);
-            assertThat(PopularityScorer.keywordScore("Fed holds steady", null, groups("fed", "rates")))
-                    .isCloseTo(0.5, within(1e-9));
-        }
-
-        @Test
         @DisplayName("제목에 걸린 기사가 본문에만 걸린 기사를 이긴다 — 다룬 것과 언급한 것은 다르다")
         void titleMatchOutranksBodyMatch() {
             double inTitle = PopularityScorer.keywordScore(

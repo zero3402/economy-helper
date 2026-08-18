@@ -111,20 +111,6 @@ class AccuWeatherClientTest {
     }
 
     @Test
-    @DisplayName("확률을 확률로 적는다 — details=true가 없으면 이 값이 안 와 강수량으로 강등된다")
-    void readsPrecipitationProbabilityFromTheDayHalf() {
-        stubLocation();
-        stubForecast();
-
-        Weather.Daily today = client.forecast(MIGEUM, days(1)).days().get(0);
-
-        assertThat(today.rainChance()).isEqualTo(55);
-        assertThat(today.rainAmount())
-                .as("확률을 아는 출처는 강수량 칸을 비운다 — 한 줄에 둘을 적지 않는다")
-                .isNull();
-    }
-
-    @Test
     @DisplayName("확률과 섭씨를 요구해 보낸다 — 둘 다 파라미터가 없으면 안 오거나 화씨다")
     void asksForDetailsAndMetric() {
         stubLocation();
@@ -148,6 +134,9 @@ class AccuWeatherClientTest {
         // 같은 날 Night는 아이콘 36·확률 8이다. 그걸 읽었다면 값이 다르게 나온다
         assertThat(today.sky()).isEqualTo(SkyCondition.PARTLY_CLOUDY);
         assertThat(today.rainChance()).isEqualTo(55);
+        assertThat(today.rainAmount())
+                .as("확률을 아는 출처는 강수량 칸을 비운다 — 한 줄에 둘을 적지 않는다")
+                .isNull();
     }
 
     @Test

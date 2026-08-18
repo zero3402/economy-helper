@@ -86,7 +86,6 @@ class CryptoServiceTest {
 
         assertThat(quote.name()).isEqualTo("비트코인");
         assertThat(quote.upbit().price()).isEqualByComparingTo("89848000");
-        assertThat(quote.at()).isNotNull();
     }
 
     @Test

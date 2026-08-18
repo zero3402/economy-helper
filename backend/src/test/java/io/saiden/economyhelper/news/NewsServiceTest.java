@@ -165,7 +165,7 @@ class NewsServiceTest {
     }
 
     private static NewsService service(Map<NewsSource, List<Article>> bySource) {
-        return service(bySource, scorerMatching());
+        return service(bySource, passAll());
     }
 
     private static NewsService service(Map<NewsSource, List<Article>> bySource, RelevanceScorer relevance) {
@@ -183,25 +183,20 @@ class NewsServiceTest {
     }
 
     /**
-     * 주어진 단어가 걸리는 기사에만 1.0을 준다 — LLM 대신 결정적으로 동작한다.
+     * 모든 후보를 통과시킨다 — LLM 대신 결정적으로 동작한다.
+     *
+     * <p>단어로 걸러 보던 때가 있었는데 호출부가 언제나 무인자였다. 즉 그 분기는 늘 참이라
+     * 통과시키는 것과 같았고, 실제로 거르는 일은 {@code rejectingSearchScorer}가 한다.
      *
      * <p>이 클래스의 관심사는 "수집 → 후보 좁히기 → 임계값 → 랭킹" 흐름이지 채점 방식이 아니다.
      * 실제 LLM 경로는 {@code RelevanceScorerTest}가 따로 본다.
      */
-    private static RelevanceScorer scorerMatching(String... terms0) {
-        List<String> terms = List.of(terms0);
+    private static RelevanceScorer passAll() {
         return new RelevanceScorer(null, null) {
             @Override
             public Map<String, Double> scoreAll(List<Article> candidates) {
                 return candidates.stream().collect(java.util.stream.Collectors.toMap(
-                        Article::link,
-                        a -> matches(a, terms) ? 1.0 : 0.0,
-                        (x, y) -> x));
-            }
-
-            private boolean matches(Article article, List<String> keywords) {
-                String haystack = article.text().toLowerCase(java.util.Locale.ROOT);
-                return keywords.isEmpty() || keywords.stream().anyMatch(haystack::contains);
+                        Article::link, article -> 1.0, (x, y) -> x));
             }
         };
     }

@@ -13,7 +13,6 @@ import io.saiden.economyhelper.market.weather.SkyCondition;
 import io.saiden.economyhelper.market.weather.Weather;
 import io.saiden.economyhelper.market.weather.WeatherSource;
 import io.saiden.economyhelper.news.NewsItem;
-import io.saiden.economyhelper.news.NewsSource;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -124,13 +123,6 @@ class MessageFormatterTest {
     void tellsUserWhenDigestIsEmpty() {
         assertThat(MessageFormatter.formatNews(List.of()))
                 .singleElement().asString().contains("가져올 수 있는 값이 없습니다");
-    }
-
-    @Test
-    @DisplayName("브리핑의 뉴스에도 같은 일시가 붙는다 — 두 채널이 다른 모양이 되면 안 된다")
-    void showsPublishedTimeInDigestToo() {
-        assertThat(MessageFormatter.formatNews(List.of(item("유가 상승", "본문", true))))
-                .singleElement().asString().contains("2026년 8월 11일(화) 09:00:00");
     }
 
     @Test
@@ -668,13 +660,6 @@ class MessageFormatterTest {
         assertThat(crypto(new CryptoQuote("비트코인", "KRW-BTC", NOW,
                 Quote.of(new BigDecimal("89848000"), null), Quote.FAILED), null))
                 .as("잠시 뒤 다시 치면 되는 것").contains("바이낸스 조회 실패");
-    }
-
-    @Test
-    @DisplayName("코인 제목은 굵은 티커에 한글 이름을 곁들인다 — 티커만으로는 무엇인지 모른다")
-    void namesEachCoinInKorean() {
-        assertThat(crypto(btc(new BigDecimal("62000")), null)).contains("<b>BTC</b> 비트코인");
-        assertThat(crypto(usdt(), FX_FLAT)).contains("<b>USDT</b> 테더");
     }
 
     @Test

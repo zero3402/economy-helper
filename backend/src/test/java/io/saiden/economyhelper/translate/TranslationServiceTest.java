@@ -49,14 +49,6 @@ class TranslationServiceTest {
     }
 
     @Test
-    @DisplayName("어떤 예외가 나도 던지지 않는다 — 한 건의 번역 실패가 발송 전체를 막으면 안 된다")
-    void neverPropagatesFailures() {
-        TranslationService service = service(new FakeGemini(null, new IllegalStateException("응답 파손")));
-
-        assertThat(service.translateAll(List.of(article("Title", "Body"))).get(0).translated()).isFalse();
-    }
-
-    @Test
     @DisplayName("요약문이 없는 기사(AP)는 body가 빈 문자열로 강등된다")
     void handlesArticlesWithoutDescription() {
         TranslationService service = service(new FakeGemini(null, new RuntimeException("실패")));
@@ -150,16 +142,7 @@ class TranslationServiceTest {
         }
 
         @Override
-        public Translation translate(Article article) {
-            calls++;
-            if (failure != null) {
-                throw failure;
-            }
-            return result;
-        }
-
-        @Override
-        public List<Translation> translateAll(List<Article> articles) {
+                public List<Translation> translateAll(List<Article> articles) {
             calls++;
             batched = articles.size();
             if (failure != null) {

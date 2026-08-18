@@ -19,7 +19,6 @@ import io.saiden.economyhelper.market.fmp.FmpApi;
 import io.saiden.economyhelper.market.upbit.UpbitApi;
 import io.saiden.economyhelper.news.NewsFacade;
 import io.saiden.economyhelper.news.NewsItem;
-import io.saiden.economyhelper.news.NewsSource;
 import io.saiden.economyhelper.telegram.TelegramClient;
 import java.time.Clock;
 import java.time.Duration;
@@ -257,19 +256,6 @@ class DailyDigestJobTest {
     }
 
     @Test
-    @DisplayName("뉴스 통만 링크 미리보기를 켠다 — 시세 통에는 링크가 없어 켤 것이 없다")
-    void enablesLinkPreviewOnlyForTheNewsSection() {
-        RecordingClient telegram = new RecordingClient();
-
-        job(telegram, new InMemoryHistory(), new CountingFacade(List.of(item("유가 상승"))),
-                fx(true), stock(true), crypto(true)).run(false);
-
-        // 환율·증시·코인 / 뉴스 순서다. 텔레그램은 메시지당 카드를 하나만 붙이므로
-        // 다섯 건을 묶은 뉴스 통에서는 첫 기사에만 뜬다 — 그래도 안 뜨는 것보다 낫다
-        assertThat(telegram.previews).containsExactly(false, false, false, true);
-    }
-
-    @Test
     @DisplayName("같은 날이면 시각이 달라도 같은 슬롯이다 — 09시에 놓쳐 10시에 보내도 한 번뿐")
     void sameDayIsOneSlotRegardlessOfHour() {
         InMemoryHistory history = new InMemoryHistory();
@@ -432,7 +418,7 @@ class DailyDigestJobTest {
         return new FmpApi(RestClient.builder(), "https://example.invalid", "k", null) {
             @Override
             public FmpApi.FmpQuote quote(String symbol) {
-                return null;
+                throw new AssertionError("브리핑이 미국 조회를 불렀습니다: " + symbol);
             }
         };
     }

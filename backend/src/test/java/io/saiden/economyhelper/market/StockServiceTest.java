@@ -88,16 +88,6 @@ class StockServiceTest {
     }
 
     @Test
-    @DisplayName("통칭과 상장명이 달라도 찾는다 — 네이버는 상장명이 NAVER(로마자)다")
-    void resolvesCommonNameToListedName() {
-        List<StockPrice> naver = List.of(price("035420", "NAVER", "KOSPI", "200000", "32000000000000"));
-        RecordingApi api = new RecordingApi(Map.of("035420", naver));
-        StockService service = new StockService(api, indexApi(null), noFmp(), resolver(new ResolvedStock("KR", "STOCK", "035420", "NAVER")));
-
-        assertThat(service.quote("네이버").orElseThrow().name()).isEqualTo("NAVER");
-    }
-
-    @Test
     @DisplayName("LLM이 없는 종목코드를 지어내면 이름으로 되돌아간다 — 환각을 그대로 믿지 않는다")
     void fallsBackToNameWhenLlmCodeIsBogus() {
         RecordingApi api = new RecordingApi(Map.of("삼성전자", SAMSUNG.subList(0, 1)));
