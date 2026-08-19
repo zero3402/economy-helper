@@ -284,6 +284,46 @@ class MessageFormatterTest {
     }
 
     @Test
+    @DisplayName("한국투자증권이 답하면 국내도 시각까지 찍힌다 — 이게 평상시 아침 브리핑이다")
+    void domesticRealtimeStampsTheTimeNotAClosingDate() {
+        String message = MessageFormatter.formatStock(List.of(
+                kis("코스피", "6869.83", StockQuote.Money.NONE, StockQuote.Market.DOMESTIC),
+                kis("삼성전자", "268500", StockQuote.Money.KRW, StockQuote.Market.DOMESTIC),
+                kis("나스닥", "26644.91", StockQuote.Money.NONE, StockQuote.Market.US),
+                kis("애플", "306.192", StockQuote.Money.USD, StockQuote.Market.US)), FX);
+
+        assertThat(message)
+                .as("2순위로 내려앉았을 때만 '(종가)'가 나와야 한다")
+                .isEqualTo("""
+                <b>증시</b>
+
+                <b>국내</b>
+
+                코스피
+                6,869.83
+
+                삼성전자
+                268,500 KRW
+
+                한국투자증권
+
+                2026년 8월 13일(목) 07:00:00
+
+                <b>미국</b>
+
+                나스닥
+                26,644.91
+
+                애플
+                306.192 USD
+                432,395 KRW
+
+                한국투자증권
+
+                2026년 8월 13일(목) 07:00:00""");
+    }
+
+    @Test
     @DisplayName("검색 답도 브리핑과 같은 함수를 쓴다 — 종목이 하나뿐인 통일 뿐이다")
     void singleStockLooksExactlyLikeItsDigestBlock() {
         String single = MessageFormatter.formatStock(List.of(usStock("애플", "302.25")), FX);
@@ -761,6 +801,16 @@ class MessageFormatterTest {
     private static StockQuote usStock(String name, String price) {
         return new StockQuote(name, new BigDecimal(price), null,
                 StockQuote.Money.USD, StockQuote.Market.US, StockSource.FMP, US_AT, true);
+    }
+
+    /**
+     * 한국투자증권이 답한 시세 — <b>국내도 미국도 실시간이고 시각은 '읽은 시각'이다.</b>
+     * 이 출처는 시각 필드를 주지 않아 넷이 같은 초를 갖는다(브리핑이 한 번에 부른다).
+     */
+    private static StockQuote kis(String name, String price, StockQuote.Money currency,
+                                  StockQuote.Market market) {
+        return new StockQuote(name, new BigDecimal(price), null, currency, market,
+                StockSource.KIS, US_AT, true);
     }
 
     /** 같은 종목의 시각만 바꾼다 — FMP가 심볼마다 제 체결 초를 주는 상황을 만든다. */

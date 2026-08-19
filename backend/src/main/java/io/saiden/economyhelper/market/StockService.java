@@ -1,22 +1,14 @@
 package io.saiden.economyhelper.market;
 
+import io.saiden.economyhelper.config.EconomyHelperProperties.Index;
 import io.saiden.economyhelper.config.EconomyHelperProperties.UsSymbol;
-import io.saiden.economyhelper.market.data.MarketIndexApi;
-import io.saiden.economyhelper.market.data.MarketIndexApi.MarketIndex;
-import io.saiden.economyhelper.market.data.StockPriceApi;
-import io.saiden.economyhelper.market.fmp.FmpApi;
-import io.saiden.economyhelper.market.fmp.FmpApi.FmpQuote;
 import io.saiden.economyhelper.market.StockResolver.ResolvedStock;
-import io.saiden.economyhelper.market.data.StockPriceApi.StockPrice;
+import io.saiden.economyhelper.market.data.DataGoStockClient;
 import io.saiden.economyhelper.text.QueryNormalizer;
-import java.math.BigDecimal;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -41,40 +33,71 @@ import org.springframework.stereotype.Service;
  * 안 걸린다. 그 자리를 {@link StockResolver}(LLM)가 메운다 — 약칭({@code 삼전})과
  * 자연어 군더더기({@code 오늘 삼성전자 주가})도 같은 장치가 처리한다.
  *
- * <p><b>지수도 같은 명령으로 받는다.</b> {@code /stock 코스피}는 종목이 아니라 지수 API로 간다 —
+ * <p><b>지수도 같은 명령으로 받는다.</b> {@code /stock 코스피}는 종목이 아니라 지수 조회로 간다 —
  * 별도 명령을 만들지 않은 건 사용자가 "주가"와 "지수"를 굳이 구분해 치지 않기 때문이다.
  *
- * <p><b>국내와 미국을 함께 다룬다.</b> 어느 쪽인지는 {@link StockResolver}가 판단하고 조회처가
- * 갈린다 — 국내 종목은 공공데이터포털(전일 종가), 국내 지수는 지수 API, 미국은 종목·지수가
- * 같은 FMP 엔드포인트다.
+ * <p><b>이중화는 국내와 미국이 따로다</b>({@link #DOMESTIC_ORDER}·{@link #US_ORDER}).
+ * 어느 쪽인지는 {@link StockResolver}가 판단한다. {@code FxService}와 같은 규칙으로
+ * <b>이 클래스가 순서를 정하고</b>, 클라이언트는 값을 주거나 던진다.
  */
 @Service
 public class StockService {
 
     private static final Logger log = LoggerFactory.getLogger(StockService.class);
 
-    private static final DateTimeFormatter BAS_DT = DateTimeFormatter.ofPattern("yyyyMMdd");
-    private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
+    /**
+     * 국내 시도 순서. 앞이 1순위다.
+     *
+     * <p><b>한국투자증권만 실시간을 준다.</b> 공공데이터포털은 전일 종가뿐이라, 폴백이
+     * 일어나면 값의 성격 자체가 내려앉는다 — 그 사실은 화면의 출처와 기준 줄이 밝힌다.
+     *
+     * <p><b>제약이 적은 쪽이 뒤에 선다.</b> KIS는 앱키와 초당 한도가 있고, 공공데이터포털은
+     * 하루 1만 회에 종목명 검색까지 된다.
+     */
+    private static final List<StockSource> DOMESTIC_ORDER =
+            List.of(StockSource.KIS, StockSource.DATA_GO);
+
+    /**
+     * 미국 시도 순서. <b>2순위가 FMP인 이유는 무료 티어가 한국 종목을 못 주기 때문이다</b>
+     * ({@code 005930.KS}가 402). 그래서 국내 폴백 자리에는 설 수 없고 여기에만 선다.
+     */
+    private static final List<StockSource> US_ORDER =
+            List.of(StockSource.KIS, StockSource.FMP);
 
     /** 한국 종목코드. 이 형태면 해석할 것이 없으므로 LLM을 건너뛴다. */
-    private static final java.util.regex.Pattern KR_STOCK_CODE =
-            java.util.regex.Pattern.compile("\\d{6}");
+    private static final Pattern KR_STOCK_CODE = Pattern.compile("\\d{6}");
 
-    private final StockPriceApi api;
-    private final MarketIndexApi indexApi;
-    private final FmpApi fmpApi;
+    private final List<DomesticStockClient> domestic;
+    private final List<UsStockClient> us;
+    private final DataGoStockClient names;
     private final StockResolver resolver;
 
-    public StockService(StockPriceApi api, MarketIndexApi indexApi, FmpApi fmpApi,
-                        StockResolver resolver) {
-        this.api = api;
-        this.indexApi = indexApi;
-        this.fmpApi = fmpApi;
+    /**
+     * @param names <b>이름으로 찾는 경로는 이중화되지 않는다</b> — 한국투자증권에 종목명 검색이
+     *              없어서다(조회가 언제나 코드 → 이름 방향이다). 그래서 SPI 목록이 아니라
+     *              공공데이터포털을 직접 든다
+     */
+    public StockService(List<DomesticStockClient> domestic, List<UsStockClient> us,
+                        DataGoStockClient names, StockResolver resolver) {
+        this.domestic = order(domestic, DOMESTIC_ORDER);
+        this.us = order(us, US_ORDER);
+        this.names = names;
         this.resolver = resolver;
     }
 
     /**
-     * @return 시가총액 1위 후보의 시세. 걸리는 종목이 없거나 조회에 실패하면 {@link Optional#empty()}
+     * 이중화 순서를 <b>여기서 정한다.</b> Spring이 주입하는 목록 순서에 딸려 가면
+     * 클래스 이름을 바꾸다 순서가 뒤집힐 수 있다({@code FxService}와 같은 판단이다).
+     */
+    private static <T extends StockClient> List<T> order(List<T> clients, List<StockSource> wanted) {
+        return wanted.stream()
+                .flatMap(source -> clients.stream().filter(client -> client.source() == source))
+                .toList();
+    }
+
+    /**
+     * @return 시가총액 1위 후보의 시세. 걸리는 종목이 없거나 모든 출처가 실패하면
+     *         {@link Optional#empty()}
      */
     public Optional<StockQuote> quote(String query) {
         String key = StockResolver.cacheKeyOf(query);
@@ -87,33 +110,25 @@ public class StockService {
             // 아침 브리핑이 quotesOf로 쓰는 경로와 같은 길이고, 결과도 같아야 한다
             Optional<String> code = directCode(query);
             if (code.isPresent()) {
-                List<StockPrice> found = api.searchByCode(code.get());
-                if (!found.isEmpty()) {
-                    return Optional.of(pickBest(found));
-                }
-                log.info("[stock] 종목코드 {}에 걸리는 종목이 없습니다", code.get());
-                return Optional.empty();
+                // 없는 코드라고 이름 검색으로 넘기지 않는다 — 6자리 숫자는 종목명일 수 없다
+                return stock(code.get());
             }
 
             Optional<ResolvedStock> resolved = resolver.resolve(key);
 
-            // 미국은 종목과 지수가 같은 엔드포인트다 — AAPL도 ^IXIC도 /stable/quote로 간다
             if (resolved.filter(ResolvedStock::isUs).isPresent()) {
                 return usQuote(resolved.get());
             }
-
-            // 국내 지수는 조회 API가 통째로 다르다 — 종목코드가 없고 시가총액도 없다
+            // 국내 지수는 조회가 통째로 다르다 — 종목코드가 없고 시가총액도 없다
             if (resolved.filter(ResolvedStock::isIndex).isPresent()) {
-                return indexQuote(resolved.get().name());
+                // 업종코드는 비워 보낸다. 설정에 있는 지수면 KIS가 제 표에서 채우고,
+                // 없으면 이름으로 찾는 2순위가 맡는다 — LLM에게 지수코드를 지어내게 두지 않는다
+                return index(new Index(resolved.get().name(), null));
             }
-
-            List<StockPrice> found = lookup(resolved, key);
-            if (found.isEmpty()) {
-                log.info("[stock] '{}'에 걸리는 종목이 없습니다", query);
-                return Optional.empty();
-            }
-            return Optional.of(pickBest(found));
+            return search(resolved, key);
         } catch (RuntimeException e) {
+            // 출처 실패는 아래에서 이미 삼킨다. 여기 그물은 검색어 정규화처럼 그 밖에서
+            // 던지는 경우를 위한 것이다 — 웹훅은 어떤 입력에도 200이어야 한다
             log.error("[stock] '{}' 조회 실패: {}", query, e.toString());
             return Optional.empty();
         }
@@ -124,8 +139,6 @@ public class StockService {
      *
      * <p>{@code 005930 주가}처럼 군더더기가 붙은 형태도 잡아야 하므로
      * {@link QueryNormalizer#forLookup}이 만든 두 형태를 다 본다.
-     *
-     * @return 6자리 숫자 형태. 아니면 {@link Optional#empty()} — LLM으로 간다
      */
     private static Optional<String> directCode(String query) {
         return QueryNormalizer.forLookup(query).stream()
@@ -133,215 +146,112 @@ public class StockService {
                 .findFirst();
     }
 
-    /** 종목코드를 이미 아는 경우 — 아침 브리핑처럼 설정에 박힌 종목들이 여기로 온다. */
-    public List<StockQuote> quotesOf(List<String> codes) {
-        return codes.stream()
-                .map(code -> {
-                    try {
-                        return best(api.searchByCode(code)).map(StockService::toQuote);
-                    } catch (RuntimeException e) {
-                        log.error("[stock] {} 조회 실패: {}", code, e.toString());
-                        return Optional.<StockQuote>empty();
-                    }
-                })
-                .flatMap(Optional::stream)
-                .toList();
-    }
-
-    /**
-     * 지수명을 이미 아는 경우 — 아침 브리핑처럼 설정에 박힌 지수들이 여기로 온다.
-     *
-     * <p>{@link #quotesOf}와 같은 모양으로 <b>이름마다 따로 실패한다</b> —
-     * 코스닥이 안 나온다고 코스피까지 빠질 이유가 없다.
-     */
-    public List<StockQuote> indicesOf(List<String> names) {
-        return names.stream()
-                .map(name -> {
-                    try {
-                        return Optional.ofNullable(indexApi.searchByName(name)).map(StockService::toQuote);
-                    } catch (RuntimeException e) {
-                        log.error("[index] {} 조회 실패: {}", name, e.toString());
-                        return Optional.<StockQuote>empty();
-                    }
-                })
-                .flatMap(Optional::stream)
-                .toList();
-    }
-
-    /**
-     * 미국 심볼을 이미 아는 경우 — 아침 브리핑의 나스닥·S&amp;P500·시총 상위가 여기로 온다.
-     *
-     * <p>{@link #quotesOf}·{@link #indicesOf}와 같은 모양으로 심볼마다 따로 실패한다.
-     */
-    public List<StockQuote> usQuotesOf(List<UsSymbol> symbols) {
-        return symbols.stream()
-                .map(configured -> {
-                    String symbol = configured.symbol();
-                    try {
-                        return Optional.ofNullable(fmpApi.quote(symbol))
-                                .map(quote -> toQuote(quote, configured.name()));
-                    } catch (RuntimeException e) {
-                        log.error("[fmp] {} 조회 실패: {}", symbol, e.toString());
-                        return Optional.<StockQuote>empty();
-                    }
-                })
-                .flatMap(Optional::stream)
-                .toList();
-    }
-
-    /**
-     * 미국 종목·지수 하나.
-     *
-     * <p><b>LLM이 지어낸 심볼은 FMP가 빈 배열을 줘서 자연히 걸러진다</b>(국내와 같은 방어).
-     */
-    private Optional<StockQuote> usQuote(ResolvedStock resolved) {
-        if (!resolved.hasCode()) {
-            // 미국은 이름으로 되짚을 경로가 없다 — search-name은 프랑크푸르트 상장이 먼저 걸린다
-            log.info("[fmp] '{}'의 티커를 특정하지 못했습니다", resolved.name());
-            return Optional.empty();
-        }
-        FmpQuote quote = fmpApi.quote(resolved.code());
-        if (quote == null) {
-            return Optional.empty();
-        }
-        // LLM이 준 한국어 이름을 쓴다. 국내 종목·코인은 한글로 나가는데 미국만 영문이면
-        // 같은 화면에서 표기가 갈린다 — '애플'을 물었는데 'Apple Inc.'가 돌아온다
-        return Optional.of(toQuote(quote, resolved.name()));
-    }
-
-    /** 국내 지수 하나. 함께 보여줄 후보가 없다 — 완전일치로 하나만 고르기 때문이다. */
-    private Optional<StockQuote> indexQuote(String name) {
-        MarketIndex index = indexApi.searchByName(name);
-        if (index == null) {
-            log.info("[stock] '{}' 지수를 찾지 못했습니다", name);
-            return Optional.empty();
-        }
-        return Optional.of(toQuote(index));
-    }
-
     /**
      * LLM이 판단한 종목코드 → 정식명 → 원문 순으로 시도한다.
      *
-     * <p><b>LLM의 답을 그대로 믿지 않는다.</b> 코드도 이름도 실제 시세 API에서 다시 찾고,
+     * <p><b>LLM의 답을 그대로 믿지 않는다.</b> 코드도 이름도 실제 시세에서 다시 찾고,
      * 걸리지 않으면 버린다 — 지어낸 종목코드는 조회 결과가 비어 자연히 걸러진다.
      *
      * <p>마지막에 원문으로 한 번 더 시도하는 것이 <b>LLM 장애에 대한 폴백</b>이다.
      * {@code 삼성전자}·{@code 하이닉스}처럼 이름을 그대로 친 경우는 LLM 없이도 걸린다 —
      * Gemini가 죽었다고 {@code /stock} 전체가 멈추면 안 된다.
      */
-    private List<StockPrice> lookup(Optional<ResolvedStock> resolved, String cacheKey) {
+    private Optional<StockQuote> search(Optional<ResolvedStock> resolved, String cacheKey) {
         if (resolved.isPresent()) {
-            ResolvedStock stock = resolved.get();
-            if (stock.hasCode()) {
-                List<StockPrice> byCode = api.searchByCode(stock.code());
-                if (!byCode.isEmpty()) {
+            ResolvedStock found = resolved.get();
+            if (found.hasCode()) {
+                Optional<StockQuote> byCode = stock(found.code());
+                if (byCode.isPresent()) {
                     return byCode;
                 }
-                log.info("[stock] LLM이 준 코드 {}가 시세에 없습니다 — 이름으로 다시 찾습니다", stock.code());
+                log.info("[stock] LLM이 준 코드 {}가 시세에 없습니다 — 이름으로 다시 찾습니다", found.code());
             }
-            if (stock.hasName()) {
-                List<StockPrice> byName = api.searchByName(stock.name());
-                if (!byName.isEmpty()) {
+            if (found.hasName()) {
+                Optional<StockQuote> byName = byName(found.name());
+                if (byName.isPresent()) {
                     return byName;
                 }
             }
         }
-
         // LLM이 죽었거나 특정하지 못했다. 원문이 그대로 종목명일 수 있다
-        return api.searchByName(cacheKey);
+        return byName(cacheKey);
     }
 
-    /**
-     * 후보 중 시가총액 1위.
-     *
-     * <p>같은 종목의 여러 날짜가 섞여 오므로 <b>가장 최근 기준일만</b> 남긴 뒤 비교한다 —
-     * 안 그러면 어제 삼성전자와 그제 삼성전자가 서로 다른 후보로 보인다.
-     */
-    private static StockQuote pickBest(List<StockPrice> prices) {
-        return toQuote(best(prices).orElseThrow());
-    }
-
-    private static Optional<StockPrice> best(List<StockPrice> prices) {
-        return onlyLatestDate(prices).stream().max(Comparator.comparing(StockService::marketCap));
-    }
-
-    private static List<StockPrice> onlyLatestDate(List<StockPrice> prices) {
-        String latest = prices.stream().map(StockPrice::basDt).max(Comparator.naturalOrder()).orElse("");
-        return prices.stream().filter(p -> latest.equals(p.basDt())).toList();
-    }
-
-    private static BigDecimal marketCap(StockPrice price) {
-        return parse(price.mrktTotAmt());
-    }
-
-    /** 국내 종목 — <b>전일 종가</b>다. {@code realtime=false}가 메시지에서 "종가"로 드러난다. */
-    private static StockQuote toQuote(StockPrice price) {
-        return new StockQuote(price.itmsNm(), parse(price.clpr()), percent(price.fltRt()),
-                StockQuote.Money.KRW, StockQuote.Market.DOMESTIC,
-                StockSource.DATA_GO, atSeoulMidnight(price.basDt()), false);
-    }
-
-    /** 국내 지수 — 종목코드가 없고 통화도 없다. */
-    private static StockQuote toQuote(MarketIndex index) {
-        return new StockQuote(index.idxNm(), parse(index.clpr()), percent(index.fltRt()),
-                StockQuote.Money.NONE, StockQuote.Market.DOMESTIC,
-                StockSource.DATA_GO, atSeoulMidnight(index.basDt()), false);
-    }
-
-    /**
-     * 미국 종목·지수 — <b>현재가</b>다.
-     *
-     * <p>지수 판별을 {@code ^} 접두로 한다. FMP가 종목과 지수를 같은 엔드포인트로 주고
-     * 응답에 구분 필드가 없어서, 심볼 관례가 유일한 단서다({@code ^IXIC}·{@code ^GSPC}·{@code ^DJI}).
-     */
-    private static StockQuote toQuote(FmpQuote quote) {
-        return toQuote(quote, null);
-    }
-
-    /**
-     * @param preferredName 화면에 쓸 이름. {@code null}이면 FMP가 준 영문명을 쓴다.
-     *                      국내 종목은 공공데이터포털이 한글명을 주고 코인은 업비트가 주는데
-     *                      FMP만 영문이라, LLM이 이미 해석해 둔 한국어 이름이 있으면 그쪽을 쓴다
-     */
-    private static StockQuote toQuote(FmpQuote quote, String preferredName) {
-        boolean index = quote.symbol() != null && quote.symbol().startsWith("^");
-        Instant at = quote.timestamp() == null ? Instant.now() : Instant.ofEpochSecond(quote.timestamp());
-        String name = preferredName == null || preferredName.isBlank() ? quote.name() : preferredName;
-        return new StockQuote(name, quote.price(), quote.changePercentage(),
-                index ? StockQuote.Money.NONE : StockQuote.Money.USD, StockQuote.Market.US,
-                StockSource.FMP, at, true);
-    }
-
-    /** 종가일을 시각으로 옮긴다. 그날 장이 끝난 값이므로 KST 자정으로 두고 표기는 날짜만 쓴다. */
-    private static Instant atSeoulMidnight(String basDt) {
-        return LocalDate.parse(basDt, BAS_DT).atStartOfDay(SEOUL).toInstant();
-    }
-
-    /**
-     * 등락률 전용 파서 — 없거나 깨진 값은 {@code null}이다.
-     *
-     * <p><b>{@link #parse}를 쓰면 안 된다.</b> 그쪽의 폴백인 {@code 0}은 등락률에서
-     * "보합"이라는 <b>값</b>이지 "모른다"가 아니다. 못 구한 것을 보합으로 찍으면 화면이
-     * 거짓말을 한다.
-     */
-    private static BigDecimal percent(String value) {
-        return number(value, null);
-    }
-
-    /** 값이 비거나 깨져 있어도 조회 전체를 실패시키지 않는다 — 0으로 보면 순위에서 뒤로 밀릴 뿐이다. */
-    private static BigDecimal parse(String value) {
-        return number(value, BigDecimal.ZERO);
-    }
-
-    private static BigDecimal number(String value, BigDecimal fallback) {
-        if (value == null || value.isBlank()) {
-            return fallback;
+    /** 미국 종목·지수 하나. 설정에 KIS 대응이 있으면 1순위가, 없으면 FMP가 맡는다. */
+    private Optional<StockQuote> usQuote(ResolvedStock resolved) {
+        if (!resolved.hasCode()) {
+            // 미국은 이름으로 되짚을 경로가 없다 — search-name은 프랑크푸르트 상장이 먼저 걸린다
+            log.info("[stock] '{}'의 티커를 특정하지 못했습니다", resolved.name());
+            return Optional.empty();
         }
+        // LLM이 준 한국어 이름을 쓴다. 국내 종목·코인은 한글로 나가는데 미국만 영문이면
+        // 같은 화면에서 표기가 갈린다 — '애플'을 물었는데 'Apple Inc.'가 돌아온다
+        return usQuote(UsSymbol.of(resolved.code(), resolved.name()));
+    }
+
+    /** 종목코드를 이미 아는 경우 — 아침 브리핑처럼 설정에 박힌 종목들이 여기로 온다. */
+    public List<StockQuote> quotesOf(List<String> codes) {
+        return codes.stream().map(this::stock).flatMap(Optional::stream).toList();
+    }
+
+    /**
+     * 지수를 이미 아는 경우 — 아침 브리핑처럼 설정에 박힌 지수들이 여기로 온다.
+     *
+     * <p>{@link #quotesOf}와 같은 모양으로 <b>지수마다 따로 실패한다</b> —
+     * 코스닥이 안 나온다고 코스피까지 빠질 이유가 없다.
+     */
+    public List<StockQuote> indicesOf(List<Index> indices) {
+        return indices.stream().map(this::index).flatMap(Optional::stream).toList();
+    }
+
+    /** 미국 심볼을 이미 아는 경우 — 아침 브리핑의 나스닥·S&amp;P500·시총 상위가 여기로 온다. */
+    public List<StockQuote> usQuotesOf(List<UsSymbol> symbols) {
+        return symbols.stream().map(this::usQuote).flatMap(Optional::stream).toList();
+    }
+
+    private Optional<StockQuote> stock(String code) {
+        return first(domestic, client -> client.stock(code), "종목 " + code);
+    }
+
+    private Optional<StockQuote> index(Index index) {
+        return first(domestic, client -> client.index(index), "지수 " + index.name());
+    }
+
+    private Optional<StockQuote> usQuote(UsSymbol symbol) {
+        return first(us, client -> client.quote(symbol), "미국 " + symbol.symbol());
+    }
+
+    /**
+     * 이름 검색 — <b>이중화 상대가 없다.</b> 실패는 "그런 종목이 없다"와 구분되지 않으므로
+     * 여기서 삼키고 빈손으로 돌려준다. 부르는 쪽은 이미 그 다음 수를 갖고 있다.
+     */
+    private Optional<StockQuote> byName(String name) {
         try {
-            return new BigDecimal(value.trim());
-        } catch (NumberFormatException e) {
-            return fallback;
+            return names.byName(name);
+        } catch (RuntimeException e) {
+            log.warn("[stock] '{}' 이름 검색 실패: {}", name, e.toString());
+            return Optional.empty();
         }
     }
 
+    /**
+     * <b>순서대로 시도하고 처음 성공한 것을 쓴다</b> — {@code FxService.usdToKrw}와 같은 모양이다.
+     *
+     * <p>성공하면 즉시 돌아가므로 <b>1순위가 살아 있는 한 2순위는 호출조차 되지 않는다.</b>
+     * FMP 하루 250회를 헛되이 태우지 않는 것이 이 한 줄이다.
+     */
+    private static <T extends StockClient> Optional<StockQuote> first(
+            List<T> clients, Function<T, StockQuote> call, String what) {
+        for (T client : clients) {
+            try {
+                return Optional.of(call.apply(client));
+            } catch (RuntimeException e) {
+                // 다음 출처가 있으면 조용히 넘어간다. 이게 이중화가 하는 일이다
+                log.warn("[stock] {} — {} 조회 실패, 다음 출처로 넘어갑니다: {}",
+                        what, client.source().displayName(), e.toString());
+            }
+        }
+        log.info("[stock] {}를 어느 출처에서도 가져오지 못했습니다", what);
+        return Optional.empty();
+    }
 }

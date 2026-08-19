@@ -1,13 +1,10 @@
 package io.saiden.economyhelper.market.kis;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.FxRateClient;
 import io.saiden.economyhelper.market.FxSource;
-import java.math.BigDecimal;
 import java.time.Clock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,6 +38,7 @@ public class KisFxClient implements FxRateClient {
 
     private static final Logger log = LoggerFactory.getLogger(KisFxClient.class);
 
+    /** <b>미국 지수와 같은 경로다</b>({@code KisStockApi}). 구분은 시장 코드뿐이라 스키마도 함께 쓴다. */
     private static final String PATH = "/uapi/overseas-price/v1/quotations/inquire-daily-chartprice";
     private static final String TR_ID = "FHKST03030100";
 
@@ -72,8 +70,7 @@ public class KisFxClient implements FxRateClient {
     @RateLimiter(name = "kis")
     @CircuitBreaker(name = "kisFx")
     public FxRate usdToKrw() {
-        Response response = request();
-        Quote quote = response == null ? null : response.output();
+        KisChartPrice.Quote quote = request().output();
 
         if (quote == null || quote.price() == null) {
             throw new IllegalStateException("KIS 환율 응답에 현재가가 없습니다");
@@ -83,8 +80,8 @@ public class KisFxClient implements FxRateClient {
                 FxSource.KIS, clock.instant());
     }
 
-    private Response request() {
-        Response response;
+    private KisChartPrice request() {
+        KisChartPrice response;
         try {
             response = restClient.get()
                     .uri(uriBuilder -> uriBuilder
@@ -99,7 +96,7 @@ public class KisFxClient implements FxRateClient {
                             .build())
                     .headers(headers.of(tokens.token(), TR_ID))
                     .retrieve()
-                    .body(Response.class);
+                    .body(KisChartPrice.class);
         } catch (RuntimeException e) {
             // 헤더에 토큰이 실려 있다 — 예외를 그대로 흘리면 로그에 남을 수 있다
             log.warn("[kis] 환율 조회 실패: {}", e.getClass().getSimpleName());
@@ -109,21 +106,4 @@ public class KisFxClient implements FxRateClient {
                 response == null ? null : response.message(), "환율");
         return response;
     }
-
-    /**
-     * @param output 이름이 {@code output1}이다 — 해외시세 쪽은 {@code output}이 아니다.
-     *               {@code output2}는 일자별 배열인데 우리는 현재가만 쓴다
-     */
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    record Response(@JsonProperty("rt_cd") String resultCode,
-                    @JsonProperty("msg1") String message,
-                    @JsonProperty("output1") Quote output) {}
-
-    /**
-     * @param price         {@code ovrs_nmix_prpr} — 현재가. {@code "1412.5000"}처럼 온다
-     * @param changePercent {@code prdy_ctrt} — 전일 대비율(%). 이미 %라서 그대로 쓴다
-     */
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    record Quote(@JsonProperty("ovrs_nmix_prpr") BigDecimal price,
-                 @JsonProperty("prdy_ctrt") BigDecimal changePercent) {}
 }

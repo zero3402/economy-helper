@@ -3,6 +3,7 @@ package io.saiden.economyhelper.config;
 import io.saiden.economyhelper.config.EconomyHelperProperties.CacheTtl;
 import io.saiden.economyhelper.market.CryptoResolver.ResolvedCoin;
 import io.saiden.economyhelper.market.FxRate;
+import io.saiden.economyhelper.market.StockQuote;
 import io.saiden.economyhelper.market.StockResolver.ResolvedStock;
 import io.saiden.economyhelper.market.binance.BinanceApi.BinancePrice;
 import io.saiden.economyhelper.market.data.MarketIndexApi.MarketIndex;
@@ -86,6 +87,11 @@ public class CacheConfig {
                 // 지수는 담기는 타입이 달라 stock-price에 섞을 수 없다. 수명은 같다 — 같은 전일 종가다
                 .withCacheConfiguration("market-index",
                         cache(ttl.stockPrice(), new TypeReference<MarketIndex>() {}))
+                // 국내·미국 모두 실시간이라 fx-kis와 같은 1분이다. 세 모양(국내 종목·국내 지수·
+                // 미국)이 한 이름을 쓰는데 담기는 타입이 StockQuote 하나라 섞이지 않는다 —
+                // 가르는 것은 키의 접두사('stock:'·'index:'·'us:')다
+                .withCacheConfiguration("kis-quote",
+                        cache(ttl.kisQuote(), new TypeReference<StockQuote>() {}))
                 .withCacheConfiguration("fx",
                         cache(ttl.fx(), new TypeReference<FxRate>() {}))
                 // 하루 1,000회 한도를 지키는 실질 방어다 — 1시간이면 하루 최대 24회

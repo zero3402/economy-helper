@@ -32,16 +32,35 @@ public record EconomyHelperProperties(
      *                        되고, 무한정 쌓이지 않게만 하면 된다.
      * @param usSymbols       브리핑에 넣을 미국 심볼과 화면에 쓸 이름. 지수(^IXIC·^GSPC)와
      *                        종목(NVDA·AAPL)이 같은 엔드포인트라 한 목록으로 둔다
-     * @param indices         브리핑에 넣을 지수명. 종목({@code stocks})은 코드로 박지만 지수에는
-     *                        코드가 없어 이름으로 쓴다 — {@code MarketIndexApi}가 이름으로만 찾는다
+     * @param indices         브리핑에 넣을 지수. 출처마다 조회 키가 달라 이름과 코드를 함께 든다
+     *                        ({@link Index} 참조)
      *
      * <p><b>{@code cron}은 담지 않는다.</b> yml 키는 살아 있지만 {@code @Scheduled}의 SpEL
      * 문자열이 직접 읽으므로({@code "${economy-helper.digest.cron}"}) 자바 쪽에서 꺼내는 곳이
      * 없다. {@code zone}은 두 방식 모두로 읽혀서 남는다.
      */
     public record Digest(String zone, Duration sentHistoryTtl,
-                         List<String> indices, List<String> stocks, List<String> cryptos,
+                         List<Index> indices, List<String> stocks, List<String> cryptos,
                          List<UsSymbol> usSymbols) {}
+
+    /**
+     * 브리핑에 넣을 국내 지수 하나.
+     *
+     * <p><b>출처마다 조회 키가 다르다.</b> 공공데이터포털은 이름으로만 찾고
+     * ({@code MarketIndexApi.searchByName}), 한국투자증권은 이름을 아예 못 받고 업종코드를
+     * 요구한다 — 코스피 {@code 0001}, 코스닥 {@code 1001}. 그래서 둘을 함께 든다.
+     *
+     * <p>화면에 쓰는 것도 {@code name}이다. KIS 응답의 지수명은 코스피가 <b>{@code "종합"}</b>,
+     * 코스닥이 <b>{@code "KOSDAQ"}</b>으로 와서(실측) 어느 쪽도 그대로 쓸 수 없다.
+     *
+     * @param code {@code null}이면 KIS는 그 지수를 맡지 못하고 2순위로 넘어간다
+     */
+    public record Index(String name, String code) {
+
+        public boolean hasCode() {
+            return code != null && !code.isBlank();
+        }
+    }
 
     /**
      * 브리핑용 미국 심볼 하나.
@@ -53,8 +72,44 @@ public record EconomyHelperProperties(
      *
      * <p><b>{@code Map}이 아니라 목록이다.</b> 키에 {@code ^}가 들어가는데 relaxed binding이
      * Map 키에서 그런 문자를 걸러낸다.
+     *
+     * <p><b>{@code kisIndex}와 {@code kisExchange}는 배타적이다</b> — 한국투자증권은 지수와
+     * 종목의 엔드포인트가 갈리기 때문이다. 지수는 KIS 전용 심볼이 필요하고({@code ^IXIC}가
+     * 아니라 {@code COMP}), 종목은 거래소 코드를 요구한다({@code price-detail}의 {@code EXCD}).
+     * 둘 다 없으면 KIS가 그 심볼을 못 맡고 2순위(FMP)가 답한다 — FMP는 어느 쪽도 필요 없다.
+     *
+     * @param symbol      2순위(FMP)와 LLM이 쓰는 표기. {@code ^IXIC} · {@code AAPL}
+     * @param name        화면에 쓸 한국어 이름. <b>미국 종목 응답에는 이름이 아예 없다</b>
+     *                    (KIS는 {@code rsym="DNASAAPL"}뿐이고 FMP는 영문명을 준다)
+     * @param kisIndex    KIS 해외지수 심볼. {@code ^IXIC → COMP} · {@code ^GSPC → SPX}
+     * @param kisExchange KIS 거래소 코드. {@code NAS} · {@code NYS} · {@code AMS}
      */
-    public record UsSymbol(String symbol, String name) {}
+    public record UsSymbol(String symbol, String name, String kisIndex, String kisExchange) {
+
+        /**
+         * KIS 대응이 아직 없는 심볼 — 검색 경로가 이 모양으로 만든다({@code KisStockApi}가
+         * 설정 표에서 채운다).
+         *
+         * <p><b>생성자가 아니라 정적 팩터리다.</b> 레코드에 생성자를 하나 더 두면 Spring이
+         * 어느 쪽으로 바인딩할지 몰라 {@code us-symbols}가 통째로 안 묶인다(실제로 겪었다).
+         */
+        public static UsSymbol of(String symbol, String name) {
+            return new UsSymbol(symbol, name, null, null);
+        }
+
+        public boolean isIndex() {
+            return present(kisIndex);
+        }
+
+        /** KIS가 맡을 수 있는가. 둘 다 없으면 조회 키를 만들 수 없다. */
+        public boolean hasKis() {
+            return present(kisIndex) || present(kisExchange);
+        }
+
+        private static boolean present(String value) {
+            return value != null && !value.isBlank();
+        }
+    }
 
     /**
      * 캐시별 만료 시간.
@@ -68,7 +123,7 @@ public record EconomyHelperProperties(
     public record CacheTtl(Duration feed, Duration translation, Duration buzz, Duration query,
                            Duration relevance, Duration upbitMarkets, Duration cryptoPrice,
                            Duration binancePrice, Duration stockResolve, Duration cryptoResolve,
-                           Duration stockPrice, Duration usQuote,
+                           Duration stockPrice, Duration usQuote, Duration kisQuote,
                            Duration fx, Duration fxKexim, Duration fxKis,
                            Duration weather, Duration geocode, Duration accuLocation,
                            Duration weatherResolve) {}

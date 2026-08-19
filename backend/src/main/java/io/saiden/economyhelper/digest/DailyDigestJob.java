@@ -1,6 +1,7 @@
 package io.saiden.economyhelper.digest;
 
 import io.saiden.economyhelper.config.EconomyHelperProperties;
+import io.saiden.economyhelper.config.EconomyHelperProperties.Index;
 import io.saiden.economyhelper.config.EconomyHelperProperties.UsSymbol;
 import io.saiden.economyhelper.market.CryptoQuote;
 import io.saiden.economyhelper.market.CryptoService;
@@ -62,7 +63,7 @@ public class DailyDigestJob {
     private final SendHistory history;
     private final Clock clock;
     private final ZoneId zone;
-    private final List<String> indexNames;
+    private final List<Index> indexNames;
     private final List<String> stockCodes;
     private final List<String> cryptoMarkets;
     private final List<UsSymbol> usSymbols;

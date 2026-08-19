@@ -241,15 +241,8 @@ class DigestIntegrationTest {
     }
 
     private static io.saiden.economyhelper.market.StockService deadStock() {
-        return new io.saiden.economyhelper.market.StockService(
-                new io.saiden.economyhelper.market.data.StockPriceApi(
-                        RestClient.builder(), "https://example.invalid", "k",
-                        Clock.fixed(NOW, ZoneOffset.UTC)),
-                new io.saiden.economyhelper.market.data.MarketIndexApi(
-                        RestClient.builder(), "https://example.invalid", "k",
-                        Clock.fixed(NOW, ZoneOffset.UTC)),
-                new io.saiden.economyhelper.market.fmp.FmpApi(
-                        RestClient.builder(), "https://example.invalid", "", null), null) {
+        return new io.saiden.economyhelper.market.StockService(List.of(), List.of(),
+                new io.saiden.economyhelper.market.data.DataGoStockClient(null, null), null) {
             @Override
             public List<io.saiden.economyhelper.market.StockQuote> quotesOf(List<String> codes) {
                 return List.of();

@@ -11,9 +11,7 @@ import io.saiden.economyhelper.market.StockQuote;
 import io.saiden.economyhelper.market.StockService;
 import io.saiden.economyhelper.market.weather.WeatherFacade;
 import io.saiden.economyhelper.market.StockResolver;
-import io.saiden.economyhelper.market.data.MarketIndexApi;
-import io.saiden.economyhelper.market.data.StockPriceApi;
-import io.saiden.economyhelper.market.fmp.FmpApi;
+import io.saiden.economyhelper.market.data.DataGoStockClient;
 import io.saiden.economyhelper.market.upbit.UpbitApi;
 import io.saiden.economyhelper.news.NewsFacade;
 import io.saiden.economyhelper.news.NewsItem;
@@ -481,10 +479,7 @@ class TelegramWebhookControllerTest {
 
     /** 해석 규칙은 {@code StockServiceTest}가 본다. 여기서는 라우팅만 본다. */
     private static StockService stock(Optional<StockQuote> result) {
-        return new StockService(
-                new StockPriceApi(RestClient.builder(), "https://example.invalid", "k", CLOCK),
-                new MarketIndexApi(RestClient.builder(), "https://example.invalid", "k", CLOCK),
-                new FmpApi(RestClient.builder(), "https://example.invalid", "", null),
+        return new StockService(List.of(), List.of(), new DataGoStockClient(null, null),
                 new StockResolver(null, null)) {
             @Override
             public Optional<StockQuote> quote(String query) {

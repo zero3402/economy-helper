@@ -13,9 +13,7 @@ import io.saiden.economyhelper.market.FxService;
 import io.saiden.economyhelper.market.FxSource;
 import io.saiden.economyhelper.market.StockQuote;
 import io.saiden.economyhelper.market.StockService;
-import io.saiden.economyhelper.market.data.MarketIndexApi;
-import io.saiden.economyhelper.market.data.StockPriceApi;
-import io.saiden.economyhelper.market.fmp.FmpApi;
+import io.saiden.economyhelper.market.data.DataGoStockClient;
 import io.saiden.economyhelper.market.upbit.UpbitApi;
 import io.saiden.economyhelper.news.NewsFacade;
 import io.saiden.economyhelper.news.NewsItem;
@@ -309,13 +307,9 @@ class DailyDigestJobTest {
     }
 
     private static StockService stock(boolean indicesAlive, boolean stocksAlive) {
-        return new StockService(
-                new StockPriceApi(RestClient.builder(), "https://example.invalid", "k",
-                        Clock.fixed(NOW, ZoneOffset.UTC)),
-                new MarketIndexApi(RestClient.builder(), "https://example.invalid", "k",
-                        Clock.fixed(NOW, ZoneOffset.UTC)), noFmp(), null) {
+        return new StockService(List.of(), List.of(), noNames(), null) {
             @Override
-            public List<StockQuote> indicesOf(List<String> names) {
+            public List<StockQuote> indicesOf(List<EconomyHelperProperties.Index> indices) {
                 return indicesAlive
                         ? List.of(new StockQuote("코스피", new BigDecimal("6345.53"), null,
                                 StockQuote.Money.NONE, StockQuote.Market.DOMESTIC, io.saiden.economyhelper.market.StockSource.DATA_GO,
@@ -413,12 +407,12 @@ class DailyDigestJobTest {
         };
     }
 
-    /** FMP 스텁 — 미국 조회가 필요 없는 테스트에서 실수로 나가면 바로 드러나게 한다. */
-    private static FmpApi noFmp() {
-        return new FmpApi(RestClient.builder(), "https://example.invalid", "k", null) {
+    /** 이름 검색 스텁 — 브리핑은 코드로만 조회한다. 실수로 나가면 바로 드러나게 한다. */
+    private static DataGoStockClient noNames() {
+        return new DataGoStockClient(null, null) {
             @Override
-            public FmpApi.FmpQuote quote(String symbol) {
-                throw new AssertionError("브리핑이 미국 조회를 불렀습니다: " + symbol);
+            public java.util.Optional<StockQuote> byName(String name) {
+                throw new AssertionError("브리핑이 이름 검색을 불렀습니다: " + name);
             }
         };
     }
@@ -427,7 +421,8 @@ class DailyDigestJobTest {
         return new EconomyHelperProperties(Map.of(), null,
                 new EconomyHelperProperties.Digest(
                         "Asia/Seoul", Duration.ofDays(3),
-                        List.of("코스피"), List.of("005930"), List.of("KRW-BTC"), List.of()),
+                        List.of(new EconomyHelperProperties.Index("코스피", "0001")),
+                        List.of("005930"), List.of("KRW-BTC"), List.of()),
                 null, null);
     }
 

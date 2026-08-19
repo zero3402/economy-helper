@@ -11,6 +11,7 @@ import io.saiden.economyhelper.market.binance.BinanceApi.BinancePrice;
 import io.saiden.economyhelper.market.data.MarketIndexApi;
 import io.saiden.economyhelper.market.data.StockPriceApi;
 import io.saiden.economyhelper.market.fmp.FmpApi;
+import io.saiden.economyhelper.market.kis.KisStockApi;
 import io.saiden.economyhelper.market.frankfurter.FrankfurterFxClient;
 import io.saiden.economyhelper.market.kexim.KeximFxClient;
 import io.saiden.economyhelper.market.kis.KisFxClient;
@@ -165,6 +166,7 @@ class CacheConfigTest {
                         BinanceApi.class, UpbitApi.class, CryptoResolver.class, StockResolver.class,
                         StockPriceApi.class, MarketIndexApi.class, FmpApi.class,
                         FrankfurterFxClient.class, KeximFxClient.class, KisFxClient.class,
+                        KisStockApi.class,
                         FeedFetcher.class, HackerNewsApi.class, RelevanceScorer.class,
                         QueryTranslator.class, TranslationService.class,
                         // 날씨. 여기에 안 적으면 새 캐시를 감시가 아예 안 본다
@@ -196,8 +198,8 @@ class CacheConfigTest {
     private static EconomyHelperProperties propertiesWithTtl() {
         Duration any = Duration.ofMinutes(1);
         return new EconomyHelperProperties(null, null, null,
-                new CacheTtl(any, any, any, any, any, any, any, any, any, any, any, any, any, any,
-                        any, any, any, any, any),
+                new CacheTtl(any, any, any, any, any, any, any, any, any, any, any, any, any,
+                        any, any, any, any, any, any, any),
                 null);
     }
 
