@@ -24,7 +24,13 @@ public record DigestResult(boolean sent, String slot,
      * @param section 통 이름 ({@code 환율}·{@code 증시}·{@code 코인}·{@code 뉴스})
      * @param reason  실패 사유. 텔레그램이 거절했으면 그쪽 {@code description}이 그대로 온다
      */
-    public record Failure(String section, String reason) {}
+    public record Failure(String section, String reason) {
+
+        /** 예외의 {@code getMessage()}가 비는 경우가 있다 — 그때는 타입이라도 남긴다. */
+        static Failure of(String section, RuntimeException e) {
+            return new Failure(section, e.getMessage() == null ? e.toString() : e.getMessage());
+        }
+    }
 
     static DigestResult completed(String slot, List<String> delivered, List<Failure> failed) {
         return new DigestResult(true, slot, List.copyOf(delivered), List.copyOf(failed), "발송 완료");
@@ -35,12 +41,13 @@ public record DigestResult(boolean sent, String slot,
     }
 
     /**
-     * 넷 다 실패했다.
+     * 하나도 못 보냈다.
      *
      * <p>{@link #skipped}와 달리 <b>실패 목록을 남긴다</b> — 아무것도 못 보낸 때가
      * 무엇이 죽었는지 제일 알고 싶은 때다. 수동 트리거는 응답만 보고 판단해야 한다.
      */
     static DigestResult allFailed(String slot, List<Failure> failed) {
-        return new DigestResult(false, slot, List.of(), List.copyOf(failed), "네 종류 모두 실패했습니다");
+        return new DigestResult(false, slot, List.of(), List.copyOf(failed),
+                "보낼 수 있는 것이 하나도 없습니다");
     }
 }

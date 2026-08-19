@@ -16,7 +16,6 @@ import io.saiden.economyhelper.telegram.MessageFormatter;
 import io.saiden.economyhelper.telegram.TelegramClient;
 import java.time.Clock;
 import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
@@ -42,27 +41,23 @@ import org.springframework.stereotype.Component;
  * 수집·번역을 두 번 하지 않게 하고, {@link SendHistory}가 슬롯 단위로 발송 자체를 한 번으로 묶는다.
  */
 @Component
-public class DailyDigestJob {
+public class DailyDigestJob extends TriggerableJob {
 
     private static final Logger log = LoggerFactory.getLogger(DailyDigestJob.class);
 
     /**
-     * 슬롯 = <b>KST 날짜</b>. 요구사항이 "하루 한 번"이므로 키도 하루 단위여야 한다.
-     *
-     * <p><b>시각을 넣지 않는다.</b> 넣으면 09시에 못 보내고 09:10에 보낸 것이 다른 슬롯이 되어
-     * 같은 브리핑이 두 번 나간다. 날짜 단위라야 발송 창(09~10시) 안에서 몇 번을 재시도해도
-     * 한 번만 나가고, "정확히 09시에 깨어 있어야 한다"는 요구가 사라진다.
+     * 슬롯 접두사가 <b>비어 있다.</b> 이미 돌고 있는 키를 그대로 두기 위해서다 — 여기서
+     * 이름을 바꾸면 배포 직후의 슬롯이 "안 보낸 것"으로 보여 브리핑이 한 번 더 나간다.
+     * 나중에 붙는 잡이 접두사를 반드시 정하도록 {@link DigestSlot}이 값을 요구한다.
      */
-    private static final DateTimeFormatter SLOT_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final String SLOT_PREFIX = "";
 
     private final NewsFacade facade;
     private final FxService fxService;
     private final StockService stockService;
     private final CryptoService cryptoService;
     private final TelegramClient telegram;
-    private final SendHistory history;
-    private final Clock clock;
-    private final ZoneId zone;
+    private final DigestSlot slot;
     private final List<Index> indexNames;
     private final List<String> stockCodes;
     private final List<String> cryptoMarkets;
@@ -81,9 +76,8 @@ public class DailyDigestJob {
         this.stockService = stockService;
         this.cryptoService = cryptoService;
         this.telegram = telegram;
-        this.history = history;
-        this.clock = clock;
-        this.zone = ZoneId.of(properties.digest().zone());
+        this.slot = new DigestSlot(history, clock, ZoneId.of(properties.digest().zone()),
+                SLOT_PREFIX, "digest");
         this.indexNames = orEmpty(properties.digest().indices());
         this.stockCodes = orEmpty(properties.digest().stocks());
         this.cryptoMarkets = orEmpty(properties.digest().cryptos());
@@ -113,45 +107,11 @@ public class DailyDigestJob {
         }
     }
 
-    /**
-     * 마지막 실행 결과 — {@code GET /actuator/digest}가 이걸 돌려준다.
-     *
-     * <p>확인하려고 실제 방송을 한 번 더 쏘지 않아도 되게 하려고 들고 있는다.
-     */
-    private volatile DigestResult lastResult =
-            new DigestResult(false, null, List.of(), List.of(), "아직 실행된 적이 없습니다");
-
-    public DigestResult lastResult() {
-        return lastResult;
-    }
-
-    /**
-     * @param force 이미 보낸 슬롯이어도 다시 보낸다. 수동 트리거로 같은 시간대를 반복
-     *              점검할 때만 쓴다
-     */
-    public DigestResult run(boolean force) {
-        DigestResult result = execute(force);
-        lastResult = result;
-        return result;
-    }
-
-    private DigestResult execute(boolean force) {
-        String slot = currentSlot();
-
-        boolean claimed;
-        try {
-            claimed = history.claim(slot);
-        } catch (RuntimeException e) {
-            // Redis가 죽으면 슬롯을 판단할 수 없다. 예외를 그대로 올리면 스케줄러가 삼켜
-            // 아무 일도 없었던 것처럼 보인다 — 사유를 결과에 담아 밖에서 보이게 한다
-            log.error("[digest] 발송 이력 조회 실패 — Redis 연결을 확인하세요: {}", e.toString());
-            return DigestResult.skipped(slot, "발송 이력(Redis) 조회 실패: " + e);
-        }
-        if (!claimed && !force) {
-            // 발송 창 안에서 10분마다 도는 구조라 이 분기가 하루에 열 번 넘게 지나간다.
-            // info로 두면 정상 동작이 로그를 덮는다
-            log.debug("[digest] {} 슬롯은 이미 발송됐습니다 — 건너뜁니다", slot);
-            return DigestResult.skipped(slot, "오늘은 이미 발송했습니다");
+    @Override
+    protected DigestResult execute(boolean force) {
+        DigestSlot.Claim claim = slot.claim(force);
+        if (!claim.proceed()) {
+            return DigestResult.skipped(claim.id(), claim.blockedReason());
         }
 
         List<String> delivered = new ArrayList<>();
@@ -178,13 +138,13 @@ public class DailyDigestJob {
 
         if (delivered.isEmpty()) {
             // 넷 다 실패했다. "보냈다"로 남기면 이 시간대는 복구 후에도 영영 비어 있다
-            releaseIfClaimed(claimed, slot);
-            log.warn("[digest] {} 슬롯에 보낼 내용이 하나도 없습니다 — 발송하지 않습니다", slot);
-            return DigestResult.allFailed(slot, failed);
+            slot.release(claim);
+            log.warn("[digest] {} 슬롯에 보낼 내용이 하나도 없습니다 — 발송하지 않습니다", claim.id());
+            return DigestResult.allFailed(claim.id(), failed);
         }
 
-        log.info("[digest] {} 슬롯 발송 완료 — 성공 {} / 실패 {}", slot, delivered, failed);
-        return DigestResult.completed(slot, delivered, failed);
+        log.info("[digest] {} 슬롯 발송 완료 — 성공 {} / 실패 {}", claim.id(), delivered, failed);
+        return DigestResult.completed(claim.id(), delivered, failed);
     }
 
     /**
@@ -223,7 +183,8 @@ public class DailyDigestJob {
                 return new Section(name, texts, null, preview);
             } catch (RuntimeException e) {
                 log.error("[digest] {} 통 수집 실패: {}", name, e.toString());
-                return new Section(name, List.of(), reasonOf(e), preview);
+                return new Section(name, List.of(), DigestResult.Failure.of(name, e).reason(),
+                        preview);
             }
         };
     }
@@ -255,12 +216,8 @@ public class DailyDigestJob {
             }
         } catch (RuntimeException e) {
             log.error("[digest] {} 통 발송 실패: {}", section.name(), e.toString());
-            failed.add(new DigestResult.Failure(section.name(), reasonOf(e)));
+            failed.add(DigestResult.Failure.of(section.name(), e));
         }
-    }
-
-    private static String reasonOf(RuntimeException e) {
-        return e.getMessage() == null ? e.toString() : e.getMessage();
     }
 
     /**
@@ -290,16 +247,5 @@ public class DailyDigestJob {
     private List<String> newsMessages() {
         List<NewsItem> items = facade.digest();
         return items.isEmpty() ? List.of() : MessageFormatter.formatNews(items);
-    }
-
-    private void releaseIfClaimed(boolean claimed, String slot) {
-        // force로 들어와 남의 선점을 지나쳤을 수 있다. 내가 잡은 것만 되돌린다
-        if (claimed) {
-            history.release(slot);
-        }
-    }
-
-    private String currentSlot() {
-        return clock.instant().atZone(zone).format(SLOT_FORMAT);
     }
 }
