@@ -280,6 +280,7 @@ public final class MessageFormatter {
     public static String formatStock(List<StockQuote> quotes, FxRate fx) {
         if (quotes.isEmpty()) {
             return empty(Command.STOCK);
+        }
         // ⚠️ 지역으로 가른다. 예전에는 realtime으로 갈랐는데, 국내가 전일 종가뿐이던 시절에만
         // 맞는 가정이었다 — 국내에 실시간 출처가 붙으면 삼성전자가 「미국」에 찍힌다
         StringBuilder message = new StringBuilder(title(Command.STOCK));
