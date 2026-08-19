@@ -43,7 +43,8 @@ class KisFxClientTest {
         WireMock.configureFor(server.port());
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
         client = new KisFxClient(RestClient.builder(), server.baseUrl(),
-                new FixedToken(clock), new KisHeaders("key", "secret"), clock);
+                new FixedToken(clock), new KisHeaders("key", "secret"), clock,
+                KisThrottle.none());
     }
 
     @AfterEach
@@ -164,6 +165,23 @@ class KisFxClientTest {
         assertThatThrownBy(() -> client.usdToKrw())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("값이 없습니다");
+    }
+
+    @Test
+    @DisplayName("500 본문에 실려 온 이유를 꺼낸다 — 이유는 벤더 경계 한 곳에서 읽는다")
+    void readsTheReasonOutOfAnHttpError() {
+        // 무효 토큰이면 환율·국내·미국이 함께 죽는다. 그래서 이유를 꺼내는 자리는 클라이언트가
+        // 아니라 KisHeaders다 — 한 곳만 고쳐서 셋이 같이 말하는지 여기서 확인한다
+        server.stubFor(get(urlPathEqualTo(PATH)).willReturn(aResponse().withStatus(500)
+                .withHeader("Content-Type", "application/json")
+                .withBody("""
+                        {"rt_cd":"1","msg1":"유효하지 않은 token 입니다.","msg_cd":"EGW00121"}
+                        """)));
+
+        assertThatThrownBy(() -> client.usdToKrw())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("유효하지 않은 token")
+                .hasMessageNotContaining(TOKEN);
     }
 
     @Test

@@ -41,8 +41,10 @@ class ResilienceConfigTest {
         // 기본값(50 permits / 500ns)으로 만들어지는데 그건 사실상 무제한이라,
         // @RateLimiter가 프록시만 태우고 아무것도 막지 않는다. 실제로 met.no가 그 상태였다.
         // 날씨는 그래서 리미터를 아예 달지 않는다 — AccuWeather의 제약은 일 단위다
-        for (String name : new String[] {"gemini", "upbit", "binance", "dataGo", "fmp", "kexim",
-                "kis"}) {
+        // ⚠️ kis는 여기 없다. 그 제약은 "1초에 몇 건"이 아니라 "호출 사이 얼마"라서 고정 윈도로
+        // 표현할 수 없고(경계에서 두 호출이 120ms 간격으로 나갔다 — 실측), KisThrottle이 맡는다.
+        // 이 목록에 kis를 되돌려 놓으려면 KisThrottle을 먼저 걷어낼 것 — 둘 다 걸면 두 배로 쉰다
+        for (String name : new String[] {"gemini", "upbit", "binance", "dataGo", "fmp", "kexim"}) {
             RateLimiterConfig config = limiters.rateLimiter(name).getRateLimiterConfig();
 
             assertThat(config.getLimitRefreshPeriod())
@@ -55,12 +57,23 @@ class ResilienceConfigTest {
     }
 
     @Test
+    @DisplayName("KIS의 간격 문이 빈 자리로 남지 않는다 — 리미터를 걷어낸 자리를 대신 채운 것이다")
+    void theKisThrottleExists() {
+        // 리미터 목록에서 kis를 뺐으므로, 그 제약을 지키는 것이 실제로 컨텍스트에 있어야 한다.
+        // 빈이 사라지면 KIS 호출이 아무 간격 없이 나가고 두 번째부터 조용히 거절된다
+        assertThat(context.getBeansOfType(io.saiden.economyhelper.market.kis.KisThrottle.class))
+                .as("KisThrottle 빈이 없다 — KIS 초당 한도를 지키는 것이 아무것도 없다")
+                .isNotEmpty();
+    }
+
+    @Test
     @DisplayName("캐시가 리미터·브레이커보다 바깥이다 — 히트가 퍼밋을 태우면 캐시가 아무것도 아껴 주지 않는다")
     void cacheSitsOutsideTheResilienceAspects() {
         // 실측 기본값: 브레이커 LOWEST_PRECEDENCE-4, 리미터 LOWEST_PRECEDENCE-3,
         // 캐시 어드바이저는 order를 안 주면 LOWEST_PRECEDENCE다 — 값이 작을수록 바깥이라
-        // 그대로 두면 브레이커 → 리미터 → 캐시 순이 된다. 그러면 (1) KIS 초당 1건 때문에
-        // 브리핑의 조회 9회가 전부 캐시에 있어도 ~8초를 기다리고, (2) 브레이커가 열리면
+        // 그대로 두면 브레이커 → 리미터 → 캐시 순이 된다. 그러면 (1) 캐시에 있는 값도 퍼밋을
+        // 태워 히트가 아무것도 아껴 주지 않고(gemini는 분당 12건이라 이게 곧 실패다),
+        // (2) 브레이커가 열리면
         // 캐시된 값조차 못 읽는다(accu-location 30일 캐시가 하루 50회 한도의 실질 방어인데
         // 그게 브레이커 앞에서 무력해진다). @EnableCaching(order = ...)로 캐시를 바깥에 둔다.
         int cacheOrder = context.getBean(

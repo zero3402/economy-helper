@@ -1,7 +1,6 @@
 package io.saiden.economyhelper.market.kis;
 
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
-import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.Price;
 import io.saiden.economyhelper.market.FxRateClient;
@@ -56,14 +55,21 @@ public class KisFxClient implements FxRateClient {
     private final KisTokenStore tokens;
     private final KisHeaders headers;
     private final Clock clock;
+    /**
+     * 환율도 주식과 <b>같은 문</b>을 지난다 — 한도가 데이터셋이 아니라 앱키 단위라서다.
+     * 따로 세면 둘이 합쳐 한도를 넘긴다({@link KisThrottle}).
+     */
+    private final KisThrottle throttle;
 
     public KisFxClient(RestClient.Builder builder,
                        @Value("${economy-helper.market.kis.base-url}") String baseUrl,
-                       KisTokenStore tokens, KisHeaders headers, Clock clock) {
+                       KisTokenStore tokens, KisHeaders headers, Clock clock,
+                       KisThrottle throttle) {
         this.restClient = builder.baseUrl(baseUrl).build();
         this.tokens = tokens;
         this.headers = headers;
         this.clock = clock;
+        this.throttle = throttle;
     }
 
     @Override
@@ -73,7 +79,6 @@ public class KisFxClient implements FxRateClient {
 
     @Override
     @Cacheable(cacheNames = "fx-kis", unless = "#result == null")
-    @RateLimiter(name = "kis")
     @CircuitBreaker(name = "kisFx")
     public FxRate usdToKrw() {
         KisChartPrice.Quote quote = request().output();
@@ -91,6 +96,7 @@ public class KisFxClient implements FxRateClient {
     }
 
     private KisChartPrice request() {
+        throttle.pace();
         KisChartPrice response;
         try {
             response = restClient.get()
@@ -108,9 +114,11 @@ public class KisFxClient implements FxRateClient {
                     .retrieve()
                     .body(KisChartPrice.class);
         } catch (RuntimeException e) {
-            // 헤더에 토큰이 실려 있다 — 예외를 그대로 흘리면 로그에 남을 수 있다
-            log.warn("[kis] 환율 조회 실패: {}", e.getClass().getSimpleName());
-            throw new IllegalStateException("KIS 환율 조회 실패: " + e.getClass().getSimpleName());
+            // 헤더에 토큰이 실려 있다 — 예외를 그대로 흘리면 로그에 남을 수 있다.
+            // 이유는 본문에서 두 필드만 꺼내 남긴다(KisHeaders.reasonOf)
+            String reason = KisHeaders.reasonOf(e);
+            log.warn("[kis] 환율 조회 실패: {}", reason);
+            throw new IllegalStateException("KIS 환율 조회 실패: " + reason);
         }
         KisHeaders.verify(response == null ? null : response.resultCode(),
                 response == null ? null : response.message(), "환율");

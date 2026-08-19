@@ -324,11 +324,20 @@ economy-helper:
     #    분봉 환율·inquire-index-price(지수)·search-stock-info(종목명)는 모의에서 안 된다.
     #    그래서 모의에서도 도는 경로만 골라 쓴다(KisStockApi·KisFxClient javadoc 참조).
     # ⚠️ 토큰은 1분에 한 번만 발급되고 발급마다 계정주에게 알림톡이 간다 — KisTokenStore가
-    #    Redis에 캐시하는 것이 필수다. 초당 한도도 있어 리미터(kis)를 반드시 건다.
+    #    Redis에 캐시하는 것이 필수다. 그리고 무효 토큰에는 401이 아니라 HTTP 500이 온다
+    #    (msg_cd=EGW00121) — 상대 서버 장애로 읽히므로 KisHeaders.reasonOf가 이유를 꺼낸다.
     kis:
       base-url: https://openapivts.koreainvestment.com:29443
       app-key: ${KIS_API_KEY:}
       app-secret: ${KIS_API_SECRET:}
+      # 호출 사이 최소 간격. 모의 계정이 초당 1건이다(실전은 20건 — 도메인·앱키와 함께 바꾼다).
+      # ⚠️ 이 자리가 resilience4j 리미터가 아닌 이유는 제약이 "1초에 몇 건"이 아니라
+      #    "호출 사이 얼마"이기 때문이다. 고정 윈도로는 경계에서 두 호출이 120ms 간격으로
+      #    나가고(실측) KIS가 그걸 거절한다. 근거는 KisThrottle javadoc의 실측 표에 있다.
+      min-interval: 1s
+      # 줄 서는 것까지 이 시간을 넘기면 기다리지 않고 던진다(옛 리미터의 timeoutDuration).
+      # 브리핑이 KIS를 9번 연달아 부르므로 마지막 호출이 ~8초를 기다린다 — 넉넉해야 한다.
+      max-wait: 20s
       # 미국 지수의 KIS 심볼. ^IXIC → COMP 같은 규칙이 없어 이 표가 유일한 길이다.
       # ⚠️ 종목과 달리 지수는 탐색할 수 없다. 표에 없으면 2순위(FMP)가 맡는다 —
       #    FMP 무료 티어는 지수 셋(^IXIC·^GSPC·^DJI)을 다 주므로 그 폴백은 실제로 성립한다.
@@ -499,17 +508,10 @@ resilience4j:
         limitForPeriod: 20
         limitRefreshPeriod: 60s
         timeoutDuration: 3s
-      # KIS는 초당 한도를 실측으로 맞았다 — 4연속 호출의 네 번째가 200 본문에 rt_cd=1
-      # "초당 거래건수를 초과하였습니다"로 왔다. 모의는 초당 1~2건이다(실전은 20건).
-      # ⚠️ 환율과 주식이 이 리미터를 함께 쓴다. 한도가 데이터셋이 아니라 앱키 단위이기 때문이다 —
-      #    따로 걸면 둘이 합쳐 한도를 넘긴다.
-      # ⚠️ 브리핑이 환율 1 + 국내 지수 2 + 국내 종목 2 + 미국 지수 2 + 미국 종목 2 = 9회를
-      #    연달아 부른다. 초당 1건이라 마지막 호출이 ~8초를 기다리므로 timeout을 넉넉히 준다.
-      #    짧으면 거절이 곧 실패가 되어, 1순위가 멀쩡한데도 폴백 값이 나간다.
-      kis:
-        limitForPeriod: 1
-        limitRefreshPeriod: 1s
-        timeoutDuration: 20s
+      # ⚠️ KIS는 여기 없다. 리미터로 표현할 수 없는 제약이라 KisThrottle이 맡는다 —
+      #    "1초에 1건"이 아니라 "호출 사이 1초"여서다. 고정 윈도는 경계에서 두 호출을
+      #    120ms 간격으로 내보내고(실측) KIS가 그 두 번째를 거절한다.
+      #    설정은 economy-helper.market.kis.min-interval에 있다.
       # ⚠️ 날씨에는 @RateLimiter를 달지 않는다. AccuWeather의 제약은 초 단위가 아니라 일 단위라
       #    이 리미터로 지킬 수 없고, 여기엔 ratelimiter.configs.default가 없어서 선언 없는
       #    인스턴스는 라이브러리 기본값(50 permits / 500ns)으로 만들어진다 — 사실상 무제한이라

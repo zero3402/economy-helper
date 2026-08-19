@@ -10,8 +10,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
-import io.github.resilience4j.ratelimiter.RateLimiterConfig;
-import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
 import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.config.EconomyHelperProperties.Digest;
 import io.saiden.economyhelper.config.EconomyHelperProperties.Index;
@@ -81,11 +79,6 @@ class KisStockApiTest {
      * 거래소를 스스로 찾기 때문이다.
      */
     private KisStockApi apiWith(List<Index> indices, List<KisIndex> usIndices) {
-        return apiWith(indices, usIndices, null);
-    }
-
-    private KisStockApi apiWith(List<Index> indices, List<KisIndex> usIndices,
-                                RateLimiterRegistry limiters) {
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
         return new KisStockApi(RestClient.builder(), server.baseUrl(),
                 new FixedToken(clock), new KisHeaders("key", "secret"), clock,
@@ -93,7 +86,8 @@ class KisStockApiTest {
                         new Digest(null, null, indices, null, null, null), null, null,
                         new EconomyHelperProperties.Market(
                                 new EconomyHelperProperties.Kis(usIndices))),
-                exchanges, limiters);
+                // 간격을 지키는 문은 여기서 열어 둔다 — 규칙은 KisThrottleTest가 따로 본다
+                exchanges, KisThrottle.none());
     }
 
     /** Redis 대신 메모리에 기억한다 — 규칙만 본다. */
@@ -412,6 +406,45 @@ class KisStockApiTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("초당 거래건수")
                 .hasMessageContaining("rt_cd=1");
+    }
+
+    @Test
+    @DisplayName("500 본문에 실려 온 이유를 꺼낸다 — 무효 토큰이 상대 서버 장애로 읽혔다")
+    void readsTheReasonOutOfAnHttpError() {
+        // 실측 본문이다(2026-08-19). KIS는 무효 토큰에 401이 아니라 500을 주고 이유는 본문에만
+        // 있는데, 그 본문을 버리고 예외 이름만 남기던 동안 이 응답이 "InternalServerError"로
+        // 읽혔다. 그래서 상대 서버 장애로 오진돼 "NYSE 종목은 어느 출처로도 못 온다"가
+        // 문서 셋에 측정 사실로 적혔다 — 실제로는 유효한 토큰이면 다 온다
+        server.stubFor(get(urlPathEqualTo(STOCK_PATH)).willReturn(aResponse().withStatus(500)
+                .withHeader("Content-Type", "application/json")
+                .withBody("""
+                        {"rt_cd":"1","msg1":"유효하지 않은 token 입니다.","msg_cd":"EGW00121"}
+                        """)));
+
+        assertThatThrownBy(() -> api.stock("005930"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("유효하지 않은 token")
+                .hasMessageContaining("EGW00121")
+                // 재발급으로 낫지 않는다는 사실이 함께 있어야 한다. 없으면 다음 사람이
+                // 앱을 다시 띄우며 발급을 연타하고, 그것이 이 상태를 만든 원인이다
+                .hasMessageContaining("재발급");
+    }
+
+    @Test
+    @DisplayName("거래소가 전부 예외로 실패하면 '현재가가 없다'고 하지 않는다 — 확인한 적 없는 결론이다")
+    void neverClaimsAbsenceItDidNotEstablish() {
+        // 빈손의 원인이 둘인데 문장이 하나였다: 값이 정말 없는 것과, 물어보지도 못한 것.
+        // 후자에 "응답에 현재가가 없습니다"가 나가면 종목이 상장 폐지된 것처럼 읽힌다
+        server.stubFor(get(urlPathEqualTo(US_STOCK_PATH)).willReturn(aResponse().withStatus(500)
+                .withHeader("Content-Type", "application/json")
+                .withBody("""
+                        {"rt_cd":"1","msg1":"유효하지 않은 token 입니다.","msg_cd":"EGW00121"}
+                        """)));
+
+        assertThatThrownBy(() -> api.quote(new UsSymbol("ORCL", "오라클")))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("유효하지 않은 token")
+                .hasMessageNotContaining("현재가가 없습니다");
     }
 
     @Test

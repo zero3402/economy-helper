@@ -111,22 +111,18 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
     private final Map<String, String> usIndices;
     private final KisExchangeCache exchanges;
     /**
-     * 실제 HTTP 호출마다 퍼밋을 얻는 자리. {@code null}이면 세지 않는다(테스트).
+     * 실제 HTTP 호출 직전에 간격을 지키는 문({@link KisThrottle}).
      *
-     * <p>⚠️ <b>애너테이션으로는 부족하다.</b> {@code @RateLimiter}가 {@code @Cacheable} 메서드에
+     * <p>⚠️ <b>애너테이션으로는 부족했다.</b> {@code @RateLimiter}가 {@code @Cacheable} 메서드에
      * 붙어 있으면 <b>메서드 하나에 퍼밋 하나</b>인데, 미국 종목은 그 안에서 거래소를 두 번
-     * 물어본다(NAS → NYS). 두 번째 호출이 퍼밋 없이 나가므로 <b>초당 한도를 실제로 넘긴다</b> —
-     * 이 앱키는 초당 1건이고 두 호출 간격이 87ms였다(실측). 넘기면 {@code rt_cd=1}
-     * "초당 거래건수를 초과하였습니다"가 오고 그 종목은 빈손이 된다.
-     * {@code KeximFxClient}가 되짚기 루프에서 겪은 것과 같은 모양이고, 애너테이션은 private
-     * 메서드에 못 걸리므로 같은 방식으로 고친다.
+     * 물어본다(NAS → NYS). 두 번째 호출이 퍼밋 없이 나갔다.
      *
-     * <p><b>이것이 NYSE 종목이 빈손이던 원인은 아니었다.</b> 그건 무효 토큰이었고 KIS가 그때
-     * 401이 아니라 500을 준다 — {@code CLAUDE.md}에 적어 뒀다. 그 오진을 여기 남겨 두는 이유는,
-     * 이 수정이 <b>다른</b> 근거로 옳기 때문이다: 초당 1건인데 퍼밋 하나로 두 번 부르는 것은
-     * 산수로 이미 한도 위반이다.
+     * <p>⚠️ <b>퍼밋을 호출마다 얻어도 부족했다.</b> 고정 윈도 리미터는 "1초에 1건"만 보장하고
+     * "호출 사이 1초"를 보장하지 않아, 윈도 경계에서 두 호출이 <b>120ms 간격</b>으로 나갔다
+     * (실측). KIS는 그걸 {@code 초당 거래건수를 초과하였습니다}로 거절하고, 그러면 그 종목이
+     * 빈손이 된다 — 왜 간격이어야 하는지는 {@link KisThrottle}에 실측 표로 적어 뒀다.
      */
-    private final io.github.resilience4j.ratelimiter.RateLimiter limiter;
+    private final KisThrottle throttle;
 
     /**
      * @param properties 브리핑 설정의 지수·미국 심볼 목록이 <b>KIS 조회 키 표를 겸한다.</b>
@@ -139,10 +135,10 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
                        @Value("${economy-helper.market.kis.base-url}") String baseUrl,
                        KisTokenStore tokens, KisHeaders headers, Clock clock,
                        EconomyHelperProperties properties, KisExchangeCache exchanges,
-                       io.github.resilience4j.ratelimiter.RateLimiterRegistry limiters) {
+                       KisThrottle throttle) {
         this.restClient = builder.baseUrl(baseUrl).build();
         this.exchanges = exchanges;
-        this.limiter = limiters == null ? null : limiters.rateLimiter("kis");
+        this.throttle = throttle;
         this.tokens = tokens;
         this.headers = headers;
         this.clock = clock;
@@ -258,6 +254,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
      */
     private StockQuote usStock(UsSymbol symbol) {
         String what = "미국 종목 " + symbol.symbol();
+        String failure = null;
         for (String exchange : exchangesToTry(symbol.symbol())) {
             UsStock.Quote quote;
             try {
@@ -275,6 +272,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
                 //    거래소마다 따로 실패하고 전부 실패했을 때만 던진다(StockService.first와 같다)
                 log.warn("[stock] {} — {} 조회 실패, 다음 거래소로 넘어갑니다: {}",
                         what, exchange, e.toString());
+                failure = e.getMessage();
                 continue;
             }
             if (quote == null || !positive(quote.price())) {
@@ -287,7 +285,12 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
                     StockQuote.Money.USD, StockQuote.Market.US, StockSource.KIS,
                     clock.instant(), true);
         }
-        throw new IllegalStateException("KIS " + what + " 응답에 현재가가 없습니다");
+        // ⚠️ 빈손의 원인이 둘인데 문장은 하나였다 — 값이 정말 없는 것과, 물어보지도 못한 것.
+        //    거래소가 전부 예외로 죽었으면 "현재가가 없습니다"는 확인한 적 없는 결론이고,
+        //    실제로 그 문장 때문에 무효 토큰이 '상장 폐지된 종목'처럼 읽혔다. 그때는 마지막
+        //    실패 이유를 그대로 올린다 — 이미 what이 앞에 붙어 있어 다시 감쌀 것이 없다
+        throw new IllegalStateException(
+                failure == null ? "KIS " + what + " 응답에 현재가가 없습니다" : failure);
     }
 
     /**
@@ -318,14 +321,12 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
      *
      * <p>예외를 그대로 흘리지 않는다 — 헤더에 접근토큰이 실려 있어 로그·모니터링에 남으면
      * 그대로 유출된다({@code FmpApi}·{@code KeximFxClient}가 URL에 실린 키를 가리는 것과 같다).
+     * <b>다만 이유는 남긴다</b> — {@link KisHeaders#reasonOf}가 본문에서 두 필드만 꺼낸다.
      */
     private <T extends KisResponse> T request(Class<T> type, String trId, String what,
                                               Function<UriBuilder, java.net.URI> uri) {
-        if (limiter != null) {
-            // 호출 하나에 퍼밋 하나 — 거래소를 두 번 물어보면 퍼밋도 둘이다.
-            // 거절은 RequestNotPermitted이고 kisStock 브레이커가 baseConfig에서 무시한다
-            limiter.acquirePermission();
-        }
+        // 호출 하나에 간격 하나 — 거래소를 두 번 물어보면 그 사이도 벌어진다
+        throttle.pace();
         T response;
         try {
             response = restClient.get()
@@ -334,9 +335,10 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
                     .retrieve()
                     .body(type);
         } catch (RuntimeException e) {
-            log.warn("[kis] {} 조회 실패: {}", what, e.getClass().getSimpleName());
-            throw new IllegalStateException(
-                    "KIS " + what + " 조회 실패: " + e.getClass().getSimpleName());
+            // 예외 이름만으로는 부족하다 — 무효 토큰이 500으로 오고 이유가 본문에만 있다
+            String reason = KisHeaders.reasonOf(e);
+            log.warn("[kis] {} 조회 실패: {}", what, reason);
+            throw new IllegalStateException("KIS " + what + " 조회 실패: " + reason);
         }
         KisHeaders.verify(response == null ? null : response.resultCode(),
                 response == null ? null : response.message(), what);
