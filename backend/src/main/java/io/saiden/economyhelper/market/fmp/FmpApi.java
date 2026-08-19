@@ -23,8 +23,7 @@ import org.springframework.web.client.RestClient;
  *   <li><b>무료는 미국 거래소 전용이다.</b> {@code 005930.KS}·{@code ^KS11}·{@code USDKRW}는
  *       전부 402다 — 그래서 국내는 공공데이터포털을 그대로 쓴다
  *   <li><b>배치가 안 된다.</b> {@code symbol=A,B}도 {@code batch-quote}도 막혀 심볼당 1회다
- *   <li>{@code quote} 하나에 {@code marketCap}·{@code exchange}·{@code timestamp}가 다 있다 —
- *       시가총액을 따로 부를 필요가 없다
+ *   <li>{@code quote} 하나에 현재가·등락률·체결 시각이 다 온다 — 따로 부를 것이 없다
  * </ul>
  *
  * <p><b>한도가 하루 250회이고 응답에 레이트리밋 헤더가 없다.</b> 그래서 우리가 센다
@@ -98,14 +97,17 @@ public class FmpApi {
     }
 
     /**
+     * <p><b>응답이 주는 것을 다 담지는 않는다.</b> {@code exchange}·{@code marketCap}을 들고
+     * 있던 때가 있었는데 아무도 읽지 않았다 — 미국 종목은 심볼이 설정에 박혀 있어 후보를
+     * 시가총액으로 가를 일이 없고(그건 국내 이름 검색에만 있다), 거래소 이름은 화면에 안 나간다.
+     *
      * @param price            현재가 — 우리가 화면에 쓰는 값
      * @param changePercentage 전일 대비 등락률(%). {@code 0.99586}이면 +0.99586%다 —
      *                         비율이 아니라 이미 %다(업비트는 비율로 준다)
-     * @param exchange         {@code NASDAQ} · {@code NYSE}. 지수는 비어 오기도 한다
-     * @param timestamp        epoch 초. 값의 신선도를 밝히는 데 쓴다
+     * @param timestamp        epoch 초. <b>체결 시각이다</b> — KIS는 이걸 주지 않아 읽은 시각으로
+     *                         대신하지만 이쪽은 실제 시각을 그대로 쓴다
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record FmpQuote(String symbol, String name, java.math.BigDecimal price,
-                           java.math.BigDecimal changePercentage,
-                           String exchange, java.math.BigDecimal marketCap, Long timestamp) {}
+                           java.math.BigDecimal changePercentage, Long timestamp) {}
 }

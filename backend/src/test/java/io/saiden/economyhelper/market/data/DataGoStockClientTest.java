@@ -35,16 +35,16 @@ class DataGoStockClientTest {
 
     /** 실측 시가총액 (원). 삼성전자 1,400조 vs 삼성전자우 144조. */
     private static final List<StockPrice> SAMSUNG = List.of(
-            price("005930", "삼성전자", "239500", "1400183726616000"),
-            price("005935", "삼성전자우", "180200", "144587290780600"),
-            price("028260", "삼성물산", "180000", "33000000000000"));
+            price("삼성전자", "239500", "1400183726616000"),
+            price("삼성전자우", "180200", "144587290780600"),
+            price("삼성물산", "180000", "33000000000000"));
 
     private static final List<StockPrice> KAKAO = List.of(
-            price("035720", "카카오", "40700", "18000000000000"),
-            price("323410", "카카오뱅크", "22000", "10000000000000"));
+            price("카카오", "40700", "18000000000000"),
+            price("카카오뱅크", "22000", "10000000000000"));
 
-    private static StockPrice price(String code, String name, String close, String cap) {
-        return new StockPrice(TODAY, code, name, "KOSPI", close, null, cap);
+    private static StockPrice price(String name, String close, String cap) {
+        return new StockPrice(TODAY, name, close, null, cap);
     }
 
     @Test
@@ -59,8 +59,8 @@ class DataGoStockClientTest {
     void comparesOnlyLatestBasisDate() {
         // 어제 삼성전자우(시총 큼)와 오늘 삼성전자가 섞이면 날짜를 안 맞출 때 우선주가 이긴다
         List<StockPrice> mixed = List.of(
-                new StockPrice("20260810", "005935", "삼성전자우", "KOSPI", "180200", null, "9999999999999999"),
-                new StockPrice("20260811", "005930", "삼성전자", "KOSPI", "239500", null, "1400183726616000"));
+                new StockPrice("20260810", "삼성전자우", "180200", null, "9999999999999999"),
+                new StockPrice("20260811", "삼성전자", "239500", null, "1400183726616000"));
 
         StockQuote quote = client(Map.of("삼성", mixed), null).byName("삼성").orElseThrow();
 
@@ -106,7 +106,7 @@ class DataGoStockClientTest {
     @DisplayName("지수는 이름으로 찾는다 — 이 API에는 업종코드 조회가 없다")
     void findsIndexByNameNotCode() {
         RecordingIndexApi indices = new RecordingIndexApi(
-                new MarketIndex("20260811", "코스피", "KOSPI시리즈", "6345.53", "0.42"));
+                new MarketIndex("20260811", "코스피", "6345.53", "0.42"));
 
         StockQuote quote = client(Map.of(), indices).index(new Index("코스피", "0001"));
 

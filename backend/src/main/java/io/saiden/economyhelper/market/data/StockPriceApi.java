@@ -150,15 +150,17 @@ public class StockPriceApi {
     record Items(List<StockPrice> item) {}
 
     /**
+     * <p><b>종목코드와 시장 구분은 담지 않는다.</b> 종목코드는 <b>보낼 때</b>만 쓰고
+     * ({@code likeSrtnCd} 쿼리) 되받아 읽을 일이 없으며, {@code KOSPI}·{@code KOSDAQ} 구분은
+     * 화면에 안 나간다 — 무리는 지역으로 가른다({@code StockQuote.Market}).
+     *
      * @param basDt      기준일자 {@code yyyyMMdd}
-     * @param srtnCd     단축코드 {@code 005930}
      * @param itmsNm     종목명 (한글)
-     * @param mrktCtg    {@code KOSPI} · {@code KOSDAQ} · {@code KONEX}
      * @param clpr       종가 — 화면에 나가는 값
      * @param fltRt      등락률(%). {@code 4.89}·{@code -1.2} 꼴로 부호까지 실려 온다
      * @param mrktTotAmt 시가총액 — 동명 후보를 가르는 내부 신호
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record StockPrice(String basDt, String srtnCd, String itmsNm, String mrktCtg,
-                             String clpr, String fltRt, String mrktTotAmt) {}
+    public record StockPrice(String basDt, String itmsNm, String clpr, String fltRt,
+                             String mrktTotAmt) {}
 }

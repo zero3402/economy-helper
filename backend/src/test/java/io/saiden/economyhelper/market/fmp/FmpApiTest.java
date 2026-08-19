@@ -64,7 +64,6 @@ class FmpApiTest {
         assertThat(quote.symbol()).isEqualTo("AAPL");
         assertThat(quote.name()).isEqualTo("Apple Inc.");
         assertThat(quote.price()).isEqualByComparingTo("302.25");
-        assertThat(quote.exchange()).isEqualTo("NASDAQ");
         assertThat(quote.timestamp()).isEqualTo(1786564801L);
     }
 

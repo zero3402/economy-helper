@@ -44,7 +44,6 @@ class TelegramWebhookControllerTest {
      * 다시 보낸다). 여기서는 "보냈다"를 곧바로 단언해야 하므로 갈아 끼운다.
      */
     private static final java.util.concurrent.Executor SAME_THREAD = Runnable::run;
-    private static final java.time.Clock CLOCK = java.time.Clock.fixed(NOW, java.time.ZoneOffset.UTC);
 
     @Test
     @DisplayName("못 찾은 코인은 찾지 못했다고 알린다 — 무응답이면 고장으로 보인다")

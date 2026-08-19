@@ -127,8 +127,10 @@ public class StockService {
             }
             return search(resolved, key);
         } catch (RuntimeException e) {
-            // 출처 실패는 아래에서 이미 삼킨다. 여기 그물은 검색어 정규화처럼 그 밖에서
-            // 던지는 경우를 위한 것이다 — 웹훅은 어떤 입력에도 200이어야 한다
+            // 출처 호출의 실패는 first()가 이미 삼킨다. 여기 그물이 잡는 것은 그 밖,
+            // 특히 resolver.resolve()에 걸린 @Cacheable 프록시다 — Redis가 죽으면 캐시 계층이
+            // 던지는데 그건 StockResolver 안쪽 try가 못 잡는다(메서드 밖에서 나는 예외다).
+            // 웹훅은 어떤 입력·어떤 장애에도 200이어야 한다
             log.error("[stock] '{}' 조회 실패: {}", query, e.toString());
             return Optional.empty();
         }

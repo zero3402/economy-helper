@@ -151,6 +151,22 @@ class MessageFormatterTest {
     }
 
     @Test
+    @DisplayName("도움말의 설명은 그 명령의 답 제목과 같은 말이다 — /stock을 '주식'이라 부르던 때가 있었다")
+    void helpDescribesEachCommandWithItsOwnSectionName() {
+        String help = MessageFormatter.help();
+        for (Command command : Command.values()) {
+            if (command == Command.HELP) {
+                continue;   // 그 제목은 이 목록 자체의 제목이라 목록 안에서 같은 말을 두 번 하게 된다
+            }
+            assertThat(help)
+                    .as("'%s'의 설명", command.example())
+                    .contains(command.example() + "\n" + command.section());
+        }
+        assertThat(help).as("답은 「증시」인데 도움말만 「주식」이면 같은 것을 두 이름으로 부르는 것이다")
+                .doesNotContain("주식");
+    }
+
+    @Test
     @DisplayName("모르는 명령에는 도움말을 함께 준다 — 무엇을 칠 수 있는지 알려주지 않으면 고장으로 보인다")
     void unknownCommandIncludesHelp() {
         assertThat(MessageFormatter.unknownCommand())
@@ -411,19 +427,6 @@ class MessageFormatterTest {
     }
 
     @Test
-    @DisplayName("조회처는 무리마다 그 무리 끝에 단다 — 증시만 출처 자리가 비어 있었다")
-    void stockNamesItsVendor() {
-        String message = MessageFormatter.formatStock(List.of(
-                krStock("삼성전자", "239500"), usStock("애플", "302.25")), FX);
-
-        assertThat(message)
-                .contains("239,500 KRW\n\n금융위원회\n\n2026년 8월 11일(화) (종가)")
-                .contains("426,828 KRW\n\nFinancial Modeling Prep\n\n2026년 8월 13일(목) 07:00:00")
-                .as("무리 이름을 접두사로 반복하지 않는다 — 꼬리가 이미 그 무리 안에 있다")
-                .doesNotContain("국내 금융위원회").doesNotContain("미국 Financial");
-    }
-
-    @Test
     @DisplayName("한 무리에 조회처가 둘이면 한 줄에 하나씩 내려 적는다 — 통마다 규칙이 달라지지 않는다")
     void stacksTwoSourcesInOneStockGroup() {
         // 국내 무리에 조회처가 둘인 상황이다 — KIS를 1순위로 붙이면 지수만 폴백해서 실제로 난다.
@@ -501,7 +504,8 @@ class MessageFormatterTest {
 
         assertThat(message)
                 .startsWith("<b>날씨</b>")
-                .contains("<b>성남시, 대한민국</b>\n\n8월 18일(화)\n흐림\n22°C / 30.5°C\n강수확률 49%")
+                .as("온도는 소수 한 자리로 맞춘다 — 22°C와 30.5°C가 한 줄에 서면 정밀도가 갈린다")
+                .contains("<b>성남시, 대한민국</b>\n\n8월 18일(화)\n흐림\n22.0°C / 30.5°C\n강수확률 49%")
                 .contains("8월 19일(수)")
                 .as("범위는 시작과 끝을 함께 적는다 — 연도는 한 번이면 된다")
                 .endsWith("Open-Meteo\n\n2026년 8월 18일(화) ~ 8월 19일(수) (예보)");

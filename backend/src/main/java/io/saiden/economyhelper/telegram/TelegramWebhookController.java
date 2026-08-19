@@ -3,7 +3,6 @@ package io.saiden.economyhelper.telegram;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.saiden.economyhelper.market.CryptoService;
-import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.FxService;
 import io.saiden.economyhelper.market.StockService;
 import io.saiden.economyhelper.market.weather.WeatherFacade;

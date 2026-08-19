@@ -619,7 +619,8 @@ public final class MessageFormatter {
             if (day.sky().known()) {
                 message.append(day.sky().label()).append("\n");
             }
-            message.append(money(day.low())).append("°C / ").append(money(day.high())).append("°C");
+            message.append(oneDecimal(day.low())).append("°C / ")
+                    .append(oneDecimal(day.high())).append("°C");
             appendRain(message, day);
         }
     }
@@ -635,7 +636,7 @@ public final class MessageFormatter {
         if (day.rainChance() != null) {
             message.append("\n강수확률 ").append(day.rainChance()).append("%");
         } else if (day.rainAmount() != null) {
-            message.append("\n강수량 ").append(money(day.rainAmount())).append("mm");
+            message.append("\n강수량 ").append(oneDecimal(day.rainAmount())).append("mm");
         }
     }
 
@@ -817,6 +818,27 @@ public final class MessageFormatter {
         return format.format(trimmed);
     }
 
+    /**
+     * 온도·강수량처럼 <b>자릿수가 정해진 값</b> — 소수 한 자리로 맞춘다.
+     *
+     * <p><b>{@link #money}를 쓰면 안 된다.</b> 그쪽은 뒤 0을 떼므로 {@code 21.0}이 {@code 21}이
+     * 되어 바로 옆 {@code 26.4}와 자릿수가 갈린다. 실제로 그 상태였고 테스트에도
+     * {@code 22°C / 30.5°C}로 굳어 있었다 — 한 줄 안에서 정밀도가 들쭉날쭉했다.
+     *
+     * <p>둘을 나누는 기준은 <b>값의 폭</b>이다. 온도와 강수량은 폭이 좁아 자릿수를 고정해도
+     * 잃는 것이 없지만, 가격은 89,848,000부터 0.5까지라 고정하면 어느 한쪽이 망가진다.
+     * {@code change()}가 등락률을 둘째 자리로 맞추는 것과 같은 판단이다.
+     */
+    private static String oneDecimal(BigDecimal amount) {
+        if (amount == null) {
+            return "-";
+        }
+        NumberFormat format = NumberFormat.getNumberInstance(Locale.KOREA);
+        format.setMinimumFractionDigits(1);
+        format.setMaximumFractionDigits(1);
+        return format.format(amount);
+    }
+
     /** 인자가 필요한 명령을 인자 없이 보냈을 때. 명령마다 예시가 다르다. */
     public static String usage(Command command) {
         return section(command)
@@ -857,14 +879,18 @@ public final class MessageFormatter {
         return list.toString();
     }
 
+    /**
+     * 목록에 적는 한 줄 설명 — <b>그 명령이 답하는 통의 이름이다.</b>
+     *
+     * <p>예전에는 여기가 {@code switch}로 여섯 갈래를 따로 들고 있었는데, 그건
+     * {@link Command#section()}과 <b>같은 사실을 담은 두 번째 표</b>였고 이미 어긋나 있었다 —
+     * 도움말은 {@code /stock}을 「주식」이라 적고 정작 답은 「증시」로 나갔다. {@code Command}가
+     * "분기문이 아니라 상수가 직접 들고 있는 이유"로 적어 둔 바로 그 함정이다.
+     *
+     * <p>{@code HELP}만 예외다. 그 제목({@code 사용할 수 있는 명령})은 이 <b>목록 자체의
+     * 제목</b>이라 목록 안에 그대로 적으면 한 통에서 같은 말을 두 번 하게 된다.
+     */
     private static String describe(Command command) {
-        return switch (command) {
-            case NEWS -> "뉴스";
-            case FX -> "환율";
-            case STOCK -> "주식";
-            case CRYPTO -> "코인";
-            case WEATHER -> "날씨";
-            case HELP -> "도움말";
-        };
+        return command == Command.HELP ? "도움말" : command.section();
     }
 }
