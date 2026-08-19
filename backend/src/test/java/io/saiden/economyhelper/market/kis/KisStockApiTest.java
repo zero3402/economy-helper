@@ -10,6 +10,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import io.github.resilience4j.ratelimiter.RateLimiterConfig;
+import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
 import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.config.EconomyHelperProperties.Digest;
 import io.saiden.economyhelper.config.EconomyHelperProperties.Index;
@@ -79,6 +81,11 @@ class KisStockApiTest {
      * 거래소를 스스로 찾기 때문이다.
      */
     private KisStockApi apiWith(List<Index> indices, List<KisIndex> usIndices) {
+        return apiWith(indices, usIndices, null);
+    }
+
+    private KisStockApi apiWith(List<Index> indices, List<KisIndex> usIndices,
+                                RateLimiterRegistry limiters) {
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
         return new KisStockApi(RestClient.builder(), server.baseUrl(),
                 new FixedToken(clock), new KisHeaders("key", "secret"), clock,
@@ -86,7 +93,7 @@ class KisStockApiTest {
                         new Digest(null, null, indices, null, null, null), null, null,
                         new EconomyHelperProperties.Market(
                                 new EconomyHelperProperties.Kis(usIndices))),
-                exchanges);
+                exchanges, limiters);
     }
 
     /** Redis 대신 메모리에 기억한다 — 규칙만 본다. */

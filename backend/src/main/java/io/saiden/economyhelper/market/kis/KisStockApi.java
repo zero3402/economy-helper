@@ -3,7 +3,6 @@ package io.saiden.economyhelper.market.kis;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
-import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.config.EconomyHelperProperties.Digest;
 import io.saiden.economyhelper.config.EconomyHelperProperties.Index;
@@ -111,6 +110,23 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
     private final Map<String, Index> indices;
     private final Map<String, String> usIndices;
     private final KisExchangeCache exchanges;
+    /**
+     * 실제 HTTP 호출마다 퍼밋을 얻는 자리. {@code null}이면 세지 않는다(테스트).
+     *
+     * <p>⚠️ <b>애너테이션으로는 부족하다.</b> {@code @RateLimiter}가 {@code @Cacheable} 메서드에
+     * 붙어 있으면 <b>메서드 하나에 퍼밋 하나</b>인데, 미국 종목은 그 안에서 거래소를 두 번
+     * 물어본다(NAS → NYS). 두 번째 호출이 퍼밋 없이 나가므로 <b>초당 한도를 실제로 넘긴다</b> —
+     * 이 앱키는 초당 1건이고 두 호출 간격이 87ms였다(실측). 넘기면 {@code rt_cd=1}
+     * "초당 거래건수를 초과하였습니다"가 오고 그 종목은 빈손이 된다.
+     * {@code KeximFxClient}가 되짚기 루프에서 겪은 것과 같은 모양이고, 애너테이션은 private
+     * 메서드에 못 걸리므로 같은 방식으로 고친다.
+     *
+     * <p><b>이것이 NYSE 종목이 빈손이던 원인은 아니었다.</b> 그건 무효 토큰이었고 KIS가 그때
+     * 401이 아니라 500을 준다 — {@code CLAUDE.md}에 적어 뒀다. 그 오진을 여기 남겨 두는 이유는,
+     * 이 수정이 <b>다른</b> 근거로 옳기 때문이다: 초당 1건인데 퍼밋 하나로 두 번 부르는 것은
+     * 산수로 이미 한도 위반이다.
+     */
+    private final io.github.resilience4j.ratelimiter.RateLimiter limiter;
 
     /**
      * @param properties 브리핑 설정의 지수·미국 심볼 목록이 <b>KIS 조회 키 표를 겸한다.</b>
@@ -122,9 +138,11 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
     public KisStockApi(RestClient.Builder builder,
                        @Value("${economy-helper.market.kis.base-url}") String baseUrl,
                        KisTokenStore tokens, KisHeaders headers, Clock clock,
-                       EconomyHelperProperties properties, KisExchangeCache exchanges) {
+                       EconomyHelperProperties properties, KisExchangeCache exchanges,
+                       io.github.resilience4j.ratelimiter.RateLimiterRegistry limiters) {
         this.restClient = builder.baseUrl(baseUrl).build();
         this.exchanges = exchanges;
+        this.limiter = limiters == null ? null : limiters.rateLimiter("kis");
         this.tokens = tokens;
         this.headers = headers;
         this.clock = clock;
@@ -149,7 +167,6 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
 
     @Override
     @Cacheable(cacheNames = "kis-quote", key = "'stock:' + #code")
-    @RateLimiter(name = "kis")
     @CircuitBreaker(name = "kisStock")
     public StockQuote stock(String code) {
         DomesticStock.Quote quote = request(DomesticStock.class, STOCK_TR, "국내 종목 " + code,
@@ -170,7 +187,6 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
     // 캐시 키는 코드가 아니라 이름이다. 검색 경로는 코드를 비워 보내므로(설정에서 채운다)
     // 코드로 잡으면 코드 없는 지수가 전부 한 칸을 나눠 쓰게 된다
     @Cacheable(cacheNames = "kis-quote", key = "'index:' + #index.name()")
-    @RateLimiter(name = "kis")
     @CircuitBreaker(name = "kisStock")
     public StockQuote index(Index index) {
         Index target = known(index);
@@ -191,7 +207,6 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
 
     @Override
     @Cacheable(cacheNames = "kis-quote", key = "'us:' + #symbol.symbol()")
-    @RateLimiter(name = "kis")
     @CircuitBreaker(name = "kisStock")
     public StockQuote quote(UsSymbol symbol) {
         if (symbol.symbol().startsWith(INDEX_PREFIX)) {
@@ -306,6 +321,11 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
      */
     private <T extends KisResponse> T request(Class<T> type, String trId, String what,
                                               Function<UriBuilder, java.net.URI> uri) {
+        if (limiter != null) {
+            // 호출 하나에 퍼밋 하나 — 거래소를 두 번 물어보면 퍼밋도 둘이다.
+            // 거절은 RequestNotPermitted이고 kisStock 브레이커가 baseConfig에서 무시한다
+            limiter.acquirePermission();
+        }
         T response;
         try {
             response = restClient.get()
