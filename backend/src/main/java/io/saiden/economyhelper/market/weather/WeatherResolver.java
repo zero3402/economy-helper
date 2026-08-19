@@ -2,7 +2,8 @@ package io.saiden.economyhelper.market.weather;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.saiden.economyhelper.text.QueryNormalizer;
-import io.saiden.economyhelper.translate.GeminiApi;
+import io.saiden.economyhelper.llm.GeminiApi;
+import io.saiden.economyhelper.llm.LlmJson;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.Optional;
@@ -91,21 +92,17 @@ public class WeatherResolver {
         if (normalizedQuery == null || normalizedQuery.isBlank()) {
             return Optional.empty();
         }
-        try {
-            ResolvedPlace parsed = objectMapper.readValue(
-                    api.generate(PROMPT.formatted(normalizedQuery)), ResolvedPlace.class);
-            if (parsed == null) {
-                log.info("[weather] LLM이 '{}'를 읽지 못했습니다", normalizedQuery);
-                return Optional.empty();
-            }
-            log.info("[weather] '{}' → {} ({}), date={} offset={} days={}", normalizedQuery,
-                    parsed.query(), parsed.country(), parsed.date(), parsed.offsetDays(), parsed.days());
-            return Optional.of(parsed);
-        } catch (Exception e) {
-            // 원문 지오코딩으로 내려간다 — 호출자가 판단한다
-            log.error("[weather] '{}' LLM 해석 실패: {}", normalizedQuery, e.toString());
-            return Optional.empty();
-        }
+        // 골격은 LlmJson이 든다. ⚠️ usable에 isEmpty()를 넘기는 것이 요점이다 — null만 보던
+        // 동안에는 전부 null인 파싱이 "성공"으로 7일 캐시됐고, 그게 WeatherFacade가
+        // "지역을 안 적었다"와 "적었는데 못 찾았다"를 가르는 근거를 어긋나게 했다.
+        // 실패하면 호출자가 원문 지오코딩으로 내려간다
+        Optional<ResolvedPlace> resolved = LlmJson.ask(api, objectMapper,
+                PROMPT.formatted(normalizedQuery), ResolvedPlace.class,
+                "weather", normalizedQuery, parsed -> !parsed.isEmpty());
+        resolved.ifPresent(parsed -> log.info("[weather] '{}' → {} ({}), date={} offset={} days={}",
+                normalizedQuery, parsed.query(), parsed.country(), parsed.date(),
+                parsed.offsetDays(), parsed.days()));
+        return resolved;
     }
 
     /** 검색어를 캐시 키로 쓸 수 있게 다듬는다. 접미사는 떼지 않는다 — 그건 LLM이 한다. */
@@ -141,6 +138,29 @@ public class WeatherResolver {
 
         public boolean hasPlace() {
             return query != null && !query.isBlank() && !"null".equalsIgnoreCase(query.trim());
+        }
+
+        /**
+         * <b>아무것도 읽어내지 못한 결과인가.</b> 지명도 기간도 없으면 해석이 실패한 것과
+         * 같은데, 그걸 {@code Optional.of}로 감싸면 호출자의 분기가 어긋난다.
+         */
+        boolean isEmpty() {
+            return !hasPlace() && !mentionsDate() && offsetDays == null && days == null;
+        }
+
+        /**
+         * 나라 코드 — <b>{@code query}와 같은 정규화를 받는다.</b>
+         *
+         * <p>⚠️ LLM이 {@code "null"} 문자열을 주는 일이 실제로 있어 {@link #hasPlace()}와
+         * {@link #absoluteDate()}가 이미 그걸 막고 있었는데, 나라만 빠져 있었다. 그대로
+         * 두면 {@code countryCode=null}이 쿼리에 실려 나가 <b>헛호출을 한 번 태운 뒤</b>
+         * 원문으로 폴백한다 — 지오코딩 조회가 조용히 두 배가 되는 자리다.
+         */
+        public String countryCode() {
+            if (country == null || country.isBlank() || "null".equalsIgnoreCase(country.trim())) {
+                return null;
+            }
+            return country.trim();
         }
 
         /**

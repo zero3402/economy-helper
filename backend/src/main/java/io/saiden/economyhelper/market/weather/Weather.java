@@ -22,6 +22,15 @@ public record Weather(GeoLocation place, List<Daily> days, WeatherSource source)
 
     public Weather {
         days = List.copyOf(days);
+        // ⚠️ 주석에만 있던 불변식을 생성자가 강제한다. from()/to()가 days.get(0)을 무방비로
+        //    인덱싱하므로 빈 목록이 들어오면 <b>렌더 시점에</b> 터지고, 웹훅에서는 그게 침묵이
+        //    된다 — 생산자에서 멀리 떨어진 자리에서 터지는 것이 이 계열의 가장 나쁜 점이다.
+        //    지금은 생산자 둘이 각자 막고 있을 뿐이라 세 번째 출처가 붙는 날 새어 나온다.
+        //    DigestSlot이 접두사를 생성자에서 요구하게 만든 것과 같은 판단이다
+        if (days.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "날씨에 하루도 담기지 않았습니다 — 값이 없으면 조회 자체가 실패여야 합니다");
+        }
     }
 
     /** 목록의 첫날. 기준 줄에 쓴다. */

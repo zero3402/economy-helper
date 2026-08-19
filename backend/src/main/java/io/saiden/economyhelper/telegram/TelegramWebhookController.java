@@ -173,20 +173,32 @@ public class TelegramWebhookController {
         if (parsed.isEmpty()) {
             // '/'로 시작하는 오타에만 안내한다. 일반 대화는 조용히 무시해 그룹 채팅을 오염시키지 않는다
             if (CommandParser.isUnknownCommand(text)) {
-                telegramClient.send(chatId, topicId, replyTo, MessageFormatter.unknownCommand());
+                telegramClient.send(chatId, topicId, replyTo, HelpFormatter.unknownCommand());
             }
             return;
         }
 
         ParsedCommand command = parsed.get();
         if (command.missingRequiredArgument()) {
-            telegramClient.send(chatId, topicId, replyTo, MessageFormatter.usage(command.command()));
+            telegramClient.send(chatId, topicId, replyTo, HelpFormatter.usage(command.command()));
             return;
         }
 
         long startedAt = System.nanoTime();
         // 물어본 토픽으로 답한다 — 다른 토픽에 답이 뜨면 대화가 어긋난다
-        Reply reply = reply(command);
+        Reply reply;
+        try {
+            reply = reply(command);
+        } catch (RuntimeException e) {
+            // ⚠️ 마지막 그물이다. 텔레그램은 이미 200을 받았으므로 재시도가 없고, 여기서
+            //    로그만 남기면 사용자에게는 <b>아무 답도 안 간다</b> — 서비스마다 안내 문구를
+            //    따로 둔 이유(ARCHITECTURE.md 3-2)가 이 한 구멍으로 무력해졌다.
+            //    도달 가능한 예외가 실제로 있다: 브레이커 열림(CallNotPermittedException),
+            //    Redis 장애로 인한 캐시 계층 예외, 렌더 중의 상태 오류
+            log.error("[webhook] 채팅 {} · {} 답 만들기 실패: {}", chatId, text, e.toString(), e);
+            sendQuietly(chatId, topicId, replyTo, MessageLayout.unavailable(command.command()), false);
+            return;
+        }
         boolean first = true;
         for (String part : reply.texts()) {
             // 뉴스 검색은 기사마다 한 통이다(브리핑과 같은 규칙). 텔레그램이 같은 방에
@@ -195,7 +207,9 @@ public class TelegramWebhookController {
                 TelegramClient.pause();
             }
             first = false;
-            telegramClient.send(chatId, topicId, replyTo, part, reply.preview());
+            // 통마다 따로 실패한다 — 예전에는 2번 통이 던지면 3번은 시도조차 못 해
+            // /news 3건 중 1건만 받고 왜 그런지 알 길이 없었다
+            sendQuietly(chatId, topicId, replyTo, part, reply.preview());
         }
 
         // 성공 경로에 유일하게 남는 줄이다. 세 가지를 여기서만 알 수 있다.
@@ -210,6 +224,21 @@ public class TelegramWebhookController {
         // 답 본문은 남기지 않는다. 길고, 그룹 대화가 로그로 흘러드는 것과 다름없다
         log.info("[webhook] 채팅 {} 토픽 {} · {} → {}초", chatId, topicId, text,
                 String.format("%.1f", (System.nanoTime() - startedAt) / 1_000_000_000.0));
+    }
+
+    /**
+     * 한 통을 보낸다 — <b>실패해도 다음 통을 막지 않는다.</b>
+     *
+     * <p>여기서 던지면 남은 통이 통째로 사라지고, 사용자는 왜 답이 중간에 끊겼는지 알 수 없다.
+     * {@code DailyDigestJob}이 통마다 실패를 삼키는 것과 같은 규칙이다.
+     */
+    private void sendQuietly(String chatId, Integer topicId, Integer replyTo,
+                             String text, boolean preview) {
+        try {
+            telegramClient.send(chatId, topicId, replyTo, text, preview);
+        } catch (RuntimeException e) {
+            log.error("[webhook] 채팅 {} 발송 실패: {}", chatId, e.toString());
+        }
     }
 
     /**
@@ -238,38 +267,38 @@ public class TelegramWebhookController {
             case NEWS -> {
                 List<NewsItem> found = newsFacade.search(command.argument());
                 yield found.isEmpty()
-                        ? Reply.plain(MessageFormatter.noResults(command.argument(), newsFacade.window()))
-                        : new Reply(MessageFormatter.formatNews(found), true);
+                        ? Reply.plain(NewsFormatter.noResults(command.argument(), newsFacade.window()))
+                        : new Reply(NewsFormatter.formatAll(found), true);
             }
             // 브리핑 코인 통과 같은 함수다 — 항목이 하나뿐일 뿐이다.
             // 바이낸스가 붙었을 때만 환율을 묻는다 — 안 쓸 값을 미리 부르지 않는다
             case CRYPTO -> cryptoService.quote(command.argument())
-                    .map(quote -> Reply.plain(MessageFormatter.formatCrypto(List.of(quote),
+                    .map(quote -> Reply.plain(CryptoFormatter.format(List.of(quote),
                             quote.binance().hasPrice() ? fxService.orNull() : null)))
-                    .orElseGet(() -> Reply.plain(MessageFormatter.cryptoNotFound(command.argument())));
+                    .orElseGet(() -> Reply.plain(CryptoFormatter.notFound(command.argument())));
             case FX -> Reply.plain(fxService.usdToKrw()
-                    .map(MessageFormatter::formatFx)
-                    .orElseGet(MessageFormatter::fxUnavailable));
+                    .map(FxFormatter::format)
+                    .orElseGet(FxFormatter::unavailable));
             // 미국 종목이면 원화도 함께 보여준다. 환율 조회가 실패하면 달러만 나간다 —
             // 환산을 못 한다고 시세 자체를 막을 이유가 없다.
             case STOCK -> stockService.quote(command.argument())
                     .map(quote -> Reply.plain(
-                            MessageFormatter.formatStock(List.of(quote), fxService.orNull())))
-                    .orElseGet(() -> Reply.plain(MessageFormatter.stockNotFound(command.argument())));
+                            StockFormatter.format(List.of(quote), fxService.orNull())))
+                    .orElseGet(() -> Reply.plain(StockFormatter.notFound(command.argument())));
             // 답이 일일 예보라 링크가 없다 — 미리보기를 켤 이유가 없다
             case WEATHER -> {
                 WeatherFacade.Lookup found = weatherFacade.search(command.argument());
                 yield Reply.plain(switch (found.reason()) {
-                    case FOUND -> MessageFormatter.formatWeather(found.places());
+                    case FOUND -> WeatherFormatter.format(found.places());
                     // 지역을 안 적은 것과 적었는데 못 찾은 것은 사용자가 할 일이 다르다
-                    case NO_PLACE -> MessageFormatter.weatherNeedsPlace();
-                    case NOT_FOUND -> MessageFormatter.weatherNotFound(command.argument());
-                    case UNREADABLE_DATE -> MessageFormatter.weatherUnreadableDate();
-                    case TOO_FAR_AHEAD -> MessageFormatter.weatherTooFarAhead();
-                    case UNAVAILABLE -> MessageFormatter.weatherUnavailable();
+                    case NO_PLACE -> WeatherFormatter.needsPlace();
+                    case NOT_FOUND -> WeatherFormatter.notFound(command.argument());
+                    case UNREADABLE_DATE -> WeatherFormatter.unreadableDate();
+                    case TOO_FAR_AHEAD -> WeatherFormatter.tooFarAhead();
+                    case UNAVAILABLE -> WeatherFormatter.unavailable();
                 });
             }
-            case HELP -> Reply.plain(MessageFormatter.help());
+            case HELP -> Reply.plain(HelpFormatter.help());
         };
     }
 

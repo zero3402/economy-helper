@@ -72,5 +72,22 @@ public class TelegramSelfCheck {
             log.error("[telegram] 포럼이 아닌 방에 TELEGRAM_NOTICE_TOPIC_ID={}가 설정돼 있습니다 — "
                     + "브리핑이 거절됩니다. 이 값을 비우면 됩니다", noticeTopicId);
         }
+
+        // ⚠️ 검색 토픽도 같이 봐야 한다. 예전에는 notice만 양방향으로 맞춰 보고 search는
+        //    읽어서 위 줄에 찍기만 했다. 포럼이 아닌 방에 이 값이 있으면 들어오는 명령의
+        //    message_thread_id가 언제나 null이라 컨트롤러가 <b>모든 명령을 조용히 버린다</b> —
+        //    봇이 통째로 무음이 되는데 기동 로그에 경고가 없었다. 이 클래스가 존재하는
+        //    이유가 정확히 그 대칭이다.
+        if (!forum && searchTopicId != null) {
+            log.error("[telegram] 포럼이 아닌 방에 TELEGRAM_SEARCH_TOPIC_ID={}가 설정돼 있습니다 — "
+                    + "명령이 전부 무시됩니다(이 방의 메시지에는 토픽 번호가 아예 없습니다). "
+                    + "이 값을 비우면 됩니다", searchTopicId);
+        }
+        // 포럼인데 안 정하면 어느 토픽에서든 명령이 먹는다 — 고장은 아니지만 의도한 것인지 밝힌다
+        if (forum && searchTopicId == null) {
+            log.warn("[telegram] 포럼 그룹인데 TELEGRAM_SEARCH_TOPIC_ID가 비어 있습니다 — "
+                    + "모든 토픽에서 명령을 받습니다. 한 토픽으로 좁히려면 그 토픽에서 /help를 "
+                    + "치면 번호를 봇이 알려줍니다");
+        }
     }
 }

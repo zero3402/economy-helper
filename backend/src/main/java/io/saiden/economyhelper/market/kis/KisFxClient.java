@@ -3,6 +3,7 @@ package io.saiden.economyhelper.market.kis;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import io.saiden.economyhelper.market.FxRate;
+import io.saiden.economyhelper.market.Price;
 import io.saiden.economyhelper.market.FxRateClient;
 import io.saiden.economyhelper.market.FxSource;
 import java.time.Clock;
@@ -42,7 +43,12 @@ public class KisFxClient implements FxRateClient {
     private static final String PATH = "/uapi/overseas-price/v1/quotations/inquire-daily-chartprice";
     private static final String TR_ID = "FHKST03030100";
 
-    /** 환율 구분. {@code N}은 해외지수, {@code I}는 국채, {@code S}는 금선물이다. */
+    /**
+     * 시장 분류 코드 — 환율은 {@code X}다.
+     *
+     * <p>같은 경로를 쓰는 형제들은 다른 값을 쓴다: {@code N} 해외지수, {@code I} 국채,
+     * {@code S} 금선물. 스키마가 같아도 이 한 글자가 무엇을 조회하는지를 가른다.
+     */
     private static final String FX_MARKET = "X";
     private static final String USD_KRW = "FX@KRW";
 
@@ -72,9 +78,13 @@ public class KisFxClient implements FxRateClient {
     public FxRate usdToKrw() {
         KisChartPrice.Quote quote = request().output();
 
-        if (quote == null || quote.price() == null) {
+        // ⚠️ null만 보면 안 된다. 이 응답 스키마(KisChartPrice)는 심볼이 틀릴 때 에러가 아니라
+        //    0.00을 주고, 그걸 값으로 받으면 환율 0이 화면의 모든 원화 환산을 오염시킨다 —
+        //    KisStockApi가 지수에서 실측으로 겪은 그 함정이고, 같은 스키마라 여기도 걸린다
+        if (quote == null) {
             throw new IllegalStateException("KIS 환율 응답에 현재가가 없습니다");
         }
+        Price.require(quote.price(), "KIS 환율");
         // 시각을 주지 않는다 — 계속 움직이는 값이라 '읽은 시각'이 곧 이 값의 시각이다
         return new FxRate("USD", "KRW", quote.price(), quote.changePercent(),
                 FxSource.KIS, clock.instant());

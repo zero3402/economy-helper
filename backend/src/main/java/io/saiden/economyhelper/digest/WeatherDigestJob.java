@@ -7,8 +7,8 @@ import io.saiden.economyhelper.market.weather.Weather;
 import io.saiden.economyhelper.market.weather.WeatherPeriod;
 import io.saiden.economyhelper.market.weather.WeatherService;
 import io.saiden.economyhelper.support.Concurrently;
-import io.saiden.economyhelper.telegram.MessageFormatter;
 import io.saiden.economyhelper.telegram.TelegramClient;
+import io.saiden.economyhelper.telegram.WeatherFormatter;
 import java.time.Clock;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -129,7 +129,7 @@ public class WeatherDigestJob extends TriggerableJob {
 
         try {
             // 알람은 물어본 사람이 없다 — 제목에 검색어를 적지 않는다
-            telegram.send(MessageFormatter.formatWeather(collected), false);
+            telegram.send(WeatherFormatter.format(collected), false);
         } catch (RuntimeException e) {
             slot.release(claim);
             log.error("[weather] {} 슬롯 발송 실패: {}", claim.id(), e.toString());

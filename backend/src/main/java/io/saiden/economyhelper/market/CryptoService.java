@@ -65,18 +65,29 @@ public class CryptoService {
      * @return 두 거래소 시세. 어느 쪽에도 없으면 {@link Optional#empty()}
      */
     public Optional<CryptoQuote> quote(String query) {
-        // 업비트 이름 매칭이 먼저다. 마켓 목록은 이미 6시간 캐시돼 있고 매칭은 순수 계산이라
-        // 공짜인데, LLM을 앞에 두면 '비트코인'에도 Gemini가 나간다
-        Optional<CryptoQuote> byName = byUpbitName(query)
-                .map(quote -> withBinance(List.of(quote)).get(0));
-        if (byName.isPresent()) {
-            return byName;
+        try {
+            // 업비트 이름 매칭이 먼저다. 마켓 목록은 이미 6시간 캐시돼 있고 매칭은 순수 계산이라
+            // 공짜인데, LLM을 앞에 두면 '비트코인'에도 Gemini가 나간다
+            Optional<CryptoQuote> byName = byUpbitName(query)
+                    .map(quote -> withBinance(List.of(quote)).get(0));
+            if (byName.isPresent()) {
+                return byName;
+            }
+            // 업비트에 걸리는 것이 없다. 여기서만 LLM에게 티커를 묻는다
+            return resolver.resolve(CryptoResolver.cacheKeyOf(query))
+                    .map(ResolvedCoin::upperSymbol)
+                    .filter(Objects::nonNull)
+                    .flatMap(this::quoteOf);
+        } catch (RuntimeException e) {
+            // 출처 호출의 실패는 아래 메서드들이 이미 삼킨다. 이 그물이 잡는 것은 그 밖,
+            // 특히 resolver.resolve()에 걸린 @Cacheable 프록시다 — Redis가 죽으면 캐시 계층이
+            // 던지는데 그건 CryptoResolver 안쪽 try가 못 잡는다(메서드 밖에서 나는 예외다).
+            // StockService가 같은 이유로 같은 그물을 쳐 두었는데 여기와 WeatherFacade에는
+            // 없었다. 그래서 같은 장애에서 /stock은 "찾지 못했습니다"가 나가고 /crypto는
+            // 아무 답도 안 갔다 — 판단이 셋으로 갈려 있던 자리다
+            log.error("[crypto] '{}' 조회 실패: {}", query, e.toString());
+            return Optional.empty();
         }
-        // 업비트에 걸리는 것이 없다. 여기서만 LLM에게 티커를 묻는다
-        return resolver.resolve(CryptoResolver.cacheKeyOf(query))
-                .map(ResolvedCoin::upperSymbol)
-                .filter(Objects::nonNull)
-                .flatMap(this::quoteOf);
     }
 
     /**

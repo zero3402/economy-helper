@@ -41,6 +41,19 @@ public class WeatherFacade {
      * @return 못 찾은 이유까지 담은 결과 — 호출자가 문구를 고른다
      */
     public Lookup search(String query) {
+        try {
+            return lookup(query);
+        } catch (RuntimeException e) {
+            // resolver.resolve()·geocoding.find()에 걸린 @Cacheable 프록시가 던지는 것을 잡는다 —
+            // Redis가 죽으면 캐시 계층이 던지는데 그건 해석기 안쪽 try가 못 잡는다(메서드 밖이다).
+            // StockService가 같은 이유로 같은 그물을 쳐 두었는데 여기와 CryptoService에는
+            // 없어서, 같은 장애에서 /stock만 안내가 나가고 /weather는 무응답이었다
+            log.error("[weather] '{}' 조회 실패: {}", query, e.toString());
+            return Lookup.unavailable();
+        }
+    }
+
+    private Lookup lookup(String query) {
         Optional<ResolvedPlace> resolved = resolver.resolve(WeatherResolver.cacheKeyOf(query));
 
         Optional<GeoLocation> place = locate(query, resolved.orElse(null));
@@ -80,7 +93,9 @@ public class WeatherFacade {
     private Optional<GeoLocation> locate(String query, ResolvedPlace resolved) {
         if (resolved != null && resolved.hasPlace()) {
             Optional<GeoLocation> byResolved =
-                    geocoding.find(resolved.query().trim(), resolved.country());
+                    // countryCode()가 "null" 문자열을 걸러 준다 — 그대로 넘기면
+                    // countryCode=null이 쿼리에 실려 헛호출을 한 번 태운다
+                    geocoding.find(resolved.query().trim(), resolved.countryCode());
             if (byResolved.isPresent()) {
                 return byResolved;
             }

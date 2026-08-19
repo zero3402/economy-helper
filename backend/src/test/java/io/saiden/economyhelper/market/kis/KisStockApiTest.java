@@ -85,7 +85,7 @@ class KisStockApiTest {
                 new EconomyHelperProperties(null, null,
                         new Digest(null, null, indices, null, null, null), null, null,
                         new EconomyHelperProperties.Market(
-                                new EconomyHelperProperties.Kis(null, null, null, usIndices))),
+                                new EconomyHelperProperties.Kis(usIndices))),
                 exchanges);
     }
 
@@ -307,6 +307,47 @@ class KisStockApiTest {
     }
 
     @Test
+    @DisplayName("나스닥이 초당 한도에 걸려도 뉴욕은 시도한다 — 초당 1건이라 그게 흔한 경로다")
+    void triesTheNextExchangeEvenWhenTheFirstIsThrottled() {
+        // rt_cd=1은 request()가 던진다. 예전에는 그 예외가 루프를 통째로 빠져나가
+        // NYS를 시도조차 못 했다 — 빈 응답만 continue했기 때문이다.
+        // 이 앱키는 초당 1건이라 탐색 두 번째 호출이 실제로 여기 걸린다
+        server.stubFor(get(urlPathEqualTo(US_STOCK_PATH))
+                .withQueryParam("EXCD", WireMock.equalTo("NAS"))
+                .willReturn(aResponse().withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("""
+                                {"rt_cd":"1","msg_cd":"EGW00201",
+                                 "msg1":"초당 거래건수를 초과하였습니다."}""")));
+        server.stubFor(get(urlPathEqualTo(US_STOCK_PATH))
+                .withQueryParam("EXCD", WireMock.equalTo("NYS"))
+                .willReturn(aResponse().withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("""
+                                {"rt_cd":"0","output":{"rsym":"DNYSPATH","curr":"USD",
+                                 "last":"15.5800","base":"15.9900"}}""")));
+
+        StockQuote quote = api.quote(new UsSymbol("PATH", "유아이패스"));
+
+        assertThat(quote.price()).isEqualByComparingTo("15.5800");
+        assertThat(exchanges.remembered).containsEntry("PATH", "NYS");
+    }
+
+    @Test
+    @DisplayName("거래소를 다 물어도 못 찾으면 던진다 — 빈 값을 돌려주면 2순위가 안 뜬다")
+    void throwsWhenEveryExchangeFails() {
+        server.stubFor(get(urlPathEqualTo(US_STOCK_PATH))
+                .willReturn(aResponse().withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("""
+                                {"rt_cd":"1","msg_cd":"EGW00201",
+                                 "msg1":"초당 거래건수를 초과하였습니다."}""")));
+
+        assertThatThrownBy(() -> api.quote(new UsSymbol("PATH", "유아이패스")))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
     @DisplayName("기억해 둔 거래소가 있으면 한 번만 부른다 — 탐색은 초당 한도를 두 배로 쓴다")
     void asksOnceWhenTheExchangeIsAlreadyKnown() {
         exchanges.remember("PATH", "NYS");
@@ -331,7 +372,7 @@ class KisStockApiTest {
 
         assertThatThrownBy(() -> api.quote(NASDAQ))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("현재가");
+                .hasMessageContaining("값이 없습니다");
     }
 
     @Test
@@ -373,7 +414,7 @@ class KisStockApiTest {
 
         assertThatThrownBy(() -> api.stock("999999"))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("현재가");
+                .hasMessageContaining("값이 없습니다");
     }
 
     @Test

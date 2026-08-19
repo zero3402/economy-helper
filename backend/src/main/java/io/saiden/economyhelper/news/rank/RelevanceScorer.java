@@ -2,7 +2,7 @@ package io.saiden.economyhelper.news.rank;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.saiden.economyhelper.news.Article;
-import io.saiden.economyhelper.translate.GeminiApi;
+import io.saiden.economyhelper.llm.GeminiApi;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;

@@ -2,6 +2,7 @@ package io.saiden.economyhelper.market.data;
 
 import io.saiden.economyhelper.config.EconomyHelperProperties.Index;
 import io.saiden.economyhelper.market.DomesticStockClient;
+import io.saiden.economyhelper.market.Price;
 import io.saiden.economyhelper.market.StockQuote;
 import io.saiden.economyhelper.market.StockSource;
 import io.saiden.economyhelper.market.data.MarketIndexApi.MarketIndex;
@@ -65,7 +66,8 @@ public class DataGoStockClient implements DomesticStockClient {
         }
         // 이름도 응답 것을 쓴다 — 완전일치로 고른 것이라 설정 이름과 같고, 부분일치로 떨어졌다면
         // 실제로 찾아낸 지수의 정식명이 맞다(KIS가 '종합'을 주는 것과 사정이 다르다)
-        return new StockQuote(found.idxNm(), parse(found.clpr()), percent(found.fltRt()),
+        return new StockQuote(found.idxNm(), price(found.clpr(), "지수 " + index.name()),
+                percent(found.fltRt()),
                 StockQuote.Money.NONE, StockQuote.Market.DOMESTIC, StockSource.DATA_GO,
                 atSeoulMidnight(found.basDt()), false);
     }
@@ -91,18 +93,22 @@ public class DataGoStockClient implements DomesticStockClient {
      */
     private static Optional<StockQuote> best(List<StockPrice> prices) {
         return onlyLatestDate(prices).stream()
-                .max(Comparator.comparing(price -> parse(price.mrktTotAmt())))
+                .max(Comparator.comparing(price -> amountForRanking(price.mrktTotAmt())))
                 .map(DataGoStockClient::toQuote);
     }
 
     private static List<StockPrice> onlyLatestDate(List<StockPrice> prices) {
-        String latest = prices.stream().map(StockPrice::basDt).max(Comparator.naturalOrder()).orElse("");
-        return prices.stream().filter(price -> latest.equals(price.basDt())).toList();
+        // ⚠️ 널을 먼저 걸러야 한다. Comparator.naturalOrder()는 널 원소에서 NPE인데
+        //    orElse("")는 빈 스트림만 막는다 — 기준일 없는 항목 하나가 조회 전체를 죽였다
+        List<StockPrice> dated = prices.stream().filter(price -> price.basDt() != null).toList();
+        String latest = dated.stream().map(StockPrice::basDt).max(Comparator.naturalOrder()).orElse("");
+        return dated.stream().filter(price -> latest.equals(price.basDt())).toList();
     }
 
     /** <b>전일 종가</b>다. {@code realtime=false}가 화면에서 "(종가)"로 드러난다. */
     private static StockQuote toQuote(StockPrice price) {
-        return new StockQuote(price.itmsNm(), parse(price.clpr()), percent(price.fltRt()),
+        return new StockQuote(price.itmsNm(), price(price.clpr(), "종목 " + price.itmsNm()),
+                percent(price.fltRt()),
                 StockQuote.Money.KRW, StockQuote.Market.DOMESTIC, StockSource.DATA_GO,
                 atSeoulMidnight(price.basDt()), false);
     }
@@ -123,9 +129,24 @@ public class DataGoStockClient implements DomesticStockClient {
         return number(value, null);
     }
 
-    /** 값이 비거나 깨져 있어도 조회 전체를 실패시키지 않는다 — 0으로 보면 순위에서 뒤로 밀릴 뿐이다. */
-    private static BigDecimal parse(String value) {
+    /**
+     * <b>순위를 매길 때만</b> 쓴다 — 시가총액이다. 값이 비거나 깨져 있어도 조회 전체를
+     * 실패시키지 않는다: 0으로 보면 후보 순위에서 뒤로 밀릴 뿐이고, 그 종목이 답이 아니게
+     * 되는 것으로 충분하다.
+     *
+     * <p><b>표시 가격에는 쓰지 않는다.</b> 예전에는 같은 함수가 {@code clpr}에도 쓰였는데,
+     * 그러면 빈 종가가 {@code price=0}으로 <b>성공</b> 반환되어 「코스피 0」이 화면에 나가고
+     * 이중화의 폴백도 돌지 않았다 — 바로 아래 {@link #percent}가 정확히 그 이유로 {@code null}을
+     * 쓰면서 "못 구한 것을 보합으로 찍으면 화면이 거짓말을 한다"고 적어 둔 것과 같은 함정이다.
+     * 이름을 갈라 둔 것이 그 재발 방지다.
+     */
+    private static BigDecimal amountForRanking(String value) {
         return number(value, BigDecimal.ZERO);
+    }
+
+    /** 화면에 찍히는 값 — 못 구하면 {@link Price}가 던져 다음 출처로 넘어간다. */
+    private static BigDecimal price(String value, String what) {
+        return Price.require(number(value, null), "공공데이터포털 " + what);
     }
 
     private static BigDecimal number(String value, BigDecimal fallback) {

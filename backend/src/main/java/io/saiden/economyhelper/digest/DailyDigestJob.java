@@ -12,7 +12,10 @@ import io.saiden.economyhelper.market.StockService;
 import io.saiden.economyhelper.news.NewsFacade;
 import io.saiden.economyhelper.news.NewsItem;
 import io.saiden.economyhelper.support.Concurrently;
-import io.saiden.economyhelper.telegram.MessageFormatter;
+import io.saiden.economyhelper.telegram.CryptoFormatter;
+import io.saiden.economyhelper.telegram.FxFormatter;
+import io.saiden.economyhelper.telegram.NewsFormatter;
+import io.saiden.economyhelper.telegram.StockFormatter;
 import io.saiden.economyhelper.telegram.TelegramClient;
 import java.time.Clock;
 import java.time.ZoneId;
@@ -124,7 +127,7 @@ public class DailyDigestJob extends TriggerableJob {
         // 네 통의 수집을 겹친다. 서로 무관한 외부 호출인데 줄줄이 기다렸고, 그중 뉴스 하나가
         // (피드 5 + Gemini 10) 대부분을 차지했다.
         List<Section> sections = Concurrently.map(List.of(
-                section("환율", () -> fx == null ? List.of() : List.of(MessageFormatter.formatFx(fx))),
+                section("환율", () -> fx == null ? List.of() : List.of(FxFormatter.format(fx))),
                 section("증시", () -> stockMessage(fx)),
                 section("코인", () -> cryptoMessage(fx)),
                 // 뉴스 통만 미리보기를 켠다 — 링크가 있는 통이 여기뿐이다.
@@ -232,7 +235,7 @@ public class DailyDigestJob extends TriggerableJob {
         List<StockQuote> quotes = new ArrayList<>(stockService.indicesOf(indexNames));
         quotes.addAll(stockService.quotesOf(stockCodes));
         quotes.addAll(stockService.usQuotesOf(usSymbols));
-        return quotes.isEmpty() ? List.of() : List.of(MessageFormatter.formatStock(quotes, fx));
+        return quotes.isEmpty() ? List.of() : List.of(StockFormatter.format(quotes, fx));
     }
 
     /**
@@ -241,11 +244,11 @@ public class DailyDigestJob extends TriggerableJob {
      */
     private List<String> cryptoMessage(FxRate fx) {
         List<CryptoQuote> quotes = cryptoService.quotesOf(cryptoMarkets);
-        return quotes.isEmpty() ? List.of() : List.of(MessageFormatter.formatCrypto(quotes, fx));
+        return quotes.isEmpty() ? List.of() : List.of(CryptoFormatter.format(quotes, fx));
     }
 
     private List<String> newsMessages() {
         List<NewsItem> items = facade.digest();
-        return items.isEmpty() ? List.of() : MessageFormatter.formatNews(items);
+        return items.isEmpty() ? List.of() : NewsFormatter.formatAll(items);
     }
 }

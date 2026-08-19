@@ -1,6 +1,7 @@
 package io.saiden.economyhelper.market.fmp;
 
 import io.saiden.economyhelper.config.EconomyHelperProperties.UsSymbol;
+import io.saiden.economyhelper.market.Price;
 import io.saiden.economyhelper.market.StockQuote;
 import io.saiden.economyhelper.market.StockSource;
 import io.saiden.economyhelper.market.UsStockClient;
@@ -56,7 +57,10 @@ public class FmpStockClient implements UsStockClient {
     private StockQuote toQuote(FmpQuote quote, UsSymbol symbol) {
         boolean index = symbol.symbol() != null && symbol.symbol().startsWith("^");
         String name = symbol.name() == null || symbol.name().isBlank() ? quote.name() : symbol.name();
-        return new StockQuote(name, quote.price(), quote.changePercentage(),
+        // 미국 폴백의 마지막 자리다 — 여기서 빈 값이 새면 받아 줄 출처가 없다.
+        // FMP는 상장폐지·장전 무거래에 price를 null로 주고, 그건 "없다"이지 값이 아니다
+        return new StockQuote(name, Price.require(quote.price(), "FMP " + symbol.symbol()),
+                quote.changePercentage(),
                 index ? StockQuote.Money.NONE : StockQuote.Money.USD, StockQuote.Market.US,
                 StockSource.FMP, at(quote), true);
     }

@@ -116,6 +116,19 @@ public class AccuWeatherClient implements WeatherClient {
             if (date == null || date.isBefore(period.from()) || date.isAfter(period.to())) {
                 continue;
             }
+            // ⚠️ 기온이 없으면 그 날은 값이 아니다. 예전에는 그대로 담아 화면에 '-°C / -°C'가
+            //    성공으로 찍혔고, 성공이니 Open-Meteo 폴백도 돌지 않았다 — 「코스피 0」과 같은 부류다
+            if (daily.low() == null || daily.high() == null) {
+                log.warn("[weather] AccuWeather가 {}의 기온을 주지 않았습니다 — 다음 출처로 넘깁니다", date);
+                continue;
+            }
+            // 확률이 없으면 강수 줄이 빠진다 — 그게 맞다. 이 응답에는 대신 쓸 강수량이 아예
+            // 없어서(5일 예보는 확률만 준다) 없는 값을 만들어 낼 수가 없다. Open-Meteo가
+            // 확률→강수량으로 내려가는 것(DailyBlock.toDays)과 갈리는 이유가 그것이다.
+            // ⚠️ details=true를 빼면 확률이 통째로 안 오므로 이 자리가 매번 빈다 — request()의 주석 참조
+            if (daily.rainChance() == null) {
+                log.warn("[weather] AccuWeather가 {}의 강수확률을 주지 않았습니다 — 그 줄만 빠집니다", date);
+            }
             days.add(Weather.Daily.withChance(date, SkyCondition.ofAccuWeatherIcon(daily.icon()),
                     daily.low(), daily.high(), daily.rainChance()));
         }

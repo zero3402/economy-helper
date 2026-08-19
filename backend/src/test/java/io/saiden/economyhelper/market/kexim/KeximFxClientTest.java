@@ -42,8 +42,10 @@ class KeximFxClientTest {
         server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
         server.start();
         WireMock.configureFor(server.port());
+        // 리미터는 null로 둔다 — 이 테스트가 보는 것은 되짚기·파싱·비밀 취급이고,
+        // 퍼밋을 세는 것이 실제로 걸리는지는 ResilienceConfigTest가 컨텍스트에서 본다
         client = new KeximFxClient(RestClient.builder(), server.baseUrl(), "test-key",
-                Clock.fixed(NOW, SEOUL));
+                Clock.fixed(NOW, SEOUL), null);
     }
 
     @AfterEach

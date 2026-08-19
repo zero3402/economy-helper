@@ -97,7 +97,12 @@ public class HackerNewsApi {
     @JsonIgnoreProperties(ignoreUnknown = true)
     record Hit(String url, int points, @JsonProperty("num_comments") int numComments) {
 
-        /** CLAUDE.md가 말한 "조회수 또는 댓글" 중 실제로 구할 수 있는 쪽이다. */
+        /**
+         * CLAUDE.md가 말한 "조회수 또는 댓글"을 대신하는 값 — <b>둘 중 하나가 아니라 둘을 더한다.</b>
+         *
+         * <p>어느 매체도 조회수·댓글 수를 공개하지 않아 HN 반응이 유일한 실측이고, 거기서는
+         * 추천과 댓글이 둘 다 온다. 하나만 쓸 이유가 없다.
+         */
         int buzz() {
             return points + numComments;
         }

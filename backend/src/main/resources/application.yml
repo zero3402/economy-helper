@@ -136,7 +136,9 @@ economy-helper:
     accu-location: 30d     # 좌표→AccuWeather 지점 키. 낡지 않는다 — 이게 실질 쿼터 방어다.
                            # 없으면 조회 한 번에 호출이 두 번이라 하루 50회를 금세 쓴다
     weather-resolve: 7d    # LLM 해석. '내일'은 offsetDays로 받으므로 캐시해도 내일이 고정되지 않는다
-    fx: 1m                 # 토스는 1분 주기로 갱신된다(validUntil은 5분이지만 보수적으로)
+    fx: 1m                 # ⚠️ 유럽중앙은행은 영업일 16시 CET에 하루 한 번 고시한다 — 1분은
+                           #    토스를 쓰던 시절의 값이 남은 것이다. 무인증·무한도라 해가
+                           #    없어 그대로 두지만, 성질로는 fx-kexim(1h)과 같은 급이 맞다
     fx-kexim: 1h           # 수출입은행 하루 1,000회 한도를 지키는 실질 방어다 (1h면 하루 최대 24회)
     fx-kis: 1m             # 하루 중에도 움직이는 값이라 1분이 상한이다. 화면에 '읽은 시각'을
                            # 찍으므로 이보다 길게 잡으면 그 시각이 실제보다 신선해 보인다
@@ -386,6 +388,14 @@ resilience4j:
           - org.springframework.web.client.HttpClientErrorException.TooManyRequests
       telegram:
         baseConfig: default
+        # ⚠️ ignoreExceptions는 baseConfig의 것을 **덮어쓴다** — 이어 붙이지 않는다.
+        #    그래서 RequestNotPermitted를 여기 다시 적어야 한다(바이낸스·지오코딩과 같다).
+        # 텔레그램의 429는 200 본문에 error_code=429로 오므로 HTTP 예외가 아니다 —
+        # TelegramRateLimited로 따로 던져 여기서 뺀다. 뭉쳐 던지던 동안에는 적어도
+        # 걸러낼 수 없어, 10회 창에 5번이면 멀쩡한 발송까지 60초 막혔다.
+        ignoreExceptions:
+          - io.github.resilience4j.ratelimiter.RequestNotPermitted
+          - io.saiden.economyhelper.telegram.TelegramClient.TelegramRateLimited
       # buzz는 랭킹의 부속 신호다. 끊겨도 나머지 세 지표로 순위가 매겨지므로
       # 빨리 열고 오래 닫아 둔다.
       hackerNews:
@@ -481,8 +491,12 @@ resilience4j:
         timeoutDuration: 3s
       # 수출입은행은 하루 1,000회다 — 초 단위로는 지킬 수 없어 캐시(1h)가 실질 방어다.
       # 이 리미터는 영업일 후퇴 루프가 폭주하는 것만 막는다.
+      # ⚠️ 5는 "조회 한 번에 호출 한 번"을 가정한 값이었다. 실제로는 캐시가 빈 조회 하나가
+      #    되짚기 7 + 등락률용 되짚기 7 = 최대 14회를 태우므로, 퍼밋을 호출마다 얻게 고친
+      #    지금은 5로는 연휴에 조회가 통째로 실패한다. 최악을 덮되 하루 한도(1,000)에는
+      #    한참 못 미치는 값으로 둔다 — 1시간 캐시가 있어 실제로는 하루 24회 남짓이다.
       kexim:
-        limitForPeriod: 5
+        limitForPeriod: 20
         limitRefreshPeriod: 60s
         timeoutDuration: 3s
       # KIS는 초당 한도를 실측으로 맞았다 — 4연속 호출의 네 번째가 200 본문에 rt_cd=1

@@ -11,6 +11,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.core.Ordered;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
@@ -30,6 +31,7 @@ class ResilienceConfigTest {
     }
 
     @Autowired CircuitBreakerRegistry registry;
+    @Autowired org.springframework.context.ApplicationContext context;
     @Autowired io.github.resilience4j.ratelimiter.RateLimiterRegistry limiters;
 
     @Test
@@ -50,6 +52,53 @@ class ResilienceConfigTest {
                     .as("%s 리미터의 허용량이 기본값(50)이다 — 선언이 안 먹었다는 뜻이다", name)
                     .isLessThan(50);
         }
+    }
+
+    @Test
+    @DisplayName("캐시가 리미터·브레이커보다 바깥이다 — 히트가 퍼밋을 태우면 캐시가 아무것도 아껴 주지 않는다")
+    void cacheSitsOutsideTheResilienceAspects() {
+        // 실측 기본값: 브레이커 LOWEST_PRECEDENCE-4, 리미터 LOWEST_PRECEDENCE-3,
+        // 캐시 어드바이저는 order를 안 주면 LOWEST_PRECEDENCE다 — 값이 작을수록 바깥이라
+        // 그대로 두면 브레이커 → 리미터 → 캐시 순이 된다. 그러면 (1) KIS 초당 1건 때문에
+        // 브리핑의 조회 9회가 전부 캐시에 있어도 ~8초를 기다리고, (2) 브레이커가 열리면
+        // 캐시된 값조차 못 읽는다(accu-location 30일 캐시가 하루 50회 한도의 실질 방어인데
+        // 그게 브레이커 앞에서 무력해진다). @EnableCaching(order = ...)로 캐시를 바깥에 둔다.
+        int cacheOrder = context.getBean(
+                        org.springframework.cache.config.CacheManagementConfigUtils.CACHE_ADVISOR_BEAN_NAME,
+                        org.springframework.aop.Advisor.class) instanceof org.springframework.core.Ordered ordered
+                ? ordered.getOrder()
+                : Integer.MAX_VALUE;
+
+        assertThat(cacheOrder)
+                .as("캐시가 리미터(LOWEST_PRECEDENCE-3)보다 바깥이어야 한다")
+                .isLessThan(Ordered.LOWEST_PRECEDENCE - 3);
+        assertThat(cacheOrder)
+                .as("캐시가 브레이커(LOWEST_PRECEDENCE-4)보다도 바깥이어야 한다")
+                .isLessThan(Ordered.LOWEST_PRECEDENCE - 4);
+    }
+
+    @Test
+    @DisplayName("텔레그램 429는 브레이커를 열지 않는다 — 우리가 빨리 물은 것이지 상대 장애가 아니다")
+    void telegramRateLimitDoesNotOpenTheBreaker() {
+        // 429가 200 본문에 error_code로 오므로 HTTP 예외가 아니다. 하나의 TelegramException으로
+        // 뭉쳐 던지던 동안에는 ignoreExceptions에 적어도 걸러낼 수 없었고, 10회 창에 5번이면
+        // 멀쩡한 발송까지 60초 막혔다 — translation이 TooManyRequests를 빼 둔 것과 같은 자리다
+        CircuitBreaker breaker = registry.circuitBreaker("telegram");
+        Throwable rateLimited = new io.saiden.economyhelper.telegram.TelegramClient
+                .TelegramRateLimited("텔레그램 sendMessage 거절: 429 Too Many Requests");
+
+        long before = breaker.getMetrics().getNumberOfFailedCalls();
+        breaker.onError(0, java.util.concurrent.TimeUnit.MILLISECONDS, rateLimited);
+        assertThat(breaker.getMetrics().getNumberOfFailedCalls())
+                .as("429를 실패로 세면 우리 트래픽이 몰릴 때마다 브레이커가 열린다")
+                .isEqualTo(before);
+
+        breaker.onError(0, java.util.concurrent.TimeUnit.MILLISECONDS,
+                new io.saiden.economyhelper.telegram.TelegramClient
+                        .TelegramException("chat not found"));
+        assertThat(breaker.getMetrics().getNumberOfFailedCalls())
+                .as("그 밖의 거절은 여전히 실패다 — 설정이 틀린 것은 알려야 한다")
+                .isEqualTo(before + 1);
     }
 
     @Test

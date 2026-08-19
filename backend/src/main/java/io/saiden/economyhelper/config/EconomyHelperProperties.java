@@ -21,6 +21,12 @@ public record EconomyHelperProperties(
     /**
      * {@code market.*} 중 <b>구조가 있는 것만</b> 여기로 묶는다. 나머지(업비트·바이낸스·
      * 공공데이터포털·FMP·수출입은행의 base-url·키)는 값 하나씩이라 {@code @Value}가 그대로 읽는다.
+     *
+     * <p>⚠️ KIS의 {@code base-url}·{@code app-key}·{@code app-secret}도 여기 있었는데
+     * <b>아무도 레코드로 읽지 않았다</b> — 전부 {@code @Value}로 읽는다({@code KisHeaders}·
+     * {@code KisTokenStore}·{@code KisFxClient}·{@code KisStockApi}). 위 규칙을 스스로 어긴
+     * 자리였고, 두 경로의 결측 의미가 달라 위험하기도 했다({@code @Value}는 {@code ""},
+     * 레코드는 {@code null}). 구조가 있는 {@code us-indices}만 남긴다.
      */
     public record Market(Kis kis) {}
 
@@ -30,7 +36,7 @@ public record EconomyHelperProperties(
      *                  표에 없는 심볼을 KIS가 통째로 거절해 {@code /stock 유아이패스}가
      *                  빈손이 됐다. 목록은 "브리핑에 넣을 것", 이 표는 "KIS가 아는 이름"이다
      */
-    public record Kis(String baseUrl, String appKey, String appSecret, List<KisIndex> usIndices) {}
+    public record Kis(List<KisIndex> usIndices) {}
 
     /**
      * 지수 하나의 KIS 심볼.
@@ -115,8 +121,11 @@ public record EconomyHelperProperties(
      *
      * <p>값을 주지 않으면 Redis 캐시는 <b>만료 없이</b> 저장한다 — 피드가 영구 캐시되면
      * 오전 9시와 오후 9시 발송이 같은 기사로 나간다. 그래서 캐시마다 명시한다.
-     */
-    /**
+     *
+     * <p>⚠️ 이 블록은 예전에 <b>둘로 나뉘어 있었고 앞의 것이 버려졌다.</b> javadoc을 연달아
+     * 두면 마지막 것만 붙는데, 하필 버려지는 쪽에 위 경고가 적혀 있었다 —
+     * {@code TelegramWebhookController}가 스스로 적어 둔 그 함정에 이 파일이 걸려 있었다.
+     *
      * @param query 한국어 검색어 → 영어 표현 대응. 이건 낡지 않으므로 길게 잡는다
      */
     public record CacheTtl(Duration feed, Duration translation, Duration buzz, Duration query,
@@ -135,8 +144,10 @@ public record EconomyHelperProperties(
      * 지명 검색이 죽어도 아침 알람은 나간다. 브리핑이 종목코드를 박아 LLM을 안 타는 것과
      * 같은 구조다.
      *
-     * @param cron 발송 창. 슬롯(KST 날짜)이 하루 한 번을 보장하므로 창 안에서 몇 번을 돌아도
-     *             한 번만 나간다 — "정확히 6시에 깨어 있어야 한다"는 요구가 사라진다
+     * <p><b>{@code cron}은 담지 않는다.</b> yml 키는 살아 있지만 {@code @Scheduled}의 SpEL
+     * 문자열이 직접 읽으므로({@code "${economy-helper.weather.cron}"}) 자바 쪽에서 꺼내는
+     * 곳이 없다 — {@code Digest}와 같다. 예전에는 여기 {@code @param cron}이 적혀 있었는데
+     * 레코드에 없는 성분이라 아무것도 설명하지 않았다.
      */
     public record Weather(String zone, List<WeatherLocation> locations) {}
 

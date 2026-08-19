@@ -127,6 +127,20 @@ class HackerNewsBuzzClientTest {
         }
 
         @Test
+        @DisplayName("링크가 목적지를 감추는 매체는 조회하지 않는다 — AP는 맞힐 수가 없다")
+        void skipsSourcesWhoseLinksHideTheDestination() {
+            // AP의 구글 뉴스 프록시 주소는 HN에 올라간 실제 AP 주소와 절대 같아지지 않는다.
+            // 예전에는 news.google.com을 도메인으로 물어 브리핑마다 헛호출을 한 번 태웠다
+            Article ap = new Article(NewsSource.AP, "제목", null,
+                    "https://news.google.com/rss/articles/CBMiK2h0dHBz", NOW, 0);
+            CountingApi api = new CountingApi(Map.of());
+            HackerNewsBuzzClient client = new HackerNewsBuzzClient(api, Duration.ofDays(7));
+
+            assertThat(client.buzzByLink(List.of(ap), NOW)).isEmpty();
+            assertThat(api.calls).as("맞힐 수 없는 조회는 아예 나가지 않는다").isZero();
+        }
+
+        @Test
         @DisplayName("HN이 죽어 빈 맵을 줘도 조용히 넘어간다 — 랭킹은 나머지 지표로 계속된다")
         void survivesHackerNewsOutage() {
             HackerNewsBuzzClient client =
@@ -150,8 +164,15 @@ class HackerNewsBuzzClientTest {
         return new SearchResponse(Arrays.asList(hits));
     }
 
+    /**
+     * 링크가 목적지를 가리키는 매체로 만든다.
+     *
+     * <p>⚠️ 예전에는 {@link NewsSource#AP}였다. AP는 구글 뉴스 프록시라 링크가 목적지를
+     * 감추고, 그래서 지금은 조회에서 아예 빠진다 — 그 매체로 만든 픽스처는 "HN 조회가
+     * 어떻게 도는가"를 볼 수 없다. 임의로 고른 값이 규칙이 생기자 틀린 값이 된 자리다.
+     */
     private static Article article(String link) {
-        return new Article(NewsSource.AP, "제목", null, link, NOW, 0);
+        return new Article(NewsSource.CNBC, "제목", null, link, NOW, 0);
     }
 
     /** 호출 횟수를 세는 스텁 — 도메인당 한 번만 부르는지 확인하려고 둔다. */

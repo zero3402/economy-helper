@@ -151,7 +151,19 @@ class KisFxClientTest {
 
         assertThatThrownBy(() -> client.usdToKrw())
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("현재가");
+                .hasMessageContaining("값이 없습니다");
+    }
+
+    @Test
+    @DisplayName("현재가가 0이면 던진다 — 같은 스키마에서 KIS는 틀린 심볼에 0.00을 준다")
+    void refusesZeroAsAnExchangeRate() {
+        // 틀린 심볼은 에러가 아니라 값 0으로 온다(실측 DJI·DJIA). 환율 0은 화면의
+        // 모든 원화 환산을 오염시키므로 null과 똑같이 다뤄야 한다
+        stub("{\"rt_cd\":\"0\",\"output1\":{\"ovrs_nmix_prpr\":\"0.0000\",\"prdy_ctrt\":\"0.00\"}}");
+
+        assertThatThrownBy(() -> client.usdToKrw())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("값이 없습니다");
     }
 
     @Test

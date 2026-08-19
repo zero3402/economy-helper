@@ -37,4 +37,19 @@ final class Html {
                 .replace("<", "&lt;")
                 .replace(">", "&gt;");
     }
+
+    /**
+     * <b>속성값</b>에 넣을 문자열 — {@code href="…"} 안쪽이다.
+     *
+     * <p>{@link #escape}로는 부족하다. 세 글자만 바꾸면 되는 것은 <b>본문</b>일 때이고,
+     * 속성값에서는 따옴표 하나가 그 자리에서 속성을 닫아 버린다 — 텔레그램은 그걸
+     * {@code can't parse entities}로 거절하므로 그 기사 통이 통째로 안 나간다.
+     *
+     * <p>지금은 상류가 막고 있다({@code NewsSource.owns()}의 {@code URI.create}가 그런 링크를
+     * 걸러낸다). 그 가드에 기대지 않는 이유는, 링크가 다른 길로 들어오는 날 <b>조용히</b>
+     * 실패하기 때문이다.
+     */
+    static String escapeAttribute(String value) {
+        return escape(value).replace("\"", "&quot;");
+    }
 }

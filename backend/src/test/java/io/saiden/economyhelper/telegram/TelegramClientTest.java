@@ -200,6 +200,41 @@ class TelegramClientTest {
                 .isLessThan(truncated.lastIndexOf('>'));
     }
 
+    @Test
+    @DisplayName("태그가 열린 채 잘려도 4,096자를 넘지 않는다 — 넘기면 텔레그램이 통째로 거절한다")
+    void neverExceedsTheLimitEvenAfterClosingTags() {
+        // 뉴스 통의 실제 모양이다. 예전에는 4,095자로 자르고 "…"를 붙여 예산을 다 쓴 뒤
+        // 닫는 태그를 더 붙여 4,117자가 나갔고, 400으로 통째로 유실됐다 — 잘라 보내기가
+        // 존재하는 이유("전부 실패하는 것보다 일부라도")를 그 함수가 스스로 깨뜨렸다
+        String newsShaped = "<a href=\"https://example.com/a\"><b>제목</b></a>\n\n<blockquote>"
+                + "가".repeat(5000);
+
+        String truncated = TelegramClient.truncate(newsShaped);
+
+        assertThat(truncated.length()).isLessThanOrEqualTo(4096);
+        assertThat(truncated).endsWith("</blockquote>");
+    }
+
+    @Test
+    @DisplayName("서로게이트 쌍을 쪼개지 않는다 — 등락률 이모지가 보조 평면 문자다")
+    void neverSplitsASurrogatePair() {
+        // 🔴(U+1F534)가 자를 경계에 놓이게 만든다. 쪼개면 깨진 문자가 나간다
+        String body = "가".repeat(4094) + "🔴" + "나".repeat(100);
+
+        String truncated = TelegramClient.truncate(body);
+
+        assertThat(truncated.length()).isLessThanOrEqualTo(4096);
+        // 고아 서로게이트가 하나도 남지 않았는가 — 쌍을 이루지 못한 하이 서로게이트를 찾는다
+        boolean orphan = false;
+        for (int i = 0; i < truncated.length(); i++) {
+            if (Character.isHighSurrogate(truncated.charAt(i))
+                    && (i + 1 >= truncated.length() || !Character.isLowSurrogate(truncated.charAt(i + 1)))) {
+                orphan = true;
+            }
+        }
+        assertThat(orphan).as("고아 서로게이트가 남으면 깨진 문자가 나간다").isFalse();
+    }
+
     private static int count(String text, String needle) {
         int n = 0;
         for (int i = text.indexOf(needle); i >= 0; i = text.indexOf(needle, i + needle.length())) {

@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market;
 
+import io.saiden.economyhelper.support.Failover;
 import java.util.List;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -44,9 +45,7 @@ public class FxService {
     private final List<FxRateClient> clients;
 
     public FxService(List<FxRateClient> clients) {
-        this.clients = ORDER.stream()
-                .flatMap(source -> clients.stream().filter(client -> client.source() == source))
-                .toList();
+        this.clients = Failover.order(clients, ORDER, FxRateClient::source);
     }
 
     /**
@@ -54,17 +53,14 @@ public class FxService {
      *         사용자에게는 "가져오지 못했다"로 나간다
      */
     public Optional<FxRate> usdToKrw() {
-        for (FxRateClient client : clients) {
-            try {
-                return Optional.of(client.usdToKrw());
-            } catch (RuntimeException e) {
+        Optional<FxRate> found = Failover.first(clients, FxRateClient::usdToKrw,
                 // 다음 출처가 있으면 조용히 넘어간다. 이게 이중화가 하는 일이다
-                log.warn("[fx] {} 조회 실패 — 다음 출처로 넘어갑니다: {}",
-                        client.source().displayName(), e.toString());
-            }
+                (client, e) -> log.warn("[fx] {} 조회 실패 — 다음 출처로 넘어갑니다: {}",
+                        client.source().displayName(), e.toString()));
+        if (found.isEmpty()) {
+            log.error("[fx] 모든 출처에서 환율을 가져오지 못했습니다");
         }
-        log.error("[fx] 모든 출처에서 환율을 가져오지 못했습니다");
-        return Optional.empty();
+        return found;
     }
 
     /**

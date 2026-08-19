@@ -20,7 +20,7 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-class MessageFormatterTest {
+class MessageFormattingTest {
 
     private static final Instant NOW = Instant.parse("2026-08-11T00:00:00Z");
     /** 공공데이터포털은 전일 종가를 준다 — 브리핑에 찍히는 날짜가 이것이다. */
@@ -37,7 +37,7 @@ class MessageFormatterTest {
     @Test
     @DisplayName("제목 / 값 / 출처 / 시각 — 다른 통과 같은 순서, 시각은 맨 밑 단독")
     void followsTheSameSkeletonAsEveryOtherSection() {
-        assertThat(MessageFormatter.formatNews(List.of(item("유가 상승", "인플레이션 우려.", true))))
+        assertThat(NewsFormatter.formatAll(List.of(item("유가 상승", "인플레이션 우려.", true))))
                 .singleElement().asString().isEqualTo("""
                         <b>뉴스</b>
 
@@ -53,7 +53,7 @@ class MessageFormatterTest {
     @Test
     @DisplayName("번역 실패 시 왜 영문인지 알린다 — 안 그러면 고장으로 보인다")
     void explainsUntranslatedOutput() {
-        String message = MessageFormatter.format(item("Oil holds advance", "Oil kept its gains.", false));
+        String message = NewsFormatter.format(item("Oil holds advance", "Oil kept its gains.", false));
 
         assertThat(message).contains("번역이 일시적으로 불가");
     }
@@ -61,7 +61,7 @@ class MessageFormatterTest {
     @Test
     @DisplayName("출처에 든 TLD를 끊는다 — 안 그러면 텔레그램이 매체 홈페이지 링크를 스스로 만든다")
     void keepsTelegramFromLinkifyingTheSourceName() {
-        String message = MessageFormatter.format(new NewsItem(
+        String message = NewsFormatter.format(new NewsItem(
                 "Investing.com", "버거 시장", "", "https://www.investing.com/news/a", NOW, true));
 
         assertThat(message)
@@ -76,14 +76,14 @@ class MessageFormatterTest {
     @Test
     @DisplayName("TLD가 없는 매체 이름은 손대지 않는다")
     void leavesPlainSourceNamesAlone() {
-        assertThat(MessageFormatter.format(item("Fed signals cut", "", true)))
+        assertThat(NewsFormatter.format(item("Fed signals cut", "", true)))
                 .contains("\n\nCNBC\n\n").doesNotContain("⁠");
     }
 
     @Test
     @DisplayName("요약문이 없는 기사(AP)는 본문 자리를 비워 둔다")
     void handlesEmptyBody() {
-        String message = MessageFormatter.format(item("Fed signals cut", "", true));
+        String message = NewsFormatter.format(item("Fed signals cut", "", true));
 
         assertThat(message).contains("Fed signals cut").doesNotContain("\n\n\n");
     }
@@ -93,7 +93,7 @@ class MessageFormatterTest {
     @Test
     @DisplayName("여러 건은 기사마다 통을 쪼갠다 — 묶으면 첫 기사 카드가 마지막 기사 것처럼 보인다")
     void splitsEachArticleIntoItsOwnMessage() {
-        List<String> messages = MessageFormatter.formatNews(List.of(
+        List<String> messages = NewsFormatter.formatAll(List.of(
                 item("첫 번째", "본문1", true),
                 item("두 번째", "본문2", true),
                 item("세 번째", "본문3", true)));
@@ -112,7 +112,7 @@ class MessageFormatterTest {
     @Test
     @DisplayName("한 건뿐이면 외로운 1/1을 붙이지 않는다")
     void doesNotNumberASingleArticle() {
-        List<String> messages = MessageFormatter.formatNews(List.of(item("유일한 기사", "본문", true)));
+        List<String> messages = NewsFormatter.formatAll(List.of(item("유일한 기사", "본문", true)));
 
         assertThat(messages).hasSize(1);
         assertThat(messages.get(0)).startsWith("<b>뉴스</b>\n\n").doesNotContain("1/1");
@@ -121,30 +121,30 @@ class MessageFormatterTest {
     @Test
     @DisplayName("수집 결과가 하나도 없으면 그 사실을 알린다")
     void tellsUserWhenDigestIsEmpty() {
-        assertThat(MessageFormatter.formatNews(List.of()))
+        assertThat(NewsFormatter.formatAll(List.of()))
                 .singleElement().asString().contains("가져올 수 있는 값이 없습니다");
     }
 
     @Test
     @DisplayName("검색 결과가 없을 때와 검색어가 빠졌을 때를 구분해 안내한다")
     void distinguishesNoResultsFromMissingQuery() {
-        assertThat(MessageFormatter.noResults("금리", java.time.Duration.ofHours(24)))
+        assertThat(NewsFormatter.noResults("금리", java.time.Duration.ofHours(24)))
                 .contains("금리").contains("찾지 못했습니다")
                 .as("왜 없는지 밝히지 않으면 봇 고장으로 읽힌다")
                 .contains("최근 24시간");
-        assertThat(MessageFormatter.usage(Command.NEWS)).contains("/news 금리");
+        assertThat(HelpFormatter.usage(Command.NEWS)).contains("/news 금리");
         // 명령마다 예시가 달라야 한다 — 하나로 고정하면 /stock에 /news 예시가 뜬다
-        assertThat(MessageFormatter.usage(Command.STOCK)).contains("/stock 삼성전자");
+        assertThat(HelpFormatter.usage(Command.STOCK)).contains("/stock 삼성전자");
         // 실패·안내 답도 성공 답과 같은 제목을 인다. 그룹 채팅에서 맨몸 문장 하나만
         // 튀어나오면 무엇에 대한 답인지 알 수 없다
-        assertThat(MessageFormatter.usage(Command.STOCK)).startsWith("<b>증시</b>\n\n");
-        assertThat(MessageFormatter.usage(Command.NEWS)).startsWith("<b>뉴스</b>\n\n");
+        assertThat(HelpFormatter.usage(Command.STOCK)).startsWith("<b>증시</b>\n\n");
+        assertThat(HelpFormatter.usage(Command.NEWS)).startsWith("<b>뉴스</b>\n\n");
     }
 
     @Test
     @DisplayName("도움말은 모든 명령을 빠짐없이 싣는다")
     void helpListsEveryCommand() {
-        String help = MessageFormatter.help();
+        String help = HelpFormatter.help();
         for (Command command : Command.values()) {
             assertThat(help).contains(command.example());
         }
@@ -153,7 +153,7 @@ class MessageFormatterTest {
     @Test
     @DisplayName("도움말의 설명은 그 명령의 답 제목과 같은 말이다 — /stock을 '주식'이라 부르던 때가 있었다")
     void helpDescribesEachCommandWithItsOwnSectionName() {
-        String help = MessageFormatter.help();
+        String help = HelpFormatter.help();
         for (Command command : Command.values()) {
             if (command == Command.HELP) {
                 continue;   // 그 제목은 이 목록 자체의 제목이라 목록 안에서 같은 말을 두 번 하게 된다
@@ -169,7 +169,7 @@ class MessageFormatterTest {
     @Test
     @DisplayName("모르는 명령에는 도움말을 함께 준다 — 무엇을 칠 수 있는지 알려주지 않으면 고장으로 보인다")
     void unknownCommandIncludesHelp() {
-        assertThat(MessageFormatter.unknownCommand())
+        assertThat(HelpFormatter.unknownCommand())
                 .startsWith("<b>모르는 명령</b>\n\n")
                 .contains("/news")
                 .as("도움말 제목까지 딸려 오면 굵은 제목이 둘 연달아 찍힌다")
@@ -181,17 +181,17 @@ class MessageFormatterTest {
     void everyFailureReplyCarriesItsSectionTitle() {
         // 못 찾음 답도 제목에 검색어를 싣는다 — 답글 인용이 접히면 통 제목만 남는데,
         // 어느 검색이 실패했는지 알아야 할 때 정확히 그 단서가 없었다
-        assertThat(MessageFormatter.noResults("금리", java.time.Duration.ofHours(24)))
+        assertThat(NewsFormatter.noResults("금리", java.time.Duration.ofHours(24)))
                 .startsWith("<b>뉴스</b>\n\n");
-        assertThat(MessageFormatter.fxUnavailable()).startsWith("<b>환율</b>\n\n");
+        assertThat(FxFormatter.unavailable()).startsWith("<b>환율</b>\n\n");
         // 제목은 맨몸이다 — 답글 인용이 원 명령을 이미 보여 준다. 검색어는 본문에 남는다
-        assertThat(MessageFormatter.stockNotFound("없는종목"))
+        assertThat(StockFormatter.notFound("없는종목"))
                 .startsWith("<b>증시</b>\n\n").contains("'없는종목'");
-        assertThat(MessageFormatter.cryptoNotFound("없는코인"))
+        assertThat(CryptoFormatter.notFound("없는코인"))
                 .startsWith("<b>코인</b>\n\n").contains("'없는코인'");
-        assertThat(MessageFormatter.weatherNotFound("없는지역"))
+        assertThat(WeatherFormatter.notFound("없는지역"))
                 .startsWith("<b>날씨</b>\n\n").contains("'없는지역'");
-        assertThat(MessageFormatter.help()).startsWith("<b>사용할 수 있는 명령</b>");
+        assertThat(HelpFormatter.help()).startsWith("<b>사용할 수 있는 명령</b>");
     }
 
     // --- 등락률 -------------------------------------------------------------
@@ -234,10 +234,10 @@ class MessageFormatterTest {
         FxRate rate = new FxRate("USD", "KRW", new BigDecimal("1414.90"),
                 new BigDecimal("-0.01"), FxSource.KEXIM, BASIS);
 
-        assertThat(MessageFormatter.formatFx(rate)).isEqualTo("""
+        assertThat(FxFormatter.format(rate)).isEqualTo("""
                 <b>환율</b>
 
-                1 USD = 1,414.9 KRW
+                1 USD = 1,414.90 KRW
                 🔵 -0.01%
 
                 수출입은행 매매기준율
@@ -250,7 +250,7 @@ class MessageFormatterTest {
     void leavesNoBlankLineWhereTheChangeWouldBe() {
         FxRate rate = new FxRate("USD", "KRW", new BigDecimal("1414.90"), FxSource.KEXIM, BASIS);
 
-        assertThat(MessageFormatter.formatFx(rate))
+        assertThat(FxFormatter.format(rate))
                 .as("덩어리 사이는 빈 줄 하나다 — 두 줄이면 자리가 비어 보인다")
                 .doesNotContain("\n\n\n");
     }
@@ -260,7 +260,7 @@ class MessageFormatterTest {
     @Test
     @DisplayName("국내와 미국을 무리로 갈라 각각 조회처와 기준을 밝힌다")
     void stockSeparatesByFreshness() {
-        String message = MessageFormatter.formatStock(List.of(
+        String message = StockFormatter.format(List.of(
                 krIndex("코스피", "6345.53"),
                 krStock("삼성전자", "239500"),
                 usIndex("나스닥", "26588.49"),
@@ -302,7 +302,7 @@ class MessageFormatterTest {
     @Test
     @DisplayName("한국투자증권이 답하면 국내도 시각까지 찍힌다 — 이게 평상시 아침 브리핑이다")
     void domesticRealtimeStampsTheTimeNotAClosingDate() {
-        String message = MessageFormatter.formatStock(List.of(
+        String message = StockFormatter.format(List.of(
                 kis("코스피", "6869.83", StockQuote.Money.NONE, StockQuote.Market.DOMESTIC),
                 kis("삼성전자", "268500", StockQuote.Money.KRW, StockQuote.Market.DOMESTIC),
                 kis("나스닥", "26644.91", StockQuote.Money.NONE, StockQuote.Market.US),
@@ -342,7 +342,7 @@ class MessageFormatterTest {
     @Test
     @DisplayName("검색 답도 브리핑과 같은 함수를 쓴다 — 종목이 하나뿐인 통일 뿐이다")
     void singleStockLooksExactlyLikeItsDigestBlock() {
-        String single = MessageFormatter.formatStock(List.of(usStock("애플", "302.25")), FX);
+        String single = StockFormatter.format(List.of(usStock("애플", "302.25")), FX);
 
         assertThat(single).isEqualTo("""
                 <b>증시</b>
@@ -363,7 +363,7 @@ class MessageFormatterTest {
     @Test
     @DisplayName("한쪽만 있으면 그 무리만 나온다 — 없는 무리 자리에 제목을 남기지 않는다")
     void stockOmitsEmptyGroup() {
-        assertThat(MessageFormatter.formatStock(List.of(krStock("삼성전자", "239500")), FX))
+        assertThat(StockFormatter.format(List.of(krStock("삼성전자", "239500")), FX))
                 .isEqualTo("""
                         <b>증시</b>
 
@@ -380,14 +380,14 @@ class MessageFormatterTest {
     @Test
     @DisplayName("지수에는 원화 환산을 붙이지 않는다 — 지수는 통화가 아니다")
     void stockNeverConvertsIndices() {
-        assertThat(MessageFormatter.formatStock(List.of(usIndex("나스닥", "26588.49")), FX))
+        assertThat(StockFormatter.format(List.of(usIndex("나스닥", "26588.49")), FX))
                 .contains("26,588.49").doesNotContain("KRW");
     }
 
     @Test
     @DisplayName("환율이 없으면 달러만 보낸다 — 환산을 못 한다고 시세를 빼면 안 된다")
     void stockFallsBackToUsdWithoutFx() {
-        assertThat(MessageFormatter.formatStock(List.of(usStock("애플", "302.25")), null))
+        assertThat(StockFormatter.format(List.of(usStock("애플", "302.25")), null))
                 .contains("302.25 USD").doesNotContain("KRW").doesNotContain("1 USD =");
     }
 
@@ -398,7 +398,7 @@ class MessageFormatterTest {
                 StockQuote.Money.NONE, StockQuote.Market.DOMESTIC, StockSource.DATA_GO,
                 BASIS.minus(java.time.Duration.ofDays(1)), false);
 
-        assertThat(MessageFormatter.formatStock(List.of(krIndex("코스피", "6345.53"), stale), FX))
+        assertThat(StockFormatter.format(List.of(krIndex("코스피", "6345.53"), stale), FX))
                 .as("무리 기준은 그 무리 끝에 단독으로 — 모든 통이 같은 순서다")
                 .endsWith("금융위원회\n\n2026년 8월 11일(화) (종가)")
                 .as("무리 기준이 대표하지 못하는 줄에만 날짜를 붙인다")
@@ -413,7 +413,7 @@ class MessageFormatterTest {
         // 미국 무리는 심볼마다 제 FMP 체결 초를 들고 온다 — 넷이 같은 초일 리가 없다.
         // 예전에는 Instant를 그대로 비교해 가장 최근 것 하나만 빼고 전부 날짜가 붙었고,
         // 그 날짜는 맨 밑 기준 줄과 같은 날짜라 알려 주는 것이 없었다.
-        String message = MessageFormatter.formatStock(List.of(
+        String message = StockFormatter.format(List.of(
                 usAt(usIndex("나스닥", "26588.49"), US_AT),
                 usAt(usIndex("S&P 500", "6721.10"), US_AT.minusSeconds(37)),
                 usAt(usStock("엔비디아", "184.10"), US_AT.minusSeconds(12)),
@@ -436,7 +436,7 @@ class MessageFormatterTest {
                 null, StockQuote.Money.KRW, StockQuote.Market.DOMESTIC,
                 StockSource.FMP, BASIS, false);
 
-        assertThat(MessageFormatter.formatStock(List.of(krStock("코스피", "6345.53"), second), FX))
+        assertThat(StockFormatter.format(List.of(krStock("코스피", "6345.53"), second), FX))
                 .as("출처는 여럿이어도 블록 하나다 — 사이를 빈 줄로 벌리지 않는다")
                 .contains("금융위원회\nFinancial Modeling Prep\n\n2026년")
                 .as("한 줄에 잇지 않는다")
@@ -454,7 +454,7 @@ class MessageFormatterTest {
                 StockQuote.Money.NONE, StockQuote.Market.DOMESTIC, StockSource.KIS,
                 BASIS.plus(java.time.Duration.ofHours(9)), true);
 
-        String message = MessageFormatter.formatStock(List.of(live, krStock("삼성전자", "239500")), FX);
+        String message = StockFormatter.format(List.of(live, krStock("삼성전자", "239500")), FX);
 
         assertThat(message)
                 .as("성격마다 한 줄 — 실시간이 위다. 출처를 쌓는 것과 같은 규칙이다")
@@ -470,7 +470,7 @@ class MessageFormatterTest {
     @Test
     @DisplayName("한 지역짜리 답이 알람 통의 그 지역 블록과 글자 그대로 같다 — 포매터가 갈리면 안 된다")
     void singleWeatherLooksExactlyLikeItsDigestBlock() {
-        assertThat(MessageFormatter.formatWeather(List.of(migeum()))).isEqualTo("""
+        assertThat(WeatherFormatter.format(List.of(migeum()))).isEqualTo("""
                 <b>날씨</b>
 
                 <b>미금역</b>
@@ -487,7 +487,7 @@ class MessageFormatterTest {
     @Test
     @DisplayName("알람은 지역마다 블록 하나 — 출처와 기준은 통 하나처럼 맨 아래에서 끝맺는다")
     void weatherAlarmStacksOneBlockPerPlace() {
-        String message = MessageFormatter.formatWeather(List.of(migeum(), seohyeon()));
+        String message = WeatherFormatter.format(List.of(migeum(), seohyeon()));
 
         assertThat(message)
                 .startsWith("<b>날씨</b>\n\n<b>미금역</b>")
@@ -500,7 +500,7 @@ class MessageFormatterTest {
     @Test
     @DisplayName("여러 날은 하루가 블록 하나다 — 요일을 붙여야 '이번 주말'을 찾을 수 있다")
     void weatherSearchStacksOneBlockPerDay() {
-        String message = MessageFormatter.formatWeather(List.of(seongnamWeek()));
+        String message = WeatherFormatter.format(List.of(seongnamWeek()));
 
         assertThat(message)
                 .startsWith("<b>날씨</b>")
@@ -514,7 +514,7 @@ class MessageFormatterTest {
     @Test
     @DisplayName("출처가 갈리면 하단에 한 줄씩 내려 적는다 — 출처는 여럿이어도 블록 하나다")
     void stacksEveryDivergedSourceAtTheBottom() {
-        String mixed = MessageFormatter.formatWeather(List.of(migeum(), openMeteoFallback()));
+        String mixed = WeatherFormatter.format(List.of(migeum(), openMeteoFallback()));
 
         assertThat(mixed)
                 .as("지역 블록에는 출처가 붙지 않는다 — 넷 중 하나가 폴백했다고 이름을 다섯 번 적지 않는다")
@@ -524,11 +524,11 @@ class MessageFormatterTest {
                 .as("빈 줄이 겹치지 않는다")
                 .doesNotContain("\n\n\n");
 
-        assertThat(MessageFormatter.formatWeather(List.of(openMeteoFallback(), seohyeon())))
+        assertThat(WeatherFormatter.format(List.of(openMeteoFallback(), seohyeon())))
                 .as("첫 지역이 폴백해도 1순위가 위다 — 등장 순이 아니라 이중화 순서로 적는다")
                 .endsWith("AccuWeather\nOpen-Meteo\n\n2026년 8월 17일(월) (예보)");
 
-        assertThat(MessageFormatter.formatWeather(List.of(migeum(), seohyeon())))
+        assertThat(WeatherFormatter.format(List.of(migeum(), seohyeon())))
                 .as("갈리지 않으면 평상시 화면 그대로다 — 지역 블록에 출처가 붙지 않는다")
                 .contains("강수확률 20%\n\n<b>서현역</b>")
                 .endsWith("AccuWeather\n\n2026년 8월 17일(월) (예보)");
@@ -537,7 +537,7 @@ class MessageFormatterTest {
     @Test
     @DisplayName("폴백이면 강수량으로 적는다 — 강수량을 확률이라 부르지 않는다")
     void weatherNamesWhateverTheSourceActuallyGave() {
-        String message = MessageFormatter.formatWeather(List.of(openMeteoFallback()));
+        String message = WeatherFormatter.format(List.of(openMeteoFallback()));
 
         assertThat(message)
                 .contains("강수량 2.4mm").doesNotContain("강수확률")
@@ -548,7 +548,7 @@ class MessageFormatterTest {
     @Test
     @DisplayName("지나간 날은 (실측)이다 — 예보가 아니었던 값을 예보라 적으면 거짓말이 된다")
     void pastWeatherIsMarkedAsMeasured() {
-        assertThat(MessageFormatter.formatWeather(List.of(archived())))
+        assertThat(WeatherFormatter.format(List.of(archived())))
                 .endsWith("Open-Meteo Archive\n\n2025년 8월 19일(화) (실측)");
     }
 
@@ -560,7 +560,7 @@ class MessageFormatterTest {
                         new BigDecimal("18.2"), new BigDecimal("29.6"), 20)),
                 WeatherSource.ACCU_WEATHER);
 
-        assertThat(MessageFormatter.formatWeather(List.of(unknown)))
+        assertThat(WeatherFormatter.format(List.of(unknown)))
                 .contains("<b>미금역</b>\n\n18.2°C / 29.6°C");
     }
 
@@ -717,7 +717,7 @@ class MessageFormatterTest {
                 .as("한글 이름을 확인할 곳이 없어 티커가 그대로 담긴다 — 그대로 두면 'BNB BNB'가 된다")
                 .doesNotContain("BNB</b> BNB")
                 .contains("업비트 미상장")
-                .contains("바이낸스\n612.4 USDT")
+                .contains("바이낸스\n612.40 USDT")
                 .as("BNBUSDT는 티커에 USDT를 붙인 것뿐이라 같은 말을 두 번 적는 셈이다")
                 .doesNotContain("BNBUSDT");
     }
@@ -746,7 +746,7 @@ class MessageFormatterTest {
     @Test
     @DisplayName("블록 사이는 전부 빈 줄이고 코인 경계는 굵은 티커가 진다")
     void separatesEveryBlockWithABlankLine() {
-        String message = MessageFormatter.formatCrypto(
+        String message = CryptoFormatter.format(
                 List.of(btc(new BigDecimal("62000")), usdt()), FX_FLAT);
 
         assertThat(message)
@@ -761,7 +761,7 @@ class MessageFormatterTest {
     @Test
     @DisplayName("값이 없는 코인도 빼지 않는다 — 진짜 장애면 알려야 한다")
     void keepsCoinWithNoPrice() {
-        String message = MessageFormatter.formatCrypto(
+        String message = CryptoFormatter.format(
                 List.of(btc(new BigDecimal("62000")),
                         new CryptoQuote("이더리움", "KRW-ETH", NOW, Quote.FAILED, Quote.FAILED)),
                 FX_FLAT);
@@ -774,11 +774,11 @@ class MessageFormatterTest {
     // --- 헬퍼 ---------------------------------------------------------------
 
     private static String stock(StockQuote quote) {
-        return MessageFormatter.formatStock(List.of(quote), null);
+        return StockFormatter.format(List.of(quote), null);
     }
 
     private static String crypto(CryptoQuote quote, FxRate fx) {
-        return MessageFormatter.formatCrypto(List.of(quote), fx);
+        return CryptoFormatter.format(List.of(quote), fx);
     }
 
     private static StockQuote krIndex(String name, String price) {

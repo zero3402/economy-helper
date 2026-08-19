@@ -58,6 +58,13 @@ public final class Concurrently {
             if (cause instanceof RuntimeException runtime) {
                 throw runtime;
             }
+            // ⚠️ Error는 감싸지 않고 그대로 올린다. RuntimeException으로 바꿔 던지면
+            //    폴백 루프들(FxService·StockService·WeatherService)이 RuntimeException을
+            //    삼키도록 돼 있어 OutOfMemoryError가 "이 출처 실패, 다음으로"가 된다 —
+            //    이중화로 감쌀 문제가 아니고, 감싸면 진짜 원인이 로그에서 사라진다
+            if (cause instanceof Error error) {
+                throw error;
+            }
             throw new IllegalStateException(cause);
         }
     }

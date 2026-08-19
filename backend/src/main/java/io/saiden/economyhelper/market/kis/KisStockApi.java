@@ -11,6 +11,7 @@ import io.saiden.economyhelper.config.EconomyHelperProperties.KisIndex;
 import io.saiden.economyhelper.config.EconomyHelperProperties.UsSymbol;
 import io.saiden.economyhelper.market.DomesticStockClient;
 import io.saiden.economyhelper.market.PercentChange;
+import io.saiden.economyhelper.market.Price;
 import io.saiden.economyhelper.market.StockQuote;
 import io.saiden.economyhelper.market.StockSource;
 import io.saiden.economyhelper.market.UsStockClient;
@@ -243,13 +244,24 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
     private StockQuote usStock(UsSymbol symbol) {
         String what = "미국 종목 " + symbol.symbol();
         for (String exchange : exchangesToTry(symbol.symbol())) {
-            UsStock.Quote quote = request(UsStock.class, US_STOCK_TR, what,
-                    uri -> uri.path(US_STOCK_PATH)
-                            // AUTH는 빈 값으로 보낸다. 없으면 안 되고 값도 안 받는다
-                            .queryParam("AUTH", "")
-                            .queryParam("EXCD", exchange)
-                            .queryParam("SYMB", symbol.symbol())
-                            .build()).output();
+            UsStock.Quote quote;
+            try {
+                quote = request(UsStock.class, US_STOCK_TR, what,
+                        uri -> uri.path(US_STOCK_PATH)
+                                // AUTH는 빈 값으로 보낸다. 없으면 안 되고 값도 안 받는다
+                                .queryParam("AUTH", "")
+                                .queryParam("EXCD", exchange)
+                                .queryParam("SYMB", symbol.symbol())
+                                .build()).output();
+            } catch (RuntimeException e) {
+                // ⚠️ 빈 응답만 넘어가면 부족하다. request()는 rt_cd=1(초당 거래건수 초과)에
+                //    던지는데, 이 앱키는 초당 1건이라 그게 예외가 아니라 흔한 경로다 —
+                //    NAS를 물을 때 스로틀에 걸리면 NYS는 시도조차 못 하고 종목이 빈손이 됐다.
+                //    거래소마다 따로 실패하고 전부 실패했을 때만 던진다(StockService.first와 같다)
+                log.warn("[stock] {} — {} 조회 실패, 다음 거래소로 넘어갑니다: {}",
+                        what, exchange, e.toString());
+                continue;
+            }
             if (quote == null || !positive(quote.price())) {
                 continue;
             }
@@ -311,20 +323,18 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
         return response;
     }
 
-    /** {@code rt_cd}가 0인데 값이 비어 오는 경우 — 없는 종목코드가 그렇다. */
+    /**
+     * {@code rt_cd}가 0인데 값이 비어 오는 경우 — 없는 종목코드가 그렇다.
+     *
+     * <p>판단은 {@link Price}가 한다. 이 가드는 여기서 실측으로 만들어졌지만 같은 함정이
+     * 형제 셋에도 있어서 공용으로 뽑았다 — 넷으로 갈려 있으면 하나만 고쳐지는 날이 온다.
+     */
     private static void require(BigDecimal price, String what) {
-        if (!positive(price)) {
-            throw new IllegalStateException("KIS " + what + " 응답에 현재가가 없습니다");
-        }
+        Price.require(price, "KIS " + what);
     }
 
-    /**
-     * <b>{@code 0}은 값이 아니다.</b> 지수 심볼이 틀리면 에러가 아니라 {@code 0.00}이 온다
-     * (실측: {@code DJI}·{@code DJIA}). {@code null}만 보던 동안에는 <b>화면에 지수 0이 찍히고</b>
-     * 폴백도 일어나지 않았다.
-     */
     private static boolean positive(BigDecimal price) {
-        return price != null && price.signum() > 0;
+        return Price.positive(price);
     }
 
     /**

@@ -103,7 +103,8 @@ public class UpbitApi {
      *                          거래대금이 47배 차이라 이걸로 갈리면 LLM을 부를 필요가 없다
      * @param signedChangeRate  전일 종가 대비 등락률. <b>%가 아니라 비율이다</b> —
      *                          {@code -0.0070571945}가 -0.71%다. 100을 곱하는 곳은
-     *                          {@code CryptoService} 한 곳뿐이어야 한다
+     *                          {@code PercentChange.fromRatio} 한 곳뿐이어야 한다
+     *                          ({@code CryptoService}가 그것을 부른다)
      * @param tradeTimestamp    체결 시각(epoch millis)
      */
     @JsonIgnoreProperties(ignoreUnknown = true)

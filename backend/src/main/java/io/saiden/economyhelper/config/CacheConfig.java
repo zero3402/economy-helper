@@ -73,7 +73,13 @@ public class CacheConfig {
                 // 업비트와 같은 수명이지만 담기는 타입이 달라 crypto-price에 섞을 수 없다
                 .withCacheConfiguration("binance-price",
                         cache(ttl.binancePrice(), new TypeReference<List<BinancePrice>>() {}))
-                // LLM 해석 결과 — 같은 검색어에 Gemini를 두 번 태우지 않는다
+                // LLM 해석 결과 — 같은 검색어에 Gemini를 두 번 태우지 않는다.
+                // ⚠️ 타입을 Optional<X>로 적지만 Redis에 담기는 것은 맨 X다. Spring이
+                //    ObjectUtils.unwrapOptional로 벗겨서 넣고 읽을 때 다시 감싸기 때문이다
+                //    (CacheAspectSupport.unwrapReturnValue / wrapCacheValue).
+                //    Jackson이 Optional과 맨 값을 같은 JSON으로 써서 왕복이 성립하는 것이고,
+                //    덤으로 Optional.empty()는 null로 벗겨져 unless="#result == null"에 걸려
+                //    아예 캐시되지 않는다 — 일시적 실패가 7일 굳지 않는 이유가 그것이다
                 .withCacheConfiguration("stock-resolve",
                         cache(ttl.stockResolve(), new TypeReference<java.util.Optional<ResolvedStock>>() {}))
                 .withCacheConfiguration("crypto-resolve",

@@ -187,6 +187,22 @@ class AccuWeatherClientTest {
     }
 
     @Test
+    @DisplayName("기온이 없는 날은 값이 아니다 — 담아 두면 '-°C / -°C'가 성공으로 나가 폴백도 안 돈다")
+    void throwsWhenTheOnlyDayHasNoTemperature() {
+        stubLocation();
+        // Temperature 블록이 아예 없는 응답. 예전에는 low/high가 null인 Daily가 그대로 담겨
+        // 화면에 '-°C / -°C'가 찍혔고, 성공이니 Open-Meteo로 넘어가지도 않았다
+        stub(FORECAST_PATH, """
+                {"DailyForecasts":[
+                  {"Date":"2026-08-18T07:00:00+09:00",
+                   "Day":{"Icon":6,"PrecipitationProbability":49}}
+                ]}""");
+
+        assertThatThrownBy(() -> client.forecast(MIGEUM, days(1)))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
     @DisplayName("예외 메시지에 API 키가 새지 않는다 — 이 API는 키를 쿼리에 싣는다")
     void neverLeaksApiKey() {
         stubLocation();

@@ -66,6 +66,26 @@ public enum NewsSource {
         this.hosts = Set.of(hosts);
     }
 
+    /**
+     * <b>링크가 목적지를 감추는 매체인가.</b>
+     *
+     * <p>AP만 참이다 — 공식 RSS가 없어 구글 뉴스 검색 피드를 프록시로 쓰는데, 그 링크가
+     * {@code news.google.com/rss/articles/CBMi...} 불투명 주소다({@link #AP} 참조).
+     *
+     * <p><b>반응 점수를 매길 수 없다는 뜻이다.</b> Hacker News 조회는 정규화한 URL이
+     * 정확히 일치해야 걸리는데, 이 매체의 링크는 HN에 올라간 실제 AP 주소와 절대 같아지지
+     * 않는다. 그래서 AP는 랭킹 네 항 중 반응 항을 <b>구조적으로</b> 0으로 받는다 —
+     * 조회해 봐야 못 맞히므로 브리핑마다 헛호출을 한 번 태우기만 했다.
+     *
+     * <p>구글 리다이렉트를 풀어 실주소를 얻는 방법은 있지만 기사마다 조회를 한 번 더
+     * 태운다 — 반응 항 하나를 얻으려고 수집 비용을 두 배로 내지 않는다. 대신 <b>이 사실을
+     * 값으로 들고 있어</b>, 다음에 이 매체를 손보는 사람이 "왜 AP만 반응이 0인가"를
+     * 다시 파헤치지 않게 한다.
+     */
+    public boolean opaqueLinks() {
+        return this == AP;
+    }
+
     /** 텔레그램 메시지에 노출할 이름. */
     public String displayName() {
         return displayName;

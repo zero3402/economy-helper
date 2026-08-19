@@ -395,14 +395,54 @@ class TelegramWebhookControllerTest {
     @Test
     @DisplayName("지역을 안 적은 것과 적었는데 못 찾은 것은 다르게 답한다 — 사용자가 할 일이 다르다")
     void distinguishesMissingPlaceFromUnknownPlace() {
-        assertThat(MessageFormatter.weatherNeedsPlace())
+        assertThat(WeatherFormatter.needsPlace())
                 .as("무엇을 적어야 하는지 알려 준다")
                 .contains("어느 지역");
-        assertThat(MessageFormatter.weatherNotFound("없는지역"))
+        assertThat(WeatherFormatter.notFound("없는지역"))
                 .as("적은 것이 무엇이었는지 되짚어 준다")
                 .contains("'없는지역'");
-        assertThat(MessageFormatter.weatherNeedsPlace())
-                .isNotEqualTo(MessageFormatter.weatherNotFound("없는지역"));
+        assertThat(WeatherFormatter.needsPlace())
+                .isNotEqualTo(WeatherFormatter.notFound("없는지역"));
+    }
+
+    @Test
+    @DisplayName("답 만들기가 던져도 사용자에게 안내가 나간다 — 200을 이미 줬으므로 재시도가 없다")
+    void answersEvenWhenBuildingTheReplyThrows() {
+        RecordingClient client = new RecordingClient();
+        NewsFacade exploding = new NewsFacade(null, null, null) {
+            @Override
+            public List<NewsItem> search(String query) {
+                // Redis 장애로 캐시 계층이 던지거나 브레이커가 열린 상황을 흉내 낸다
+                throw new IllegalStateException("Redis 연결 실패");
+            }
+        };
+
+        new TelegramWebhookController(exploding, crypto(Optional.empty()), fx(Optional.empty()),
+                stock(Optional.empty()), weather(), client, SAME_THREAD, "", "", "")
+                .onUpdate(null, update(1, "/news 금리"));
+
+        assertThat(client.sent).as("침묵하면 사용자에게는 봇이 죽은 것과 구분되지 않는다").hasSize(1);
+        assertThat(client.sent.get(0).text())
+                .startsWith("<b>뉴스</b>")
+                .contains("잠시 후 다시");
+    }
+
+    @Test
+    @DisplayName("여러 통 중 하나가 실패해도 나머지는 나간다 — 예전에는 2번에서 끊기면 3번이 사라졌다")
+    void keepsSendingTheRestWhenOnePartFails() {
+        RecordingClient client = new RecordingClient("2/3");
+
+        defaultController(facade(List.of(news("첫째"), news("둘째"), news("셋째"))),
+                crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client)
+                .onUpdate(null, update(1, "/news 금리"));
+
+        assertThat(client.sent).as("1번과 3번은 나가야 한다").hasSize(2);
+        assertThat(client.sent.get(1).text()).contains("3/3");
+    }
+
+    private static NewsItem news(String title) {
+        return new NewsItem("CNBC", title, "본문.", "https://example.com/" + title,
+                java.time.Instant.parse("2026-08-11T00:00:00Z"), true);
     }
 
     private static TelegramWebhookController defaultController(NewsFacade newsFacade,
@@ -530,11 +570,18 @@ class TelegramWebhookControllerTest {
     }
 
     /** 발송 내용을 기록하는 스텁. HTTP는 {@link TelegramClientTest}에서 따로 본다. */
-    private static final class RecordingClient extends TelegramClient {
+    private static class RecordingClient extends TelegramClient {
         private final List<Sent> sent = new ArrayList<>();
+        /** 이 문구가 담긴 통만 거절한다 — 부분 실패를 심는 데 쓴다. {@code null}이면 다 받는다. */
+        private final String rejectContaining;
 
         private RecordingClient() {
+            this(null);
+        }
+
+        private RecordingClient(String rejectContaining) {
             super(RestClient.builder(), "https://example.invalid", "token", "default-chat", "");
+            this.rejectContaining = rejectContaining;
         }
 
         @Override
@@ -545,6 +592,9 @@ class TelegramWebhookControllerTest {
         @Override
         public void send(String chatId, Integer topicId, Integer replyTo, String text,
                          boolean preview) {
+            if (rejectContaining != null && text.contains(rejectContaining)) {
+                throw new TelegramException("거절: " + rejectContaining);
+            }
             sent.add(new Sent(chatId, topicId, replyTo, text, preview));
         }
     }

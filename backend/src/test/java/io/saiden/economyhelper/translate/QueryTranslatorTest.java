@@ -1,5 +1,7 @@
 package io.saiden.economyhelper.translate;
 
+import io.saiden.economyhelper.llm.GeminiApi;
+
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.anyUrl;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;

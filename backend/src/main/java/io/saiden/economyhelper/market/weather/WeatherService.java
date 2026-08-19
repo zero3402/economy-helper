@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market.weather;
 
+import io.saiden.economyhelper.support.Failover;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
@@ -46,9 +47,7 @@ public class WeatherService {
 
     public WeatherService(List<WeatherClient> clients, Clock clock) {
         // 주입 순서를 믿지 않는다 — 위에 적은 순서가 곧 이 서비스의 계약이다
-        this.clients = ORDER.stream()
-                .flatMap(source -> clients.stream().filter(client -> client.source() == source))
-                .toList();
+        this.clients = Failover.order(clients, ORDER, WeatherClient::source);
         this.clock = clock;
     }
 
@@ -57,29 +56,26 @@ public class WeatherService {
      */
     public Optional<Weather> forecast(GeoLocation place, WeatherPeriod period) {
         LocalDate today = today(place);
-        boolean tried = false;
+        // 못 하는 출처는 부르지 않는다 — 먼저 걸러 두면 "시도했는가"를 목록이 말해 준다.
+        // 예전에는 루프를 관통하는 가변 플래그(tried)가 그 일을 했다
+        List<WeatherClient> eligible = clients.stream()
+                .filter(client -> client.supports(period, today))
+                .toList();
 
-        for (WeatherClient client : clients) {
-            if (!client.supports(period, today)) {
-                continue;
-            }
-            tried = true;
-            try {
-                return Optional.of(client.forecast(place, period));
-            } catch (RuntimeException e) {
-                // 다음 출처가 있으면 조용히 넘어간다. 이게 이중화가 하는 일이다
-                log.warn("[weather] {} 조회 실패 — 다음 출처로 넘어갑니다: {}",
-                        client.source().displayName(), e.toString());
-            }
-        }
-
-        if (!tried) {
+        if (eligible.isEmpty()) {
             // 지난 날짜인데 재분석까지 못 쓰는 상황 등. 실패와 구분해 남긴다
             log.warn("[weather] {} ~ {} 범위를 맡을 출처가 없습니다", period.from(), period.to());
-        } else {
+            return Optional.empty();
+        }
+
+        Optional<Weather> found = Failover.first(eligible, client -> client.forecast(place, period),
+                // 다음 출처가 있으면 조용히 넘어간다. 이게 이중화가 하는 일이다
+                (client, e) -> log.warn("[weather] {} 조회 실패 — 다음 출처로 넘어갑니다: {}",
+                        client.source().displayName(), e.toString()));
+        if (found.isEmpty()) {
             log.error("[weather] 모든 출처에서 날씨를 가져오지 못했습니다");
         }
-        return Optional.empty();
+        return found;
     }
 
     /**

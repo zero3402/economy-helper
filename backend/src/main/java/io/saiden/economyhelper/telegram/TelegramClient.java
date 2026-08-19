@@ -96,9 +96,11 @@ public class TelegramClient {
      * 토픽을 지정해 보낸다. {@code topicId}가 {@code null}이면 토픽 없이 — 포럼이라면
      * General 토픽으로 간다.
      *
-     * <p>토픽을 뺀 2-인자 오버로드는 두지 않는다. 있으면 토픽을 깜빡한 호출이 조용히 General로
-     * 떨어지고, 그건 아무 오류도 내지 않아 발견이 늦다. {@code replyTo}도 같은 이유로 뺄 수 없게
-     * 두었다 — 답글을 깜빡하면 여럿이 함께 쓸 때 답이 섞인다.
+     * <p><b>{@code send(chatId, text)} 꼴은 두지 않는다.</b> 있으면 토픽을 깜빡한 호출이 조용히
+     * General로 떨어지고, 그건 아무 오류도 내지 않아 발견이 늦다. {@code replyTo}도 같은 이유로
+     * 뺄 수 없게 두었다 — 답글을 깜빡하면 여럿이 함께 쓸 때 답이 섞인다.
+     * (정기 발송용 {@code send(text, preview)}는 예외다. 대상이 설정에 박힌 방·토픽 하나뿐이라
+     * 깜빡할 인자가 없다.)
      */
     @CircuitBreaker(name = "telegram")
     public void send(String chatId, Integer topicId, Integer replyTo, String text) {
@@ -160,10 +162,33 @@ public class TelegramClient {
             throw new TelegramException("텔레그램 " + method + " 응답이 비어 있습니다");
         }
         if (!response.ok()) {
-            throw new TelegramException("텔레그램 " + method + " 거절: "
-                    + response.errorCode() + " " + response.description());
+            String reason = "텔레그램 " + method + " 거절: "
+                    + response.errorCode() + " " + response.description();
+            // ⚠️ 429는 "우리가 너무 빨리 물었다"이지 텔레그램 장애가 아니다. 하나의
+            //    TelegramException으로 뭉쳐 던지던 동안에는 ignoreExceptions에 적어도
+            //    걸러낼 수가 없어, 10회 창에 5번이면 브레이커가 열려 멀쩡한 발송까지
+            //    60초 막혔다 — translation이 TooManyRequests를 빼 둔 것과 같은 이유다
+            if (Integer.valueOf(429).equals(response.errorCode())) {
+                throw new TelegramRateLimited(reason);
+            }
+            throw new TelegramException(reason);
         }
         return response;
+    }
+
+    /**
+     * <b>우리가 너무 빨리 물었다</b>(429) — 상대 장애가 아니다.
+     *
+     * <p>따로 두는 이유는 서킷브레이커가 이걸 실패로 세면 안 되기 때문이다
+     * ({@code application.yml}의 {@code telegram} 인스턴스가 {@code ignoreExceptions}에 적는다).
+     * 리미터 거절({@code RequestNotPermitted})을 빼 두는 것과 같은 판단이고, {@code translation}이
+     * {@code TooManyRequests}를 빼 둔 것과도 같다.
+     */
+    public static class TelegramRateLimited extends TelegramException {
+
+        public TelegramRateLimited(String message) {
+            super(message);
+        }
     }
 
     /** 텔레그램이 거절했거나 닿지 못했다. 사유를 메시지에 그대로 싣는다. */
@@ -189,15 +214,49 @@ public class TelegramClient {
             return text;
         }
         log.warn("메시지가 {}자로 상한을 넘어 잘라 보냅니다", text.length());
-        String cut = text.substring(0, MAX_MESSAGE_LENGTH - 1);
+
+        // ⚠️ 닫는 태그까지 예산에 넣는다. 예전에는 4,095자로 자르고 "…"를 붙여 예산을 다 쓴
+        //    <b>뒤에</b> closeOpenTags가 </blockquote></b></a>를 더 붙여 4,096자를 넘겼고,
+        //    그러면 텔레그램이 400으로 통째로 거절한다 — 일부라도 보내려던 것이 전부를 잃었다.
+        //    자를 위치에 따라 닫을 태그가 달라져 한 번에 계산할 수 없으므로, 넘치면 그만큼
+        //    더 줄여 다시 맞춘다.
+        int budget = MAX_MESSAGE_LENGTH - 1;
+        while (budget > 0) {
+            // 생략 표시는 닫는 태그 앞에 넣는다 — 뒤에 붙이면 서식 밖으로 튀어나온다
+            String candidate = closeOpenTags(cutAt(text, budget) + "…");
+            if (candidate.length() <= MAX_MESSAGE_LENGTH) {
+                return candidate;
+            }
+            budget -= Math.max(1, candidate.length() - MAX_MESSAGE_LENGTH);
+        }
+        return "…";
+    }
+
+    /**
+     * 안전한 자리에서 자른다 — <b>태그·엔티티·서로게이트 쌍을 쪼개지 않는다.</b>
+     *
+     * <p>셋 다 쪼개지면 텔레그램이 {@code can't parse entities}로 메시지를 통째로 거절하거나
+     * 깨진 문자가 나간다. 서로게이트가 실제로 걸리는 이유는 등락률 이모지(🔴/🔵)가
+     * 보조 평면 문자이고 그게 긴 통 안에 들어 있기 때문이다.
+     */
+    private static String cutAt(String text, int budget) {
+        int end = Math.min(budget, text.length());
+        if (end > 0 && Character.isHighSurrogate(text.charAt(end - 1))) {
+            end--;
+        }
+        String cut = text.substring(0, end);
 
         // 태그 한가운데서 끊겼으면 그 조각을 버린다
         int lastOpen = cut.lastIndexOf('<');
         if (lastOpen > cut.lastIndexOf('>')) {
             cut = cut.substring(0, lastOpen);
         }
-        // 생략 표시는 닫는 태그 <b>앞</b>에 넣는다 — 뒤에 붙이면 서식 밖으로 튀어나온다
-        return closeOpenTags(cut + "…");
+        // 엔티티 한가운데서 끊겼으면(&am) 그 조각도 버린다 — '&'만 남는 것도 거절 사유다
+        int lastAmp = cut.lastIndexOf('&');
+        if (lastAmp > cut.lastIndexOf(';')) {
+            cut = cut.substring(0, lastAmp);
+        }
+        return cut;
     }
 
     /** 열린 채 남은 태그를 닫는다. 여는 순서의 역순으로 닫아야 중첩이 맞는다. */

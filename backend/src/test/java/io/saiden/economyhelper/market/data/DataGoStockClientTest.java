@@ -97,6 +97,30 @@ class DataGoStockClientTest {
     }
 
     @Test
+    @DisplayName("종가가 비면 던진다 — 0으로 보면 「코스피 0」이 성공으로 나가고 폴백도 안 돈다")
+    void refusesToShipZeroAsAPrice() {
+        // 실측 스키마에서 clpr은 String이다. 빈 문자열이 오면 예전에는 BigDecimal.ZERO로
+        // 떨어져 StockQuote(price=0)이 성공 반환됐고, 성공이니 StockService가 폴백하지 않았다
+        List<StockPrice> blank = List.of(new StockPrice(TODAY, "삼성전자", "", null, "1400183726616000"));
+
+        assertThatThrownBy(() -> client(Map.of("005930", blank), null).stock("005930"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("값이 없습니다");
+    }
+
+    @Test
+    @DisplayName("기준일 없는 항목이 섞여도 NPE가 아니다 — orElse(\"\")는 빈 스트림만 막는다")
+    void survivesAnItemWithoutABasisDate() {
+        // Comparator.naturalOrder()는 널 원소에서 NPE다. 그 하나가 조회 전체를 죽였다
+        List<StockPrice> withNull = List.of(
+                new StockPrice(null, "삼성전자우", "180200", null, "9999999999999999"),
+                new StockPrice(TODAY, "삼성전자", "239500", null, "1400183726616000"));
+
+        assertThat(client(Map.of("삼성", withNull), null).byName("삼성"))
+                .get().extracting(StockQuote::name).isEqualTo("삼성전자");
+    }
+
+    @Test
     @DisplayName("이름 검색은 빈손을 돌려준다 — 그건 장애가 아니라 '그런 종목이 없다'이다")
     void nameSearchReturnsEmptyInsteadOfThrowing() {
         assertThat(client(Map.of(), null).byName("없는종목")).isEmpty();

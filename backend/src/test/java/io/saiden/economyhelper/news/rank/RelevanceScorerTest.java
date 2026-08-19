@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.saiden.economyhelper.news.Article;
 import io.saiden.economyhelper.news.NewsSource;
-import io.saiden.economyhelper.translate.GeminiApi;
+import io.saiden.economyhelper.llm.GeminiApi;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;

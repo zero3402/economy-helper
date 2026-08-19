@@ -1,5 +1,7 @@
 package io.saiden.economyhelper.translate;
 
+import io.saiden.economyhelper.llm.GeminiApi;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.saiden.economyhelper.news.Article;
 import java.util.ArrayList;

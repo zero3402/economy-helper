@@ -38,7 +38,7 @@ public record Article(
         }
     }
 
-    /** 번역·키워드 매칭에 넘길 텍스트. 요약문이 없으면 제목만 돌려준다. */
+    /** 검색 전-필터가 훑을 텍스트({@code NewsService.matchesAny}). 번역과 관련도 채점은 {@code title}·{@code description}을 따로 쓴다 — 여기를 거치지 않는다. 요약문이 없으면 제목만 돌려준다. */
     public String text() {
         return description == null || description.isBlank()
                 ? title

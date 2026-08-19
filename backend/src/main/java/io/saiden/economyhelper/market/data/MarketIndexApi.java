@@ -85,10 +85,16 @@ public class MarketIndexApi {
     /** 완전일치 우선, 없으면 가장 짧은 이름. 정규화는 공백만 지우면 충분하다. */
     private static MarketIndex pick(List<MarketIndex> candidates, String query) {
         String wanted = compact(query);
-        return candidates.stream()
+        // ⚠️ 이름 없는 후보를 먼저 걸러낸다. 완전일치 쪽은 compact()가 널을 받아 주는데
+        //    폴백 비교자는 idxNm().length()를 무방비로 부른다 — 이름 하나가 비어 오면
+        //    조회 전체가 NPE로 죽고, 그건 "그런 지수가 없다"와 구분되지 않는다
+        List<MarketIndex> named = candidates.stream()
+                .filter(index -> index.idxNm() != null)
+                .toList();
+        return named.stream()
                 .filter(index -> compact(index.idxNm()).equals(wanted))
                 .findFirst()
-                .orElseGet(() -> candidates.stream()
+                .orElseGet(() -> named.stream()
                         .min((a, b) -> Integer.compare(a.idxNm().length(), b.idxNm().length()))
                         .orElse(null));
     }

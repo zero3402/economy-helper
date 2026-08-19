@@ -1,5 +1,7 @@
 package io.saiden.economyhelper.translate;
 
+import io.saiden.economyhelper.llm.GeminiApi;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.saiden.economyhelper.news.Article;

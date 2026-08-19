@@ -10,7 +10,7 @@ import io.saiden.economyhelper.news.NewsFacade;
 import io.saiden.economyhelper.news.NewsItem;
 import io.saiden.economyhelper.news.NewsSource;
 import io.saiden.economyhelper.telegram.TelegramClient;
-import io.saiden.economyhelper.translate.GeminiApi;
+import io.saiden.economyhelper.llm.GeminiApi;
 import io.saiden.economyhelper.translate.GeminiTranslator;
 import io.saiden.economyhelper.translate.Translation;
 import io.saiden.economyhelper.translate.TranslationService;

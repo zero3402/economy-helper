@@ -1,5 +1,7 @@
 package io.saiden.economyhelper.translate;
 
+import io.saiden.economyhelper.llm.GeminiApi;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.List;
 import org.springframework.cache.annotation.Cacheable;

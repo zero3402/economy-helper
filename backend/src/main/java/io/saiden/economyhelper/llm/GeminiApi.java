@@ -1,4 +1,4 @@
-package io.saiden.economyhelper.translate;
+package io.saiden.economyhelper.llm;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
@@ -9,6 +9,12 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 /**
+ * <p><b>이 클래스는 번역기가 아니다.</b> 그래서 {@code translate}에서 나왔다 — 여섯 호출자가
+ * 나눠 쓰는 <b>전송 계층</b>이고(번역기 둘, 해석기 넷), {@code @RateLimiter("gemini")}를 이고
+ * 있는 자리다. 예전에는 {@code market}·{@code market.weather}·{@code news.rank}가 전부
+ * {@code translate}를 import해서 "종목 해석은 번역의 관심사"처럼 읽혔다.
+ * {@code ARCHITECTURE.md} 4-3의 "리미터는 앱키 단위"는 <b>계정</b>의 성질이지 번역의 성질이 아니다.
+ *
  * Gemini {@code generateContent} 호출 한 군데.
  *
  * <p><b>레이트리미터와 서킷브레이커가 여기 걸려 있다.</b> 기사 번역({@link GeminiTranslator})과

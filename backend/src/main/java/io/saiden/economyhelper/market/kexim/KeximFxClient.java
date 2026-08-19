@@ -3,7 +3,6 @@ package io.saiden.economyhelper.market.kexim;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
-import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.FxRateClient;
 import io.saiden.economyhelper.market.FxSource;
@@ -21,7 +20,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 /**
- * 한국수출입은행 환율 — <b>이중화의 1순위</b>({@code FxService.ORDER}).
+ * 한국수출입은행 환율 — <b>이중화의 3순위</b>({@code FxSource}의 선언 순이 곧 시도 순이다).
+ *
+ * <p>마지막에 두는 이유는 신선도다 — 한국의 공식 고시라 값은 믿을 수 있지만 하루 한 번(11시경)이고,
+ * 앞의 둘(한국투자증권·유럽중앙은행)이 더 최신을 준다. 최후 보루로 남긴다.
  *
  * <p>실제로 호출해 확인한 함정이 넷이다.
  *
@@ -42,6 +44,13 @@ import org.springframework.web.client.RestClient;
  *
  * <p><b>하루 1,000회 제한</b>은 초 단위 리미터로 지킬 수 없다. 1시간 캐시가 실질 방어이고,
  * 리미터는 아래 되짚기 루프가 폭주하는 것만 막는다.
+ *
+ * <p>⚠️ <b>그 말이 참이려면 리미터가 HTTP 호출마다 걸려야 한다.</b> 예전에는 애너테이션이
+ * {@link #usdToKrw()}에만 있어 <b>진입 한 번에 퍼밋 하나</b>였다. 그 안에서 {@link #findAt}이
+ * 최대 {@link #MAX_LOOKBACK_DAYS}회를 돌고 {@link #changeOf}가 그 루프를 <b>한 번 더</b> 도므로,
+ * 캐시가 빈 조회 한 번이 최대 14회 HTTP였는데 리미터는 그걸 1회로 셌다. 이제 실제 호출 자리
+ * ({@link #request})에서 퍼밋을 얻는다 — 애너테이션은 프록시가 필요해 private 메서드에 못 걸리므로
+ * 레지스트리에서 직접 꺼내 쓴다.
  */
 @Component
 public class KeximFxClient implements FxRateClient {
@@ -63,14 +72,18 @@ public class KeximFxClient implements FxRateClient {
     private final RestClient restClient;
     private final String authKey;
     private final Clock clock;
+    /** 되짚기 루프가 실제로 태우는 호출을 세는 자리. {@code null}이면 세지 않는다(테스트). */
+    private final io.github.resilience4j.ratelimiter.RateLimiter limiter;
 
     public KeximFxClient(RestClient.Builder builder,
                          @Value("${economy-helper.market.kexim.base-url}") String baseUrl,
                          @Value("${economy-helper.market.kexim.api-key:}") String authKey,
-                         Clock clock) {
+                         Clock clock,
+                         io.github.resilience4j.ratelimiter.RateLimiterRegistry limiters) {
         this.restClient = builder.baseUrl(baseUrl).build();
         this.authKey = authKey;
         this.clock = clock;
+        this.limiter = limiters == null ? null : limiters.rateLimiter("kexim");
     }
 
     @Override
@@ -80,7 +93,6 @@ public class KeximFxClient implements FxRateClient {
 
     @Override
     @Cacheable(cacheNames = "fx-kexim", unless = "#result == null")
-    @RateLimiter(name = "kexim")
     @CircuitBreaker(name = "fxKexim")
     public FxRate usdToKrw() {
         if (authKey.isBlank()) {
@@ -176,6 +188,11 @@ public class KeximFxClient implements FxRateClient {
      * 이 API는 authkey가 URL에 실려 있다 — 그대로 로그에 올라가면 키가 유출된다.
      */
     private Rate[] request(LocalDate date) {
+        if (limiter != null) {
+            // 거절은 RequestNotPermitted다 — fxKexim 브레이커가 baseConfig에서 그걸 무시하므로
+            // 우리 스로틀이 상대 장애로 세어지지 않는다
+            limiter.acquirePermission();
+        }
         try {
             return restClient.get()
                     .uri(uriBuilder -> uriBuilder

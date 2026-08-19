@@ -5,6 +5,7 @@ import io.saiden.economyhelper.config.EconomyHelperProperties.UsSymbol;
 import io.saiden.economyhelper.market.StockResolver.ResolvedStock;
 import io.saiden.economyhelper.market.data.DataGoStockClient;
 import io.saiden.economyhelper.text.QueryNormalizer;
+import io.saiden.economyhelper.support.Failover;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
@@ -79,21 +80,13 @@ public class StockService {
      */
     public StockService(List<DomesticStockClient> domestic, List<UsStockClient> us,
                         DataGoStockClient names, StockResolver resolver) {
-        this.domestic = order(domestic, DOMESTIC_ORDER);
-        this.us = order(us, US_ORDER);
+        // 순서는 여기서 정한다 — 주입 순서에 딸려 가면 클래스 이름을 바꾸다 뒤집힌다
+        this.domestic = Failover.order(domestic, DOMESTIC_ORDER, StockClient::source);
+        this.us = Failover.order(us, US_ORDER, StockClient::source);
         this.names = names;
         this.resolver = resolver;
     }
 
-    /**
-     * 이중화 순서를 <b>여기서 정한다.</b> Spring이 주입하는 목록 순서에 딸려 가면
-     * 클래스 이름을 바꾸다 순서가 뒤집힐 수 있다({@code FxService}와 같은 판단이다).
-     */
-    private static <T extends StockClient> List<T> order(List<T> clients, List<StockSource> wanted) {
-        return wanted.stream()
-                .flatMap(source -> clients.stream().filter(client -> client.source() == source))
-                .toList();
-    }
 
     /**
      * @return 시가총액 1위 후보의 시세. 걸리는 종목이 없거나 모든 출처가 실패하면
@@ -244,16 +237,13 @@ public class StockService {
      */
     private static <T extends StockClient> Optional<StockQuote> first(
             List<T> clients, Function<T, StockQuote> call, String what) {
-        for (T client : clients) {
-            try {
-                return Optional.of(call.apply(client));
-            } catch (RuntimeException e) {
+        Optional<StockQuote> found = Failover.first(clients, call,
                 // 다음 출처가 있으면 조용히 넘어간다. 이게 이중화가 하는 일이다
-                log.warn("[stock] {} — {} 조회 실패, 다음 출처로 넘어갑니다: {}",
-                        what, client.source().displayName(), e.toString());
-            }
+                (client, e) -> log.warn("[stock] {} — {} 조회 실패, 다음 출처로 넘어갑니다: {}",
+                        what, client.source().displayName(), e.toString()));
+        if (found.isEmpty()) {
+            log.info("[stock] {}를 어느 출처에서도 가져오지 못했습니다", what);
         }
-        log.info("[stock] {}를 어느 출처에서도 가져오지 못했습니다", what);
-        return Optional.empty();
+        return found;
     }
 }

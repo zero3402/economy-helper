@@ -2,7 +2,8 @@ package io.saiden.economyhelper.market;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.saiden.economyhelper.text.QueryNormalizer;
-import io.saiden.economyhelper.translate.GeminiApi;
+import io.saiden.economyhelper.llm.GeminiApi;
+import io.saiden.economyhelper.llm.LlmJson;
 import java.util.Locale;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -67,19 +68,14 @@ public class CryptoResolver {
         if (normalizedQuery == null || normalizedQuery.isBlank()) {
             return Optional.empty();
         }
-        try {
-            ResolvedCoin parsed =
-                    objectMapper.readValue(api.generate(PROMPT.formatted(normalizedQuery)), ResolvedCoin.class);
-            if (parsed == null || parsed.upperSymbol() == null || parsed.upperSymbol().isBlank()) {
-                log.info("[crypto] LLM이 '{}'를 특정하지 못했습니다", normalizedQuery);
-                return Optional.empty();
-            }
-            log.info("[crypto] '{}' → {}", normalizedQuery, parsed.upperSymbol());
-            return Optional.of(parsed);
-        } catch (Exception e) {
-            log.error("[crypto] '{}' LLM 해석 실패: {}", normalizedQuery, e.toString());
-            return Optional.empty();
-        }
+        // 골격은 LlmJson이 든다 — StockResolver·WeatherResolver와 같은 모양이다
+        Optional<ResolvedCoin> resolved = LlmJson.ask(api, objectMapper,
+                PROMPT.formatted(normalizedQuery), ResolvedCoin.class,
+                "crypto", normalizedQuery,
+                parsed -> parsed.upperSymbol() != null && !parsed.upperSymbol().isBlank());
+        resolved.ifPresent(parsed ->
+                log.info("[crypto] '{}' → {}", normalizedQuery, parsed.upperSymbol()));
+        return resolved;
     }
 
     /** 검색어를 캐시 키로 쓸 수 있게 다듬는다. */

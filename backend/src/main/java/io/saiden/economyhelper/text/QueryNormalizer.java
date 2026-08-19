@@ -34,7 +34,7 @@ public final class QueryNormalizer {
      * 검색어에 얹히는 군더더기. <b>길이 내림차순으로 본다</b> — {@code 현재가}보다 {@code 가}가
      * 먼저 걸리면 {@code 삼성전자현재가}가 {@code 삼성전자현재}로 남는다.
      *
-     * <p>단일 글자는 넣지 않는다. 위 2번 사례가 그래서 터졌다.
+     * <p>단일 글자는 <b>거의</b> 넣지 않는다. 위 2번 사례가 그래서 터졌다 — 예외는 {@code 몇}뿐이고, 그건 어느 종목명·지명에도 안 들어가는 의문사라 안전하다.
      */
     private static final List<String> SUFFIXES = sortedByLengthDesc(
             "주가", "주식", "가격", "시세", "얼마", "알려줘", "알려", "현재가", "종가", "몇",

@@ -44,6 +44,12 @@ public class HackerNewsBuzzClient {
 
         Set<String> domains = new HashSet<>();
         for (Article article : articles) {
+            // 링크가 목적지를 감추는 매체는 조회해 봐야 못 맞힌다 — AP의 구글 뉴스 프록시
+            // 주소는 HN에 올라간 실제 AP 주소와 절대 같아지지 않는다. 예전에는 그
+            // news.google.com을 도메인으로 물어 브리핑마다 헛호출을 한 번 태웠다
+            if (article.source() != null && article.source().opaqueLinks()) {
+                continue;
+            }
             String domain = domainOf(article.link());
             if (!domain.isEmpty()) {
                 domains.add(domain);

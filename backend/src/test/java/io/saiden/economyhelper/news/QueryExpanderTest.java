@@ -3,7 +3,7 @@ package io.saiden.economyhelper.news;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.saiden.economyhelper.news.rank.KeywordGroup;
-import io.saiden.economyhelper.translate.GeminiApi;
+import io.saiden.economyhelper.llm.GeminiApi;
 import io.saiden.economyhelper.translate.QueryTranslator;
 import java.util.ArrayList;
 import java.util.List;

@@ -1,6 +1,7 @@
 package io.saiden.economyhelper.market.weather;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -199,5 +200,15 @@ class WeatherServiceTest {
                             new BigDecimal("18.2"), new BigDecimal("29.6"), 20)),
                     source);
         }
+    }
+    @Test
+    @DisplayName("하루도 없는 날씨는 만들 수 없다 — from()이 days.get(0)을 무방비로 인덱싱한다")
+    void refusesAWeatherWithoutAnyDay() {
+        // 주석에만 있던 불변식이다. 빈 목록이 통과하면 렌더 시점에 IndexOutOfBounds가 나고,
+        // 웹훅에서는 그게 침묵이 된다 — 생산자에서 멀리 떨어진 자리에서 터지는 것이 가장 나쁘다
+        assertThatThrownBy(() -> new io.saiden.economyhelper.market.weather.Weather(
+                new GeoLocation("미금역", null, 37.35, 127.10889, java.time.ZoneId.of("Asia/Seoul")),
+                java.util.List.of(), WeatherSource.ACCU_WEATHER))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

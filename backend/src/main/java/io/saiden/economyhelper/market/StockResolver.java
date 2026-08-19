@@ -2,7 +2,8 @@ package io.saiden.economyhelper.market;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.saiden.economyhelper.text.QueryNormalizer;
-import io.saiden.economyhelper.translate.GeminiApi;
+import io.saiden.economyhelper.llm.GeminiApi;
+import io.saiden.economyhelper.llm.LlmJson;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,22 +73,15 @@ public class StockResolver {
         if (normalizedQuery == null || normalizedQuery.isBlank()) {
             return Optional.empty();
         }
-        try {
-            ResolvedStock parsed =
-                    objectMapper.readValue(api.generate(PROMPT.formatted(normalizedQuery)), ResolvedStock.class);
-            if (parsed == null || parsed.isEmpty()) {
-                log.info("[stock] LLM이 '{}'를 특정하지 못했습니다", normalizedQuery);
-                return Optional.empty();
-            }
-            log.info("[stock] '{}' → {} ({}, {} {})", normalizedQuery, parsed.name(),
-                    parsed.code() == null ? "코드없음" : parsed.code(),
-                    parsed.isUs() ? "US" : "KR", parsed.kind());
-            return Optional.of(parsed);
-        } catch (Exception e) {
-            // 원문 이름 검색으로 내려간다 — 호출자가 판단한다
-            log.error("[stock] '{}' LLM 해석 실패: {}", normalizedQuery, e.toString());
-            return Optional.empty();
-        }
+        // 골격은 LlmJson이 든다 — 셋이 글자까지 똑같았고, 그 탓에 한 곳만 고쳐진 적이 있다.
+        // 실패하면 호출자가 원문 이름 검색으로 내려간다
+        Optional<ResolvedStock> resolved = LlmJson.ask(api, objectMapper,
+                PROMPT.formatted(normalizedQuery), ResolvedStock.class,
+                "stock", normalizedQuery, parsed -> !parsed.isEmpty());
+        resolved.ifPresent(parsed -> log.info("[stock] '{}' → {} ({}, {} {})", normalizedQuery,
+                parsed.name(), parsed.code() == null ? "코드없음" : parsed.code(),
+                parsed.isUs() ? "US" : "KR", parsed.kind()));
+        return resolved;
     }
 
     /** 검색어를 캐시 키로 쓸 수 있게 다듬는다. 접미사는 떼지 않는다 — 그건 LLM이 한다. */
