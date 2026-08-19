@@ -200,7 +200,7 @@ class CacheConfigTest {
         return new EconomyHelperProperties(null, null, null,
                 new CacheTtl(any, any, any, any, any, any, any, any, any, any, any, any, any,
                         any, any, any, any, any, any, any),
-                null);
+                null, null);
     }
 
     @Test

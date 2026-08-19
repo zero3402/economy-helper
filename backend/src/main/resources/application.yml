@@ -193,22 +193,19 @@ economy-helper:
     # 국내를 삼성전자·SK하이닉스로 고정한 것과 같은 판단이다.
     # 이름을 함께 박는다 — FMP는 'Apple Inc.' 같은 영문명을 주는데 국내 종목·코인은 한글이라
     # 한 화면에서 표기가 갈린다. /stock 검색은 LLM이 한국어 이름을 주지만 여기는 LLM을 타지 않는다.
-    # ⚠️ kis-index와 kis-exchange는 배타적이다 — KIS는 지수와 종목의 엔드포인트가 갈린다.
-    #    지수는 KIS 전용 심볼이 필요하고(^IXIC가 아니라 COMP), 종목은 거래소 코드를 요구한다.
-    #    둘 다 없으면 KIS가 못 맡고 2순위(FMP)가 답한다 — FMP는 어느 쪽도 필요 없다.
+    # ⚠️ 여기는 브리핑에 넣을 목록일 뿐이다. KIS 조회 키는 담지 않는다 —
+    #    이 목록이 표를 겸하던 때가 있었는데, 표에 없는 심볼을 KIS가 통째로 거절해
+    #    /stock 유아이패스·오라클이 빈손이 됐다(2순위 FMP가 그 심볼들을 402로 막는다).
+    #    지수 표는 market.kis.us-indices, 종목 거래소는 탐색+캐시가 맡는다.
     us-symbols:
       - symbol: "^IXIC"
         name: "나스닥"
-        kis-index: "COMP"
       - symbol: "^GSPC"
         name: "S&P 500"
-        kis-index: "SPX"
       - symbol: "NVDA"
         name: "엔비디아"
-        kis-exchange: "NAS"
       - symbol: "AAPL"
         name: "애플"
-        kis-exchange: "NAS"
     # 뉴스 신선도 창 — 알람과 검색이 같은 값을 쓴다.
     # 날짜(KST 달력)가 아니라 경과 시간이다. 우리가 읽는 건 전부 외국 기사인데 KST 자정 경계는
     # 그 매체의 하루를 둘로 쪼갠다(미국 동부 취재일 09:00~17:00 EDT = KST 22:00~다음날 06:00).
@@ -330,6 +327,18 @@ economy-helper:
       base-url: https://openapivts.koreainvestment.com:29443
       app-key: ${KIS_API_KEY:}
       app-secret: ${KIS_API_SECRET:}
+      # 미국 지수의 KIS 심볼. ^IXIC → COMP 같은 규칙이 없어 이 표가 유일한 길이다.
+      # ⚠️ 종목과 달리 지수는 탐색할 수 없다. 표에 없으면 2순위(FMP)가 맡는다 —
+      #    FMP 무료 티어는 지수 셋(^IXIC·^GSPC·^DJI)을 다 주므로 그 폴백은 실제로 성립한다.
+      # ⚠️ 틀린 심볼은 에러가 아니라 값 0.00으로 온다(실측 DJI·DJIA). 그래서 더 위험하다 —
+      #    KisStockApi가 양수인지 검사해 폴백시킨다.
+      us-indices:
+        - symbol: "^IXIC"
+          kis-symbol: "COMP"
+        - symbol: "^GSPC"
+          kis-symbol: "SPX"
+        - symbol: "^DJI"
+          kis-symbol: ".DJI"
 
     kexim:
       # oapi 도메인을 쓴다. 구 www.koreaexim.go.kr은 2026-04-30에 지원이 끝나 연결되지 않는다.

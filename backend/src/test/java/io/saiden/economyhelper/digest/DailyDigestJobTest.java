@@ -423,7 +423,7 @@ class DailyDigestJobTest {
                         "Asia/Seoul", Duration.ofDays(3),
                         List.of(new EconomyHelperProperties.Index("코스피", "0001")),
                         List.of("005930"), List.of("KRW-BTC"), List.of()),
-                null, null);
+                null, null, null);
     }
 
     static NewsItem item(String title) {

@@ -239,7 +239,7 @@ class StockServiceTest {
         service(List.of(), List.of(fmp), resolver(new ResolvedStock("US", "STOCK", "AAPL", "애플")))
                 .quote("애플");
 
-        assertThat(fmp.askedSymbols).containsExactly(UsSymbol.of("AAPL", "애플"));
+        assertThat(fmp.askedSymbols).containsExactly(new UsSymbol("AAPL", "애플"));
     }
 
     // --- 브리핑 (설정에 박힌 목록) ---
@@ -262,7 +262,7 @@ class StockServiceTest {
         assertThat(service.indicesOf(List.of(KOSPI, new Index("코스닥", "1001"))))
                 .extracting(StockQuote::name).containsExactly("코스피", "코스닥");
         assertThat(service.usQuotesOf(List.of(
-                new UsSymbol("^IXIC", "나스닥", "COMP", null), new UsSymbol("AAPL", "애플", null, "NAS"))))
+                new UsSymbol("^IXIC", "나스닥"), new UsSymbol("AAPL", "애플"))))
                 .extracting(StockQuote::name).containsExactly("나스닥", "애플");
     }
 
@@ -280,7 +280,7 @@ class StockServiceTest {
         assertThat(service.indicesOf(List.of(KOSPI, new Index("없는지수", "9999"))))
                 .extracting(StockQuote::name).containsExactly("코스피");
         assertThat(service.usQuotesOf(List.of(
-                UsSymbol.of("AAPL", "애플"), UsSymbol.of("BAD", "없는것"))))
+                new UsSymbol("AAPL", "애플"), new UsSymbol("BAD", "없는것"))))
                 .extracting(StockQuote::name).containsExactly("애플");
     }
 

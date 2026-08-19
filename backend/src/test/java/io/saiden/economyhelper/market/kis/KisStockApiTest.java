@@ -13,6 +13,7 @@ import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.config.EconomyHelperProperties.Digest;
 import io.saiden.economyhelper.config.EconomyHelperProperties.Index;
+import io.saiden.economyhelper.config.EconomyHelperProperties.KisIndex;
 import io.saiden.economyhelper.config.EconomyHelperProperties.UsSymbol;
 import io.saiden.economyhelper.market.StockQuote;
 import io.saiden.economyhelper.market.StockSource;
@@ -51,18 +52,21 @@ class KisStockApiTest {
     private static final Instant NOW = Instant.parse("2026-08-18T08:00:00Z");
 
     private static final Index KOSPI = new Index("코스피", "0001");
-    private static final UsSymbol NASDAQ = new UsSymbol("^IXIC", "나스닥", "COMP", null);
-    private static final UsSymbol APPLE = new UsSymbol("AAPL", "애플", null, "NAS");
+    private static final UsSymbol NASDAQ = new UsSymbol("^IXIC", "나스닥");
+    private static final UsSymbol APPLE = new UsSymbol("AAPL", "애플");
+    private static final KisIndex NASDAQ_KIS = new KisIndex("^IXIC", "COMP");
 
     private WireMockServer server;
     private KisStockApi api;
+    private RememberingCache exchanges;
 
     @BeforeEach
     void startServer() {
         server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
         server.start();
         WireMock.configureFor(server.port());
-        api = apiWith(List.of(KOSPI), List.of(NASDAQ, APPLE));
+        exchanges = new RememberingCache();
+        api = apiWith(List.of(KOSPI), List.of(NASDAQ_KIS));
     }
 
     @AfterEach
@@ -70,13 +74,38 @@ class KisStockApiTest {
         server.stop();
     }
 
-    /** 설정 표가 곧 KIS 조회 키 표다 — 비운 것과 채운 것을 갈라 시험한다. */
-    private KisStockApi apiWith(List<Index> indices, List<UsSymbol> symbols) {
+    /**
+     * 표는 둘이다 — 국내 지수(업종코드)와 미국 지수(KIS 심볼). <b>미국 종목은 표에 없다</b>:
+     * 거래소를 스스로 찾기 때문이다.
+     */
+    private KisStockApi apiWith(List<Index> indices, List<KisIndex> usIndices) {
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
         return new KisStockApi(RestClient.builder(), server.baseUrl(),
                 new FixedToken(clock), new KisHeaders("key", "secret"), clock,
                 new EconomyHelperProperties(null, null,
-                        new Digest(null, null, indices, null, null, symbols), null, null));
+                        new Digest(null, null, indices, null, null, null), null, null,
+                        new EconomyHelperProperties.Market(
+                                new EconomyHelperProperties.Kis(null, null, null, usIndices))),
+                exchanges);
+    }
+
+    /** Redis 대신 메모리에 기억한다 — 규칙만 본다. */
+    private static final class RememberingCache extends KisExchangeCache {
+        private final java.util.Map<String, String> remembered = new java.util.HashMap<>();
+
+        private RememberingCache() {
+            super(null);
+        }
+
+        @Override
+        String of(String symbol) {
+            return remembered.get(symbol);
+        }
+
+        @Override
+        void remember(String symbol, String exchange) {
+            remembered.put(symbol, exchange);
+        }
     }
 
     private void stub(String path, String body) {
@@ -234,9 +263,9 @@ class KisStockApiTest {
 
         // /stock 코스피 · /stock 나스닥이 오는 모양이다 — LLM은 업종코드도 KIS 심볼도 모른다
         assertThat(api.index(new Index("코스피", null)).name()).isEqualTo("코스피");
-        assertThat(api.quote(UsSymbol.of("^IXIC", "나스닥 종합")).name())
-                .as("이름도 설정 것으로 맞춘다 — 브리핑과 검색이 다른 이름을 쓰면 안 된다")
-                .isEqualTo("나스닥");
+        assertThat(api.quote(new UsSymbol("^IXIC", "나스닥 종합")).name())
+                .as("이름은 부르는 쪽 것을 쓴다 — 표는 KIS 심볼만 준다")
+                .isEqualTo("나스닥 종합");
 
         server.verify(getRequestedFor(urlPathEqualTo(INDEX_PATH))
                 .withQueryParam("FID_INPUT_ISCD", WireMock.equalTo("0001")));
@@ -245,18 +274,79 @@ class KisStockApiTest {
     }
 
     @Test
-    @DisplayName("조회 키를 만들 수 없으면 부르지도 않고 던진다 — 헛호출은 리미터만 축낸다")
-    void neverCallsWhatItCannotAsk() {
+    @DisplayName("설정에 없는 미국 종목도 조회한다 — 나스닥에 없으면 뉴욕으로 다시 묻는다")
+    void findsTheExchangeItself() {
+        // 실측(2026-08-19): 거래소가 빗나가면 에러가 아니라 rt_cd=0에 41개 필드 값이
+        // 전부 빈 문자열로 온다. 없는 티커도 똑같다 — 그래서 "비었으면 다음 거래소"가 성립한다.
+        // 이 모양을 못 읽던 동안 /stock 유아이패스·오라클이 통째로 빈손이었다
+        server.stubFor(get(urlPathEqualTo(US_STOCK_PATH))
+                .withQueryParam("EXCD", WireMock.equalTo("NAS"))
+                .willReturn(aResponse().withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("""
+                                {"rt_cd":"0","msg_cd":"MCA00000","msg1":"정상처리 되었습니다.",
+                                 "output":{"rsym":"","zdiv":"","curr":"","last":"","base":"",
+                                           "t_xrat":"","t_rate":"","tvol":"","tamt":""}}""")));
+        server.stubFor(get(urlPathEqualTo(US_STOCK_PATH))
+                .withQueryParam("EXCD", WireMock.equalTo("NYS"))
+                .willReturn(aResponse().withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("""
+                                {"rt_cd":"0","msg_cd":"MCA00000","msg1":"정상처리 되었습니다.",
+                                 "output":{"rsym":"DNYSPATH","curr":"USD",
+                                           "last":"15.5800","base":"15.9900","t_xrat":"-2.56"}}""")));
+
+        StockQuote quote = api.quote(new UsSymbol("PATH", "유아이패스"));
+
+        assertThat(quote.name()).isEqualTo("유아이패스");
+        assertThat(quote.price()).isEqualByComparingTo("15.5800");
+        assertThat(quote.source()).isEqualTo(StockSource.KIS);
+        assertThat(exchanges.remembered)
+                .as("한 번 찾았으면 기억한다 — 거래소는 바뀌지 않는다")
+                .containsEntry("PATH", "NYS");
+    }
+
+    @Test
+    @DisplayName("기억해 둔 거래소가 있으면 한 번만 부른다 — 탐색은 초당 한도를 두 배로 쓴다")
+    void asksOnceWhenTheExchangeIsAlreadyKnown() {
+        exchanges.remember("PATH", "NYS");
+        stub(US_STOCK_PATH, """
+                {"rt_cd":"0","output":{"rsym":"DNYSPATH","curr":"USD",
+                 "last":"15.5800","base":"15.9900"}}""");
+
+        api.quote(new UsSymbol("PATH", "유아이패스"));
+
+        assertThat(server.getAllServeEvents()).hasSize(1);
+        server.verify(getRequestedFor(urlPathEqualTo(US_STOCK_PATH))
+                .withQueryParam("EXCD", WireMock.equalTo("NYS")));
+    }
+
+    @Test
+    @DisplayName("현재가가 0이면 던진다 — 지수 심볼이 틀리면 에러가 아니라 0.00이 온다")
+    void rejectsZeroAsAPrice() {
+        // 실측: FID_INPUT_ISCD=DJI·DJIA가 rt_cd=0에 ovrs_nmix_prpr=0.00으로 왔다.
+        // null만 보던 동안에는 화면에 지수 0이 찍히고 폴백도 일어나지 않았다
+        stub(US_INDEX_PATH, """
+                {"rt_cd":"0","output1":{"ovrs_nmix_prpr":"0.00","prdy_ctrt":"0.00"}}""");
+
+        assertThatThrownBy(() -> api.quote(NASDAQ))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("현재가");
+    }
+
+    @Test
+    @DisplayName("지수는 표에 없으면 부르지도 않고 던진다 — ^IXIC→COMP 같은 규칙이 없어 만들 요청이 없다")
+    void neverGuessesAnIndexSymbol() {
         KisStockApi bare = apiWith(List.of(), List.of());
 
-        // 설정에 없는 지수: KIS에는 지수명 검색이 아예 없다
+        // 국내 지수: KIS에는 지수명 검색이 아예 없다
         assertThatThrownBy(() -> bare.index(new Index("코스피 200", null)))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("업종코드");
-        // 설정에 없는 미국 심볼: 지수 심볼도 거래소 코드도 모른다
-        assertThatThrownBy(() -> bare.quote(UsSymbol.of("KO", "코카콜라")))
+        // 미국 지수: ^DJI를 그대로 물으면 KIS는 모른다
+        assertThatThrownBy(() -> bare.quote(new UsSymbol("^DJI", "다우")))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("조회 키");
+                .hasMessageContaining("미국 지수");
 
         assertThat(server.getAllServeEvents())
                 .as("던지는 것이 곧 2순위로 넘기는 것이다 — 그 전에 호출까지 태울 이유가 없다")

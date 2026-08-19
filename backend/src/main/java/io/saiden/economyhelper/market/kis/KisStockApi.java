@@ -7,6 +7,7 @@ import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.config.EconomyHelperProperties.Digest;
 import io.saiden.economyhelper.config.EconomyHelperProperties.Index;
+import io.saiden.economyhelper.config.EconomyHelperProperties.KisIndex;
 import io.saiden.economyhelper.config.EconomyHelperProperties.UsSymbol;
 import io.saiden.economyhelper.market.DomesticStockClient;
 import io.saiden.economyhelper.market.PercentChange;
@@ -84,6 +85,13 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
     private static final String US_STOCK_TR = "HHDFS76200200";
     private static final String US_INDEX_TR = "FHKST03030100";
 
+    /** 거래소 코드({@code price-detail}의 {@code EXCD}). 모르면 이 순서로 찾아본다. */
+    private static final String NASDAQ = "NAS";
+    private static final String NYSE = "NYS";
+
+    /** FMP·LLM이 미국 지수에 붙이는 접두. KIS는 이 표기를 모른다({@code ^IXIC}가 아니라 {@code COMP}). */
+    private static final String INDEX_PREFIX = "^";
+
     /** 시장 구분. {@code J}가 국내 주식, {@code U}가 국내 업종, {@code N}이 해외지수다. */
     private static final String KRX_STOCK = "J";
     private static final String KRX_INDEX = "U";
@@ -100,7 +108,8 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
     private final KisHeaders headers;
     private final Clock clock;
     private final Map<String, Index> indices;
-    private final Map<String, UsSymbol> usSymbols;
+    private final Map<String, String> usIndices;
+    private final KisExchangeCache exchanges;
 
     /**
      * @param properties 브리핑 설정의 지수·미국 심볼 목록이 <b>KIS 조회 키 표를 겸한다.</b>
@@ -112,14 +121,18 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
     public KisStockApi(RestClient.Builder builder,
                        @Value("${economy-helper.market.kis.base-url}") String baseUrl,
                        KisTokenStore tokens, KisHeaders headers, Clock clock,
-                       EconomyHelperProperties properties) {
+                       EconomyHelperProperties properties, KisExchangeCache exchanges) {
         this.restClient = builder.baseUrl(baseUrl).build();
+        this.exchanges = exchanges;
         this.tokens = tokens;
         this.headers = headers;
         this.clock = clock;
         Digest digest = properties == null ? null : properties.digest();
         this.indices = byKey(digest == null ? null : digest.indices(), Index::name);
-        this.usSymbols = byKey(digest == null ? null : digest.usSymbols(), UsSymbol::symbol);
+        List<KisIndex> configured = properties == null || properties.market() == null
+                || properties.market().kis() == null ? null : properties.market().kis().usIndices();
+        this.usIndices = configured == null ? Map.of() : configured.stream()
+                .collect(Collectors.toUnmodifiableMap(KisIndex::symbol, KisIndex::kisSymbol));
     }
 
     /** 설정이 비어 있어도(테스트·최소 구성) 돌아야 한다 — 표가 없으면 KIS가 덜 맡을 뿐이다. */
@@ -180,24 +193,17 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
     @RateLimiter(name = "kis")
     @CircuitBreaker(name = "kisStock")
     public StockQuote quote(UsSymbol symbol) {
-        UsSymbol target = known(symbol);
-        if (!target.hasKis()) {
-            // ^IXIC를 그대로 물으면 KIS는 모른다(COMP여야 한다). 종목은 거래소 코드가 필요하다.
-            // 설정에 대응이 없으면 어차피 만들 수 없는 요청이라 부르지 않는다
-            throw new IllegalStateException("KIS 조회 키가 없는 미국 심볼입니다: " + symbol.symbol());
+        if (symbol.symbol().startsWith(INDEX_PREFIX)) {
+            String kisSymbol = usIndices.get(symbol.symbol());
+            if (kisSymbol == null) {
+                // ^DJI를 그대로 물으면 KIS는 모른다(.DJI여야 한다). 지수는 ^IXIC → COMP 같은
+                // 규칙이 없어 표가 유일한 길이고, 표에 없으면 만들 요청이 아예 없다 —
+                // 2순위가 맡는다(FMP 무료 티어는 미국 지수를 다 준다)
+                throw new IllegalStateException("KIS 심볼을 모르는 미국 지수입니다: " + symbol.symbol());
+            }
+            return usIndex(symbol, kisSymbol);
         }
-        return target.isIndex() ? usIndex(target) : usStock(target);
-    }
-
-    /**
-     * 설정 표에서 조회 키를 채운다 — 브리핑은 이미 채워 오고 <b>검색은 비워 온다.</b>
-     *
-     * <p>표에 있으면 <b>이름도 설정 것을 쓴다.</b> 그래야 같은 종목이 브리핑과 검색에서 같은
-     * 이름으로 나간다 — 캐시 한 칸을 둘이 나눠 쓰기도 한다.
-     */
-    private UsSymbol known(UsSymbol symbol) {
-        UsSymbol configured = usSymbols.get(symbol.symbol());
-        return configured == null || symbol.hasKis() ? symbol : configured;
+        return usStock(symbol);
     }
 
     private Index known(Index index) {
@@ -206,10 +212,10 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
     }
 
     /** 해외지수 — 환율과 같은 엔드포인트·같은 스키마다. 다른 것은 시장 코드와 심볼뿐이다. */
-    private StockQuote usIndex(UsSymbol symbol) {
+    private StockQuote usIndex(UsSymbol symbol, String kisSymbol) {
         KisChartPrice.Quote quote = request(KisChartPrice.class, US_INDEX_TR,
                 "미국 지수 " + symbol.name(),
-                uri -> chart(uri, US_INDEX_PATH, OVERSEAS_INDEX, symbol.kisIndex()).build())
+                uri -> chart(uri, US_INDEX_PATH, OVERSEAS_INDEX, kisSymbol).build())
                 .output();
 
         require(quote == null ? null : quote.price(), "미국 지수 " + symbol.name());
@@ -218,21 +224,56 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
                 clock.instant(), true);
     }
 
+    /**
+     * 미국 종목 — <b>거래소를 스스로 찾는다.</b>
+     *
+     * <p><b>왜 탐색하는가.</b> {@code price-detail}은 {@code EXCD}를 요구하는데 사용자도 LLM도
+     * 그걸 주지 않는다. 예전에는 설정 표에 있는 심볼만 맡고 나머지는 2순위로 넘겼는데,
+     * <b>그 2순위가 비어 있었다</b> — FMP 무료 티어가 심볼별 허용목록으로 막아
+     * {@code PATH}·{@code ORCL}·{@code SNOW}가 전부 402였다(실측). 그래서
+     * {@code /stock 유아이패스}가 통째로 빈손이었다.
+     *
+     * <p><b>빗나간 거래소가 에러로 오지 않는다.</b> {@code rt_cd=0}에 41개 필드가 다 오고
+     * 값만 빈 문자열이다(실측). 없는 티커도 똑같다 — 그래서 "비었으면 다음 거래소"가 성립한다.
+     *
+     * <p><b>{@code AMS}(NYSE American)는 넣지 않는다.</b> 소형주 거래소라 얻는 것보다,
+     * 빗나갈 때마다 초당 1건 한도를 1초씩 더 태우는 대가가 크다. 거기 있는 종목은 2순위가
+     * 맡고, 그래도 없으면 못 찾았다고 답한다.
+     */
     private StockQuote usStock(UsSymbol symbol) {
-        UsStock.Quote quote = request(UsStock.class, US_STOCK_TR, "미국 종목 " + symbol.symbol(),
-                uri -> uri.path(US_STOCK_PATH)
-                        // AUTH는 빈 값으로 보낸다. 없으면 안 되고 값도 안 받는다
-                        .queryParam("AUTH", "")
-                        .queryParam("EXCD", symbol.kisExchange())
-                        .queryParam("SYMB", symbol.symbol())
-                        .build()).output();
+        String what = "미국 종목 " + symbol.symbol();
+        for (String exchange : exchangesToTry(symbol.symbol())) {
+            UsStock.Quote quote = request(UsStock.class, US_STOCK_TR, what,
+                    uri -> uri.path(US_STOCK_PATH)
+                            // AUTH는 빈 값으로 보낸다. 없으면 안 되고 값도 안 받는다
+                            .queryParam("AUTH", "")
+                            .queryParam("EXCD", exchange)
+                            .queryParam("SYMB", symbol.symbol())
+                            .build()).output();
+            if (quote == null || !positive(quote.price())) {
+                continue;
+            }
+            exchanges.remember(symbol.symbol(), exchange);
+            // 달러 등락률 필드가 없다. t_xrat은 원화 환산가 기준이라 여기 쓰면 틀린 값이 나간다
+            return new StockQuote(symbol.name(), quote.price(),
+                    PercentChange.between(quote.price(), quote.previousClose()),
+                    StockQuote.Money.USD, StockQuote.Market.US, StockSource.KIS,
+                    clock.instant(), true);
+        }
+        throw new IllegalStateException("KIS " + what + " 응답에 현재가가 없습니다");
+    }
 
-        require(quote == null ? null : quote.price(), "미국 종목 " + symbol.symbol());
-        // 달러 등락률 필드가 없다. t_xrat은 원화 환산가 기준이라 여기 쓰면 틀린 값이 나간다
-        return new StockQuote(symbol.name(), quote.price(),
-                PercentChange.between(quote.price(), quote.previousClose()),
-                StockQuote.Money.USD, StockQuote.Market.US, StockSource.KIS,
-                clock.instant(), true);
+    /**
+     * 물어볼 거래소 순서.
+     *
+     * <p><b>지난번에 찾아 기억해 둔 것이 있으면 그것 하나뿐이다</b> — 그때는 탐색 비용이 없다.
+     * 거래소는 바뀌지 않으므로 그 기억은 30일 간다({@link KisExchangeCache}).
+     *
+     * <p>모르면 나스닥부터 본다. 사용자가 물을 법한 미국 종목이 그쪽에 더 많다.
+     */
+    private List<String> exchangesToTry(String symbol) {
+        String remembered = exchanges.of(symbol);
+        return remembered == null ? List.of(NASDAQ, NYSE) : List.of(remembered);
     }
 
     /** 일자별 차트 셋(국내 종목·국내 지수·해외지수)이 쓰는 공통 파라미터. */
@@ -272,9 +313,18 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
 
     /** {@code rt_cd}가 0인데 값이 비어 오는 경우 — 없는 종목코드가 그렇다. */
     private static void require(BigDecimal price, String what) {
-        if (price == null) {
+        if (!positive(price)) {
             throw new IllegalStateException("KIS " + what + " 응답에 현재가가 없습니다");
         }
+    }
+
+    /**
+     * <b>{@code 0}은 값이 아니다.</b> 지수 심볼이 틀리면 에러가 아니라 {@code 0.00}이 온다
+     * (실측: {@code DJI}·{@code DJIA}). {@code null}만 보던 동안에는 <b>화면에 지수 0이 찍히고</b>
+     * 폴백도 일어나지 않았다.
+     */
+    private static boolean positive(BigDecimal price) {
+        return price != null && price.signum() > 0;
     }
 
     /**

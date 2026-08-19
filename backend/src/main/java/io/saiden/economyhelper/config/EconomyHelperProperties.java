@@ -16,7 +16,32 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "economy-helper")
 public record EconomyHelperProperties(
         Map<NewsSource, Feed> feeds, Ranking ranking, Digest digest, CacheTtl cacheTtl,
-        Weather weather) {
+        Weather weather, Market market) {
+
+    /**
+     * {@code market.*} 중 <b>구조가 있는 것만</b> 여기로 묶는다. 나머지(업비트·바이낸스·
+     * 공공데이터포털·FMP·수출입은행의 base-url·키)는 값 하나씩이라 {@code @Value}가 그대로 읽는다.
+     */
+    public record Market(Kis kis) {}
+
+    /**
+     * @param usIndices 미국 지수의 KIS 심볼 표. <b>브리핑 목록과 갈라 둔다</b> —
+     *                  {@code digest.us-symbols}가 이 표를 겸하던 때가 있었는데, 그러면
+     *                  표에 없는 심볼을 KIS가 통째로 거절해 {@code /stock 유아이패스}가
+     *                  빈손이 됐다. 목록은 "브리핑에 넣을 것", 이 표는 "KIS가 아는 이름"이다
+     */
+    public record Kis(String baseUrl, String appKey, String appSecret, List<KisIndex> usIndices) {}
+
+    /**
+     * 지수 하나의 KIS 심볼.
+     *
+     * <p><b>{@code Map}이 아니라 목록이다.</b> 키에 {@code ^}가 들어가는데 relaxed binding이
+     * Map 키에서 그런 문자를 걸러낸다 — {@code us-symbols}가 같은 이유로 목록이다.
+     *
+     * @param symbol    LLM·FMP가 쓰는 표기 {@code ^IXIC}
+     * @param kisSymbol KIS가 아는 이름 {@code COMP}. <b>규칙이 없어 표가 유일한 길이다</b>
+     */
+    public record KisIndex(String symbol, String kisSymbol) {}
 
 
     /** {@code type}이 어느 파서를 쓸지 정한다 — AP만 GOOGLE_NEWS다. */
@@ -73,43 +98,17 @@ public record EconomyHelperProperties(
      * <p><b>{@code Map}이 아니라 목록이다.</b> 키에 {@code ^}가 들어가는데 relaxed binding이
      * Map 키에서 그런 문자를 걸러낸다.
      *
-     * <p><b>{@code kisIndex}와 {@code kisExchange}는 배타적이다</b> — 한국투자증권은 지수와
-     * 종목의 엔드포인트가 갈리기 때문이다. 지수는 KIS 전용 심볼이 필요하고({@code ^IXIC}가
-     * 아니라 {@code COMP}), 종목은 거래소 코드를 요구한다({@code price-detail}의 {@code EXCD}).
-     * 둘 다 없으면 KIS가 그 심볼을 못 맡고 2순위(FMP)가 답한다 — FMP는 어느 쪽도 필요 없다.
+     * <p><b>KIS 조회 키는 담지 않는다.</b> 담던 때가 있었는데, 그러면 이 목록이 브리핑 목록과
+     * <b>KIS 대응표</b>를 겸하게 되고 표에 없는 심볼을 KIS가 통째로 거절했다 —
+     * {@code /stock 유아이패스}·{@code 오라클}이 그래서 빈손이었다(2순위 FMP가 그 심볼들을
+     * 402로 막는다). 지금은 지수 표가 {@code market.kis.us-indices}에 따로 있고,
+     * 종목 거래소는 {@code KisStockApi}가 직접 찾는다.
      *
-     * @param symbol      2순위(FMP)와 LLM이 쓰는 표기. {@code ^IXIC} · {@code AAPL}
-     * @param name        화면에 쓸 한국어 이름. <b>미국 종목 응답에는 이름이 아예 없다</b>
-     *                    (KIS는 {@code rsym="DNASAAPL"}뿐이고 FMP는 영문명을 준다)
-     * @param kisIndex    KIS 해외지수 심볼. {@code ^IXIC → COMP} · {@code ^GSPC → SPX}
-     * @param kisExchange KIS 거래소 코드. {@code NAS} · {@code NYS} · {@code AMS}
+     * @param symbol 2순위(FMP)와 LLM이 쓰는 표기. {@code ^IXIC} · {@code AAPL}
+     * @param name   화면에 쓸 한국어 이름. <b>미국 종목 응답에는 이름이 아예 없다</b>
+     *               (KIS는 {@code rsym="DNASAAPL"}뿐이고 FMP는 영문명을 준다)
      */
-    public record UsSymbol(String symbol, String name, String kisIndex, String kisExchange) {
-
-        /**
-         * KIS 대응이 아직 없는 심볼 — 검색 경로가 이 모양으로 만든다({@code KisStockApi}가
-         * 설정 표에서 채운다).
-         *
-         * <p><b>생성자가 아니라 정적 팩터리다.</b> 레코드에 생성자를 하나 더 두면 Spring이
-         * 어느 쪽으로 바인딩할지 몰라 {@code us-symbols}가 통째로 안 묶인다(실제로 겪었다).
-         */
-        public static UsSymbol of(String symbol, String name) {
-            return new UsSymbol(symbol, name, null, null);
-        }
-
-        public boolean isIndex() {
-            return present(kisIndex);
-        }
-
-        /** KIS가 맡을 수 있는가. 둘 다 없으면 조회 키를 만들 수 없다. */
-        public boolean hasKis() {
-            return present(kisIndex) || present(kisExchange);
-        }
-
-        private static boolean present(String value) {
-            return value != null && !value.isBlank();
-        }
-    }
+    public record UsSymbol(String symbol, String name) {}
 
     /**
      * 캐시별 만료 시간.

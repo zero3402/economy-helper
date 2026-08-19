@@ -8,7 +8,7 @@ import io.saiden.economyhelper.config.EconomyHelperProperties.UsSymbol;
  *
  * <p>지수와 종목을 한 메서드로 받는 것이 국내와 다른 점이다. 2순위인 FMP가 둘을 같은
  * 엔드포인트로 주고, 1순위인 KIS는 갈리지만 그 갈림은 {@link UsSymbol}이 이미 담고 있다
- * ({@code kisIndex}냐 {@code kisExchange}냐).
+ * — 지수만 {@code ^}로 시작한다.
  */
 public interface UsStockClient extends StockClient {
 

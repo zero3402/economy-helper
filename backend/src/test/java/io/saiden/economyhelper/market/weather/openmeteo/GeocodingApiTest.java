@@ -89,19 +89,38 @@ class GeocodingApiTest {
     }
 
     @Test
-    @DisplayName("인구가 붙은 후보가 없으면 첫 번째를 쓴다 — 그때는 API 순서가 유일한 단서다")
-    void fallsBackToTheFirstWhenNobodyHasPopulation() {
-        // 실측에서 '잠실'이 이 경우였다 — 10건 전부 인구가 없다
+    @DisplayName("인구가 붙은 후보가 없으면 아무것도 고르지 않는다 — 첫 결과를 집던 것이 국내를 통째로 망가뜨렸다")
+    void refusesToGuessWhenNobodyHasPopulation() {
+        // 실측(2026-08-19): 한국어 짧은 지명은 이 모양으로만 온다. 첫 결과로 떨어지던 동안
+        // '서현'은 김포시(37.65, 126.60), '성남'은 전라북도(35.54, 127.40)를 집고 있었다 —
+        // 분당에서 200km다. 인구가 곧 "이게 진짜 도시냐"의 신호다
         stub("""
                 {"results":[
-                 {"name":"잠실","latitude":37.6087,"longitude":127.377,
+                 {"name":"서현","latitude":37.6461,"longitude":126.6049,
                   "country":"대한민국","timezone":"Asia/Seoul"},
-                 {"name":"Jamsil","latitude":36.9533,"longitude":127.1524,
+                 {"name":"Seohyeon","latitude":36.9533,"longitude":127.1524,
                   "country":"대한민국","timezone":"Asia/Seoul"}]}""");
 
-        GeoLocation place = api.find("잠실", "KR").orElseThrow();
+        assertThat(api.find("서현", "KR"))
+                .as("틀린 좌표로 그럴듯한 답을 주는 것이 빈손보다 나쁘다")
+                .isEmpty();
+    }
 
-        assertThat(place.latitude()).isEqualTo(37.6087);
+    @Test
+    @DisplayName("로마자로 오면 물어본 한국어 지명으로 적는다 — language=ko인데도 그렇게 온다")
+    void fallsBackToTheQueryWhenTheNameComesRomanised() {
+        // 실측: '제주시'를 찾으면 이름이 Jejudo로 온다. 그대로 쓰면 전부 한글인 화면에
+        // 지명만 로마자로 튄다
+        stub("""
+                {"results":[{"name":"Jejudo","latitude":33.4022,"longitude":126.5464,
+                 "country":"대한민국","timezone":"Asia/Seoul","population":621550}]}""");
+
+        GeoLocation place = api.find("제주시", "KR").orElseThrow();
+
+        assertThat(place.name()).isEqualTo("제주시");
+        assertThat(place.country()).as("나라는 손대지 않는다 — 그쪽은 제대로 한국어로 온다")
+                .isEqualTo("대한민국");
+        assertThat(place.latitude()).as("좌표는 여전히 지오코딩이 확정한다").isEqualTo(33.4022);
     }
 
     @Test
@@ -133,7 +152,7 @@ class GeocodingApiTest {
     void neverAssumesSeoulWhenTheZoneIsMissing() {
         stub("""
                 {"results":[{"name":"어딘가","latitude":1.0,"longitude":1.0,
-                 "country":"어느나라"}]}""");
+                 "country":"어느나라","population":50000}]}""");
 
         Optional<GeoLocation> place = api.find("어딘가", null);
 

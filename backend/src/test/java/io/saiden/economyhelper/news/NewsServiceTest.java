@@ -71,6 +71,25 @@ class NewsServiceTest {
     }
 
     @Test
+    @DisplayName("같은 기사가 두 피드에 실려도 한 번만 나간다 — 한 매체가 피드를 둘 달 수 있다")
+    void neverShowsTheSameArticleTwice() {
+        // Investing.com이 본 섹션과 암호화폐 섹션을 함께 단다(CLAUDE.md). 같은 기사가
+        // 두 피드에 실리면 그대로 두 건이 됐다 — 실측(2026-08-19)으로 /news 금리 3건 중
+        // 1번과 3번이 글자 그대로 같은 기사였다
+        Article shared = article(NewsSource.INVESTING, "Rate cut bets grow", 0);
+        Article alsoInCrypto = new Article(NewsSource.INVESTING_CRYPTO, shared.title(), null,
+                shared.link(), shared.publishedAt(), 0);
+        NewsService service = service(Map.of(
+                NewsSource.INVESTING, List.of(shared),
+                NewsSource.INVESTING_CRYPTO, List.of(alsoInCrypto)));
+
+        assertThat(service.search(groups("rate"), "금리"))
+                .as("링크가 같으면 같은 기사다")
+                .hasSize(1);
+        assertThat(service.digest()).hasSize(1);
+    }
+
+    @Test
     @DisplayName("걸린 게 상한보다 적으면 그만큼만 — 자리를 채우려 관련 없는 기사를 끌어오지 않는다")
     void returnsFewerThanTheCapWhenThatIsAllThereIs() {
         NewsService service = service(Map.of(NewsSource.CNBC, List.of(
@@ -222,6 +241,7 @@ class NewsServiceTest {
                     new EconomyHelperProperties(
                             new EnumMap<NewsSource, Feed>(NewsSource.class),
                             new Ranking(new Weights(1, 1, 1, 1), Duration.ofHours(6)),
+                            null,
                             null,
                             null,
                             null),

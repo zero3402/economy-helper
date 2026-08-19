@@ -89,9 +89,10 @@ public class NewsService {
     public List<ScoredArticle> digest() {
         // 매체끼리는 서로를 기다릴 이유가 없어 겹쳐 돈다 — 가장 느린 매체 하나 만큼만 걸린다.
         // 매체 안에서는 순차다: 피드가 있어야 후보가 나오고 후보가 있어야 관련도를 잰다
-        return Concurrently.map(List.of(NewsSource.values()), this::relevantOf).stream()
+        return distinctByLink(Concurrently.map(List.of(NewsSource.values()), this::relevantOf).stream()
                 .flatMap(List::stream)
                 .sorted(Comparator.comparingDouble(ScoredArticle::score).reversed())
+                .toList(), scored -> scored.article().link()).stream()
                 .limit(digestResults)
                 .toList();
     }
@@ -169,10 +170,11 @@ public class NewsService {
 
         // 매체 전부를 동시에 긁는다 — 검색은 사용자가 화면을 보고 기다리는 자리라
         // 순차로 도는 시간이 그대로 체감된다. 브리핑과 같은 신선도 창을 쓴다
-        List<Article> matching = recent(Concurrently.map(List.of(NewsSource.values()), fetcher::fetch).stream()
-                .flatMap(List::stream)
-                .filter(article -> matchesAny(article, groups))
-                .toList(), clock.instant());
+        List<Article> matching = recent(distinctByLink(
+                Concurrently.map(List.of(NewsSource.values()), fetcher::fetch).stream()
+                        .flatMap(List::stream)
+                        .filter(article -> matchesAny(article, groups))
+                        .toList(), Article::link), clock.instant());
 
         // 걸린 게 적으면 그만큼만 나간다 — 자리를 채우려고 관련 없는 기사를 끌어오지 않는다
         return verified(rank(matching, groups), query).stream().limit(searchResults).toList();
@@ -217,6 +219,23 @@ public class NewsService {
         // HN 조회는 여기서 한 번에 끝낸다 — PopularityScorer는 I/O를 모르는 순수 함수다
         Map<String, Integer> buzz = buzzClient.buzzByLink(articles, now);
         return scorer.rank(articles, keywords, buzz, now);
+    }
+
+    /**
+     * 같은 기사가 두 번 나오지 않게 <b>링크로 한 번 거른다.</b>
+     *
+     * <p><b>매체 하나가 피드를 둘 달 수 있다</b> — Investing.com이 본 섹션과 암호화폐 섹션을
+     * 함께 단다({@code CLAUDE.md}). 같은 기사가 두 피드에 실리면 그대로 두 건이 된다.
+     * 실측(2026-08-19): {@code /news 금리} 3건 중 1번과 3번이 <b>글자 그대로 같은 기사</b>였다.
+     *
+     * <p><b>앞의 것을 남긴다.</b> 브리핑은 점수순으로 정렬한 뒤 부르므로 남는 것이 더 높은
+     * 점수이고, 검색은 피드 순서가 곧 편집자가 매긴 우선순위다.
+     *
+     * <p>{@code Set}으로 받지 않는다 — 순서가 곧 의미인 목록이다.
+     */
+    private static <T> List<T> distinctByLink(List<T> items, java.util.function.Function<T, String> link) {
+        java.util.Set<String> seen = new java.util.LinkedHashSet<>();
+        return items.stream().filter(item -> seen.add(link.apply(item))).toList();
     }
 
     private static List<KeywordGroup> usable(Collection<KeywordGroup> keywords) {

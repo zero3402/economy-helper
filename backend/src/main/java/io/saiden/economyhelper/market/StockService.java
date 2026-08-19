@@ -188,7 +188,7 @@ public class StockService {
         }
         // LLM이 준 한국어 이름을 쓴다. 국내 종목·코인은 한글로 나가는데 미국만 영문이면
         // 같은 화면에서 표기가 갈린다 — '애플'을 물었는데 'Apple Inc.'가 돌아온다
-        return usQuote(UsSymbol.of(resolved.code(), resolved.name()));
+        return usQuote(new UsSymbol(resolved.code(), resolved.name()));
     }
 
     /** 종목코드를 이미 아는 경우 — 아침 브리핑처럼 설정에 박힌 종목들이 여기로 온다. */
