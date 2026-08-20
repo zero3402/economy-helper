@@ -15,6 +15,8 @@ import org.springframework.core.Ordered;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
+import java.util.Set;
+
 /**
  * 설정 파일에 적은 회복탄력성 규칙이 <b>런타임에 실제로 그렇게 되는지</b> 본다.
  *
@@ -45,7 +47,20 @@ class ResilienceConfigTest {
         // ⚠️ kis는 여기 없다. 그 제약은 "1초에 몇 건"이 아니라 "호출 사이 얼마"라서 고정 윈도로
         // 표현할 수 없고(경계에서 두 호출이 120ms 간격으로 나갔다 — 실측), KisThrottle이 맡는다.
         // 이 목록에 kis를 되돌려 놓으려면 KisThrottle을 먼저 걷어낼 것 — 둘 다 걸면 두 배로 쉰다
-        for (String name : new String[] {"gemini", "upbit", "binance", "dataGo", "fmp", "kexim"}) {
+        //
+        // ⚠️ **목록을 손으로 적지 않는다.** 예전에는 여기에 이름 여섯을 박아 뒀는데, 그러면
+        //    새 클라이언트에 @RateLimiter를 달면서 yml 블록을 빠뜨려도 이 테스트가 초록이다 —
+        //    잡으려던 바로 그 실수를 못 잡는다. 그래서 실제로 쓰이는 이름을 긁어 온다 —
+        //    애너테이션에 적힌 것과 빈이 손으로 꺼내 들고 있는 것을 함께 본다
+        Set<String> used = rateLimiterNamesInUse();
+
+        assertThat(used)
+                .as("하나도 못 찾았다 — 스캔이 깨지면 이 테스트는 아무것도 안 본다")
+                .isNotEmpty()
+                .as("스캔이 절반만 돌아도 이 테스트는 초록이다 — 아는 이름이 다 잡히는지 함께 본다")
+                .contains("gemini", "upbit", "binance", "dataGo", "fmp", "kexim");
+
+        for (String name : used) {
             RateLimiterConfig config = limiters.rateLimiter(name).getRateLimiterConfig();
 
             assertThat(config.getLimitRefreshPeriod())
@@ -56,6 +71,7 @@ class ResilienceConfigTest {
                     .isLessThan(50);
         }
     }
+
 
     @Test
     @DisplayName("KIS의 간격 문이 빈 자리로 남지 않는다 — 리미터를 걷어낸 자리를 대신 채운 것이다")
@@ -229,6 +245,15 @@ class ResilienceConfigTest {
         assertThat(breaker.getMetrics().getNumberOfFailedCalls())
                 .as("없는 심볼의 400이 브레이커를 열면 멀쩡한 다른 코인까지 막힌다")
                 .isEqualTo(before + 2);
+
+        // 밴 중이라 안 부른 것은 우리가 스스로 닫은 문이다 — 실패로 세면 밴이 풀린 뒤에도
+        // 브레이커가 열린 채 남아 밴보다 오래 가는 정지가 된다(리미터 거절과 같은 자리)
+        breaker.onError(0, java.util.concurrent.TimeUnit.MILLISECONDS,
+                new io.saiden.economyhelper.market.binance.BinanceApi.Banned(
+                        java.time.Instant.now().plusSeconds(120)));
+        assertThat(breaker.getMetrics().getNumberOfFailedCalls())
+                .as("우리 스로틀을 상대 장애로 세지 않는다")
+                .isEqualTo(before + 2);
     }
 
 
@@ -298,5 +323,69 @@ class ResilienceConfigTest {
                 new IllegalStateException("Gemini 500"));
 
         assertThat(breaker.getMetrics().getNumberOfFailedCalls()).isEqualTo(before + 1);
+    }
+
+
+    /**
+     * 우리 빈이 쓰는 리미터 이름 전부 — <b>애너테이션과 손으로 꺼낸 것을 함께</b> 본다.
+     *
+     * <p>둘 다 봐야 하는 이유가 있다. {@code StockPriceApi}·{@code MarketIndexApi}·
+     * {@code KeximFxClient}는 <b>애너테이션을 안 쓴다</b> — 퍼밋을 얻어야 하는 자리가 되짚기
+     * 루프 안의 private 메서드라 프록시가 안 닿기 때문이고, 그래서 레지스트리에서 직접 꺼내
+     * 필드로 들고 있다. 애너테이션만 긁으면 그 셋이 빠져 <b>정작 한도가 빡빡한 출처들</b>
+     * (공공데이터포털 일 1만·수출입은행 일 1,000)이 이 그물 밖에 남는다.
+     *
+     * <p>필드는 값에서 이름을 읽는다 — 정적으로는 그 문자열이 어디에도 없다(레지스트리 호출의
+     * 인자로만 스쳐 간다). 이미 만들어진 빈이 들고 있는 것이 곧 그 이름이다.
+     */
+    private Set<String> rateLimiterNamesInUse() {
+        Set<String> names = new java.util.TreeSet<>();
+        for (String bean : context.getBeanDefinitionNames()) {
+            Class<?> type = context.getType(bean);
+            if (type == null || !type.getName().startsWith("io.saiden.economyhelper")) {
+                continue;
+            }
+            Class<?> target = org.springframework.util.ClassUtils.getUserClass(type);
+            addAnnotated(names, org.springframework.core.annotation.AnnotatedElementUtils
+                    .findMergedAnnotation(target,
+                            io.github.resilience4j.ratelimiter.annotation.RateLimiter.class));
+            for (java.lang.reflect.Method method : target.getDeclaredMethods()) {
+                addAnnotated(names, org.springframework.core.annotation.AnnotatedElementUtils
+                        .findMergedAnnotation(method,
+                                io.github.resilience4j.ratelimiter.annotation.RateLimiter.class));
+            }
+            // ⚠️ 프록시가 아니라 **대상 객체**에서 읽어야 한다. @Cacheable·@CircuitBreaker가
+            //    씌운 CGLIB 하위 클래스는 같은 필드를 갖되 비어 있어, 프록시에서 읽으면
+            //    조용히 null이 나오고 이 그물이 아무것도 못 잡는다
+            addHeldLimiters(names,
+                    org.springframework.test.util.AopTestUtils.getUltimateTargetObject(
+                            context.getBean(bean)), target);
+        }
+        return names;
+    }
+
+    private static void addAnnotated(Set<String> names,
+            io.github.resilience4j.ratelimiter.annotation.RateLimiter annotation) {
+        if (annotation != null && !annotation.name().isBlank()) {
+            names.add(annotation.name());
+        }
+    }
+
+    /** 빈이 필드로 들고 있는 리미터 — 손으로 꺼내 쓰는 셋이 여기서 잡힌다. */
+    private static void addHeldLimiters(Set<String> names, Object bean, Class<?> target) {
+        for (java.lang.reflect.Field field : target.getDeclaredFields()) {
+            if (!RateLimiter.class.isAssignableFrom(field.getType())) {
+                continue;
+            }
+            try {
+                field.setAccessible(true);
+                if (field.get(bean) instanceof RateLimiter limiter) {
+                    names.add(limiter.getName());
+                }
+            } catch (ReflectiveOperationException | RuntimeException e) {
+                throw new IllegalStateException(
+                        "리미터 필드를 못 읽었다 — 그러면 이 그물에 구멍이 난다: " + field, e);
+            }
+        }
     }
 }

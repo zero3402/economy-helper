@@ -55,12 +55,21 @@ public final class HelpFormatter {
         return title(Command.HELP) + commandList();
     }
 
-    /** 명령 목록 본문. 도움말과 "모르는 명령"이 나눠 쓴다. */
+    /**
+     * 명령 목록 본문. 도움말과 "모르는 명령"이 나눠 쓴다.
+     *
+     * <p><b>줄임말을 예시 뒤에 붙인다.</b> 줄을 따로 만들지 않는 이유는 목록이 이미
+     * 「예시 / 설명」 두 줄 짜임이라, 세 줄이 되면 명령 여섯 개가 화면 한 통을 다 먹는다.
+     * 있는 명령만 붙는다 — {@code /news}에는 줄임말이 없어 그 줄이 그대로다.
+     */
     private static String commandList() {
         StringBuilder list = new StringBuilder();
         for (Command command : Command.values()) {
-            list.append("\n\n").append(Html.escape(command.example())).append("\n")
-                    .append(describe(command));
+            list.append("\n\n").append(Html.escape(command.example()));
+            if (command.shortToken() != null) {
+                list.append(" (또는 ").append(Html.escape(command.shortToken())).append(")");
+            }
+            list.append("\n").append(describe(command));
         }
         return list.toString();
     }

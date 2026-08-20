@@ -9,6 +9,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import io.saiden.economyhelper.market.binance.BinanceApi.BinancePrice;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,9 +23,21 @@ class BinanceApiTest {
 
     private WireMockServer server;
 
+    /**
+     * 밴 문. Redis 없이 프로세스 사본만 쓴다 — Redis가 죽었을 때와 같은 경로다.
+     *
+     * <p><b>테스트마다 새로 만든다.</b> 하나를 나눠 쓰면 418을 던진 테스트가 다음 테스트의
+     * 호출까지 막아, 순서에 따라 결과가 갈린다.
+     */
+    private BinanceBanGate gate;
+
+    /** 밴 시각을 눈으로 검산하려고 고정한다 — 「지금부터 몇 초」가 아니라 「몇 시」를 단언한다. */
+    private static final Instant NOW = Instant.parse("2026-08-20T05:00:00Z");
+
     @BeforeEach
     void startServer() {
         server = new WireMockServer(options().dynamicPort().http2PlainDisabled(true));
+        gate = new BinanceBanGate(null, Clock.fixed(NOW, ZoneOffset.UTC));
         server.start();
     }
 
@@ -44,7 +59,7 @@ class BinanceApiTest {
             server.stubFor(get(anyUrl()).willReturn(aResponse().withStatus(418)));
 
             org.assertj.core.api.Assertions.assertThatThrownBy(() -> new BinanceApi(
-                    RestClient.builder(), server.baseUrl(), mirror.baseUrl())
+                    RestClient.builder(), gate, server.baseUrl(), mirror.baseUrl())
                     .prices(List.of("ETHUSDT")))
                     .as("밴은 미상장이 아니다 — 좁은 타입으로 삼켜지면 브레이커가 안 열린다")
                     .isNotInstanceOf(BinanceApi.UnknownSymbol.class);
@@ -65,7 +80,7 @@ class BinanceApiTest {
             server.stubFor(get(anyUrl()).willReturn(aResponse().withStatus(429)));
 
             org.assertj.core.api.Assertions.assertThatThrownBy(() -> new BinanceApi(
-                    RestClient.builder(), server.baseUrl(), mirror.baseUrl())
+                    RestClient.builder(), gate, server.baseUrl(), mirror.baseUrl())
                     .prices(List.of("ETHUSDT")))
                     .isInstanceOf(RuntimeException.class);
 
@@ -91,7 +106,7 @@ class BinanceApiTest {
                             [{"symbol":"ETHUSDT","lastPrice":"2256.31","priceChangePercent":"18.06"}]""")));
 
             List<BinancePrice> prices = new BinanceApi(
-                    RestClient.builder(), server.baseUrl(), mirror.baseUrl())
+                    RestClient.builder(), gate, server.baseUrl(), mirror.baseUrl())
                     .prices(List.of("ETHUSDT"));
 
             assertThat(prices).singleElement()
@@ -114,7 +129,7 @@ class BinanceApiTest {
                     .withBody("{\"code\":-1121,\"msg\":\"Invalid symbol.\"}")));
 
             org.assertj.core.api.Assertions.assertThatThrownBy(() -> new BinanceApi(
-                    RestClient.builder(), server.baseUrl(), mirror.baseUrl())
+                    RestClient.builder(), gate, server.baseUrl(), mirror.baseUrl())
                     .prices(List.of("USDTUSDT")))
                     .as("좁은 타입으로 던져야 브레이커가 이것만 무시할 수 있다")
                     .isInstanceOf(BinanceApi.UnknownSymbol.class);
@@ -169,7 +184,76 @@ class BinanceApiTest {
         assertThat(server.getAllServeEvents()).isEmpty();
     }
 
+
+    @Test
+    @DisplayName("418을 한 번 받으면 그 뒤로는 HTTP가 아예 안 나간다 — 밴 중의 호출이 밴을 연장한다")
+    void stopsCallingAfterTheFirstBan() {
+        server.stubFor(get(anyUrl()).willReturn(aResponse().withStatus(418)));
+        BinanceApi api = api();
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> api.prices(List.of("ETHUSDT")))
+                .isNotInstanceOf(BinanceApi.Banned.class);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> api.prices(List.of("BTCUSDT")))
+                .as("두 번째는 부르지 않고 스스로 거절한다")
+                .isInstanceOf(BinanceApi.Banned.class);
+
+        assertThat(server.getAllServeEvents())
+                .as("브레이커에 맡기면 열릴 때까지 다섯 번을 더 부른다 — 그 다섯 번이 밴을 늘린다")
+                .hasSize(1);
+    }
+
+    @Test
+    @DisplayName("Retry-After를 그대로 믿는다 — 바이낸스가 언제 풀리는지 직접 말해 준다")
+    void honoursRetryAfter() {
+        server.stubFor(get(anyUrl())
+                .willReturn(aResponse().withStatus(418).withHeader("Retry-After", "300")));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> api().prices(List.of("ETHUSDT")))
+                .isInstanceOf(RuntimeException.class);
+
+        assertThat(gate.bannedUntil())
+                .as("넘겨짚은 최소값(2분)이 아니라 상대가 말한 300초다")
+                .isEqualTo(NOW.plusSeconds(300));
+    }
+
+    @Test
+    @DisplayName("Retry-After가 없으면 상대가 문서로 말한 최소 밴(2분)으로 넘겨짚는다")
+    void fallsBackToTheDocumentedMinimumBan() {
+        server.stubFor(get(anyUrl()).willReturn(aResponse().withStatus(418)));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> api().prices(List.of("ETHUSDT")))
+                .isInstanceOf(RuntimeException.class);
+
+        assertThat(gate.bannedUntil()).isEqualTo(NOW.plus(BinanceBanGate.MIN_BAN));
+    }
+
+    @Test
+    @DisplayName("429는 밴이 아니라 경고다 — 더 짧게 물러섰다가 돌아온다")
+    void backsOffBrieflyOnAWarning() {
+        server.stubFor(get(anyUrl()).willReturn(aResponse().withStatus(429)));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> api().prices(List.of("ETHUSDT")))
+                .isInstanceOf(RuntimeException.class);
+
+        assertThat(gate.bannedUntil())
+                .as("여기서 계속 부르면 418로 굳는다. 그래도 2분은 과하다")
+                .isEqualTo(NOW.plus(BinanceBanGate.WARNING_BACKOFF));
+    }
+
+    @Test
+    @DisplayName("미상장(400)은 문을 닫지 않는다 — 우리 잘못이지 밴이 아니다")
+    void anUnknownSymbolNeverClosesTheGate() {
+        server.stubFor(get(anyUrl()).willReturn(aResponse().withStatus(400)
+                .withHeader("Content-Type", "application/json")
+                .withBody("{\"code\":-1121,\"msg\":\"Invalid symbol.\"}")));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> api().prices(List.of("USDTUSDT")))
+                .isInstanceOf(BinanceApi.UnknownSymbol.class);
+
+        assertThat(gate.bannedUntil())
+                .as("없는 심볼 하나가 멀쩡한 코인까지 막으면 안 된다").isNull();
+    }
     private BinanceApi api() {
-        return new BinanceApi(RestClient.builder(), server.baseUrl(), "");
+        return new BinanceApi(RestClient.builder(), gate, server.baseUrl(), "");
     }
 }

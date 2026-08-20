@@ -23,9 +23,12 @@ class PrecipitationSpellsTest {
     private static final LocalDate DAY = LocalDate.of(2026, 8, 20);
 
     @Test
-    @DisplayName("몰려 있는 시간을 한 토막으로 접는다 — 24시간을 나열하면 숫자 벽이 된다")
-    void foldsTheWetHoursIntoOneSpell() {
-        // 실측 그대로다. 13시 60% → 15시 80% → 19시 45%로 떨어진다
+    @DisplayName("몰린 시간만 남긴다 — 가장자리까지 넣으면 「오후 1시~7시」가 되어 우산 챙길 때를 못 말한다")
+    void keepsOnlyTheHoursTheRainIsConcentratedIn() {
+        // 실측 그대로다. 13시 60% → 15시 80% → 19시 45%로 떨어진다.
+        // 예전에는 절대 문턱(50%) 하나였고 그래서 13~19시가 통째로 한 토막이었다 —
+        // 여섯 시간 폭은 「비옴」 한 마디에서 별로 나아가지 못한다. 이제는 봉우리(80%)의
+        // 80%인 64%가 경계라 14~17시만 남는다
         List<Integer> chances = Arrays.asList(
                 0, 0, 0, 0, 0, 1, 2, 3, 5, 10, 20, 34,      // 00~11시
                 47, 60, 73, 80, 77, 68, 57, 45, 32, 22, 16, 12);  // 12~23시
@@ -41,11 +44,27 @@ class PrecipitationSpellsTest {
 
         assertThat(byDay).containsOnlyKeys(DAY);
         assertThat(byDay.get(DAY)).singleElement().satisfies(spell -> {
-            assertThat(spell.from()).as("13시부터").isEqualTo(LocalTime.of(13, 0));
-            assertThat(spell.to()).as("19시까지 — 45%인 19시는 강수량 0.1mm로 걸린다")
-                    .isEqualTo(LocalTime.of(19, 0));
+            assertThat(spell.from()).as("13시(60%)는 봉우리의 가장자리다").isEqualTo(LocalTime.of(14, 0));
+            assertThat(spell.to()).as("18시(57%)·19시(45%)도 마찬가지다").isEqualTo(LocalTime.of(17, 0));
             assertThat(spell.chance()).as("그 토막의 최대 확률").isEqualTo(80);
             assertThat(spell.kind()).isEqualTo(SkyCondition.DRIZZLE);
+        });
+    }
+
+    @Test
+    @DisplayName("봉우리가 낮은 날은 덜 깎는다 — 좁히는 것은 절대 문턱을 올리는 일이 아니다")
+    void narrowsRelativeToThatDaysPeak() {
+        // 하루 종일 55% 언저리인 날. 봉우리의 80%는 44%지만 절대 문턱(50%)이 그보다 크므로
+        // 그쪽이 이긴다 — 안 그러면 봉우리가 낮은 날에 마른 시간까지 토막이 된다
+        List<Integer> chances = Arrays.asList(30, 52, 55, 51, 30, 30);
+
+        List<PrecipitationSpell> spells =
+                PrecipitationSpells.byDay(hours(DAY, 6), chances, null, null).get(DAY);
+
+        assertThat(spells).singleElement().satisfies(spell -> {
+            assertThat(spell.from()).isEqualTo(LocalTime.of(1, 0));
+            assertThat(spell.to()).as("51%도 50% 문턱을 넘으므로 남는다").isEqualTo(LocalTime.of(3, 0));
+            assertThat(spell.chance()).isEqualTo(55);
         });
     }
 

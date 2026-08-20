@@ -164,6 +164,11 @@ class RenderedOutputTest {
         cases.put("crypto/binance-failed", CryptoFormatter.format(List.of(
                 new CryptoQuote("비트코인", "KRW-BTC", NOW,
                         Quote.of(new BigDecimal("89848000"), null), Quote.FAILED)), FX_FLAT));
+        // 밴은 '조회 실패'와 다른 말이다 — 다시 치면 오히려 밴이 길어지므로 언제 풀리는지를 적는다
+        cases.put("crypto/binance-banned", CryptoFormatter.format(List.of(
+                new CryptoQuote("비트코인", "KRW-BTC", NOW,
+                        Quote.of(new BigDecimal("89848000"), null),
+                        Quote.banned(NOW.plusSeconds(7200)))), FX_FLAT));
         cases.put("crypto/upbit-failed", CryptoFormatter.format(List.of(
                 new CryptoQuote("이더리움", "KRW-ETH", NOW, Quote.FAILED, Quote.FAILED)), FX_FLAT));
         cases.put("crypto/no-upbit-market", CryptoFormatter.format(List.of(

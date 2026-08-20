@@ -368,7 +368,9 @@ class DailyDigestJobTest {
     private static CryptoService cryptoWithBinance() {
         return new CryptoService(new UpbitApi(RestClient.builder(), "https://example.invalid"),
                 new io.saiden.economyhelper.market.binance.BinanceApi(
-                        RestClient.builder(), "https://example.invalid", ""),
+                        RestClient.builder(),
+                        new io.saiden.economyhelper.market.binance.BinanceBanGate(null, java.time.Clock.systemUTC()),
+                        "https://example.invalid", ""),
                 noCryptoResolver()) {
             @Override
             public List<CryptoQuote> quotesOf(List<String> markets) {
@@ -380,7 +382,9 @@ class DailyDigestJobTest {
     private static CryptoService crypto(boolean alive) {
         return new CryptoService(new UpbitApi(RestClient.builder(), "https://example.invalid"),
                 new io.saiden.economyhelper.market.binance.BinanceApi(
-                        RestClient.builder(), "https://example.invalid", ""),
+                        RestClient.builder(),
+                        new io.saiden.economyhelper.market.binance.BinanceBanGate(null, java.time.Clock.systemUTC()),
+                        "https://example.invalid", ""),
                 noCryptoResolver()) {
             @Override
             public List<CryptoQuote> quotesOf(List<String> markets) {

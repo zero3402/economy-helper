@@ -1,6 +1,7 @@
 package io.saiden.economyhelper.market.weather;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -32,6 +33,23 @@ public final class PrecipitationSpells {
 
     /** 이 양 이상이면 확률이 낮아도 토막이다 — 짧고 센 소나기가 여기 걸린다. */
     private static final BigDecimal MIN_AMOUNT = new BigDecimal("0.1");
+
+    /**
+     * <b>봉우리의 몇 할까지가 그 비인가.</b>
+     *
+     * <p>문턱을 {@link #MIN_CHANCE} 하나로 두면 토막이 너무 넓어진다 — 실측(2026-08-20 성남)에서
+     * 13시 60%부터 19시 45%까지가 한 토막이 됐는데, 정작 몰린 시간은 14~17시(68~80%)였다.
+     * 「오후 1시~7시」는 우산을 언제 챙길지를 <b>여섯 시간의 폭</b>으로 말하는 것이라
+     * 「비옴」에서 별로 나아가지 못한다.
+     *
+     * <p>그래서 그날 봉우리에 상대적으로 자른다. 0.8이면 80% 봉우리에서 64%가 경계가 되어
+     * 실측의 14~17시가 남는다. 더 조이면(0.9) 봉우리 한두 시간만 남아 앞뒤로 젖은 시간을
+     * 마른 것처럼 말하게 되고, 더 풀면(0.7) 원래의 여섯 시간으로 돌아간다.
+     *
+     * <p>⚠️ <b>절대 문턱을 없애는 것이 아니다.</b> 봉우리가 20%인 날에 그 80%인 16%를
+     * 경계로 삼으면 마른 날에도 토막이 생긴다 — 둘 중 <b>큰 쪽</b>을 쓴다.
+     */
+    private static final BigDecimal PEAK_RATIO = new BigDecimal("0.8");
 
     private PrecipitationSpells() {
     }
@@ -65,7 +83,8 @@ public final class PrecipitationSpells {
             }
         }
         slotsByDay.forEach((day, slots) -> {
-            List<PrecipitationSpell> spells = fold(times, chances, amounts, codes, slots);
+            List<PrecipitationSpell> spells =
+                    fold(times, chances, amounts, codes, slots, thresholdsOf(chances, amounts, slots));
             if (!spells.isEmpty()) {
                 byDay.put(day, spells);
             }
@@ -73,15 +92,15 @@ public final class PrecipitationSpells {
         return byDay;
     }
 
-    /** 하루치 슬롯을 연속 구간으로 접는다. */
+    /** 하루치 슬롯을 연속 구간으로 접는다 — 문턱은 그날 봉우리가 정한다. */
     private static List<PrecipitationSpell> fold(List<LocalDateTime> times, List<Integer> chances,
                                         List<BigDecimal> amounts, List<Integer> codes,
-                                        List<Integer> slots) {
+                                        List<Integer> slots, Thresholds cut) {
         List<PrecipitationSpell> spells = new ArrayList<>();
         int start = -1;
         for (int position = 0; position < slots.size(); position++) {
             int slot = slots.get(position);
-            boolean wet = wet(at(chances, slot), at(amounts, slot));
+            boolean wet = wet(at(chances, slot), at(amounts, slot), cut);
             if (wet && start < 0) {
                 start = position;
             }
@@ -131,12 +150,53 @@ public final class PrecipitationSpells {
                         times.get(slots.get(end)).toLocalTime(), kind, total);
     }
 
-    /** 이 시간에 비가 오는가 — 확률이 충분하거나 양이 잡힐 만큼이면. */
-    private static boolean wet(Integer chance, BigDecimal amount) {
-        if (chance != null && chance >= MIN_CHANCE) {
+    /**
+     * 그날의 문턱.
+     *
+     * @param chance 이 확률 미만은 토막이 아니다
+     * @param amount 확률이 낮아도 이 양 이상이면 토막이다
+     */
+    private record Thresholds(int chance, BigDecimal amount) {
+    }
+
+    /**
+     * 그날 봉우리에서 문턱을 낸다.
+     *
+     * <p><b>지나간 날은 좁히지 않는다.</b> 확률이 하나도 없는 날이 그것인데, 거기 담긴 숫자는
+     * 「올 가능성」이 아니라 <b>실제로 온 양</b>이다. 실제로 두 시간 왔으면 두 시간 온 것이라
+     * 봉우리 언저리만 남기는 것은 사실을 깎는 일이 된다. 예보에서 가장자리를 떼는 것과 뜻이 다르다.
+     */
+    private static Thresholds thresholdsOf(List<Integer> chances, List<BigDecimal> amounts,
+                                           List<Integer> slots) {
+        Integer peakChance = null;
+        BigDecimal peakAmount = null;
+        for (int slot : slots) {
+            Integer chance = at(chances, slot);
+            if (chance != null && (peakChance == null || chance > peakChance)) {
+                peakChance = chance;
+            }
+            BigDecimal amount = at(amounts, slot);
+            if (amount != null && (peakAmount == null || amount.compareTo(peakAmount) > 0)) {
+                peakAmount = amount;
+            }
+        }
+        if (peakChance == null) {
+            return new Thresholds(MIN_CHANCE, MIN_AMOUNT);
+        }
+        int chanceCut = Math.max(MIN_CHANCE,
+                BigDecimal.valueOf(peakChance).multiply(PEAK_RATIO).setScale(0, RoundingMode.HALF_UP).intValue());
+        BigDecimal amountCut = peakAmount == null
+                ? MIN_AMOUNT
+                : MIN_AMOUNT.max(peakAmount.multiply(PEAK_RATIO));
+        return new Thresholds(chanceCut, amountCut);
+    }
+
+    /** 이 시간에 비가 오는가 — 그날 문턱을 넘길 만큼 확률이 높거나 양이 잡히면. */
+    private static boolean wet(Integer chance, BigDecimal amount, Thresholds cut) {
+        if (chance != null && chance >= cut.chance()) {
             return true;
         }
-        return amount != null && amount.compareTo(MIN_AMOUNT) >= 0;
+        return amount != null && amount.compareTo(cut.amount()) >= 0;
     }
 
     /** 병렬 배열이 짧거나 없을 때 {@code null} — {@code DailyBlock.at}과 같은 규칙이다. */

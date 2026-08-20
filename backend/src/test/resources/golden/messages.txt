@@ -378,6 +378,18 @@ Financial Modeling Prep
 
 2026년 8월 11일(화) 09:00:00
 
+=== crypto/binance-banned ===
+<b>코인</b>
+
+<b>BTC</b> 비트코인
+
+업비트
+89,848,000 KRW
+
+바이낸스 IP 밴 (8월 11일(화) 11:00 해제 예정)
+
+2026년 8월 11일(화) 09:00:00
+
 === crypto/upbit-failed ===
 <b>코인</b>
 
@@ -791,19 +803,19 @@ AccuWeather
 /news 금리
 뉴스
 
-/fx
+/fx (또는 /f)
 환율
 
-/stock 삼성전자
+/stock 삼성전자 (또는 /s)
 증시
 
-/crypto 비트코인
+/crypto 비트코인 (또는 /c)
 코인
 
-/weather 내일 성남
+/weather 내일 성남 (또는 /w)
 날씨
 
-/help
+/help (또는 /h)
 도움말
 
 === unknown-command ===
@@ -814,19 +826,19 @@ AccuWeather
 /news 금리
 뉴스
 
-/fx
+/fx (또는 /f)
 환율
 
-/stock 삼성전자
+/stock 삼성전자 (또는 /s)
 증시
 
-/crypto 비트코인
+/crypto 비트코인 (또는 /c)
 코인
 
-/weather 내일 성남
+/weather 내일 성남 (또는 /w)
 날씨
 
-/help
+/help (또는 /h)
 도움말
 
 === usage/news ===

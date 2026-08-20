@@ -173,6 +173,12 @@ public class CryptoService {
             if (e instanceof BinanceApi.UnknownSymbol) {
                 return Quote.NOT_LISTED;
             }
+            // 밴 중이라 아예 안 부른 것이다. '조회 실패'로 뭉치면 사용자가 다시 치고,
+            // 그 재시도가 바이낸스에는 밴을 늘리는 호출이 된다 — 그래서 갈라 적는다
+            if (e instanceof BinanceApi.Banned banned) {
+                log.warn("[crypto] {} 바이낸스 밴 중이라 부르지 않았습니다 — {}까지", symbol, banned.until());
+                return Quote.banned(banned.until());
+            }
             // ⚠️ 이유를 갈라 남긴다. 예전에는 e.toString() 한 줄이라 상대 장애·브레이커 열림·
             //    리미터 거절·지역 차단(451)이 화면에서도 로그에서도 '조회 실패' 하나로 뭉쳤다.
             //    앞의 셋은 잠시 뒤 낫고 451은 영영 안 낫는데, 그 넷을 못 가르면 다음 사람이
@@ -244,6 +250,15 @@ public class CryptoService {
         try {
             priceBySymbol = binanceApi.prices(symbolByMarket.values().stream().sorted().toList()).stream()
                     .collect(Collectors.toMap(BinancePrice::symbol, Function.identity()));
+        } catch (BinanceApi.Banned banned) {
+            // 밴 중이라 호출 자체가 없었다. 배치 경로(브리핑)도 화면에 그렇게 적어야
+            // 사용자가 「왜 코인 표만 반쪽인가」를 묻지 않는다
+            log.warn("[crypto] 바이낸스 밴 중이라 부르지 않았습니다 — {}까지, 업비트 시세만 내보냅니다",
+                    banned.until());
+            return quotes.stream()
+                    .map(quote -> withBinanceState(quote, symbolByMarket.containsKey(quote.market())
+                            ? Quote.banned(banned.until()) : Quote.NOT_LISTED))
+                    .toList();
         } catch (RuntimeException e) {
             // 어느 심볼을 물었는지 함께 남긴다 — 배치라서 한 줄이 여럿을 대표하고,
             // 심볼이 없으면 "무엇이 빠졌는지"를 로그만 보고는 알 수 없다

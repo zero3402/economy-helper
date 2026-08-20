@@ -87,4 +87,48 @@ class CommandParserTest {
         assertThat(CommandParser.parse("/news\n금리"))
                 .contains(new ParsedCommand(Command.NEWS, "금리"));
     }
+
+    @Test
+    @DisplayName("줄임말도 같은 명령으로 갈린다 — 인자 자르기는 정식 이름과 한 규칙이다")
+    void acceptsShortTokens() {
+        assertThat(CommandParser.parse("/c 비트코인"))
+                .contains(new ParsedCommand(Command.CRYPTO, "비트코인"));
+        assertThat(CommandParser.parse("/s 삼성전자"))
+                .contains(new ParsedCommand(Command.STOCK, "삼성전자"));
+        assertThat(CommandParser.parse("/w 내일 성남"))
+                .contains(new ParsedCommand(Command.WEATHER, "내일 성남"));
+        assertThat(CommandParser.parse("/f")).contains(new ParsedCommand(Command.FX, ""));
+        assertThat(CommandParser.parse("/h")).contains(new ParsedCommand(Command.HELP, ""));
+    }
+
+    @Test
+    @DisplayName("줄임말도 대문자·봇이름·인자 없음을 똑같이 견딘다 — 파서가 하나라서다")
+    void treatsShortTokensLikeTheirFullNames() {
+        assertThat(CommandParser.parse("/C 비트코인"))
+                .contains(new ParsedCommand(Command.CRYPTO, "비트코인"));
+        assertThat(CommandParser.parse("/s@economy_helper_bot 삼성전자"))
+                .contains(new ParsedCommand(Command.STOCK, "삼성전자"));
+        assertThat(CommandParser.parse("/s").orElseThrow().missingRequiredArgument()).isTrue();
+    }
+
+    @Test
+    @DisplayName("선언한 줄임말은 전부 제 명령으로 되돌아온다 — 오타나 충돌이면 여기서 걸린다")
+    void everyDeclaredShortTokenResolvesBack() {
+        for (Command command : Command.values()) {
+            if (command.shortToken() != null) {
+                assertThat(CommandParser.parse(command.shortToken()))
+                        .as("%s의 줄임말 %s", command, command.shortToken())
+                        .map(ParsedCommand::command)
+                        .contains(command);
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("선언하지 않은 한 글자는 여전히 모르는 명령이다 — 있는 것만 받는다")
+    void stillRejectsUndeclaredShortTokens() {
+        assertThat(CommandParser.parse("/n 금리")).isEmpty();
+        assertThat(CommandParser.isUnknownCommand("/n 금리")).isTrue();
+        assertThat(CommandParser.isUnknownCommand("/x")).isTrue();
+    }
 }

@@ -10,12 +10,16 @@ import java.math.BigDecimal;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
@@ -36,6 +40,10 @@ import org.springframework.web.client.RestClient;
  * <p><b>지역 차단이 있다.</b> 미국 IP에서는 451이 떨어진다 — 이 서비스가 Singapore 리전에
  * 떠 있어서 쓸 수 있는 것이고, 리전을 옮기면 가장 먼저 깨질 연동이다.
  *
+ * <p><b>418·429는 문을 닫는다</b>({@link BinanceBanGate}). 브레이커에 맡기면 열릴 때까지
+ * 다섯 번을 더 부르는데, 바이낸스는 <b>밴 중의 호출로 밴을 연장한다</b> — 물러서는 판단을
+ * 통계에 맡길 수 없는 자리다.
+ *
  * <p>업비트와 마찬가지로 실패를 삼키지 않고 던진다. 다만 <b>바이낸스가 죽어도 업비트 시세는
  * 나가야 하므로</b> 그 판단은 {@code CryptoService}가 한다.
  */
@@ -45,14 +53,17 @@ public class BinanceApi {
     private static final Logger log = LoggerFactory.getLogger(BinanceApi.class);
 
     private final RestClient restClient;
+    private final BinanceBanGate banGate;
 
     /** 1순위와 2순위. 순서가 곧 우선순위다 — 앞의 것이 답하면 뒤는 부르지 않는다. */
     private final List<String> baseUrls;
 
     public BinanceApi(RestClient.Builder builder,
+                      BinanceBanGate banGate,
                       @Value("${economy-helper.market.binance.base-url}") String baseUrl,
                       @Value("${economy-helper.market.binance.fallback-base-url:}") String fallbackUrl) {
         this.restClient = builder.build();
+        this.banGate = banGate;
         this.baseUrls = fallbackUrl == null || fallbackUrl.isBlank()
                 ? List.of(baseUrl)
                 : List.of(baseUrl, fallbackUrl);
@@ -72,6 +83,10 @@ public class BinanceApi {
     public List<BinancePrice> prices(List<String> symbols) {
         if (symbols.isEmpty()) {
             return List.of();
+        }
+        Instant bannedUntil = banGate.bannedUntil();
+        if (bannedUntil != null) {
+            throw new Banned(bannedUntil);
         }
         RuntimeException failure = null;
         for (String baseUrl : baseUrls) {
@@ -101,12 +116,56 @@ public class BinanceApi {
                 //    api → data-api를 번갈아 물으니 x-mbx-used-weight-1m이 2·4·6·8로 이어졌다.
                 //    즉 우회해도 같은 밴을 받는다. 아무 이득 없이 밴만 늘리는 일이다
                 if (statusOf(e) != REGION_BLOCKED) {
+                    closeGateIfBanned(e);
                     throw e;
                 }
                 failure = e;
             }
         }
         throw failure;
+    }
+
+    /**
+     * 418·429를 받았으면 문을 닫는다 — <b>다음 호출부터 HTTP가 아예 안 나간다.</b>
+     *
+     * <p>이 한 줄이 없던 동안, 브레이커가 열리기까지 다섯 번을 더 불렀다. 그 다섯 번이
+     * 정확히 밴을 늘리는 호출이었다 — 바이낸스는 밴 중의 호출로 밴을 연장한다.
+     */
+    private void closeGateIfBanned(RuntimeException e) {
+        int status = statusOf(e);
+        if (status != IP_BANNED && status != TOO_MANY_REQUESTS) {
+            return;
+        }
+        Duration wait = retryAfter(e)
+                .orElse(status == IP_BANNED ? BinanceBanGate.MIN_BAN : BinanceBanGate.WARNING_BACKOFF);
+        banGate.ban(wait);
+        log.warn("[crypto] 바이낸스 호출을 {}초 동안 멈춥니다 (HTTP {}) — 밴 중에 부르면 밴이 길어집니다",
+                wait.toSeconds(), status);
+    }
+
+    /**
+     * {@code Retry-After}(초) — 바이낸스가 <b>언제 풀리는지 직접 말해 주는</b> 값이다.
+     * 넘겨짚기보다 이것이 먼저다.
+     *
+     * <p>못 읽으면 빈 값을 준다. 헤더 하나 때문에 새 실패를 만들 이유가 없다 —
+     * 그때는 부르는 쪽이 상대가 문서로 말한 최소값으로 넘겨짚는다.
+     */
+    private static Optional<Duration> retryAfter(RuntimeException e) {
+        if (!(e instanceof HttpClientErrorException http)) {
+            return Optional.empty();
+        }
+        HttpHeaders headers = http.getResponseHeaders();
+        String value = headers == null ? null : headers.getFirst(HttpHeaders.RETRY_AFTER);
+        if (value == null) {
+            return Optional.empty();
+        }
+        try {
+            long seconds = Long.parseLong(value.trim());
+            return seconds > 0 ? Optional.of(Duration.ofSeconds(seconds)) : Optional.empty();
+        } catch (NumberFormatException ignored) {
+            // 규격에는 HTTP 날짜 형식도 있지만 바이낸스는 초로 준다(실측). 못 읽으면 넘겨짚는다
+            return Optional.empty();
+        }
     }
 
     /**
@@ -122,6 +181,12 @@ public class BinanceApi {
      */
     /** {@code -1121 Invalid symbol.} — 우리가 없는 심볼을 물은 것이다. */
     private static final int UNKNOWN_SYMBOL = 400;
+
+    /** IP 자동 밴. 2분~3일이고 <b>밴 중의 호출이 그것을 연장한다</b> — 물러서는 것만이 답이다. */
+    private static final int IP_BANNED = 418;
+
+    /** 밴 직전 경고. 여기서 물러서지 않으면 {@link #IP_BANNED}가 된다. */
+    private static final int TOO_MANY_REQUESTS = 429;
 
     /** 지역 차단. 호스트를 바꿔 볼 값이 있는 <b>유일한</b> 실패다. */
     private static final int REGION_BLOCKED = 451;
@@ -145,6 +210,30 @@ public class BinanceApi {
 
         public UnknownSymbol(String message, Throwable cause) {
             super(message, cause);
+        }
+    }
+
+    /**
+     * <b>밴 중이라 부르지 않았다</b> — 상대 장애가 아니라 우리가 스스로 닫은 문이다.
+     *
+     * <p>그래서 브레이커의 무시 목록에 든다({@code RequestNotPermitted}와 같은 자리).
+     * 실패로 세면 밴이 풀린 뒤에도 브레이커가 열린 채 남아 <b>밴보다 오래 가는 정지</b>가 된다.
+     *
+     * <p>{@link UnknownSymbol}과도 뜻이 다르다. 그쪽은 「그 코인이 없다」(영영)이고
+     * 이쪽은 「지금은 못 본다」(언제 풀리는지까지 안다) — 화면이 그 둘을 갈라 적는다.
+     */
+    public static class Banned extends RuntimeException {
+
+        private final transient Instant until;
+
+        public Banned(Instant until) {
+            super("바이낸스가 우리 IP를 밴했습니다. " + until + "까지 부르지 않습니다");
+            this.until = until;
+        }
+
+        /** 언제 풀리는지 — 화면이 이 값을 적는다. 「잠시 후」보다 시각이 낫다. */
+        public Instant until() {
+            return until;
         }
     }
 

@@ -52,26 +52,39 @@ public record CryptoQuote(String name, String market, Instant at, Quote upbit, Q
      * 사용자에게 다른 말이다 — 전자는 영영 안 나오는 것이고 후자는 잠시 뒤 다시 치면 되는
      * 것이다. {@code null} 하나로 뭉치면 화면이 그 둘을 구분해 줄 수 없다.
      */
-    public record Quote(BigDecimal price, BigDecimal changePercent, State state) {
+    public record Quote(BigDecimal price, BigDecimal changePercent, State state, Instant bannedUntil) {
 
         public enum State {
             /** 값이 있다. */
             OK,
             /** 그 거래소에 상장돼 있지 않다. 다시 시도해도 소용없다. */
             NOT_LISTED,
-            /** 거래소가 응답하지 않았다. 장애·지역차단·브레이커 열림을 모두 포함한다. */
-            FAILED
+            /** 거래소가 응답하지 않았다. 장애·브레이커 열림을 포함한다. */
+            FAILED,
+            /**
+             * <b>우리 IP가 밴돼 부르지 않았다</b>(바이낸스 418/429).
+             *
+             * <p>{@link #FAILED}와 갈라 두는 이유는 사용자에게 할 말이 다르기 때문이다 —
+             * 저쪽은 "다시 쳐 보세요"이고 이쪽은 <b>다시 쳐도 소용없고 오히려 밴이 길어진다.</b>
+             * 언제 풀리는지를 아는 유일한 실패이기도 하다.
+             */
+            BANNED
         }
 
-        public static final Quote NOT_LISTED = new Quote(null, null, State.NOT_LISTED);
-        public static final Quote FAILED = new Quote(null, null, State.FAILED);
+        public static final Quote NOT_LISTED = new Quote(null, null, State.NOT_LISTED, null);
+        public static final Quote FAILED = new Quote(null, null, State.FAILED, null);
 
         /**
          * @param changePercent 전일 대비 등락률(%). <b>{@code null}일 수 있다</b> —
          *                      값을 못 구했다고 시세까지 버리지는 않는다
          */
         public static Quote of(BigDecimal price, BigDecimal changePercent) {
-            return price == null ? FAILED : new Quote(price, changePercent, State.OK);
+            return price == null ? FAILED : new Quote(price, changePercent, State.OK, null);
+        }
+
+        /** @param until 밴이 풀리는 시각. 화면이 이것을 적는다 — 「잠시 후」는 아무것도 안 말한다 */
+        public static Quote banned(Instant until) {
+            return new Quote(null, null, State.BANNED, until);
         }
 
         public boolean hasPrice() {

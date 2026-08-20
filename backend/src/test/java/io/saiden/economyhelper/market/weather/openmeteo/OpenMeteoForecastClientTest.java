@@ -73,7 +73,7 @@ class OpenMeteoForecastClientTest {
     @Test
     @DisplayName("몰려 있는 강수 시간을 토막으로 접어 그날에 붙인다 — 「비옴」이 언제인지 말해 준다")
     void attachesThePrecipitationSpellToItsDay() {
-        // 2026-08-20 성남시 실측을 줄인 것이다. 일 단위는 최대 80%인데 13~19시에 몰려 있다
+        // 2026-08-20 성남시 실측을 줄인 것이다. 일 단위는 최대 80%인데 시간별로는 몰려 있다
         stub(oneDay());
 
         Weather weather = client.forecast(SEONGNAM, new WeatherPeriod(DAY, DAY));
@@ -81,8 +81,9 @@ class OpenMeteoForecastClientTest {
         assertThat(weather.days()).singleElement().satisfies(day -> {
             assertThat(day.precipitationChance()).as("일 단위 값은 그대로다").isEqualTo(80);
             assertThat(day.precipitation()).singleElement().satisfies(spell -> {
-                assertThat(spell.from()).isEqualTo(LocalTime.of(13, 0));
-                assertThat(spell.to()).isEqualTo(LocalTime.of(15, 0));
+                assertThat(spell.from()).isEqualTo(LocalTime.of(14, 0));
+                assertThat(spell.to()).as("47%·60%·20%는 봉우리(80%)의 가장자리다")
+                        .isEqualTo(LocalTime.of(15, 0));
                 assertThat(spell.kind()).isEqualTo(SkyCondition.DRIZZLE);
                 assertThat(spell.chance()).isEqualTo(80);
             });

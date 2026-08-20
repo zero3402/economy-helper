@@ -14,6 +14,8 @@ import io.saiden.economyhelper.market.CryptoQuote;
 import io.saiden.economyhelper.market.FxRate;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
 
@@ -28,6 +30,10 @@ import java.util.List;
  * 적는다 — 사용자에게 전자는 "영영 없음", 후자는 "잠시 뒤 다시"다.
  */
 public final class CryptoFormatter {
+
+    /** 밴 해제 시각의 표기 — 날짜와 분까지. 초는 밴에 뜻이 없다. */
+    private static final DateTimeFormatter RELEASE =
+            DateTimeFormatter.ofPattern("M월 d일(E) HH:mm", java.util.Locale.KOREAN);
 
     private CryptoFormatter() {
     }
@@ -157,16 +163,41 @@ public final class CryptoFormatter {
                 .multiply(BigDecimal.valueOf(100));
     }
 
-    /** 값이 없는 이유. 사용자가 다시 시도해야 하는지가 여기서 갈린다. */
+    /**
+     * 값이 없는 이유. 사용자가 다시 시도해야 하는지가 여기서 갈린다.
+     *
+     * <p><b>밴은 「조회 실패」와 다른 말이다.</b> 실패는 "잠시 뒤 다시 쳐 보세요"이지만
+     * 밴은 <b>다시 치면 오히려 길어진다</b>(바이낸스는 밴 중의 호출로 밴을 연장한다).
+     * 그래서 언제 풀리는지를 함께 적는다 — 「잠시 후」로는 사용자가 언제 다시 칠지 모른다.
+     */
     private static String reasonOf(CryptoQuote.Quote quote) {
         return switch (quote.state()) {
             case NOT_LISTED -> "미상장";
             case FAILED -> "조회 실패";
+            case BANNED -> "IP 밴 (" + releaseOf(quote.bannedUntil()) + " 해제 예정)";
             // 도달 불가다 — 호출부가 hasPrice()의 else이고 Quote.of는 값이 없으면 FAILED를 준다.
             // enum switch 완전성 때문에 남기지만, 빈 문자열을 돌려주면 "업비트 " 하나가
             // 꼬리에 공백을 달고 나간다. 여기 오면 버그이므로 그렇다고 적는다
             case OK -> throw new IllegalStateException("값이 있는 시세를 결측 사유로 물었습니다");
         };
+    }
+
+    /**
+     * 밴이 풀리는 시각.
+     *
+     * <p><b>날짜를 함께 적는다.</b> 바이낸스 밴은 2분에서 3일까지 가므로 시각만 적으면
+     * 사흘 뒤 「14:32」가 오늘 오후로 읽힌다. 짧은 밴에서는 군더더기지만, 긴 밴에서
+     * 사용자를 하루 이틀 헛기다리게 하는 것보다 낫다.
+     *
+     * <p>⚠️ <b>「오늘이면 시각만」으로 줄이지 않는다.</b> 그러려면 렌더가 지금 시각을 봐야 하고,
+     * 그 순간 이 포매터는 같은 입력에 다른 글자를 내놓는다 — 골든이 못 지키는 자리가 된다
+     * (포매터가 고정 {@code Instant}만 받는 이유가 그것이다).
+     */
+    private static String releaseOf(Instant until) {
+        if (until == null) {
+            return "곧";   // 시각을 못 받았다 — 그래도 밴이라는 사실은 말해야 한다
+        }
+        return RELEASE.format(until.atZone(SEOUL));
     }
 
     public static String notFound(String query) {

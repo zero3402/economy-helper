@@ -158,9 +158,11 @@ class MessageFormattingTest {
             if (command == Command.HELP) {
                 continue;   // 그 제목은 이 목록 자체의 제목이라 목록 안에서 같은 말을 두 번 하게 된다
             }
+            String line = command.example()
+                    + (command.shortToken() == null ? "" : " (또는 " + command.shortToken() + ")");
             assertThat(help)
-                    .as("'%s'의 설명", command.example())
-                    .contains(command.example() + "\n" + command.section());
+                    .as("'%s'의 설명", line)
+                    .contains(line + "\n" + command.section());
         }
         assertThat(help).as("답은 「증시」인데 도움말만 「주식」이면 같은 것을 두 이름으로 부르는 것이다")
                 .doesNotContain("주식");
