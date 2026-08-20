@@ -45,12 +45,97 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,digest,weather
+        # caches는 Boot가 주는 것이다(이름 목록 + 캐시 통째로 비우기), evict는 우리 것이고
+        # 키 하나만 지목해 버린다 — 그쪽이 못 하는 것이 그것뿐이라 그것만 만들었다.
+        # ⚠️ 둘 다 쓰기 연산이다. 비우면 다음 조회가 무료 티어 쿼터를 다시 태운다
+        #    (FMP 250/일·AccuWeather 50/일·수출입은행 1,000/일이 전부 캐시를 실질 방어로 삼는다).
+        #    digest와 같은 이유로 관리 포트에 격리돼 있어야 하고, 포트를 하나로 합치는
+        #    배포처에서는 digest와 함께 빼는 것이 방어다.
+        include: health,info,metrics,digest,weather,caches,evict
   endpoint:
     health:
       show-details: when-authorized
 
 economy-helper:
+  # 출처마다 타임아웃을 따로 준다. 전역 하나(spring.http.clients, 위)로는 스물셋을 못 맞춘다 —
+  # 실측 p50이 업비트 37ms에서 FMP 1.7초까지 벌어지고, Gemini는 조회가 아니라 생성이다.
+  #
+  # ⚠️ **키가 호스트다.** 출처 이름이 아니다. Boot 4에는 손으로 만든 RestClient용 이름별
+  #    타임아웃이 없다(spring.http.clients는 평평한 전역 블록 하나이고, 키별 형태인
+  #    spring.http.serviceclient.*는 @ImportHttpServices 인터페이스 클라이언트 전용이다).
+  #    호스트가 그 키로 맞는 이유는 경계가 이미 그렇게 그려져 있어서다 — Open-Meteo 셋이
+  #    호스트 셋이고 브레이커도 셋, AccuWeather 둘이 호스트 하나이고 브레이커도 하나,
+  #    KIS 셋이 호스트 하나이고 앱키도 간격 문도 하나다. 새 개념을 만들지 않는다.
+  # ⚠️ Map이 아니라 목록이다 — 호스트에 점이 들어가는데 relaxed binding이 Map 키의 점을
+  #    걸러낸다(us-indices·us-symbols·알람 지역이 같은 이유로 목록이다).
+  # ⚠️ 포트는 적지 않는다 — URI.getHost()가 포트를 떼고 온다.
+  # ⚠️ **여기 없는 호스트는 조용히 전역 기본값이 된다.** 오타가 오류를 내지 않으므로
+  #    HttpTimeoutsTest가 이 목록의 호스트가 실재하는 base-url인지 본다.
+  http-timeouts:
+    # 시세 — 실측 37~142ms(2026-08-20)라 3초는 20~80배 여유다. 여기가 3초를 넘겨 기다리는
+    # 것은 crypto-price 캐시(10초) 수명의 3분의 1을 태우는 일이고, /crypto는 사용자가 화면을
+    # 보며 기다리는 경로다.
+    - host: api.upbit.com                    # ticker 37ms · market/all 74ms(63KB)
+      connect: 2s
+      read: 3s
+    - host: api.binance.com                  # 86ms
+      connect: 2s
+      read: 3s
+    # 유럽중앙은행을 같은 칸에 넣은 이유는 **뒤에 하루 1,000회짜리가 서 있어서다** —
+    # 여기서 오래 기다리는 것이 곧 수출입은행 한도를 태우는 일이다.
+    - host: api.frankfurter.dev              # 142ms
+      connect: 2s
+      read: 3s
+    # 날씨(무인증) — 실측 0.9~1.1초(TLS 포함). 6초는 5배 여유이고, 재시도 3회 × 6초 = 18초가
+    # 최악의 천장으로 눈에 보인다. 지오코딩은 /weather의 첫 단계라 여기가 늘어지면 사용자
+    # 체감이 통째로 늘어난다.
+    - host: geocoding-api.open-meteo.com     # 1,109ms
+      connect: 3s
+      read: 6s
+    - host: api.open-meteo.com               # 912ms
+      connect: 3s
+      read: 6s
+    - host: archive-api.open-meteo.com       # 970ms
+      connect: 3s
+      read: 6s
+    # 키·한도 있는 조회 — read만 15초에서 좁혔다. 효과가 가장 큰 칸이다: 브리핑의 KIS 9회가
+    # 최악 135초 → 90초, 환율 3단 완전 장애가 45초 → 23초(10+3+10).
+    # ⚠️ 이 아래로는 못 내린다. KIS가 **잘못된 키를 거절하는 데** 2.2~3.5초를 쓴다
+    #    (실측 2026-08-20, 웜 커넥션 3회: 3.55s · 2.26s · 2.45s).
+    - host: openapivts.koreainvestment.com   # 모의
+      connect: 5s
+      read: 10s
+    # ⚠️ 실전 도메인을 함께 적는다. 호스트로 키를 잡았으므로, 실전으로 옮기는 날
+    #    (openapi.koreainvestment.com:9443 — 아래 market.kis 주석 참조) KIS가 조용히 전역
+    #    기본값 15초로 떨어진다. 값이 같아도 두 줄이어야 하는 이유가 그것이다.
+    - host: openapi.koreainvestment.com      # 실전
+      connect: 5s
+      read: 10s
+    - host: dataservice.accuweather.com      # 525ms
+      connect: 5s
+      read: 10s
+    - host: financialmodelingprep.com        # 1,678ms(콜드)
+      connect: 5s
+      read: 10s
+    - host: oapi.koreaexim.go.kr             # 82ms
+      connect: 5s
+      read: 10s
+    - host: apis.data.go.kr                  # 54ms
+      connect: 5s
+      read: 10s
+    # 발송이 끝까지 가는 것이 이 앱의 목적이라 넉넉히 둔다. 재시도 3회 × 10초가 상한이다.
+    - host: api.telegram.org                 # 764ms(TLS 콜드)
+      connect: 5s
+      read: 10s
+    # ⚠️ 여기만 **늘린다.** 생성은 조회가 아니다 — 기사 여덟 건 관련도 채점과 요약을 한 번에
+    #    만든다. 15초가 유일하게 너무 짧을 수 있는 자리이고, 잘리면 번역이 원문으로 조용히
+    #    강등된다(감사에서 실제로 본 모습이다). 리미터 timeoutDuration(20초)과 합쳐 최악
+    #    50초인데, 브리핑은 백그라운드이고 발송 창이 두 시간이다.
+    - host: generativelanguage.googleapis.com
+      connect: 5s
+      read: 30s
+    # 여기 없는 것 — HN(117KB·콜드 1.6초)·RSS 여섯 피드(121KB·콜드 DNS 1.3초)·자체 핑.
+    # **일부러 안 건드린다.** 실패해도 그 매체만 빠지고, 노브를 줄이는 것 자체가 값이다.
   feeds:
     # 전부 전문 무료다. 페이월 매체(Bloomberg·Reuters·FT·Economist)는 뺐다 —
     # 링크를 눌러도 못 읽는 기사는 좋은 답이 아니다. 새 매체를 더할 때도 같은 기준이다.
@@ -383,6 +468,12 @@ resilience4j:
         # 실패로 세면 우리 트래픽이 몰릴 때 브레이커가 열려 멀쩡한 상대를 끊는다 —
         # 실측에서 /news 한 번에 gemini 리미터(12/60s)가 소진되자 translation 브레이커가
         # 열려 브리핑이 통째로 번역 없이 나갔다.
+        # ⚠️⚠️ **이 목록은 인스턴스가 ignoreExceptions를 적는 순간 통째로 사라진다** —
+        #      이어 붙지 않고 **덮어쓴다**. 그래서 아래 인스턴스 중 제 목록을 가진 것들은
+        #      RequestNotPermitted를 다시 적어야 한다. 안 적으면 우리 스로틀이 거절한 것이
+        #      상대 장애로 세어져, 트래픽이 몰릴 때마다 멀쩡한 상대에 브레이커가 열린다.
+        #      실제로 binance가 그 상태였고 목록에 없어서 아무도 몰랐다.
+        #      ResilienceConfigTest.rateLimiterRejectionDoesNotOpenTheBreaker가 그 그물이다.
         ignoreExceptions:
           - io.github.resilience4j.ratelimiter.RequestNotPermitted
     instances:
@@ -397,11 +488,7 @@ resilience4j:
           - org.springframework.web.client.HttpClientErrorException.TooManyRequests
       telegram:
         baseConfig: default
-        # ⚠️ ignoreExceptions는 baseConfig의 것을 **덮어쓴다** — 이어 붙이지 않는다.
-        #    그래서 RequestNotPermitted를 여기 다시 적어야 한다(바이낸스·지오코딩과 같다).
-        # 텔레그램의 429는 200 본문에 error_code=429로 오므로 HTTP 예외가 아니다 —
-        # TelegramRateLimited로 따로 던져 여기서 뺀다. 뭉쳐 던지던 동안에는 적어도
-        # 걸러낼 수 없어, 10회 창에 5번이면 멀쩡한 발송까지 60초 막혔다.
+        # ⚠️ 아래 목록이 configs.default의 것을 덮어쓴다 — 위 default 블록 주석 참조
         ignoreExceptions:
           - io.github.resilience4j.ratelimiter.RequestNotPermitted
           - io.saiden.economyhelper.telegram.TelegramClient.TelegramRateLimited
@@ -418,9 +505,7 @@ resilience4j:
       # 실패로 세면 멀쩡한 거래소에 브레이커가 열려 다른 코인까지 막힌다.
       binance:
         baseConfig: default
-        # ⚠️ ignoreExceptions는 baseConfig의 것을 **덮어쓴다** — 이어 붙이지 않는다.
-        #    RequestNotPermitted를 다시 적지 않으면 default에서 상속받던 그 규칙이 사라져
-        #    우리 스로틀이 거절한 것이 바이낸스 장애로 세어진다. 실제로 그 상태였다.
+        # ⚠️ 아래 목록이 configs.default의 것을 덮어쓴다 — 위 default 블록 주석 참조
         ignoreExceptions:
           - io.github.resilience4j.ratelimiter.RequestNotPermitted
           - org.springframework.web.client.HttpClientErrorException
@@ -458,12 +543,123 @@ resilience4j:
       # 열려 멀쩡한 지오코딩이 60초 끊긴다 — 바이낸스가 미상장 심볼의 400을 빼는 것과 같다.
       weatherGeocoding:
         baseConfig: default
-        # ⚠️ ignoreExceptions는 baseConfig의 것을 **덮어쓴다** — 이어 붙이지 않는다.
-        #    그래서 RequestNotPermitted를 여기 다시 적어야 한다. 안 적으면 default에서
-        #    상속받던 그 규칙이 사라져, 우리 스로틀이 거절한 것이 상대 장애로 세어진다.
+        # ⚠️ 아래 목록이 configs.default의 것을 덮어쓴다 — 위 default 블록 주석 참조
         ignoreExceptions:
           - io.github.resilience4j.ratelimiter.RequestNotPermitted
           - org.springframework.web.client.HttpClientErrorException
+  # 재시도 — **폴백이 없거나 한도가 없는 곳에만** 건다.
+  #
+  # 규칙 하나로 압축하면: **한도가 있으면 안 걸고, 다음 출처가 있으면 안 걸고, 실패가 영구인
+  # 게 흔하면 안 건다.** 아래 여덟이 그 셋 다 아니다. 안 거는 이유는 instances 끝에 적었다.
+  #
+  # ⚠️ configs.default가 없으면 ratelimiter보다 나쁜 함정이다. 선언 없는 인스턴스는 라이브러리
+  #    기본값(3회 · 500ms · **모든 예외 재시도**)으로 만들어진다. 리미터는 아무것도 막지 않는
+  #    쪽으로 조용히 망가졌지만(met.no가 그 상태였다) 이쪽은 **우리 잘못(4xx)까지 세 번 부르는**
+  #    쪽으로 망가진다. 그래서 default를 먼저 적고 전부 baseConfig로 물려받는다.
+  #
+      # ⚠️ 애스펙트 order는 적지 않는다 — 기본값이 이미 원하는 순서다(ARCHITECTURE.md 4-3).
+  retry:
+    configs:
+      default:
+        maxAttempts: 2
+        waitDuration: 300ms
+        # 두 번째가 곧 실패면 세 번째도 대개 실패다. 실측 지연이 37ms~1.1초인 상대들이라
+        # 배수를 두면 마지막 시도만 유의미하게 뒤로 밀린다
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        # **재시도할 것을 적는다 — 뺄 것을 적지 않는다.** 빼는 규칙은 새 예외가 생길 때마다
+        # 조용히 넓어지고, 넓어진 순간 우리 잘못을 세 번 부른다(Failover.order가 "적힌 것만
+        # 쓴다"인 것과 같은 방향이다). HttpClientErrorException(4xx)은 HttpServerErrorException의
+        # 하위가 아니라 형제라(둘 다 HttpStatusCodeException) **4xx가 타입으로 막힌다** —
+        # 없는 심볼·없는 지명은 우리 잘못이고 상대는 멀쩡하다.
+        retryExceptions:
+          - org.springframework.web.client.HttpServerErrorException
+          # 커넥션 리셋·연결/읽기 타임아웃이 전부 여기로 온다 — Spring이 IOException을
+          # 이 타입으로 감싼다(DefaultRestClient)
+          - org.springframework.web.client.ResourceAccessException
+        # 위 열거만으로도 이 둘은 안 걸린다. 그래도 적는 이유가 둘이다:
+        # (1) retryExceptions를 넓히는 인스턴스(telegram)에서도 뜻이 유지돼야 한다,
+        # (2) 무엇을 재시도하지 않기로 했는지를 설정이 스스로 말해야 한다.
+        ignoreExceptions:
+          # 우리 리미터가 거절한 것이다 — 재시도는 퍼밋을 더 먹으려고 줄에 다시 서는 일이고,
+          # Gemini(12/60s · timeout 20s)에서는 그게 곧 한도 소진이다.
+          # 브레이커가 이걸 실패로 세지 않는 것과 같은 판단이다
+          - io.github.resilience4j.ratelimiter.RequestNotPermitted
+          # ⚠️ 재시도가 브레이커 **바깥**이라 이것이 실제로 온다. 안 빼면 브레이커가 열린
+          #    뒤에도 대기 시간을 두 번 지불하고 같은 답을 받는다. 빼 두면 브레이커가 열리는
+          #    순간 재시도가 즉시 멈춘다 — 그게 원하는 것이다
+          - io.github.resilience4j.circuitbreaker.CallNotPermittedException
+    instances:
+      # ── 이중화 상대가 없는 곳 셋. 재시도가 가장 값을 하는 자리다 ──
+      # 지오코딩은 AccuWeather 지점 검색이 좌표를 받아 이중화 상대가 아예 없다.
+      # /weather 검색의 첫 단계라 여기가 죽으면 그 명령이 통째로 빈손이다. 키도 한도도 없다
+      weatherGeocoding:
+        baseConfig: default
+        maxAttempts: 3
+      # 폴백의 끝자리다 — AccuWeather가 이미 실패했거나 5일을 넘겨 supports()에서 빠진 뒤다
+      weatherOpenMeteo:
+        baseConfig: default
+        maxAttempts: 3
+      # 지난 날짜 단일 경로. 브레이커 주석이 이미 "여기가 열리면 과거 조회는 멈춘다"고 적었다
+      weatherOpenMeteoArchive:
+        baseConfig: default
+        maxAttempts: 3
+      # ── 실측이 빠른 시세 셋. 재시도 비용이 사실상 없다 ──
+      # 실측 37ms(2026-08-20). /crypto의 유일한 원화 출처이고, 초당 8건 리미터가 재시도까지
+      # 페이싱해 준다 — 재시도가 리미터 바깥이라 attempt마다 퍼밋을 얻는다
+      upbit:
+        baseConfig: default
+        waitDuration: 200ms
+      # 실측 86ms. 글로벌 시세 단일 출처다.
+      # ⚠️ 451(지역 차단)은 4xx라 위 열거에 안 걸린다 — 재시도해도 안 낫는 것이 맞다.
+      #    리전을 옮기는 것만이 답이고, FailureReason이 로그에 그렇게 적는다
+      binance:
+        baseConfig: default
+        waitDuration: 200ms
+      # 실측 142ms, 키도 한도도 없다. ⚠️ 여기서 한 번 더 시도하는 것이 3순위(수출입은행
+      #    하루 1,000회, 캐시 미스 하나가 최대 14회)를 안 태우는 길이다 —
+      #    재시도가 폴백보다 싼 유일한 자리다
+      fxFrankfurter:
+        baseConfig: default
+      # ── 답이 나가는 것 자체가 목적인 자리 ──
+      # 웹훅은 텔레그램에 200을 이미 줬으므로 저쪽이 다시 보내지 않는다(ARCHITECTURE 3-2의 대가).
+      # 우리가 재시도하지 않으면 그 답은 영영 없다
+      telegram:
+        baseConfig: default
+        maxAttempts: 3
+        # ⚠️ 300ms가 아니다. 텔레그램은 같은 방에 초당 한 통을 권고하고
+        #    TelegramClient.BETWEEN_MESSAGES가 그 값이다 — 더 빨리 다시 쏘면 429를 우리가 만든다
+        waitDuration: 1s
+        enableExponentialBackoff: false
+        # ⚠️ retryExceptions·ignoreExceptions는 둘 다 baseConfig의 것을 **덮어쓴다** —
+        #    이어 붙이지 않는다(브레이커의 ignoreExceptions와 같은 함정이다). 그래서 기본의
+        #    둘을 여기 다시 적는다. 안 적으면 물려받던 규칙이 조용히 사라진다
+        retryExceptions:
+          - org.springframework.web.client.HttpServerErrorException
+          - org.springframework.web.client.ResourceAccessException
+          # **닿지 못한 것만** 다시 시도한다. ok:false 거절(chat not found)은 설정이 틀린 것이라
+          # 세 번 불러도 같은 답이고, 그동안 브리핑 여섯 통이 통마다 두 배로 늦어진다
+          - io.saiden.economyhelper.telegram.TelegramClient$TelegramUnavailable
+        ignoreExceptions:
+          - io.github.resilience4j.ratelimiter.RequestNotPermitted
+          - io.github.resilience4j.circuitbreaker.CallNotPermittedException
+          # 429는 우리가 빨리 물은 것이다. TelegramUnavailable의 형제가 아니라
+          # TelegramException의 하위라 위 목록에 안 걸리지만, 적어 두는 편이 뜻이 분명하다
+          - io.saiden.economyhelper.telegram.TelegramClient$TelegramRateLimited
+      # 매체 하나가 곧 출처 하나다 — 빠지면 그 매체가 브리핑 후보에서 통째로 사라진다.
+      # 키도 한도도 없고 캐시가 10분이다. 실측 최대 1.5초(BBC는 콜드 DNS가 1.3초).
+      # ⚠️ 애너테이션이 아니다. 이유가 둘이고 브레이커의 것과 다르다 — 브레이커는 이름이
+      #    매체별이어야 해서이고, 재시도는 fetch()가 예외를 스스로 삼켜 빈 목록을 주므로
+      #    @Retry를 달아도 **발동조차 하지 않기** 때문이다
+      feed:
+        baseConfig: default
+        waitDuration: 500ms
+      # ⚠️ 여기 **없는** 출처가 아홉이고, 없는 이유가 이 설계의 절반이다 —
+      #    KIS(주식·환율·토큰) · FMP · AccuWeather · 수출입은행 · 공공데이터포털 ·
+      #    Gemini · Hacker News. 규칙 하나로: **한도가 있으면 안 걸고, 다음 출처가 있으면
+      #    안 걸고, 실패가 영구인 게 흔하면 안 건다.** 출처별 근거는 ARCHITECTURE.md 4-3의
+      #    표에 있다 — 여기 옮겨 적으면 설정 파일이 설계 문서가 되고 둘이 어긋난다.
+
   ratelimiter:
     instances:
       # Gemini 무료 티어는 보장된 한도가 아니다. 스스로 낮게 잡아 429를 피한다.

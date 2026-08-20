@@ -6,6 +6,7 @@ import io.saiden.economyhelper.market.binance.BinanceApi;
 import io.saiden.economyhelper.market.binance.BinanceApi.BinancePrice;
 import io.saiden.economyhelper.market.binance.BinanceSymbol;
 import io.saiden.economyhelper.market.upbit.UpbitApi;
+import io.saiden.economyhelper.support.FailureReason;
 import io.saiden.economyhelper.market.upbit.UpbitApi.UpbitTicker;
 import io.saiden.economyhelper.market.upbit.UpbitMarket;
 import io.saiden.economyhelper.market.upbit.UpbitMarketIndex;
@@ -136,7 +137,7 @@ public class CryptoService {
         try {
             markets = upbitApi.krwMarkets();
         } catch (RuntimeException e) {
-            log.warn("[crypto] 업비트 마켓 목록 조회 실패: {}", e.toString());
+            log.warn("[crypto] 업비트 마켓 목록 조회 실패: {}", FailureReason.of(e));
             return new UpbitSide(null, Quote.FAILED, null);
         }
 
@@ -151,7 +152,7 @@ public class CryptoService {
                             Quote.of(ticker.tradePrice(), percentOf(ticker)), tradedAt(ticker)))
                     .orElseGet(() -> new UpbitSide(listed.get(), Quote.FAILED, null));
         } catch (RuntimeException e) {
-            log.warn("[crypto] {} 업비트 시세 실패: {}", market, e.toString());
+            log.warn("[crypto] {} 업비트 시세 실패: {}", market, FailureReason.of(e));
             return new UpbitSide(listed.get(), Quote.FAILED, null);
         }
     }
@@ -170,7 +171,11 @@ public class CryptoService {
             if (e instanceof HttpClientErrorException http && http.getStatusCode().value() == 400) {
                 return Quote.NOT_LISTED;
             }
-            log.warn("[crypto] {} 바이낸스 시세 실패: {}", symbol, e.toString());
+            // ⚠️ 이유를 갈라 남긴다. 예전에는 e.toString() 한 줄이라 상대 장애·브레이커 열림·
+            //    리미터 거절·지역 차단(451)이 화면에서도 로그에서도 '조회 실패' 하나로 뭉쳤다.
+            //    앞의 셋은 잠시 뒤 낫고 451은 영영 안 낫는데, 그 넷을 못 가르면 다음 사람이
+            //    코드와 API를 파헤치게 된다 — 실제로 그랬다
+            log.warn("[crypto] {} 바이낸스 시세 실패: {}", symbol, FailureReason.of(e));
             return Quote.FAILED;
         }
     }
@@ -189,7 +194,7 @@ public class CryptoService {
             }
             return pickAndQuote(candidates);
         } catch (RuntimeException e) {
-            log.error("[crypto] '{}' 업비트 조회 실패: {}", query, e.toString());
+            log.error("[crypto] '{}' 업비트 조회 실패: {}", query, FailureReason.of(e));
             return Optional.empty();
         }
     }
@@ -211,7 +216,7 @@ public class CryptoService {
                     .map(ticker -> toQuote(byCode.get(ticker.market()), ticker))
                     .toList());
         } catch (RuntimeException e) {
-            log.error("[crypto] 시세 조회 실패 {}: {}", markets, e.toString());
+            log.error("[crypto] 시세 조회 실패 {}: {}", markets, FailureReason.of(e));
             return List.of();
         }
     }
@@ -238,7 +243,10 @@ public class CryptoService {
             priceBySymbol = binanceApi.prices(symbolByMarket.values().stream().sorted().toList()).stream()
                     .collect(Collectors.toMap(BinancePrice::symbol, Function.identity()));
         } catch (RuntimeException e) {
-            log.warn("[crypto] 바이낸스 조회 실패 — 업비트 시세만 내보냅니다: {}", e.toString());
+            // 어느 심볼을 물었는지 함께 남긴다 — 배치라서 한 줄이 여럿을 대표하고,
+            // 심볼이 없으면 "무엇이 빠졌는지"를 로그만 보고는 알 수 없다
+            log.warn("[crypto] 바이낸스 조회 실패 {} — 업비트 시세만 내보냅니다: {}",
+                    symbolByMarket.values().stream().sorted().toList(), FailureReason.of(e));
             return quotes.stream()
                     .map(quote -> withBinanceState(quote, symbolByMarket.containsKey(quote.market())
                             ? Quote.FAILED : Quote.NOT_LISTED))

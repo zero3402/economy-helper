@@ -95,10 +95,19 @@ public class KisHeaders {
      * 상대 서버 장애로 읽혔고, "NYSE 종목은 어느 출처로도 못 온다"가 문서 셋에 <b>측정 사실로</b>
      * 적혔다. 실제로는 유효한 토큰이면 다 온다(실측 {@code ORCL} 141.25 · {@code PATH} 15.54).
      *
-     * <p><b>무효 토큰은 재발급으로 낫지 않는다.</b> 6시간 안의 재요청에 KIS가 <b>같은 토큰을</b>
-     * 돌려주는데({@code KisTokenStore} 참고) 그 규칙이 죽은 토큰에도 걸린다 — 캐시를 지우고
-     * 다시 발급해도 같은 죽은 토큰이 온다. 그래서 여기서 자동 복구를 하지 않는다: 알림톡만
-     * 계정주에게 한 번 더 가고 결과는 같다. 대신 <b>그렇다고 메시지에 적는다.</b>
+     * <p><b>무효 토큰은 <i>당장</i>은 재발급으로 낫지 않는다 — 6시간 안에는.</b> 그 창 안의
+     * 재요청에 KIS가 <b>같은 토큰을</b> 돌려주는데({@code KisTokenStore} 참고) 그 규칙이 죽은
+     * 토큰에도 걸린다. 그래서 캐시를 지우고 다시 발급해도 같은 죽은 토큰이 온다.
+     *
+     * <p>⚠️ <b>예전에는 그것을 "자동 복구를 하지 않는다"로 읽었고, 그게 절반만 맞았다.</b>
+     * 조건이 "6시간 안"인데 결론에서 그 조건이 사라져, 아무도 토큰을 버리지 않았다 —
+     * 죽은 토큰이 <b>기록된 만료까지(최대 24시간) 그대로 남아</b> 그 창 동안 모든 KIS 호출이
+     * 같은 이유로 실패했다. {@code /stock 유아이패스}가 하루 종일 빈손이던 정체가 그것이다
+     * (미국 종목은 2순위 FMP가 {@code PATH}를 402로 막아 KIS가 유일한 길이다).
+     *
+     * <p>지금은 {@link #isInvalidToken}이 이 코드를 알아보고
+     * {@code KisTokenStore.invalidate()}가 <b>버리고 6시간 뒤에 다시 받는다.</b> 앞당기지는
+     * 않는다 — 그러면 알림톡만 한 번 더 가고 결과는 같다.
      *
      * <p><b>본문을 통째로 싣지 않는다.</b> 두 필드만 꺼낸다 — 다른 응답 본문에 무엇이 실릴지
      * 우리가 정하지 않기 때문이다. 같은 이유로 <b>토큰 발급 응답에는 이 메서드를 쓰지 않는다</b>
@@ -124,8 +133,32 @@ public class KisHeaders {
         }
         return name + " — " + message + " (" + code
                 + (INVALID_TOKEN.equals(code)
-                        ? ": 재발급으로 낫지 않습니다 — 1분 1회 발급 제한을 어기면 이 상태로 굳습니다)"
+                        ? ": 토큰을 버렸습니다 — 6시간 뒤에 다시 발급합니다. 앞당겨도 같은 죽은 "
+                                + "토큰이 돌아옵니다)"
                         : ")");
+    }
+
+    /**
+     * <b>KIS가 "네 토큰이 무효다"라고 말한 것인가</b>({@code msg_cd=EGW00121}).
+     *
+     * <p>{@link #reasonOf}가 만든 <b>문장을 되파싱하지 않는다.</b> 그 문자열은 사람이 읽는
+     * 것이고 문구가 바뀌면 조용히 무력해진다 — 판정이 필요한 곳에는 코드를 보는 좁은 통로를
+     * 따로 낸다({@code Failover}가 이름이 아니라 열거형으로 순서를 잡는 것과 같은 방향이다).
+     *
+     * <p><b>{@code EGW00304}에는 거짓을 준다.</b> 잘못된 앱시크릿도 500으로 오지만(실측
+     * 2026-08-20: {@code 고객식별키(법인 personalSeckey, 개인 appSecret)가 유효하지
+     * 않습니다}) 그건 토큰 문제가 아니라 <b>설정</b> 문제다. 참을 주면 멀쩡한 토큰을 버리고
+     * 알림톡만 한 통 더 가고 결과는 같다. 즉 <b>KIS의 500은 영구 실패의 기본 표현</b>이고,
+     * 그중 우리가 스스로 고칠 수 있는 하나만 여기서 갈라낸다.
+     *
+     * <p>{@code catch} 안에서 불리므로 {@link #reasonOf}와 같은 이유로 <b>절대 던지지 않는다.</b>
+     */
+    static boolean isInvalidToken(RuntimeException e) {
+        if (!(e instanceof RestClientResponseException failure)) {
+            return false;
+        }
+        return INVALID_TOKEN.equals(
+                group(CODE, failure.getResponseBodyAsString(StandardCharsets.UTF_8)));
     }
 
     private static String group(Pattern pattern, String body) {

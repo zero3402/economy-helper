@@ -1,5 +1,8 @@
 package io.saiden.economyhelper.market.weather.accu;
 
+import io.saiden.economyhelper.support.FailureReason;
+import org.springframework.web.client.RestClientResponseException;
+
 /**
  * 실패 사유를 <b>키 없이</b> 한 마디로 줄인다.
  *
@@ -9,24 +12,37 @@ package io.saiden.economyhelper.market.weather.accu;
  */
 final class AccuFailure {
 
+    /** 하루 50회를 다 썼다는 뜻이다(실측 문구: {@code The allowed number of requests has been exceeded}). */
+    private static final int QUOTA_EXHAUSTED = 503;
+
     private AccuFailure() {
     }
 
     /**
      * 재시도가 소용 있는 실패인지 드러나게 적는다.
      *
-     * <p>503은 하루 50회를 다 썼다는 뜻이다(실측 문구: {@code The allowed number of requests
-     * has been exceeded}). 401·403은 키 문제라 자정까지 기다려도 안 풀린다. 둘 다 상대 장애와
-     * 구분해 두어야 로그를 보고 무엇을 고쳐야 할지 알 수 있다.
+     * <p>503은 한도 소진, 401·403은 키 문제라 자정까지 기다려도 안 풀린다. 둘 다 상대 장애와
+     * 구분해 두어야 로그를 보고 무엇을 고쳐야 할지 알 수 있다. 그 밖의 실패는
+     * {@link FailureReason}이 분류한다 — 브레이커 열림·리미터 거절·타임아웃이 거기서 갈린다.
+     *
+     * <p>⚠️ <b>상태 코드를 {@code e.toString()}에서 찾지 않는다.</b> 예전에는
+     * {@code message.contains("503")}이었는데, 그 문자열에는 <b>요청 URL이 들어 있고</b> URL에는
+     * 지점 키와 API 키가 실려 있다 — 키에 {@code 503}이 섞이면 멀쩡한 실패가 "한도 소진"으로
+     * 읽히고, 반대로 브레이커가 열린 것은 아무 갈래에도 안 걸려 클래스 이름만 남았다.
+     * 지금은 {@link RestClientResponseException#getStatusCode()}로 정확히 본다.
      */
     static String reasonOf(RuntimeException e) {
-        String message = e.toString();
-        if (message.contains("503")) {
-            return "일일 호출 한도(50회)를 소진했거나 서비스가 일시 중단됐습니다";
+        if (e instanceof RestClientResponseException failure) {
+            int status = failure.getStatusCode().value();
+            if (status == QUOTA_EXHAUSTED) {
+                return "일일 호출 한도(50회)를 소진했거나 서비스가 일시 중단됐습니다";
+            }
+            if (status == 401 || status == 403) {
+                return "키가 잘못됐거나 권한이 없습니다";
+            }
         }
-        if (message.contains("401") || message.contains("403")) {
-            return "키가 잘못됐거나 권한이 없습니다";
-        }
-        return e.getClass().getSimpleName();
+        // ⚠️ FailureReason은 상태 코드와 예외 이름만 돌려준다 — 메시지를 싣지 않으므로
+        //    URL에 실린 키가 여기로 새지 않는다. 이 클래스의 존재 이유가 그것이다
+        return FailureReason.of(e);
     }
 }

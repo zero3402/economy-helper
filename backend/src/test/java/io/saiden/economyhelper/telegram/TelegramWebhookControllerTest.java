@@ -370,7 +370,6 @@ class TelegramWebhookControllerTest {
         assertThat(client.sent).allSatisfy(s -> assertThat(s.topicId()).isEqualTo(42));
     }
 
-    /** secret·허용 채팅을 설정하지 않은 컨트롤러. 나머지 테스트는 라우팅만 보므로 이쪽을 쓴다. */
     @Test
     @DisplayName("/weather는 여섯 갈래가 모두 굵은 제목으로 답한다 — 맨몸 문장이 튀어나오면 안 된다")
     void answersEveryWeatherReason() {
@@ -445,6 +444,7 @@ class TelegramWebhookControllerTest {
                 java.time.Instant.parse("2026-08-11T00:00:00Z"), true);
     }
 
+    /** secret·허용 채팅을 설정하지 않은 컨트롤러. 나머지 테스트는 라우팅만 보므로 이쪽을 쓴다. */
     private static TelegramWebhookController defaultController(NewsFacade newsFacade,
                                                                CryptoService cryptoService,
                                                                FxService fxService,

@@ -46,7 +46,7 @@ class StockPriceApiTest {
         server.start();
         WireMock.configureFor(server.port());
         api = new StockPriceApi(RestClient.builder(), server.baseUrl(), ENCODED_KEY,
-                Clock.fixed(NOW, ZoneId.of("Asia/Seoul")));
+                Clock.fixed(NOW, ZoneId.of("Asia/Seoul")), null);
     }
 
     @AfterEach

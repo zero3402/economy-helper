@@ -22,7 +22,8 @@ import org.springframework.stereotype.Service;
 /**
  * 수집 → 랭킹의 단일 진입점.
  *
- * <p>텔레그램 {@code /news}와 프론트용 REST가 <b>같은 이 클래스를 부른다</b> —
+ * <p>텔레그램 {@code /news}가 이 클래스를 부른다. 프론트용 REST가 붙는 날에도 같은 자리를
+ * 쓰도록 갈라 뒀다 — <b>아직 HTTP 진입점은 웹훅 하나뿐이다.</b>
  * 두 경로가 다른 결과를 내지 않게 하려면 로직이 한 군데에 있어야 한다.
  *
  * <p>검색어를 어떻게 {@link KeywordGroup}으로 만드는지는 여기서 다루지 않는다

@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market.weather.accu;
 
+import io.saiden.economyhelper.config.CacheNames;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.saiden.economyhelper.market.weather.GeoLocation;
@@ -48,7 +49,7 @@ public class AccuLocationApi {
      * @throws IllegalStateException 키가 없거나, 호출이 실패했거나, 짚어 준 지점이 없을 때.
      *                               던져야 {@code WeatherService}가 다음 출처로 넘어간다
      */
-    @Cacheable(cacheNames = "accu-location",
+    @Cacheable(cacheNames = CacheNames.ACCU_LOCATION,
             key = "#a0.latitude() + ',' + #a0.longitude()", unless = "#result == null")
     @CircuitBreaker(name = "weatherAccuWeather")
     public String keyOf(GeoLocation place) {

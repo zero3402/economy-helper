@@ -12,11 +12,47 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *
  * <p>피드 URL과 랭킹 가중치를 코드 밖에 두는 이유는 운영하며 조정할 값들이기 때문이다 —
  * 특히 가중치는 실제 발송 결과를 보고 재조정하게 된다.
+ *
+ * <h2>⚠️ 왜 여기 목록이 많고 {@code Map}이 없는가</h2>
+ *
+ * <p><b>relaxed binding이 Map 키에서 점·{@code ^}·한글을 걸러낸다.</b> 그래서 키에 그런 문자가
+ * 들어가는 것은 전부 <b>목록</b>이다 — {@code http-timeouts}(호스트에 점),
+ * {@code us-indices}·{@code us-symbols}({@code ^IXIC}), {@code weather.locations}(한글 역 이름),
+ * {@code digest.indices}(한글 지수명). 6단계에서 별칭 표가 Map이었다가 <b>조용히 사라진 적이
+ * 있다</b> — 오류가 아니라 빈 Map이 되므로 런타임에야 드러난다.
+ *
+ * <p>아래 레코드들은 이 규칙을 되풀어 적지 않는다. 한 곳에서 오는 것이 요점이다.
  */
 @ConfigurationProperties(prefix = "economy-helper")
 public record EconomyHelperProperties(
         Map<NewsSource, Feed> feeds, Ranking ranking, Digest digest, CacheTtl cacheTtl,
-        Weather weather, Market market) {
+        Weather weather, Market market, List<HttpTimeout> httpTimeouts) {
+
+    /**
+     * 출처 하나의 타임아웃 — <b>키가 호스트다.</b>
+     *
+     * <p><b>왜 설정 이름이 아니라 호스트인가.</b> Boot 4에는 손으로 만든 {@code RestClient}용
+     * <b>이름별</b> 타임아웃이 없다. {@code spring.http.clients}는 평평한 전역 블록 하나이고
+     * (의존성 jar의 설정 메타데이터로 확인: {@code connect-timeout}·{@code read-timeout}·
+     * {@code redirects}·{@code cookie-handling}·{@code ssl.bundle}·{@code imperative.factory}뿐),
+     * 키별 형태는 {@code spring.http.serviceclient.*}인데 그건 {@code @ImportHttpServices}
+     * 인터페이스 클라이언트 전용이다. 그래서 키를 우리가 준다.
+     *
+     * <p>호스트가 그 키로 맞는 이유는 <b>경계가 이미 그렇게 그려져 있어서</b>다 — Open-Meteo
+     * 셋이 호스트 셋이고 브레이커도 셋, AccuWeather 둘이 호스트 하나이고 브레이커도 하나,
+     * KIS 셋이 호스트 하나이고 앱키도 간격 문도 하나다. 새 개념을 만들지 않는다.
+     *
+     *
+     * <p>⚠️ <b>여기 없는 호스트는 조용히 전역 기본값이 된다.</b> 오타가 오류를 내지 않는다는
+     * 뜻이라 {@code HttpTimeoutsTest}가 이 목록의 호스트가 실재하는 {@code base-url}인지 본다 —
+     * {@code cache-ttl}이 {@code CacheConfigTest}로, 리미터가 {@code ResilienceConfigTest}로
+     * 막은 것과 같은 함정이고 같은 대응이다.
+     *
+     * @param host    포트 없는 호스트만. {@code URI.getHost()}가 포트를 떼고 오기 때문이다
+     * @param connect 연결까지. 콜드 DNS가 실측 1.3초(BBC)까지 가므로 초 단위로 둔다
+     * @param read    응답을 다 받기까지. <b>출처마다 다른 것이 이 값이다</b>
+     */
+    public record HttpTimeout(String host, Duration connect, Duration read) {}
 
     /**
      * {@code market.*} 중 <b>구조가 있는 것만</b> 여기로 묶는다. 나머지(업비트·바이낸스·
@@ -41,14 +77,11 @@ public record EconomyHelperProperties(
     /**
      * 지수 하나의 KIS 심볼.
      *
-     * <p><b>{@code Map}이 아니라 목록이다.</b> 키에 {@code ^}가 들어가는데 relaxed binding이
-     * Map 키에서 그런 문자를 걸러낸다 — {@code us-symbols}가 같은 이유로 목록이다.
      *
      * @param symbol    LLM·FMP가 쓰는 표기 {@code ^IXIC}
      * @param kisSymbol KIS가 아는 이름 {@code COMP}. <b>규칙이 없어 표가 유일한 길이다</b>
      */
     public record KisIndex(String symbol, String kisSymbol) {}
-
 
     /** {@code type}이 어느 파서를 쓸지 정한다 — AP만 GOOGLE_NEWS다. */
     public record Feed(String url, FeedType type) {}
@@ -101,8 +134,6 @@ public record EconomyHelperProperties(
      * 한 화면에서 표기가 갈린다. {@code /stock} 검색은 LLM이 해석한 한국어 이름을 쓰지만
      * 브리핑은 심볼이 설정에 박혀 있어 LLM을 타지 않으므로, 그 자리를 여기서 채운다.
      *
-     * <p><b>{@code Map}이 아니라 목록이다.</b> 키에 {@code ^}가 들어가는데 relaxed binding이
-     * Map 키에서 그런 문자를 걸러낸다.
      *
      * <p><b>KIS 조회 키는 담지 않는다.</b> 담던 때가 있었는데, 그러면 이 목록이 브리핑 목록과
      * <b>KIS 대응표</b>를 겸하게 되고 표에 없는 심볼을 KIS가 통째로 거절했다 —
@@ -122,9 +153,6 @@ public record EconomyHelperProperties(
      * <p>값을 주지 않으면 Redis 캐시는 <b>만료 없이</b> 저장한다 — 피드가 영구 캐시되면
      * 오전 9시와 오후 9시 발송이 같은 기사로 나간다. 그래서 캐시마다 명시한다.
      *
-     * <p>⚠️ 이 블록은 예전에 <b>둘로 나뉘어 있었고 앞의 것이 버려졌다.</b> javadoc을 연달아
-     * 두면 마지막 것만 붙는데, 하필 버려지는 쪽에 위 경고가 적혀 있었다 —
-     * {@code TelegramWebhookController}가 스스로 적어 둔 그 함정에 이 파일이 걸려 있었다.
      *
      * @param query 한국어 검색어 → 영어 표현 대응. 이건 낡지 않으므로 길게 잡는다
      */
@@ -154,8 +182,6 @@ public record EconomyHelperProperties(
     /**
      * 알람에 넣을 지점 하나.
      *
-     * <p><b>{@code Map}이 아니라 목록이다.</b> 키가 한글이면 relaxed binding이 걸러낸다 —
-     * 6단계에서 별칭 표가 그렇게 조용히 사라진 적이 있다. 값(List 원소)이면 한글이어도 안전하다.
      */
     public record WeatherLocation(String name, double latitude, double longitude) {}
 }

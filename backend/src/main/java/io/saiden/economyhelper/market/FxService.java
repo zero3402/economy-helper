@@ -1,6 +1,7 @@
 package io.saiden.economyhelper.market;
 
 import io.saiden.economyhelper.support.Failover;
+import io.saiden.economyhelper.support.FailureReason;
 import java.util.List;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -10,7 +11,8 @@ import org.springframework.stereotype.Service;
 /**
  * {@code CLAUDE.md}가 요구하는 환율 이중화 — <b>신선한 순서로 셋을 세운다.</b>
  *
- * <p>순서대로 시도하고 <b>처음 성공한 것</b>을 쓴다. 둘 다 <b>인증도 IP 제한도 없어</b>
+ * <p>순서대로 시도하고 <b>처음 성공한 것</b>을 쓴다. <b>1순위(KIS)만 앱키를 쓰고</b> 받쳐 주는
+ * 둘은 <b>인증도 IP 제한도 없어</b>
  * 로컬과 배포가 같은 구성으로 돈다 — 어느 쪽도 호출 IP를 등록하라고 요구하지 않는다.
  * 출처가 유럽중앙은행과 한국 정부로 완전히 독립적이라 동시에 죽을 이유도 없다.
  *
@@ -56,7 +58,7 @@ public class FxService {
         Optional<FxRate> found = Failover.first(clients, FxRateClient::usdToKrw,
                 // 다음 출처가 있으면 조용히 넘어간다. 이게 이중화가 하는 일이다
                 (client, e) -> log.warn("[fx] {} 조회 실패 — 다음 출처로 넘어갑니다: {}",
-                        client.source().displayName(), e.toString()));
+                        client.source().displayName(), FailureReason.of(e)));
         if (found.isEmpty()) {
             log.error("[fx] 모든 출처에서 환율을 가져오지 못했습니다");
         }
@@ -68,7 +70,7 @@ public class FxService {
      *
      * <p>환율은 원화 환산과 김프에만 쓰인다 — 못 구했다고 시세나 브리핑을 통째로 막는 것은
      * 과하다. 그래서 예외를 여기서 삼키고 {@code null}로 떨어뜨린다. 받는 쪽은 이미
-     * {@code null}이면 환산 줄을 빼도록 만들어져 있다({@code MessageFormatter.convertible}).
+     * {@code null}이면 환산 줄을 빼도록 만들어져 있다({@code StockFormatter.convertible}).
      *
      * <p><b>이 메서드가 있는 이유는 같은 결정이 두 곳에서 서로 다르게 내려져 있었기 때문이다.</b>
      * 브리핑은 {@code Optional}로 받아 {@code error}로 남기고 곧바로 {@code orElse(null)}로

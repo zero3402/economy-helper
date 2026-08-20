@@ -4,6 +4,7 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tools.jackson.databind.ObjectMapper;
+import io.saiden.economyhelper.support.FailureReason;
 
 /**
  * <b>프롬프트를 던지고 JSON을 받아 온다 — 실패하면 빈손이다.</b>
@@ -46,7 +47,7 @@ public final class LlmJson {
             return Optional.of(parsed);
         } catch (Exception e) {
             // 호출자가 다음 수를 갖고 있다 — 여기서 던지면 그 폴백이 무의미해진다
-            log.error("[{}] '{}' LLM 해석 실패: {}", tag, query, e.toString());
+            log.error("[{}] '{}' LLM 해석 실패: {}", tag, query, FailureReason.of(e));
             return Optional.empty();
         }
     }

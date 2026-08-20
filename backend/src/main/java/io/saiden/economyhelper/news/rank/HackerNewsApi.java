@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.news.rank;
 
+import io.saiden.economyhelper.config.CacheNames;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
@@ -13,6 +14,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import io.saiden.economyhelper.support.FailureReason;
 
 /**
  * HN Algolia 조회 — 매체 도메인 하나당 한 번.
@@ -50,7 +52,7 @@ public class HackerNewsApi {
      * 호출 자체를 끊으려고 얹는다.
      */
     @CircuitBreaker(name = "hackerNews")
-    @Cacheable(cacheNames = "hn-buzz", key = "#domain", unless = "#result.isEmpty()")
+    @Cacheable(cacheNames = CacheNames.HN_BUZZ, key = "#domain", unless = "#result.isEmpty()")
     public Map<String, Integer> storiesForDomain(String domain, Instant since) {
         try {
             SearchResponse response = restClient.get()
@@ -66,7 +68,7 @@ public class HackerNewsApi {
                     .body(SearchResponse.class);
             return toBuzzMap(response);
         } catch (Exception e) {
-            log.warn("[{}] HN 조회 실패 — buzz를 0으로 강등합니다: {}", domain, e.toString());
+            log.warn("[{}] HN 조회 실패 — buzz를 0으로 강등합니다: {}", domain, FailureReason.of(e));
             return Map.of();
         }
     }

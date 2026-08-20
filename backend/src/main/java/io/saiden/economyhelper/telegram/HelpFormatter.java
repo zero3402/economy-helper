@@ -1,17 +1,6 @@
 package io.saiden.economyhelper.telegram;
 
-import static io.saiden.economyhelper.telegram.MessageLayout.DATE;
-import static io.saiden.economyhelper.telegram.MessageLayout.DATE_TIME;
-import static io.saiden.economyhelper.telegram.MessageLayout.SEOUL;
-import static io.saiden.economyhelper.telegram.MessageLayout.SHORT_DATE;
-import static io.saiden.economyhelper.telegram.MessageLayout.appendChangeLine;
-import static io.saiden.economyhelper.telegram.MessageLayout.change;
-import static io.saiden.economyhelper.telegram.MessageLayout.empty;
 import static io.saiden.economyhelper.telegram.MessageLayout.head;
-import static io.saiden.economyhelper.telegram.MessageLayout.krw;
-import static io.saiden.economyhelper.telegram.MessageLayout.money;
-import static io.saiden.economyhelper.telegram.MessageLayout.oneDecimal;
-import static io.saiden.economyhelper.telegram.MessageLayout.sources;
 import static io.saiden.economyhelper.telegram.MessageLayout.title;
 
 

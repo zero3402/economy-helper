@@ -19,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import io.saiden.economyhelper.support.FailureReason;
 
 /**
  * 매일 오전 6시(KST) 날씨 알람 — 설정에 적힌 지역들(지금은 미금·서현·잠실·삼성중앙역).
@@ -165,7 +166,7 @@ public class WeatherDigestJob extends TriggerableJob {
             WeatherPeriod today = WeatherPeriod.of(weatherService.today(place), null, null, null);
             return weatherService.forecast(place, today);
         } catch (RuntimeException e) {
-            log.error("[weather] {} 조회 실패: {}", place.name(), e.toString());
+            log.error("[weather] {} 조회 실패: {}", place.name(), FailureReason.of(e));
             return Optional.empty();
         }
     }

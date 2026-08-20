@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market.kis;
 
+import io.saiden.economyhelper.config.CacheNames;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
@@ -14,6 +15,7 @@ import io.saiden.economyhelper.market.Price;
 import io.saiden.economyhelper.market.StockQuote;
 import io.saiden.economyhelper.market.StockSource;
 import io.saiden.economyhelper.market.UsStockClient;
+import io.saiden.economyhelper.support.FailureReason;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.util.List;
@@ -125,11 +127,12 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
     private final KisThrottle throttle;
 
     /**
-     * @param properties 브리핑 설정의 지수·미국 심볼 목록이 <b>KIS 조회 키 표를 겸한다.</b>
-     *                   {@code /stock 코스피}는 LLM이 업종코드를 주지 않고(지어내기 쉬운 값이다)
-     *                   {@code /stock 애플}도 거래소 코드를 주지 않는다 — 그걸 여기서 채운다.
-     *                   표에 없는 것은 조회 키를 만들 수 없어 2순위가 맡는다. 덕분에 설정에 든
-     *                   종목은 브리핑과 검색이 <b>같은 출처·같은 이름</b>으로 나간다
+     * @param properties <b>지수 조회 키 표만</b> 여기서 온다 — 국내는 업종코드
+     *                   ({@code digest.indices}), 미국은 KIS 심볼({@code market.kis.us-indices}).
+     *                   ⚠️ <b>미국 <i>종목</i>은 표를 타지 않는다.</b> 거래소를 스스로 찾는다
+     *                   (NAS → NYS, 30일 기억). 예전에 {@code digest.us-symbols}가 이 표를
+     *                   겸했고, 그래서 목록에 없는 심볼을 통째로 거절해
+     *                   {@code /stock 유아이패스}가 빈손이었다 — 그것이 둘을 가른 이유다
      */
     public KisStockApi(RestClient.Builder builder,
                        @Value("${economy-helper.market.kis.base-url}") String baseUrl,
@@ -162,7 +165,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
     }
 
     @Override
-    @Cacheable(cacheNames = "kis-quote", key = "'stock:' + #code")
+    @Cacheable(cacheNames = CacheNames.KIS_QUOTE, key = "'stock:' + #code")
     @CircuitBreaker(name = "kisStock")
     public StockQuote stock(String code) {
         DomesticStock.Quote quote = request(DomesticStock.class, STOCK_TR, "국내 종목 " + code,
@@ -182,7 +185,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
     @Override
     // 캐시 키는 코드가 아니라 이름이다. 검색 경로는 코드를 비워 보내므로(설정에서 채운다)
     // 코드로 잡으면 코드 없는 지수가 전부 한 칸을 나눠 쓰게 된다
-    @Cacheable(cacheNames = "kis-quote", key = "'index:' + #index.name()")
+    @Cacheable(cacheNames = CacheNames.KIS_QUOTE, key = "'index:' + #index.name()")
     @CircuitBreaker(name = "kisStock")
     public StockQuote index(Index index) {
         Index target = known(index);
@@ -202,7 +205,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
     }
 
     @Override
-    @Cacheable(cacheNames = "kis-quote", key = "'us:' + #symbol.symbol()")
+    @Cacheable(cacheNames = CacheNames.KIS_QUOTE, key = "'us:' + #symbol.symbol()")
     @CircuitBreaker(name = "kisStock")
     public StockQuote quote(UsSymbol symbol) {
         if (symbol.symbol().startsWith(INDEX_PREFIX)) {
@@ -271,7 +274,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
                 //    NAS를 물을 때 스로틀에 걸리면 NYS는 시도조차 못 하고 종목이 빈손이 됐다.
                 //    거래소마다 따로 실패하고 전부 실패했을 때만 던진다(StockService.first와 같다)
                 log.warn("[stock] {} — {} 조회 실패, 다음 거래소로 넘어갑니다: {}",
-                        what, exchange, e.toString());
+                        what, exchange, FailureReason.of(e));
                 failure = e.getMessage();
                 continue;
             }
@@ -338,6 +341,11 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
             // 예외 이름만으로는 부족하다 — 무효 토큰이 500으로 오고 이유가 본문에만 있다
             String reason = KisHeaders.reasonOf(e);
             log.warn("[kis] {} 조회 실패: {}", what, reason);
+            // 무효 토큰은 다음 호출에서도 같은 이유로 실패한다. 알아차린 자리에서 버려야
+            // 스스로 낫는다 — 안 버리면 기록된 만료까지(최대 24시간) 모든 KIS 호출이 죽는다
+            if (KisHeaders.isInvalidToken(e)) {
+                tokens.invalidate();
+            }
             throw new IllegalStateException("KIS " + what + " 조회 실패: " + reason);
         }
         KisHeaders.verify(response == null ? null : response.resultCode(),

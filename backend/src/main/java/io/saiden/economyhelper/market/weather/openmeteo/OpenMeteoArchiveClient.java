@@ -1,6 +1,8 @@
 package io.saiden.economyhelper.market.weather.openmeteo;
 
+import io.saiden.economyhelper.config.CacheNames;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import io.saiden.economyhelper.market.weather.GeoLocation;
 import io.saiden.economyhelper.market.weather.Weather;
 import io.saiden.economyhelper.market.weather.WeatherClient;
@@ -52,9 +54,10 @@ public class OpenMeteoArchiveClient implements WeatherClient {
 
     @Override
     // ⚠️ 예보와 한 캐시를 쓰므로 접두사로 가른다 — OpenMeteoForecastClient의 주석 참조
-    @Cacheable(cacheNames = "weather",
+    @Cacheable(cacheNames = CacheNames.WEATHER,
             key = "'oma:' + #a0.latitude() + ',' + #a0.longitude() + ',' + #a1.from() + ',' + #a1.to()",
             unless = "#result == null")
+    @Retry(name = "weatherOpenMeteoArchive")
     @CircuitBreaker(name = "weatherOpenMeteoArchive")
     public Weather forecast(GeoLocation place, WeatherPeriod period) {
         return OpenMeteoRequest.daily(restClient, "/v1/archive", DAILY_FIELDS,

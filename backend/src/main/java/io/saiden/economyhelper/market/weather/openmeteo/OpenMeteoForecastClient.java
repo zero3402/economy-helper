@@ -1,6 +1,8 @@
 package io.saiden.economyhelper.market.weather.openmeteo;
 
+import io.saiden.economyhelper.config.CacheNames;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import io.saiden.economyhelper.market.weather.GeoLocation;
 import io.saiden.economyhelper.market.weather.Weather;
 import io.saiden.economyhelper.market.weather.WeatherClient;
@@ -13,7 +15,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 /**
- * Open-Meteo 예보 — <b>1순위다.</b>
+ * Open-Meteo 예보 — <b>2순위다.</b>
  *
  * <p>인증이 없고 IP 제한도 없어 배포 환경에서 그대로 돈다 — Frankfurter를 고른 것과 같은
  * 이유다. 2026-08-17 실측에서 16일치가 강수확률까지 빠짐없이 왔다.
@@ -66,9 +68,10 @@ public class OpenMeteoForecastClient implements WeatherClient {
     // ⚠️ 접두사가 출처를 가른다. 재분석과 한 캐시(weather)를 쓰는데 키 모양이 같아서,
     //    안 붙이면 자정 경계에서 섞인다 — 23:57에 '오늘 예보'로 담긴 항목이 00:00 이후에는
     //    과거 조회가 되어, TTL(10분)이 끝나기까지 실측 자리에 예보값이 나간다
-    @Cacheable(cacheNames = "weather",
+    @Cacheable(cacheNames = CacheNames.WEATHER,
             key = "'om:' + #a0.latitude() + ',' + #a0.longitude() + ',' + #a1.from() + ',' + #a1.to()",
             unless = "#result == null")
+    @Retry(name = "weatherOpenMeteo")
     @CircuitBreaker(name = "weatherOpenMeteo")
     public Weather forecast(GeoLocation place, WeatherPeriod period) {
         return OpenMeteoRequest.daily(restClient, "/v1/forecast", DAILY_FIELDS,

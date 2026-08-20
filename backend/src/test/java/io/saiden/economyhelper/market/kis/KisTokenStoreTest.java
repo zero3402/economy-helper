@@ -11,12 +11,15 @@ import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import java.time.Clock;
+import java.lang.reflect.Proxy;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.web.client.RestClient;
 
 /**
@@ -59,7 +62,139 @@ class KisTokenStoreTest {
     /** Redis 없이(널) 만든다 — 그 경로가 실제로 도는지가 이 클래스의 요점이다. */
     private KisTokenStore store(Instant now) {
         return new KisTokenStore(RestClient.builder(), server.baseUrl(), "key", "secret",
-                null, Clock.fixed(now, ZoneOffset.UTC));
+                null, Clock.fixed(now, ZoneOffset.UTC), KisThrottle.none());
+    }
+
+    private KisTokenStore store(Instant now, FakeRedis redis) {
+        return new KisTokenStore(RestClient.builder(), server.baseUrl(), "key", "secret",
+                redis.template(), Clock.fixed(now, ZoneOffset.UTC), KisThrottle.none());
+    }
+
+    /**
+     * 맵 하나짜리 Redis. <b>TTL은 재현하지 않는다</b> — 이 클래스가 보는 것은 "무엇이
+     * 들어가고 무엇이 지워지는가"이고, 만료는 시계를 앞으로 돌려 확인한다.
+     *
+     * <p>{@code ValueOperations}는 메서드가 수십 개인데 우리가 쓰는 것은 셋이다. 그래서
+     * 프록시로 그 셋만 답한다 — 나머지를 손으로 구현하면 읽을 것만 늘고 뜻이 흐려진다.
+     */
+    private static final class FakeRedis {
+
+        private final java.util.Map<String, String> values = new java.util.HashMap<>();
+
+        @SuppressWarnings("unchecked")
+        StringRedisTemplate template() {
+            ValueOperations<String, String> ops = (ValueOperations<String, String>) Proxy
+                    .newProxyInstance(getClass().getClassLoader(),
+                            new Class<?>[] {ValueOperations.class}, (proxy, method, args) ->
+                            switch (method.getName()) {
+                                case "get" -> values.get((String) args[0]);
+                                case "set" -> {
+                                    values.put((String) args[0], (String) args[1]);
+                                    yield null;
+                                }
+                                case "setIfAbsent" ->
+                                        values.putIfAbsent((String) args[0], (String) args[1]) == null;
+                                default -> throw new UnsupportedOperationException(method.getName());
+                            });
+            return new StringRedisTemplate() {
+                @Override
+                public ValueOperations<String, String> opsForValue() {
+                    return ops;
+                }
+
+                @Override
+                public Boolean delete(String key) {
+                    return values.remove(key) != null;
+                }
+            };
+        }
+    }
+
+    @Test
+    @DisplayName("만료가 이미 지난 토큰은 담지 않고 던진다 — 담으면 호출마다 발급을 시도한다")
+    void refusesATokenThatIsAlreadyExpired() {
+        // 실측(2026-08-19): 죽은 토큰을 돌려줄 때 응답의 만료 시각이 요청 시각보다 20분
+        // 일렀다. 그대로 담으면 usableAt()이 즉시 거짓이 되어 호출마다 발급을 시도하고,
+        // 그건 1분 1회 제한을 우리 손으로 어기는 길이다 — 알림톡도 그만큼 간다
+        stub("""
+                {"access_token":"tok-dead","access_token_token_expired":"2026-08-18 16:40:00"}
+                """);
+
+        assertThatThrownBy(() -> store(NOW).token())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("이미 만료된 토큰");
+    }
+
+    @Test
+    @DisplayName("무효로 확인된 토큰을 버리면 6시간 동안 발급하지 않는다 — 앞당겨도 같은 죽은 토큰이 온다")
+    void doesNotReissueInsideTheSameTokenWindow() {
+        FakeRedis redis = new FakeRedis();
+        stub("""
+                {"access_token":"tok-1","access_token_token_expired":"2026-08-19 16:56:34"}
+                """);
+        KisTokenStore store = store(NOW, redis);
+        assertThat(store.token()).isEqualTo("tok-1");
+
+        store.invalidate();
+
+        // 발급을 다시 시도하지 않고 던져야 상위 서비스가 다음 출처로 넘어간다
+        assertThatThrownBy(store::token)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("무효로 확인돼");
+        server.verify(1, postRequestedFor(urlPathEqualTo(PATH)));
+        assertThat(redis.values).doesNotContainKey("kis:token");
+    }
+
+    @Test
+    @DisplayName("발급이 도장을 찍은 뒤에는 다시 발급하지 않는다 — 락 밖 검사만으로는 둘이 함께 통과한다")
+    void neverIssuesTwiceAfterTheWindowWasStamped() {
+        // ⚠️ 이것이 락 안에서 쿨다운을 다시 보는 이유다. token()의 검사는 락 **밖**이라,
+        //    둘이 함께 통과한 뒤 첫 번째가 발급에 실패하며 도장을 찍어도 두 번째는 그것을
+        //    못 본 채 락을 잡는다. 그러면 몇 초 사이에 발급이 두 번 나가 1분 1회 제한을
+        //    지키려고 만든 이 설계가 스스로 그것을 어긴다 — 알림톡도 그만큼 간다
+        FakeRedis redis = new FakeRedis();
+        // 만료가 이미 지난 토큰: 첫 발급이 실패하면서 재발급 창을 세운다
+        stub("""
+                {"access_token":"tok-dead","access_token_token_expired":"2026-08-18 16:40:00"}
+                """);
+
+        assertThatThrownBy(() -> store(NOW, redis).token())
+                .hasMessageContaining("이미 만료된 토큰");
+        assertThat(redis.values).containsKey("kis:token:reissue-after");
+
+        // 두 번째 호출 — 도장이 찍혔으므로 KIS를 부르지 않아야 한다
+        assertThatThrownBy(() -> store(NOW, redis).token())
+                .isInstanceOf(IllegalStateException.class);
+
+        server.verify(1, postRequestedFor(urlPathEqualTo(PATH)));
+    }
+
+    @Test
+    @DisplayName("창이 지나면 스스로 낫는다 — 버려 둔 채로 굳지 않는다")
+    void reissuesOnceTheWindowHasPassed() {
+        FakeRedis redis = new FakeRedis();
+        stub("""
+                {"access_token":"tok-1","access_token_token_expired":"2026-08-19 16:56:34"}
+                """);
+        store(NOW, redis).token();
+        store(NOW, redis).invalidate();
+
+        stub("""
+                {"access_token":"tok-2","access_token_token_expired":"2026-08-20 16:56:34"}
+                """);
+        // 발급 6시간 뒤 — 이제 KIS가 새 토큰을 준다
+        assertThat(store(NOW.plusSeconds(6 * 3600 + 1), redis).token()).isEqualTo("tok-2");
+    }
+
+    @Test
+    @DisplayName("두 칸짜리 옛 캐시 형식을 그대로 읽는다 — 못 읽으면 배포 순간 멀쩡한 토큰을 버린다")
+    void readsTheOlderTwoFieldCacheFormat() {
+        FakeRedis redis = new FakeRedis();
+        // 발급 시각 칸이 붙기 전의 형식이다. 배포하는 순간 Redis에 이 모양이 들어 있다
+        redis.values.put("kis:token", "tok-old|" + NOW.plusSeconds(86400).getEpochSecond());
+
+        assertThat(store(NOW, redis).token()).isEqualTo("tok-old");
+        server.verify(0, postRequestedFor(urlPathEqualTo(PATH)));
     }
 
     @Test
@@ -146,7 +281,7 @@ class KisTokenStoreTest {
     @DisplayName("키가 없으면 발급조차 안 한다 — 1분에 한 번뿐인 발급을 헛되이 쓰지 않는다")
     void skipsIssuingWithoutKeys() {
         KisTokenStore keyless = new KisTokenStore(RestClient.builder(), server.baseUrl(), "", "",
-                null, Clock.fixed(NOW, ZoneOffset.UTC));
+                null, Clock.fixed(NOW, ZoneOffset.UTC), KisThrottle.none());
 
         assertThatThrownBy(keyless::token).hasMessageContaining("앱키");
         server.verify(0, postRequestedFor(urlPathEqualTo(PATH)));

@@ -107,20 +107,41 @@ class GeocodingApiTest {
     }
 
     @Test
-    @DisplayName("로마자로 오면 물어본 한국어 지명으로 적는다 — language=ko인데도 그렇게 온다")
-    void fallsBackToTheQueryWhenTheNameComesRomanised() {
+    @DisplayName("로마자로 와도 상대가 준 날것을 담는다 — 표기를 고르는 것은 읽을 때다")
+    void keepsTheRawNameSoTheLabelIsNotFrozenInTheCache() {
         // 실측: '제주시'를 찾으면 이름이 Jejudo로 온다. 그대로 쓰면 전부 한글인 화면에
-        // 지명만 로마자로 튄다
+        // 지명만 로마자로 튄다 — 그래서 바꿔야 하지만, ⚠️ **여기서** 바꾸면 안 된다.
+        // 이 결과가 geocode 캐시에 30일 들어가므로 파생된 표기가 캐시에 굳는다.
+        // 규칙을 고쳐도 이름이 코드를 따라오지 않아 /weather 미금이 고침 뒤에도
+        // 'Seongnam, 대한민국'을 답했다. 담는 것은 날것, 만드는 것은 읽을 때다.
         stub("""
                 {"results":[{"name":"Jejudo","latitude":33.4022,"longitude":126.5464,
                  "country":"대한민국","timezone":"Asia/Seoul","population":621550}]}""");
 
         GeoLocation place = api.find("제주시", "KR").orElseThrow();
 
-        assertThat(place.name()).isEqualTo("제주시");
+        assertThat(place.name()).as("캐시에 담기는 것은 상대가 준 이름이다").isEqualTo("Jejudo");
+        assertThat(place.labelledFor("제주시").name())
+                .as("한국어 표기는 읽을 때 만든다 — 그래야 규칙을 고치면 옛 캐시까지 낫는다")
+                .isEqualTo("제주시");
         assertThat(place.country()).as("나라는 손대지 않는다 — 그쪽은 제대로 한국어로 온다")
                 .isEqualTo("대한민국");
         assertThat(place.latitude()).as("좌표는 여전히 지오코딩이 확정한다").isEqualTo(33.4022);
+    }
+
+    @Test
+    @DisplayName("한글로 온 이름은 물어본 말로 덮지 않는다 — 상대가 확정한 표기가 이긴다")
+    void keepsTheGeocodedNameWhenItIsAlreadyKorean() {
+        // 실측: name=성남시&countryCode=KR → '성남시' / 인구 914,832 / 경기도 성남시.
+        // 물어본 말이 '미금'이어도 화면에는 실제로 조회한 '성남시'가 적혀야 검산이 된다
+        stub("""
+                {"results":[{"name":"성남시","latitude":37.43861,"longitude":127.13778,
+                 "country":"대한민국","timezone":"Asia/Seoul","population":914832}]}""");
+
+        GeoLocation place = api.find("성남시", "KR").orElseThrow();
+
+        assertThat(place.labelledFor("미금").name()).isEqualTo("성남시");
+        assertThat(place.labelledFor("미금").displayName()).isEqualTo("성남시, 대한민국");
     }
 
     @Test

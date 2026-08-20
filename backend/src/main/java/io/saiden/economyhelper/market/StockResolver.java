@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market;
 
+import io.saiden.economyhelper.config.CacheNames;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.saiden.economyhelper.text.QueryNormalizer;
 import io.saiden.economyhelper.llm.GeminiApi;
@@ -68,7 +69,7 @@ public class StockResolver {
      * @return LLM이 판단한 종목. 실패하거나 특정하지 못하면 {@link Optional#empty()} —
      *         호출자는 원문으로 이름 검색을 시도한다(LLM이 죽어도 직접 이름은 걸린다)
      */
-    @Cacheable(cacheNames = "stock-resolve", key = "#a0", unless = "#result == null")
+    @Cacheable(cacheNames = CacheNames.STOCK_RESOLVE, key = "#a0", unless = "#result == null")
     public Optional<ResolvedStock> resolve(String normalizedQuery) {
         if (normalizedQuery == null || normalizedQuery.isBlank()) {
             return Optional.empty();

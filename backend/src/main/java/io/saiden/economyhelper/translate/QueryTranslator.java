@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.translate;
 
+import io.saiden.economyhelper.config.CacheNames;
 import io.saiden.economyhelper.llm.GeminiApi;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -58,7 +59,7 @@ public class QueryTranslator {
      * @return 영어 표현들. 빈 결과는 캐시하지 않는다 — 일시적 실패를 30일간 굳히면
      *         그 검색어는 그 기간 내내 안 걸린다
      */
-    @Cacheable(cacheNames = "query", key = "#token", unless = "#result.isEmpty()")
+    @Cacheable(cacheNames = CacheNames.QUERY, key = "#token", unless = "#result.isEmpty()")
     public List<String> toEnglishTerms(String token) {
         EnglishTerms parsed = objectMapper.readValue(
                 api.generate(PROMPT.formatted(MAX_TERMS, token)), EnglishTerms.class);

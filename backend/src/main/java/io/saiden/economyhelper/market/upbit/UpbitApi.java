@@ -1,8 +1,10 @@
 package io.saiden.economyhelper.market.upbit;
 
+import io.saiden.economyhelper.config.CacheNames;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import java.math.BigDecimal;
 import java.util.List;
@@ -42,8 +44,9 @@ public class UpbitApi {
      * <p>신규 상장·상장폐지는 드물어 6시간 캐시로 충분하다. 이게 없으면 {@code /crypto} 한 번에
      * 조회가 두 번 나간다.
      */
-    @Cacheable(cacheNames = "upbit-markets", unless = "#result.isEmpty()")
+    @Cacheable(cacheNames = CacheNames.UPBIT_MARKETS, unless = "#result.isEmpty()")
     @RateLimiter(name = "upbit")
+    @Retry(name = "upbit")
     @CircuitBreaker(name = "upbit")
     public List<UpbitMarket> krwMarkets() {
         MarketResponse[] response = restClient.get()
@@ -68,8 +71,9 @@ public class UpbitApi {
      *
      * @param markets 마켓 코드들. 비어 있으면 호출하지 않는다
      */
-    @Cacheable(cacheNames = "crypto-price", key = "#markets", unless = "#result.isEmpty()")
+    @Cacheable(cacheNames = CacheNames.CRYPTO_PRICE, key = "#markets", unless = "#result.isEmpty()")
     @RateLimiter(name = "upbit")
+    @Retry(name = "upbit")
     @CircuitBreaker(name = "upbit")
     public List<UpbitTicker> tickers(List<String> markets) {
         if (markets.isEmpty()) {

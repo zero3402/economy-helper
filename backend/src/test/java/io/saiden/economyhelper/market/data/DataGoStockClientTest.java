@@ -156,7 +156,7 @@ class DataGoStockClientTest {
         private final Map<String, List<StockPrice>> byQuery;
 
         private RecordingPriceApi(Map<String, List<StockPrice>> byQuery) {
-            super(RestClient.builder(), "https://example.invalid", "key", fixed());
+            super(RestClient.builder(), "https://example.invalid", "key", fixed(), null);
             this.byQuery = byQuery;
         }
 
@@ -176,7 +176,7 @@ class DataGoStockClientTest {
         private final List<String> asked = new java.util.ArrayList<>();
 
         private RecordingIndexApi(MarketIndex answer) {
-            super(RestClient.builder(), "https://example.invalid", "key", fixed());
+            super(RestClient.builder(), "https://example.invalid", "key", fixed(), null);
             this.answer = answer;
         }
 

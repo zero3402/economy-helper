@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market.kexim;
 
+import io.saiden.economyhelper.config.CacheNames;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
@@ -92,7 +93,7 @@ public class KeximFxClient implements FxRateClient {
     }
 
     @Override
-    @Cacheable(cacheNames = "fx-kexim", unless = "#result == null")
+    @Cacheable(cacheNames = CacheNames.FX_KEXIM, unless = "#result == null")
     @CircuitBreaker(name = "fxKexim")
     public FxRate usdToKrw() {
         if (authKey.isBlank()) {

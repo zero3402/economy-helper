@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.news.rank;
 
+import io.saiden.economyhelper.config.CacheNames;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.saiden.economyhelper.news.Article;
 import io.saiden.economyhelper.llm.GeminiApi;
@@ -13,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
+import io.saiden.economyhelper.support.FailureReason;
 
 /**
  * "이 기사가 재테크에 쓸모 있는가"를 0~1로 매긴다 — 정기 발송 랭킹의 의미 신호다.
@@ -96,7 +98,7 @@ public class RelevanceScorer {
      *
      * @return 기사 링크 → 0~1. 실패해도 예외를 던지지 않는다 — 발송이 멈추면 안 된다
      */
-    @Cacheable(cacheNames = "relevance", key = "#candidates.![link]", unless = "#result.isEmpty()")
+    @Cacheable(cacheNames = CacheNames.RELEVANCE, key = "#candidates.![link]", unless = "#result.isEmpty()")
     public Map<String, Double> scoreAll(List<Article> candidates) {
         return score(candidates, size -> PROMPT.formatted(size, titlesOf(candidates)),
                 "재테크 관련도");
@@ -113,7 +115,7 @@ public class RelevanceScorer {
      * <p>비용은 {@link #scoreAll(List)}과 같다 — 상위 후보 몇 건을 <b>한 번에 묶어</b> 묻고,
      * 검색어와 후보 목록이 같으면 캐시가 받는다.
      */
-    @Cacheable(cacheNames = "relevance", key = "#query + '|' + #candidates.![link]",
+    @Cacheable(cacheNames = CacheNames.RELEVANCE, key = "#query + '|' + #candidates.![link]",
             unless = "#result.isEmpty()")
     public Map<String, Double> scoreAll(List<Article> candidates, String query) {
         return score(candidates, size -> SEARCH_PROMPT.formatted(query, size, titlesOf(candidates)),
@@ -128,7 +130,7 @@ public class RelevanceScorer {
         try {
             return byLlm(candidates, prompt.apply(candidates.size()));
         } catch (Exception e) {
-            log.error("[relevance] {} LLM 채점 실패 — 전부 통과시킵니다: {}", what, e.toString());
+            log.error("[relevance] {} LLM 채점 실패 — 전부 통과시킵니다: {}", what, FailureReason.of(e));
             return passAll(candidates);
         }
     }

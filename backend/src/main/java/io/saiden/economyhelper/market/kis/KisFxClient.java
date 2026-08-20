@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market.kis;
 
+import io.saiden.economyhelper.config.CacheNames;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.Price;
@@ -78,7 +79,7 @@ public class KisFxClient implements FxRateClient {
     }
 
     @Override
-    @Cacheable(cacheNames = "fx-kis", unless = "#result == null")
+    @Cacheable(cacheNames = CacheNames.FX_KIS, unless = "#result == null")
     @CircuitBreaker(name = "kisFx")
     public FxRate usdToKrw() {
         KisChartPrice.Quote quote = request().output();
@@ -118,6 +119,11 @@ public class KisFxClient implements FxRateClient {
             // 이유는 본문에서 두 필드만 꺼내 남긴다(KisHeaders.reasonOf)
             String reason = KisHeaders.reasonOf(e);
             log.warn("[kis] 환율 조회 실패: {}", reason);
+            // 주식과 같은 판단이다 — 앱키가 하나이므로 토큰도 하나다. 어느 쪽이 먼저
+            // 알아차리든 버려야 나머지 하나도 함께 낫는다
+            if (KisHeaders.isInvalidToken(e)) {
+                tokens.invalidate();
+            }
             throw new IllegalStateException("KIS 환율 조회 실패: " + reason);
         }
         KisHeaders.verify(response == null ? null : response.resultCode(),

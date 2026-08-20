@@ -311,8 +311,6 @@ public class TelegramWebhookController {
      * <b>{@code @JsonProperty}가 필요하다.</b> 이 프로젝트는 전역 snake_case 전략을 쓰지 않아
      * 이름이 다른 필드는 하나씩 짚어 줘야 한다.
      *
-     * <p>⚠️ javadoc 블록을 둘 연달아 두면 <b>앞 블록이 통째로 버려진다</b>(마지막 것만 붙는다).
-     * 예전에 그 상태였고, 하필 버려지던 쪽에 이 {@code @JsonProperty} 근거가 적혀 있었다.
      *
      * @param messageId 이 명령 메시지의 번호. <b>답을 여기에 답글로 단다</b> — 그룹에서 여럿이
      *                  동시에 검색하면 답이 누구 것인지 알 수 없고, {@code /news}는 통이 셋으로

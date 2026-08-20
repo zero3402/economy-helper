@@ -1,8 +1,10 @@
 package io.saiden.economyhelper.market.data;
 
+import io.saiden.economyhelper.config.CacheNames;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
-import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
+import io.github.resilience4j.ratelimiter.RateLimiter;
+import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
 import java.net.URI;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -27,6 +29,13 @@ import org.springframework.web.client.RestClient;
  * 지수에는 그런 값이 없다. {@code 코스피}로 검색하면 32건(코스피 100·200·200 ESG…)이 나오는데,
  * 그중 <b>이름이 정확히 일치하는 것</b>이 사용자가 찾는 것이다 — 파생 지수는 이름이 더 길다.
  * 그래서 {@link #searchByName}은 완전일치를 먼저 보고, 없을 때만 가장 짧은 이름을 고른다.
+ * <p>⚠️ <b>리미터는 HTTP 호출 자리에 걸어야 한다.</b> 예전에는 애너테이션이 바깥
+ * {@code @Cacheable} 메서드에만 있어 <b>진입 한 번에 퍼밋 하나</b>였는데, 그 안의 되짚기
+ * 루프가 최대 {@code MAX_LOOKBACK_DAYS}회 HTTP를 부른다 — {@code dataGo}가 초당 10건이므로
+ * 캐시가 빈 조회 하나가 산수로 이미 한도를 채우는데 리미터는 그걸 1회로 셌다.
+ * {@code KeximFxClient}가 같은 함정을 먼저 겪고 고쳤는데 이 둘에는 적용되지 않았다.
+ * 이제 실제 호출 자리({@code request})에서 퍼밋을 얻는다 — 애너테이션은 프록시가 필요해
+ * private 메서드에 못 걸리므로 레지스트리에서 직접 꺼내 쓴다.
  */
 @Component
 public class MarketIndexApi {
@@ -46,15 +55,19 @@ public class MarketIndexApi {
     private final String baseUrl;
     private final String serviceKey;
     private final Clock clock;
+    /** 되짚기 루프가 실제로 태우는 호출을 세는 자리. {@code null}이면 세지 않는다(테스트). */
+    private final RateLimiter limiter;
 
     public MarketIndexApi(RestClient.Builder builder,
                           @Value("${economy-helper.market.data-go.base-url}") String baseUrl,
                           @Value("${economy-helper.market.data-go.api-key:}") String serviceKey,
-                          Clock clock) {
+                          Clock clock,
+                          RateLimiterRegistry limiters) {
         this.restClient = builder.build();
         this.baseUrl = baseUrl;
         this.serviceKey = serviceKey;
         this.clock = clock;
+        this.limiter = limiters == null ? null : limiters.rateLimiter("dataGo");
     }
 
     /**
@@ -66,16 +79,20 @@ public class MarketIndexApi {
     // 캐시를 StockPriceApi와 나눠 쓸 수 없다. stock-price는 List<StockPrice>로 역직렬화하도록
     // 못 박혀 있어 MarketIndex를 넣으면 쓰기는 되고 읽기에서 터진다 — 캐시 히트에서만 나는 버그라
     // 실물에서야 드러났다(브리핑 지수 2개가 조용히 빠졌다). 캐시 이름 하나에 타입 하나다.
-    @Cacheable(cacheNames = "market-index", key = "#name", unless = "#result == null")
-    @RateLimiter(name = "dataGo")
+    @Cacheable(cacheNames = CacheNames.MARKET_INDEX, key = "#name", unless = "#result == null")
     @CircuitBreaker(name = "dataGo")
     public MarketIndex searchByName(String name) {
         LocalDate today = LocalDate.ofInstant(clock.instant(), SEOUL);
 
         for (int back = 1; back <= MAX_LOOKBACK_DAYS; back++) {
             List<MarketIndex> found = request(today.minusDays(back), name);
-            if (!found.isEmpty()) {
-                return pick(found, name);
+            // ⚠️ 응답이 비지 않았다고 답이 있는 것은 아니다. pick()은 이름이 전부 비어 온
+            //    날에 null을 준다(그 가드가 그 아래 주석에 적혀 있다). 예전에는 그 null을
+            //    그대로 return해 **남은 되짚기 날들을 버렸다** — 하루치 응답이 망가진 것과
+            //    "그런 지수가 없다"가 화면에서 구분되지 않았다. 골라내지 못하면 어제로 넘어간다
+            MarketIndex picked = found.isEmpty() ? null : pick(found, name);
+            if (picked != null) {
+                return picked;
             }
         }
         log.info("[index] 최근 {}일 안에 '{}' 지수가 없습니다", MAX_LOOKBACK_DAYS, name);
@@ -104,6 +121,11 @@ public class MarketIndexApi {
     }
 
     private List<MarketIndex> request(LocalDate date, String name) {
+        if (limiter != null) {
+            // 거절은 RequestNotPermitted다 — dataGo 브레이커가 baseConfig에서 그걸
+            // 무시하므로 우리 스로틀이 상대 장애로 세어지지 않는다
+            limiter.acquirePermission();
+        }
         // 서비스키는 이미 인코딩된 형태다 — 다시 인코딩하면 403이 난다 (StockPriceApi와 같다)
         String uri = baseUrl + PATH
                 + "?serviceKey=" + serviceKey

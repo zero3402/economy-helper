@@ -1,15 +1,9 @@
 package io.saiden.economyhelper.telegram;
 
 import static io.saiden.economyhelper.telegram.MessageLayout.DATE;
-import static io.saiden.economyhelper.telegram.MessageLayout.DATE_TIME;
-import static io.saiden.economyhelper.telegram.MessageLayout.SEOUL;
 import static io.saiden.economyhelper.telegram.MessageLayout.SHORT_DATE;
-import static io.saiden.economyhelper.telegram.MessageLayout.appendChangeLine;
-import static io.saiden.economyhelper.telegram.MessageLayout.change;
 import static io.saiden.economyhelper.telegram.MessageLayout.empty;
 import static io.saiden.economyhelper.telegram.MessageLayout.head;
-import static io.saiden.economyhelper.telegram.MessageLayout.krw;
-import static io.saiden.economyhelper.telegram.MessageLayout.money;
 import static io.saiden.economyhelper.telegram.MessageLayout.oneDecimal;
 import static io.saiden.economyhelper.telegram.MessageLayout.sources;
 import static io.saiden.economyhelper.telegram.MessageLayout.title;
@@ -102,7 +96,7 @@ public final class WeatherFormatter {
     }
 
     /**
-     * 조회처. 지역마다 폴백이 갈릴 수 있으므로 <b>하단에 모은다</b> — 모양은 {@link #sourceLines}가
+     * 조회처. 지역마다 폴백이 갈릴 수 있으므로 <b>하단에 모은다</b> — 모양은 {@link #sourcesOf}가
      * 정한다(증시와 같은 규칙이다).
      *
      * <p><b>지역 블록에는 출처를 달지 않는다.</b> 넷 중 하나가 폴백했을 뿐인데 지역마다 달면
@@ -136,7 +130,7 @@ public final class WeatherFormatter {
     }
 
     /**
-     * 기준 줄 — <b>성격마다 한 줄</b>이다. 증시의 {@code basisLines}·출처의 {@link #sourceLines}와
+     * 기준 줄 — <b>성격마다 한 줄</b>이다. 증시의 {@code basisLines}·출처의 {@link #sourcesOf}와
      * 같은 규칙이다: 여럿이어도 한 블록이고, 한 줄에 하나씩 내려 적는다.
      *
      * <p>⚠️ 예전에는 <b>첫 지역 하나</b>로 정했다. 그런데 {@link #sourcesOf}가 존재하는
@@ -165,7 +159,7 @@ public final class WeatherFormatter {
      * <p>사용자가 고르지 않은 지역으로 답하면 그 값이 맞는지 사용자가 알 수 없다. 인자 없이
      * {@code /stock}을 쳤을 때 사용법을 띄우는 것과 같은 자리다.
      *
-     * <p>못 찾은 것({@link #weatherNotFound})과 다른 답이다 — 이미 지역을 적은 사람에게
+     * <p>못 찾은 것({@link #notFound})과 다른 답이다 — 이미 지역을 적은 사람에게
      * 적으라고 하면 안 된다.
      */
     public static String needsPlace() {

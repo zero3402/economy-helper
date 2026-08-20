@@ -350,7 +350,7 @@ class CryptoServiceTest {
         };
     }
 
-    /** HTTP는 {@code UpbitApiTest}가 따로 본다. 여기서는 해석 규칙만 본다. */
+    /** HTTP 계약은 {@link io.saiden.economyhelper.market.upbit.UpbitApiTest}가 본다. 여기서는 해석 규칙만 본다. */
     private static class RecordingApi extends UpbitApi {
         private final List<List<String>> tickerCalls = new ArrayList<>();
 

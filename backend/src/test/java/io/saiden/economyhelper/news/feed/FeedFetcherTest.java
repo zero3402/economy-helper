@@ -22,6 +22,8 @@ import io.saiden.economyhelper.news.NewsSource;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import io.saiden.economyhelper.support.TestRetries;
+import io.saiden.economyhelper.support.TestProperties;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.EnumMap;
@@ -124,6 +126,7 @@ class FeedFetcherTest {
         FeedFetcher stale = new FeedFetcher(RestClient.builder(),
                 properties(Map.of(NewsSource.CNBC, feed("/cnbc", FeedType.RSS))),
                 CircuitBreakerRegistry.ofDefaults(),
+                TestRetries.registry(),
                 java.time.Clock.fixed(CLOCK.instant().plus(Duration.ofDays(30)),
                         java.time.ZoneOffset.UTC),
                 MAX_AGE,
@@ -213,13 +216,11 @@ class FeedFetcherTest {
     private EconomyHelperProperties properties(Map<NewsSource, Feed> feeds) {
         Map<NewsSource, Feed> copy = new EnumMap<>(NewsSource.class);
         copy.putAll(feeds);
-        return new EconomyHelperProperties(
-                copy,
-                new Ranking(new Weights(0.35, 0.25, 0.25, 0.15), Duration.ofHours(6)),
-                null,   // 수집은 digest 설정을 쓰지 않는다
-                null,   // 캐시 TTL도 마찬가지 (여기선 @Cacheable이 프록시 없이 지나간다)
-                null,   // 날씨 설정도 수집과 무관하다
-                null);  // market 설정(KIS 지수 표)도 마찬가지
+        // 수집은 digest·캐시TTL·날씨·market 설정을 쓰지 않는다 — 안 채우는 것이 그 사실의 표현이다
+        return TestProperties.builder()
+                .feeds(copy)
+                .ranking(new Ranking(new Weights(0.35, 0.25, 0.25, 0.15), Duration.ofHours(6)))
+                .build();  // market 설정(KIS 지수 표)도 마찬가지
     }
 
     private FeedFetcher fetcher(Map<NewsSource, Feed> feeds, CircuitBreakerRegistry registry) {
@@ -227,6 +228,7 @@ class FeedFetcherTest {
                 RestClient.builder(),
                 properties(feeds),
                 registry,
+                TestRetries.registry(),
                 CLOCK,
                 MAX_AGE,
                 List.of(new RssFeedClient(), new GoogleNewsFeedClient()));

@@ -48,7 +48,7 @@ class MarketIndexApiTest {
         server.start();
         WireMock.configureFor(server.port());
         api = new MarketIndexApi(RestClient.builder(), server.baseUrl(), ENCODED_KEY,
-                Clock.fixed(NOW, ZoneId.of("Asia/Seoul")));
+                Clock.fixed(NOW, ZoneId.of("Asia/Seoul")), null);
     }
 
     @AfterEach

@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import io.saiden.economyhelper.support.FailureReason;
 
 /**
  * 자기 주소를 주기적으로 친다 — <b>무활동으로 잠드는 호스트에서 깨어 있기 위해서다.</b>
@@ -66,7 +67,7 @@ public class SelfPing {
                     .toBodilessEntity();
         } catch (RuntimeException e) {
             // 닿지도 못한 경우다. 이건 남긴다 — 주소가 틀렸거나 호스트가 죽은 것이다
-            log.warn("[keep-warm] 자체 핑 실패: {}", e.toString());
+            log.warn("[keep-warm] 자체 핑 실패: {}", FailureReason.of(e));
         }
     }
 }

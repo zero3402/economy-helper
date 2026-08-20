@@ -55,23 +55,23 @@ public class CacheConfig {
     RedisCacheManagerBuilderCustomizer cacheCustomizer(EconomyHelperProperties properties) {
         CacheTtl ttl = properties.cacheTtl();
         return builder -> builder
-                .withCacheConfiguration("feed",
+                .withCacheConfiguration(CacheNames.FEED,
                         cache(ttl.feed(), new TypeReference<List<Article>>() {}))
-                .withCacheConfiguration("translation",
+                .withCacheConfiguration(CacheNames.TRANSLATION,
                         cache(ttl.translation(), new TypeReference<Translation>() {}))
-                .withCacheConfiguration("hn-buzz",
+                .withCacheConfiguration(CacheNames.HN_BUZZ,
                         cache(ttl.buzz(), new TypeReference<Map<String, Integer>>() {}))
-                .withCacheConfiguration("query",
+                .withCacheConfiguration(CacheNames.QUERY,
                         cache(ttl.query(), new TypeReference<List<String>>() {}))
                 // 배치 단위로 캐시한다 — 기사별로 쪼개면 배치가 깨져 Gemini 호출이 늘어난다
-                .withCacheConfiguration("relevance",
+                .withCacheConfiguration(CacheNames.RELEVANCE,
                         cache(ttl.relevance(), new TypeReference<Map<String, Double>>() {}))
-                .withCacheConfiguration("upbit-markets",
+                .withCacheConfiguration(CacheNames.UPBIT_MARKETS,
                         cache(ttl.upbitMarkets(), new TypeReference<List<UpbitMarket>>() {}))
-                .withCacheConfiguration("crypto-price",
+                .withCacheConfiguration(CacheNames.CRYPTO_PRICE,
                         cache(ttl.cryptoPrice(), new TypeReference<List<UpbitTicker>>() {}))
                 // 업비트와 같은 수명이지만 담기는 타입이 달라 crypto-price에 섞을 수 없다
-                .withCacheConfiguration("binance-price",
+                .withCacheConfiguration(CacheNames.BINANCE_PRICE,
                         cache(ttl.binancePrice(), new TypeReference<List<BinancePrice>>() {}))
                 // LLM 해석 결과 — 같은 검색어에 Gemini를 두 번 태우지 않는다.
                 // ⚠️ 타입을 Optional<X>로 적지만 Redis에 담기는 것은 맨 X다. Spring이
@@ -80,44 +80,44 @@ public class CacheConfig {
                 //    Jackson이 Optional과 맨 값을 같은 JSON으로 써서 왕복이 성립하는 것이고,
                 //    덤으로 Optional.empty()는 null로 벗겨져 unless="#result == null"에 걸려
                 //    아예 캐시되지 않는다 — 일시적 실패가 7일 굳지 않는 이유가 그것이다
-                .withCacheConfiguration("stock-resolve",
+                .withCacheConfiguration(CacheNames.STOCK_RESOLVE,
                         cache(ttl.stockResolve(), new TypeReference<java.util.Optional<ResolvedStock>>() {}))
-                .withCacheConfiguration("crypto-resolve",
+                .withCacheConfiguration(CacheNames.CRYPTO_RESOLVE,
                         cache(ttl.cryptoResolve(), new TypeReference<java.util.Optional<ResolvedCoin>>() {}))
                 // 전일 종가라 자주 바뀌지 않는다 — 짧게 잡을 이유가 없다
-                .withCacheConfiguration("stock-price",
+                .withCacheConfiguration(CacheNames.STOCK_PRICE,
                         cache(ttl.stockPrice(), new TypeReference<List<StockPrice>>() {}))
                 // 미국은 현재가라 1분이 상한이다. 하루 250회는 캐시가 아니라 FmpQuotaGuard가 지킨다
-                .withCacheConfiguration("us-quote",
+                .withCacheConfiguration(CacheNames.US_QUOTE,
                         cache(ttl.usQuote(), new TypeReference<FmpQuote>() {}))
                 // 지수는 담기는 타입이 달라 stock-price에 섞을 수 없다. 수명은 같다 — 같은 전일 종가다
-                .withCacheConfiguration("market-index",
+                .withCacheConfiguration(CacheNames.MARKET_INDEX,
                         cache(ttl.stockPrice(), new TypeReference<MarketIndex>() {}))
                 // 국내·미국 모두 실시간이라 fx-kis와 같은 1분이다. 세 모양(국내 종목·국내 지수·
                 // 미국)이 한 이름을 쓰는데 담기는 타입이 StockQuote 하나라 섞이지 않는다 —
                 // 가르는 것은 키의 접두사('stock:'·'index:'·'us:')다
-                .withCacheConfiguration("kis-quote",
+                .withCacheConfiguration(CacheNames.KIS_QUOTE,
                         cache(ttl.kisQuote(), new TypeReference<StockQuote>() {}))
-                .withCacheConfiguration("fx",
+                .withCacheConfiguration(CacheNames.FX,
                         cache(ttl.fx(), new TypeReference<FxRate>() {}))
                 // 하루 1,000회 한도를 지키는 실질 방어다 — 1시간이면 하루 최대 24회
-                .withCacheConfiguration("fx-kexim",
+                .withCacheConfiguration(CacheNames.FX_KEXIM,
                         cache(ttl.fxKexim(), new TypeReference<FxRate>() {}))
                 // 하루 중에도 움직이는 값이다 — 화면에 '읽은 시각'을 찍으므로 1분이 상한이다
-                .withCacheConfiguration("fx-kis",
+                .withCacheConfiguration(CacheNames.FX_KIS,
                         cache(ttl.fxKis(), new TypeReference<FxRate>() {}))
                 // 시세와 같은 급이다 — 길게 잡으면 '오늘 날씨'가 어제 예보가 된다
-                .withCacheConfiguration("weather",
+                .withCacheConfiguration(CacheNames.WEATHER,
                         cache(ttl.weather(), new TypeReference<Weather>() {}))
                 // 지명의 좌표는 낡지 않는다. 검색 한 번에 조회가 두 번 나가는 것을 막는다
-                .withCacheConfiguration("geocode",
+                .withCacheConfiguration(CacheNames.GEOCODE,
                         cache(ttl.geocode(), new TypeReference<java.util.Optional<GeoLocation>>() {}))
                 // 좌표에 대응하는 AccuWeather 지점 키도 낡지 않는다. 이게 하루 50회 한도의
                 // 실질 방어다 — 없으면 날씨 조회 한 번마다 호출이 두 번 나간다
-                .withCacheConfiguration("accu-location",
+                .withCacheConfiguration(CacheNames.ACCU_LOCATION,
                         cache(ttl.accuLocation(), new TypeReference<String>() {}))
                 // LLM 해석. '내일'을 offsetDays로 받으므로 캐시해도 내일이 고정되지 않는다
-                .withCacheConfiguration("weather-resolve",
+                .withCacheConfiguration(CacheNames.WEATHER_RESOLVE,
                         cache(ttl.weatherResolve(),
                                 new TypeReference<java.util.Optional<ResolvedPlace>>() {}));
     }

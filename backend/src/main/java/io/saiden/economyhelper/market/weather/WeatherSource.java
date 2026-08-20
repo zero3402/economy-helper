@@ -7,7 +7,7 @@ package io.saiden.economyhelper.market.weather;
  * {@code 수출입은행 매매기준율}과 {@code 유럽중앙은행}을 구분해 적는 것과 같은 이유다.
  *
  * <p><b>선언 순서가 곧 이중화 순서다</b>({@code WeatherService.ORDER}). 화면의 출처 줄도
- * 이 순서로 정렬하므로({@code MessageFormatter.weatherSourcesOf}) 둘을 함께 고쳐야 한다.
+ * 이 순서로 정렬하므로({@code WeatherFormatter.sourcesOf}) 둘을 함께 고쳐야 한다.
  *
  * <p><b>과거는 다른 출처로 센다.</b> 같은 Open-Meteo지만 예보와 재분석은 성격이 다르다 —
  * 예보 격자가 ~1km인 데 비해 ERA5 재분석은 ~11km라 지점이 "그 동네"로 뭉개진다

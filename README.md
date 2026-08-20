@@ -97,7 +97,7 @@ backend/src/main/java/io/saiden/economyhelper/
 
 ## 테스트
 
-**496개 · 전부 통과.** 규칙이 넷 있다(자세히는 `ARCHITECTURE.md` 6절).
+**전부 통과가 전제 조건이다.** 규칙이 넷 있다(자세히는 `ARCHITECTURE.md` 6절).
 
 1. 주장 하나에 테스트 하나. `@DisplayName`에 *무엇을 주장하는지와 왜인지*를 함께 쓴다.
 2. **외부 API는 실호출로 계약을 확정하고, 그 응답을 줄여 스텁 본문으로 쓴다.** 문서가 아니라
@@ -105,7 +105,7 @@ backend/src/main/java/io/saiden/economyhelper/
 3. 스프링을 띄우지 않는다. WireMock + `new`로 만든다.
 4. 못 지나가는 테스트는 지운다.
 
-**화면은 `golden/messages.txt`가 지킨다.** `RenderedOutputTest`가 57가지를 렌더해 대조하므로,
+**화면은 `golden/messages.txt`가 지킨다.** `RenderedOutputTest`가 화면 사례 전부를 렌더해 대조하므로,
 구조를 옮기는 커밋에서 그 diff가 비어 있으면 화면을 안 건드렸다는 증명이 된다.
 
 ```bash

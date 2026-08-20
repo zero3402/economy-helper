@@ -14,7 +14,7 @@ package io.saiden.economyhelper.market;
  * 배관일 뿐이고 시세를 내는 곳은 금융위원회다.
  *
  * <p><b>선언 순서가 곧 이중화 순서다</b> — 화면의 출처 줄이 이 순서로 정렬된다
- * ({@code MessageFormatter.sourceLines}). 한 무리에 둘이 찍히면 1순위가 위에 온다.
+ * ({@code StockFormatter.sourcesOf}). 한 무리에 둘이 찍히면 1순위가 위에 온다.
  */
 public enum StockSource {
 

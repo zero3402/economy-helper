@@ -1,7 +1,9 @@
 package io.saiden.economyhelper.market.frankfurter;
 
+import io.saiden.economyhelper.config.CacheNames;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.FxRateClient;
 import io.saiden.economyhelper.market.FxSource;
@@ -69,7 +71,8 @@ public class FrankfurterFxClient implements FxRateClient {
     }
 
     @Override
-    @Cacheable(cacheNames = "fx", unless = "#result == null")
+    @Cacheable(cacheNames = CacheNames.FX, unless = "#result == null")
+    @Retry(name = "fxFrankfurter")
     @CircuitBreaker(name = "fxFrankfurter")
     public FxRate usdToKrw() {
         TimeSeries response = restClient.get()

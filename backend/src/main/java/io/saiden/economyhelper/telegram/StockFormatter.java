@@ -3,14 +3,11 @@ package io.saiden.economyhelper.telegram;
 import static io.saiden.economyhelper.telegram.MessageLayout.DATE;
 import static io.saiden.economyhelper.telegram.MessageLayout.DATE_TIME;
 import static io.saiden.economyhelper.telegram.MessageLayout.SEOUL;
-import static io.saiden.economyhelper.telegram.MessageLayout.SHORT_DATE;
 import static io.saiden.economyhelper.telegram.MessageLayout.appendChangeLine;
-import static io.saiden.economyhelper.telegram.MessageLayout.change;
 import static io.saiden.economyhelper.telegram.MessageLayout.empty;
 import static io.saiden.economyhelper.telegram.MessageLayout.head;
 import static io.saiden.economyhelper.telegram.MessageLayout.krw;
 import static io.saiden.economyhelper.telegram.MessageLayout.money;
-import static io.saiden.economyhelper.telegram.MessageLayout.oneDecimal;
 import static io.saiden.economyhelper.telegram.MessageLayout.sources;
 import static io.saiden.economyhelper.telegram.MessageLayout.title;
 
@@ -81,7 +78,7 @@ public final class StockFormatter {
      * <p><b>무리와 조회처는 1:1이 아니다.</b> 한국투자증권이 국내와 미국을 둘 다 맡으면서
      * 깨진 전제다 — 한 무리에 실시간(KIS)과 전일 종가(폴백)가 섞일 수 있고, 그때 출처가
      * 둘이 된다({@link #appendGroup}의 주석이 같은 사실을 적는다). 그래서 여럿을 받아
-     * 세로로 쌓는다 — 모양은 {@link #sourceLines}가 정한다.
+     * 세로로 쌓는다 — 모양은 {@link #sourcesOf}가 정한다.
      */
     private static String sourcesOf(List<StockQuote> quotes) {
         return sources(quotes.stream().map(StockQuote::source)
@@ -163,7 +160,7 @@ public final class StockFormatter {
     /**
      * 꼬리의 기준 — <b>성격마다 한 줄</b>이고 실시간이 위다.
      *
-     * <p>출처가 여럿이면 한 줄에 하나씩 쌓는 것과 같은 규칙이다({@link #sourceLines}).
+     * <p>출처가 여럿이면 한 줄에 하나씩 쌓는 것과 같은 규칙이다({@link #sourcesOf}).
      * 값 줄에 붙이지 않는 이유도 같다 — 넷 중 하나가 폴백했을 뿐인데 값마다 꼬리표를 달면
      * 읽는 줄이 지저분해진다. <b>대신 어느 값이 낡았는지를 이름으로 짚지는 않는다</b>:
      * 출처 줄이 이미 같은 맞바꿈을 하고 있고, 날씨에서도 같은 판단을 했다.

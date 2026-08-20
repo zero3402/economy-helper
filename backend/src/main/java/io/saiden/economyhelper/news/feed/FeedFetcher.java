@@ -1,7 +1,11 @@
 package io.saiden.economyhelper.news.feed;
 
+import io.saiden.economyhelper.config.CacheNames;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.github.resilience4j.retry.Retry;
+import io.github.resilience4j.retry.RetryRegistry;
+import io.saiden.economyhelper.support.FailureReason;
 import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.config.EconomyHelperProperties.Feed;
 import io.saiden.economyhelper.news.Article;
@@ -25,6 +29,11 @@ import org.springframework.web.client.RestClient;
  * 매체 하나의 피드를 받아 파싱한다.
  *
  * <p><b>서킷브레이커를 애노테이션이 아니라 프로그래매틱 API로 건다.</b>
+ * <p><b>재시도도 프로그래매틱이다 — 다만 이유가 브레이커와 다르다.</b> 브레이커는 이름이
+ * 매체별이어야 해서이고({@code feed-YAHOO}), 재시도는 이름을 하나만 쓰는데도 애너테이션을
+ * 못 쓴다: {@link #fetch}가 예외를 <b>스스로 삼켜</b> 빈 목록을 주므로 {@code @Retry}를 달면
+ * <b>발동조차 하지 않는다.</b> 그 사실을 모르고 달면 "걸어 뒀다"고 믿는 죽은 애너테이션이 남는다.
+ *
  * {@code @CircuitBreaker(name = "feed")}는 이름이 컴파일 타임에 고정이라 5개 매체가
  * 브레이커 하나를 공유하게 된다 — Yahoo가 죽으면 BBC 호출까지 끊긴다.
  * 소스별로 이름을 달리하려면 런타임에 레지스트리에서 꺼내야 한다.
@@ -48,6 +57,7 @@ public class FeedFetcher {
     private final RestClient restClient;
     private final EconomyHelperProperties properties;
     private final CircuitBreakerRegistry circuitBreakers;
+    private final RetryRegistry retries;
     private final Clock clock;
     private final Duration maxAge;
     private final Map<FeedType, FeedClient> parsers = new EnumMap<>(FeedType.class);
@@ -55,12 +65,14 @@ public class FeedFetcher {
     public FeedFetcher(RestClient.Builder builder,
                        EconomyHelperProperties properties,
                        CircuitBreakerRegistry circuitBreakers,
+                       RetryRegistry retries,
                        Clock clock,
                        @Value("${economy-helper.ranking.max-age:3d}") Duration maxAge,
                        List<FeedClient> feedClients) {
         this.restClient = builder.defaultHeader("User-Agent", USER_AGENT).build();
         this.properties = properties;
         this.circuitBreakers = circuitBreakers;
+        this.retries = retries;
         this.clock = clock;
         this.maxAge = maxAge;
         for (FeedClient client : feedClients) {
@@ -72,7 +84,7 @@ public class FeedFetcher {
      * 실패 시 빈 리스트. 빈 결과는 캐시하지 않는다 — 일시적 장애를 10분간 굳히면
      * 그 사이 정기 발송이 통째로 그 매체를 빠뜨린다.
      */
-    @Cacheable(cacheNames = "feed", key = "#source", unless = "#result.isEmpty()")
+    @Cacheable(cacheNames = CacheNames.FEED, key = "#source", unless = "#result.isEmpty()")
     public List<Article> fetch(NewsSource source) {
         Feed feed = properties.feeds().get(source);
         if (feed == null) {
@@ -82,9 +94,13 @@ public class FeedFetcher {
 
         CircuitBreaker breaker = circuitBreakers.circuitBreaker("feed-" + source);
         try {
-            return breaker.executeCallable(() -> download(source, feed));
+            // 재시도가 브레이커 **바깥**이다 — 애너테이션을 쓰는 일곱과 같은 순서다.
+            // 브레이커가 열리면 CallNotPermittedException이 나고 그건 retry의 무시 목록에
+            // 있어 재시도가 즉시 멈춘다(열린 문을 두 번 두드리지 않는다)
+            return Retry.decorateCallable(retries.retry("feed"),
+                    CircuitBreaker.decorateCallable(breaker, () -> download(source, feed))).call();
         } catch (Exception e) {
-            log.warn("[{}] 피드 수집 실패 — 이 매체는 건너뜁니다: {}", source, e.toString());
+            log.warn("[{}] 피드 수집 실패 — 이 매체는 건너뜁니다: {}", source, FailureReason.of(e));
             return List.of();
         }
     }

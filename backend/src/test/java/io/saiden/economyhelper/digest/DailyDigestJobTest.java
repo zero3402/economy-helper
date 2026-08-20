@@ -18,6 +18,7 @@ import io.saiden.economyhelper.market.upbit.UpbitApi;
 import io.saiden.economyhelper.news.NewsFacade;
 import io.saiden.economyhelper.news.NewsItem;
 import io.saiden.economyhelper.telegram.TelegramClient;
+import io.saiden.economyhelper.support.TestProperties;
 import java.time.Clock;
 import java.time.Duration;
 import java.math.BigDecimal;
@@ -418,12 +419,13 @@ class DailyDigestJobTest {
     }
 
     static EconomyHelperProperties properties() {
-        return new EconomyHelperProperties(Map.of(), null,
-                new EconomyHelperProperties.Digest(
+        return TestProperties.builder()
+                .feeds(Map.of())
+                .digest(new EconomyHelperProperties.Digest(
                         "Asia/Seoul", Duration.ofDays(3),
                         List.of(new EconomyHelperProperties.Index("코스피", "0001")),
-                        List.of("005930"), List.of("KRW-BTC"), List.of()),
-                null, null, null);
+                        List.of("005930"), List.of("KRW-BTC"), List.of()))
+                .build();
     }
 
     static NewsItem item(String title) {

@@ -9,6 +9,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import io.saiden.economyhelper.support.FailureReason;
 
 /**
  * 검색어를 {@link KeywordGroup} 목록으로 만든다 — 토큰화·한글 판별·번역·폴백을 한 군데 모았다.
@@ -52,7 +53,7 @@ public class QueryExpander {
         } catch (Exception e) {
             // 원문 토큰으로 내려간다. 영문 기사에는 걸리지 않으므로 사용자는 "찾지 못했습니다"를
             // 받는다 — 별도 오류 문구를 만들지 않고 로그로 원인을 남긴다
-            log.error("[검색] '{}' 검색어 번역 실패 — 원문 토큰으로 검색합니다: {}", token, e.toString());
+            log.error("[검색] '{}' 검색어 번역 실패 — 원문 토큰으로 검색합니다: {}", token, FailureReason.of(e));
             return KeywordGroup.of(token);
         }
     }

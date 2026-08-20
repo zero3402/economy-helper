@@ -33,6 +33,7 @@ class ResilienceConfigTest {
     @Autowired CircuitBreakerRegistry registry;
     @Autowired org.springframework.context.ApplicationContext context;
     @Autowired io.github.resilience4j.ratelimiter.RateLimiterRegistry limiters;
+    @Autowired io.github.resilience4j.retry.RetryRegistry retries;
 
     @Test
     @DisplayName("선언한 리미터가 실제로 스로틀이다 — 이름만 애너테이션에 있으면 조용히 무력해진다")
@@ -64,6 +65,116 @@ class ResilienceConfigTest {
         assertThat(context.getBeansOfType(io.saiden.economyhelper.market.kis.KisThrottle.class))
                 .as("KisThrottle 빈이 없다 — KIS 초당 한도를 지키는 것이 아무것도 없다")
                 .isNotEmpty();
+    }
+
+    @Test
+    @DisplayName("@Retry를 단 이름이 전부 선언돼 있다 — 없으면 기본값이 4xx까지 세 번 부른다")
+    void everyRetryNameIsDeclared() {
+        // ⚠️ retry에는 configs.default가 있어도, **인스턴스 선언이 없으면** 그 이름은
+        //    라이브러리 기본값(3회 · 500ms · 모든 예외 재시도)으로 만들어진다.
+        //    리미터는 없는 인스턴스가 아무것도 막지 않는 쪽으로 망가졌지만(met.no가 그랬다)
+        //    이쪽은 **우리 잘못(4xx)까지 세 번 부르는** 쪽으로 망가진다 — 더 나쁘다
+        assertThat(retries.getAllRetries().stream().map(io.github.resilience4j.retry.Retry::getName))
+                .as("yml의 retry.instances에 선언된 것만 eager로 만들어진다")
+                .contains("weatherGeocoding", "weatherOpenMeteo", "weatherOpenMeteoArchive",
+                        "upbit", "binance", "fxFrankfurter", "telegram", "feed");
+    }
+
+    @Test
+    @DisplayName("4xx는 절대 재시도하지 않는다 — 없는 심볼과 없는 지명은 우리 잘못이다")
+    void neverRetriesOurOwnMistakes() {
+        RateLimiter drained = RateLimiter.of("drained-retry", RateLimiterConfig.custom()
+                .limitForPeriod(1).limitRefreshPeriod(java.time.Duration.ofMinutes(10))
+                .timeoutDuration(java.time.Duration.ZERO).build());
+        drained.acquirePermission();
+        CircuitBreaker open = registry.circuitBreaker("binance");
+        open.transitionToOpenState();
+
+        Throwable[] never = {
+            // 없는 심볼(바이낸스 -1121)·없는 지명·허용목록 밖(FMP 402)·지역 차단(451)
+            org.springframework.web.client.HttpClientErrorException.create(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, "", null, null, null),
+            org.springframework.web.client.HttpClientErrorException.create(
+                    org.springframework.http.HttpStatus.NOT_FOUND, "", null, null, null),
+            org.springframework.web.client.HttpClientErrorException.create(
+                    org.springframework.http.HttpStatus.PAYMENT_REQUIRED, "", null, null, null),
+            org.springframework.web.client.HttpClientErrorException.create(
+                    org.springframework.http.HttpStatus.valueOf(451), "", null, null, null),
+            // 우리 장치가 거절한 것. 재시도하면 퍼밋을 더 먹으려 줄에 다시 서고, 열린 문을
+            // 두 번 두드린다 — 브레이커가 이 둘을 실패로 세지 않는 것과 같은 판단이다
+            RequestNotPermitted.createRequestNotPermitted(drained),
+            io.github.resilience4j.circuitbreaker.CallNotPermittedException
+                    .createCallNotPermittedException(open),
+        };
+        open.reset();
+
+        for (io.github.resilience4j.retry.Retry retry : retries.getAllRetries()) {
+            for (Throwable e : never) {
+                assertThat(retry.getRetryConfig().getExceptionPredicate().test(e))
+                        .as("%s가 %s를 재시도한다", retry.getName(), e.getClass().getSimpleName())
+                        .isFalse();
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("5xx와 I/O 실패는 재시도한다 — 그게 일시적 실패의 전부다")
+    void retriesWhatIsActuallyTransient() {
+        Throwable[] always = {
+            org.springframework.web.client.HttpServerErrorException.create(
+                    org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE, "", null, null, null),
+            org.springframework.web.client.HttpServerErrorException.create(
+                    org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR, "", null, null, null),
+            new org.springframework.web.client.ResourceAccessException(
+                    "read timed out", new java.net.SocketTimeoutException()),
+        };
+
+        for (io.github.resilience4j.retry.Retry retry : retries.getAllRetries()) {
+            for (Throwable e : always) {
+                assertThat(retry.getRetryConfig().getExceptionPredicate().test(e))
+                        .as("%s가 %s를 재시도하지 않는다", retry.getName(), e.getClass().getSimpleName())
+                        .isTrue();
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("텔레그램은 닿지 못한 것만 다시 시도한다 — chat not found를 세 번 부르면 브리핑이 통마다 늦어진다")
+    void telegramRetriesOnlyWhenItCouldNotReach() {
+        // ⚠️ retryExceptions·ignoreExceptions는 baseConfig의 것을 **덮어쓴다**. telegram은
+        //    둘 다 따로 적으므로 기본의 것을 다시 적어야 하는데, 빠뜨리면 이 단언이 잡는다 —
+        //    브레이커에서 이미 세 번 물린 함정이라 여기에도 같은 그물을 친다
+        var predicate = retries.retry("telegram").getRetryConfig().getExceptionPredicate();
+
+        assertThat(predicate.test(new io.saiden.economyhelper.telegram.TelegramClient
+                .TelegramUnavailable("게이트웨이 502"))).isTrue();
+        assertThat(predicate.test(new io.saiden.economyhelper.telegram.TelegramClient
+                .TelegramException("텔레그램 sendMessage 거절: 400 chat not found")))
+                .as("설정이 틀린 것은 세 번 불러도 같은 답이다")
+                .isFalse();
+        assertThat(predicate.test(new io.saiden.economyhelper.telegram.TelegramClient
+                .TelegramRateLimited("429")))
+                .as("우리가 빨리 물은 것이다 — 더 빨리 다시 쏘면 429를 우리가 만든다")
+                .isFalse();
+    }
+
+    @Test
+    @DisplayName("재시도가 브레이커 바깥, 브레이커가 리미터 바깥이다 — 안쪽이면 브레이커가 영원히 안 열린다")
+    void retrySitsOutsideTheBreaker() {
+        // 안쪽으로 옮기면 "매번 두 번 실패하고 세 번째에 성공"하는 상대가 브레이커에 성공만
+        // 남겨 영원히 안 열린다 — 그게 정확히 잡고 싶은 상태다. 그리고 CallNotPermitted가
+        // 재시도에 보이지 않게 되어 무시 목록이 뜻을 잃는다.
+        // ⚠️ 숫자 리터럴로 적지 않는다 — 라이브러리가 값을 바꿔도 뜻이 살아야 한다
+        int retry = order(io.github.resilience4j.spring6.retry.configure.RetryAspect.class);
+        int breaker = order(io.github.resilience4j.spring6.circuitbreaker.configure.CircuitBreakerAspect.class);
+        int limiter = order(io.github.resilience4j.spring6.ratelimiter.configure.RateLimiterAspect.class);
+
+        assertThat(retry).as("재시도가 브레이커보다 바깥이어야 한다").isLessThan(breaker);
+        assertThat(breaker).as("브레이커가 리미터보다 바깥이어야 한다").isLessThan(limiter);
+    }
+
+    private int order(Class<?> aspect) {
+        return ((Ordered) context.getBean(aspect)).getOrder();
     }
 
     @Test

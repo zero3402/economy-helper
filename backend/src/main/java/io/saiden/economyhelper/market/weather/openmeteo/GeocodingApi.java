@@ -1,7 +1,9 @@
 package io.saiden.economyhelper.market.weather.openmeteo;
 
+import io.saiden.economyhelper.config.CacheNames;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import io.saiden.economyhelper.market.weather.GeoLocation;
 import java.time.ZoneId;
 import java.util.Comparator;
@@ -62,9 +64,12 @@ public class GeocodingApi {
      * @param countryCode ISO 3166-1 alpha-2. 같은 지명이 여러 나라에 있을 때 좁힌다
      *                    (실측: {@code Buenos Aires}가 아르헨티나·니카라과·파나마에 있다).
      *                    모르면 {@code null}
-     * @return 1순위 후보. 못 찾으면 {@link Optional#empty()}
+     * @return 1순위 후보. <b>이름은 상대가 준 날것이다</b> — 로마자로 왔을 때 한국어로
+     *         바꾸는 것은 호출자가 {@link GeoLocation#labelledFor}로 한다.
+     *         못 찾으면 {@link Optional#empty()}
      */
-    @Cacheable(cacheNames = "geocode", key = "#a0 + '|' + #a1", unless = "#result == null")
+    @Cacheable(cacheNames = CacheNames.GEOCODE, key = "#a0 + '|' + #a1", unless = "#result == null")
+    @Retry(name = "weatherGeocoding")
     @CircuitBreaker(name = "weatherGeocoding")
     public Optional<GeoLocation> find(String query, String countryCode) {
         if (query == null || query.isBlank()) {
@@ -100,7 +105,7 @@ public class GeocodingApi {
                     query, countryCode, response.results().size());
             return Optional.empty();
         }
-        return picked.map(place -> toLocation(place, query));
+        return picked.map(GeocodingApi::toLocation);
     }
 
     /**
@@ -126,36 +131,22 @@ public class GeocodingApi {
     }
 
     /**
-     * <b>화면에 쓸 이름은 한글로. 시간대를 못 읽으면 UTC로 둔다.</b>
-     *
-     * <p>⚠️ 이 두 설명은 예전에 javadoc <b>두 블록</b>으로 나뉘어 있었고 앞의 것(시간대)이
-     * 버려졌다 — 연달아 두면 마지막 것만 붙는다. {@code TelegramWebhookController}가 스스로
-     * 적어 둔 그 함정에 이 파일도 걸려 있었다.
+     * <b>시간대를 못 읽으면 UTC로 둔다.</b>
      *
      * <p>지오코딩은 늘 {@code timezone}을 주지만, 없다고 KST로 채우면 <b>남의 하루를 우리
      * 달력으로 자르게 된다.</b> UTC는 적어도 어느 한쪽으로 치우치지 않는다.
      *
-     * <p>{@code language=ko}로 부르는데도 일부는 로마자로 온다 — 실측(2026-08-19)으로
-     * {@code 제주시}를 찾으면 이름이 {@code Jejudo}였다. 그대로 쓰면 국내 종목·코인이
-     * 전부 한글인 화면에 지명만 로마자로 튄다.
+     * <p><b>이름은 상대가 준 것을 날것으로 담는다.</b> {@code language=ko}로 불러도 일부는
+     * 로마자로 오는데({@code 제주시} → {@code Jejudo}, 실측) 그걸 한국어로 바꾸는 판단은
+     * 여기가 하지 않는다 — {@link GeoLocation#labelledFor}가 <b>읽을 때</b> 한다.
      *
-     * <p>그래서 <b>돌아온 이름에 한글이 없으면 물어본 지명을 쓴다.</b> 물어본 쪽은 LLM이
-     * 다듬은 한국어 행정명({@code 제주시})이라 사용자가 알아볼 수 있다. 실재와 좌표는
-     * 여전히 이 API가 확정한다 — <b>바뀌는 것은 표기뿐이다.</b>
-     *
-     * <p>나라 이름은 손대지 않는다. 그쪽은 {@code language=ko}가 제대로 한국어로 준다
-     * ({@code 대한민국}·{@code 프랑스}).
+     * <p>⚠️ <b>여기서 정하면 안 된다.</b> 이 결과가 {@code geocode} 캐시에 30일 들어가므로
+     * 파생된 표기가 캐시에 굳는다 — 담는 것은 상대가 준 것만, 만드는 것은 읽을 때다.
      */
-    private static GeoLocation toLocation(Place place, String query) {
+    private static GeoLocation toLocation(Place place) {
         ZoneId zone = place.timezone() == null ? ZoneId.of("UTC") : ZoneId.of(place.timezone());
-        return new GeoLocation(hangul(place.name()) ? place.name() : query, place.country(),
+        return new GeoLocation(place.name(), place.country(),
                 place.latitude(), place.longitude(), zone);
-    }
-
-    /** 한글이 한 글자라도 있는가. 섞여 와도 한글 표기로 본다. */
-    private static boolean hangul(String text) {
-        return text != null && text.codePoints()
-                .anyMatch(point -> Character.UnicodeScript.of(point) == Character.UnicodeScript.HANGUL);
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

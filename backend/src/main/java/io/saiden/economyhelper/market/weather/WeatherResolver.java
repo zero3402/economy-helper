@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market.weather;
 
+import io.saiden.economyhelper.config.CacheNames;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.saiden.economyhelper.text.QueryNormalizer;
 import io.saiden.economyhelper.llm.GeminiApi;
@@ -24,7 +25,8 @@ import tools.jackson.databind.ObjectMapper;
  * 없는 것이다 — 환각이 구조적으로 걸러진다. <b>좌표를 지어내게 두지 않는 것</b>이 요점이다.
  *
  * <p>이 보정이 필요한 근거가 있다. 지오코딩에 {@code 서현}을 그대로 넣으면 <b>김포시 서현</b>
- * (37.646, 126.605)이 1순위로 나온다 — 분당 서현역이 아니다. LLM이 {@code 성남}으로 옮겨 주면
+ * (37.646, 126.605)이 1순위로 나온다 — 분당 서현역이 아니다. LLM이 {@code 성남시}로 옮겨 주면
+ * (⚠️ 「시」까지 붙여야 한다. {@code 성남}만으로는 전라북도 남원시의 마을을 집는다)
  * 옳은 좌표로 간다.
  *
  * <p>⚠️ <b>상대 표현을 날짜로 굳히지 않는다.</b> LLM에게 {@code 내일}을 계산시켜 받으면 그 값이
@@ -87,7 +89,7 @@ public class WeatherResolver {
      * @return LLM이 읽은 지명과 기간. 실패하면 {@link Optional#empty()} — 호출자는 원문 그대로
      *         지오코딩을 시도한다({@code 파리}·{@code Tokyo} 같은 평범한 지명은 그걸로 걸린다)
      */
-    @Cacheable(cacheNames = "weather-resolve", key = "#a0", unless = "#result == null")
+    @Cacheable(cacheNames = CacheNames.WEATHER_RESOLVE, key = "#a0", unless = "#result == null")
     public Optional<ResolvedPlace> resolve(String normalizedQuery) {
         if (normalizedQuery == null || normalizedQuery.isBlank()) {
             return Optional.empty();

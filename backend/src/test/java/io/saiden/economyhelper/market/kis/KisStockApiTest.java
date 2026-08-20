@@ -17,6 +17,7 @@ import io.saiden.economyhelper.config.EconomyHelperProperties.KisIndex;
 import io.saiden.economyhelper.config.EconomyHelperProperties.UsSymbol;
 import io.saiden.economyhelper.market.StockQuote;
 import io.saiden.economyhelper.market.StockSource;
+import io.saiden.economyhelper.support.TestProperties;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -47,7 +48,6 @@ class KisStockApiTest {
     private static final String US_INDEX_PATH =
             "/uapi/overseas-price/v1/quotations/inquire-daily-chartprice";
 
-    private static final String TOKEN = "secret-token-1234";
     /** KST 2026-08-18 17:00. */
     private static final Instant NOW = Instant.parse("2026-08-18T08:00:00Z");
 
@@ -59,6 +59,7 @@ class KisStockApiTest {
     private WireMockServer server;
     private KisStockApi api;
     private RememberingCache exchanges;
+    private KisFixtures.FixedToken tokens;
 
     @BeforeEach
     void startServer() {
@@ -80,12 +81,14 @@ class KisStockApiTest {
      */
     private KisStockApi apiWith(List<Index> indices, List<KisIndex> usIndices) {
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
+        tokens = new KisFixtures.FixedToken(clock);
         return new KisStockApi(RestClient.builder(), server.baseUrl(),
-                new FixedToken(clock), new KisHeaders("key", "secret"), clock,
-                new EconomyHelperProperties(null, null,
-                        new Digest(null, null, indices, null, null, null), null, null,
-                        new EconomyHelperProperties.Market(
-                                new EconomyHelperProperties.Kis(usIndices))),
+                tokens, new KisHeaders("key", "secret"), clock,
+                TestProperties.builder()
+                        .digest(new Digest(null, null, indices, null, null, null))
+                        .market(new EconomyHelperProperties.Market(
+                                new EconomyHelperProperties.Kis(usIndices)))
+                        .build(),
                 // 간격을 지키는 문은 여기서 열어 둔다 — 규칙은 KisThrottleTest가 따로 본다
                 exchanges, KisThrottle.none());
     }
@@ -425,9 +428,43 @@ class KisStockApiTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("유효하지 않은 token")
                 .hasMessageContaining("EGW00121")
-                // 재발급으로 낫지 않는다는 사실이 함께 있어야 한다. 없으면 다음 사람이
+                // 앞당겨 발급해도 낫지 않는다는 사실이 함께 있어야 한다. 없으면 다음 사람이
                 // 앱을 다시 띄우며 발급을 연타하고, 그것이 이 상태를 만든 원인이다
-                .hasMessageContaining("재발급");
+                .hasMessageContaining("6시간");
+    }
+
+    @Test
+    @DisplayName("무효 토큰을 알아차리면 버린다 — 안 버리면 기록된 만료까지 모든 KIS 호출이 죽는다")
+    void throwsAwayATokenThatKisRejected() {
+        // 이것이 /stock 유아이패스가 하루 종일 빈손이던 정체다. 500을 이유만 적고 넘어가면
+        // 죽은 토큰이 최대 24시간 남아 그 창 동안 모든 KIS 호출이 같은 이유로 실패한다.
+        // 미국 종목은 2순위(FMP)가 PATH·ORCL·SNOW를 402로 막아 KIS가 유일한 길이다
+        server.stubFor(get(urlPathEqualTo(STOCK_PATH)).willReturn(aResponse().withStatus(500)
+                .withHeader("Content-Type", "application/json")
+                .withBody("""
+                        {"rt_cd":"1","msg1":"유효하지 않은 token 입니다.","msg_cd":"EGW00121"}
+                        """)));
+
+        assertThatThrownBy(() -> api.stock("005930")).isInstanceOf(IllegalStateException.class);
+
+        assertThat(tokens.invalidated()).as("버려야 다음 호출이 새 토큰을 받아 스스로 낫는다").isTrue();
+    }
+
+    @Test
+    @DisplayName("잘못된 앱시크릿(EGW00304)에는 토큰을 버리지 않는다 — 그건 사람이 키를 고쳐야 한다")
+    void keepsTheTokenWhenTheSecretIsWrong() {
+        // 실측(2026-08-20): 앱시크릿이 틀리면 KIS도 500을 준다. 즉 500은 영구 실패의 기본
+        // 표현이다. 이걸 토큰 문제로 읽어 버리면 멀쩡한 토큰을 잃고 알림톡만 한 통 더 가고
+        // 결과는 같다 — 우리가 스스로 고칠 수 있는 하나(EGW00121)만 갈라내야 한다
+        server.stubFor(get(urlPathEqualTo(STOCK_PATH)).willReturn(aResponse().withStatus(500)
+                .withHeader("Content-Type", "application/json")
+                .withBody("""
+                        {"rt_cd":"1","msg1":"고객식별키가 유효하지 않습니다.","msg_cd":"EGW00304"}
+                        """)));
+
+        assertThatThrownBy(() -> api.stock("005930")).isInstanceOf(IllegalStateException.class);
+
+        assertThat(tokens.invalidated()).isFalse();
     }
 
     @Test
@@ -463,19 +500,8 @@ class KisStockApiTest {
         server.stubFor(get(urlPathEqualTo(STOCK_PATH)).willReturn(aResponse().withStatus(500)));
 
         assertThatThrownBy(() -> api.stock("005930"))
-                .hasMessageNotContaining(TOKEN)
+                .hasMessageNotContaining(KisFixtures.TOKEN)
                 .hasMessageNotContaining("Bearer");
     }
 
-    /** 발급을 흉내 내지 않는다 — 토큰 재사용 규칙은 {@link KisTokenStoreTest}가 따로 본다. */
-    private static final class FixedToken extends KisTokenStore {
-        private FixedToken(Clock clock) {
-            super(RestClient.builder(), "http://localhost:1", "key", "secret", null, clock);
-        }
-
-        @Override
-        public String token() {
-            return TOKEN;
-        }
-    }
 }

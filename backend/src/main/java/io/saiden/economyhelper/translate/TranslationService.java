@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.translate;
 
+import io.saiden.economyhelper.config.CacheNames;
 import io.saiden.economyhelper.news.Article;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -10,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
+import io.saiden.economyhelper.support.FailureReason;
 
 /**
  * 번역의 단일 진입점 — 캐시 → Gemini → 원문 강등.
@@ -33,7 +35,7 @@ public class TranslationService {
      * 캐시 등록 누락을 잡는데, 이 캐시는 애너테이션이 없어 그 그물에 안 걸린다 —
      * 테스트가 이 상수를 직접 읽어 목록에 더한다.
      */
-    public static final String CACHE = "translation";
+    public static final String CACHE = CacheNames.TRANSLATION;
 
     private final GeminiTranslator gemini;
     private final CacheManager cacheManager;
@@ -89,7 +91,7 @@ public class TranslationService {
             return gemini.translateAll(misses);
         } catch (Exception e) {
             log.warn("[translate] {}건 묶음 번역 실패 — 원문 그대로 내보냅니다: {}",
-                    misses.size(), e.toString());
+                    misses.size(), FailureReason.of(e));
             return misses.stream().map(Translation::untranslated).toList();
         }
     }

@@ -6,6 +6,7 @@ import io.saiden.economyhelper.market.StockResolver.ResolvedStock;
 import io.saiden.economyhelper.market.data.DataGoStockClient;
 import io.saiden.economyhelper.text.QueryNormalizer;
 import io.saiden.economyhelper.support.Failover;
+import io.saiden.economyhelper.support.FailureReason;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
@@ -124,7 +125,7 @@ public class StockService {
             // 특히 resolver.resolve()에 걸린 @Cacheable 프록시다 — Redis가 죽으면 캐시 계층이
             // 던지는데 그건 StockResolver 안쪽 try가 못 잡는다(메서드 밖에서 나는 예외다).
             // 웹훅은 어떤 입력·어떤 장애에도 200이어야 한다
-            log.error("[stock] '{}' 조회 실패: {}", query, e.toString());
+            log.error("[stock] '{}' 조회 실패: {}", query, FailureReason.of(e));
             return Optional.empty();
         }
     }
@@ -172,7 +173,8 @@ public class StockService {
         return byName(cacheKey);
     }
 
-    /** 미국 종목·지수 하나. 설정에 KIS 대응이 있으면 1순위가, 없으면 FMP가 맡는다. */
+    /** 미국 종목·지수 하나. <b>지수</b>는 설정에 KIS 심볼이 있으면 1순위가 맡고 없으면 FMP로 간다.
+     * <b>종목</b>은 표를 타지 않는다 — KIS가 거래소를 스스로 찾는다. */
     private Optional<StockQuote> usQuote(ResolvedStock resolved) {
         if (!resolved.hasCode()) {
             // 미국은 이름으로 되짚을 경로가 없다 — search-name은 프랑크푸르트 상장이 먼저 걸린다
@@ -224,7 +226,7 @@ public class StockService {
         try {
             return names.byName(name);
         } catch (RuntimeException e) {
-            log.warn("[stock] '{}' 이름 검색 실패: {}", name, e.toString());
+            log.warn("[stock] '{}' 이름 검색 실패: {}", name, FailureReason.of(e));
             return Optional.empty();
         }
     }
@@ -240,7 +242,7 @@ public class StockService {
         Optional<StockQuote> found = Failover.first(clients, call,
                 // 다음 출처가 있으면 조용히 넘어간다. 이게 이중화가 하는 일이다
                 (client, e) -> log.warn("[stock] {} — {} 조회 실패, 다음 출처로 넘어갑니다: {}",
-                        what, client.source().displayName(), e.toString()));
+                        what, client.source().displayName(), FailureReason.of(e)));
         if (found.isEmpty()) {
             log.info("[stock] {}를 어느 출처에서도 가져오지 못했습니다", what);
         }

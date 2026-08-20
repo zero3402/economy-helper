@@ -1,8 +1,10 @@
 package io.saiden.economyhelper.market.data;
 
+import io.saiden.economyhelper.config.CacheNames;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
-import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
+import io.github.resilience4j.ratelimiter.RateLimiter;
+import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
 import java.net.URI;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -33,6 +35,13 @@ import org.springframework.web.client.RestClient;
  *
  * <p>키가 URL에 실리므로 {@code KeximFxClient}와 같은 규칙을 따른다 —
  * <b>예외를 그대로 흘리지 않고 URL 없는 자체 예외로 바꿔 던진다.</b>
+ * <p>⚠️ <b>리미터는 HTTP 호출 자리에 걸어야 한다.</b> 예전에는 애너테이션이 바깥
+ * {@code @Cacheable} 메서드에만 있어 <b>진입 한 번에 퍼밋 하나</b>였는데, 그 안의 되짚기
+ * 루프가 최대 {@code MAX_LOOKBACK_DAYS}회 HTTP를 부른다 — {@code dataGo}가 초당 10건이므로
+ * 캐시가 빈 조회 하나가 산수로 이미 한도를 채우는데 리미터는 그걸 1회로 셌다.
+ * {@code KeximFxClient}가 같은 함정을 먼저 겪고 고쳤는데 이 둘에는 적용되지 않았다.
+ * 이제 실제 호출 자리({@code request})에서 퍼밋을 얻는다 — 애너테이션은 프록시가 필요해
+ * private 메서드에 못 걸리므로 레지스트리에서 직접 꺼내 쓴다.
  */
 @Component
 public class StockPriceApi {
@@ -53,28 +62,30 @@ public class StockPriceApi {
     private final String baseUrl;
     private final String serviceKey;
     private final Clock clock;
+    /** 되짚기 루프가 실제로 태우는 호출을 세는 자리. {@code null}이면 세지 않는다(테스트). */
+    private final RateLimiter limiter;
 
     public StockPriceApi(RestClient.Builder builder,
                          @Value("${economy-helper.market.data-go.base-url}") String baseUrl,
                          @Value("${economy-helper.market.data-go.api-key:}") String serviceKey,
-                         Clock clock) {
+                         Clock clock,
+                         RateLimiterRegistry limiters) {
         this.restClient = builder.build();
         this.baseUrl = baseUrl;
         this.serviceKey = serviceKey;
         this.clock = clock;
+        this.limiter = limiters == null ? null : limiters.rateLimiter("dataGo");
     }
 
     /** 종목명 부분검색. {@code 하이닉스} → SK하이닉스가 걸린다. */
-    @Cacheable(cacheNames = "stock-price", key = "'name:' + #name", unless = "#result.isEmpty()")
-    @RateLimiter(name = "dataGo")
+    @Cacheable(cacheNames = CacheNames.STOCK_PRICE, key = "'name:' + #name", unless = "#result.isEmpty()")
     @CircuitBreaker(name = "dataGo")
     public List<StockPrice> searchByName(String name) {
         return searchRecent("likeItmsNm", name);
     }
 
     /** 종목코드 검색. {@code srtnCd}가 아니라 {@code likeSrtnCd}여야 한다. */
-    @Cacheable(cacheNames = "stock-price", key = "'code:' + #code", unless = "#result.isEmpty()")
-    @RateLimiter(name = "dataGo")
+    @Cacheable(cacheNames = CacheNames.STOCK_PRICE, key = "'code:' + #code", unless = "#result.isEmpty()")
     @CircuitBreaker(name = "dataGo")
     public List<StockPrice> searchByCode(String code) {
         return searchRecent("likeSrtnCd", code);
@@ -100,6 +111,11 @@ public class StockPriceApi {
     }
 
     private List<StockPrice> request(LocalDate date, String filterParam, String filterValue) {
+        if (limiter != null) {
+            // 거절은 RequestNotPermitted다 — dataGo 브레이커가 baseConfig에서 그걸
+            // 무시하므로 우리 스로틀이 상대 장애로 세어지지 않는다
+            limiter.acquirePermission();
+        }
         // 서비스키는 이미 인코딩된 형태다 — 여기서 다시 인코딩하면 403이 난다.
         // 나머지 값만 우리가 인코딩해 붙인다.
         String uri = baseUrl + PATH

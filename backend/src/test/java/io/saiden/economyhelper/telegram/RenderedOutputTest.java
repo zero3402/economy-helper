@@ -32,7 +32,7 @@ import org.junit.jupiter.api.Test;
 /**
  * <b>화면 전체를 한 파일로 얼려 둔다.</b>
  *
- * <p>{@code MessageFormatterTest}는 주장 하나에 테스트 하나라 <b>규칙</b>을 지킨다. 이 테스트가
+ * <p>{@code MessageFormattingTest}는 주장 하나에 테스트 하나라 <b>규칙</b>을 지킨다. 이 테스트가
  * 지키는 것은 다른 것이다 — <b>리팩터링이 화면을 건드리지 않았다는 증명</b>이다. 구조를 옮기는
  * 커밋마다 이 골든 파일의 diff가 비어 있어야 하고, 버그를 고치는 커밋에서는 <b>바뀐 그 줄이
  * 곧 무엇을 고쳤나의 증거</b>가 된다.

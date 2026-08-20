@@ -30,6 +30,7 @@ import io.saiden.economyhelper.market.weather.accu.AccuWeatherClient;
 import io.saiden.economyhelper.market.weather.openmeteo.GeocodingApi;
 import io.saiden.economyhelper.market.weather.openmeteo.OpenMeteoArchiveClient;
 import io.saiden.economyhelper.market.weather.openmeteo.OpenMeteoForecastClient;
+import io.saiden.economyhelper.support.TestProperties;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -187,6 +188,30 @@ class CacheConfigTest {
                 .containsAll(declared);
     }
 
+    @Test
+    @DisplayName("우리 규칙이 만든 값을 담는 캐시는 판 번호를 달고 있다 — 없으면 고침이 한 달 뒤에 보인다")
+    void versionsTheCachesWhoseValuesWeDerive() {
+        // ⚠️ 이 단언이 지키는 것은 관례다. 지오코딩의 후보 선택 규칙과 해석기 셋의 프롬프트는
+        //    우리가 고치는 것이고, 고치면 캐시된 답이 곧 옛 답이 된다. 판 번호가 없으면
+        //    geocode 30일 · resolve 7일 동안 옛 답이 계속 나간다.
+        //    실제로 물렸다: /weather 미금이 고침 뒤에도 'Seongnam, 대한민국'을 답했고
+        //    (전라북도 남원시, 분당에서 200km) 그 내내 골든 파일은 초록이었다.
+        //    누가 "이름이 지저분하다"고 접미사를 떼면 그 사고가 그대로 돌아온다
+        assertThat(List.of(CacheNames.GEOCODE, CacheNames.WEATHER_RESOLVE,
+                        CacheNames.STOCK_RESOLVE, CacheNames.CRYPTO_RESOLVE))
+                .allSatisfy(name -> assertThat(name)
+                        .as("파생 규칙이 바뀌는 캐시다 — 판 번호를 떼면 옛 답을 지울 수단이 없다")
+                        .matches(".+-v\\d+$"));
+
+        // 반대쪽도 못 박는다. 시세는 수명이 초·분이라 규칙을 고쳐도 한 숨에 스스로 낫는다 —
+        // 여기에 판을 매기면 노브만 늘고 배포마다 올려야 할 것이 는다
+        assertThat(List.of(CacheNames.CRYPTO_PRICE, CacheNames.BINANCE_PRICE,
+                        CacheNames.KIS_QUOTE, CacheNames.FX, CacheNames.WEATHER))
+                .allSatisfy(name -> assertThat(name)
+                        .as("상대가 준 값이고 수명이 짧다 — 판을 매길 이유가 없다")
+                        .doesNotMatch(".+-v\\d+$"));
+    }
+
     /** {@code CacheConfig}가 실제로 등록한 이름. TTL 값은 여기서 보지 않는다. */
     private static Set<String> configuredCacheNames() {
         RedisCacheManagerBuilder builder = RedisCacheManager.builder(new LettuceConnectionFactory());
@@ -197,10 +222,7 @@ class CacheConfigTest {
     /** 캐시 설정만 보므로 나머지 묶음은 채우지 않는다. TTL 값 자체는 무엇이든 상관없다. */
     private static EconomyHelperProperties propertiesWithTtl() {
         Duration any = Duration.ofMinutes(1);
-        return new EconomyHelperProperties(null, null, null,
-                new CacheTtl(any, any, any, any, any, any, any, any, any, any, any, any, any,
-                        any, any, any, any, any, any, any),
-                null, null);
+        return TestProperties.builder().cacheTtl(TestProperties.everyTtl(any)).build();
     }
 
     @Test

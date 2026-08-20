@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market.weather.accu;
 
+import io.saiden.economyhelper.config.CacheNames;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
@@ -83,7 +84,7 @@ public class AccuWeatherClient implements WeatherClient {
     }
 
     @Override
-    @Cacheable(cacheNames = "weather",
+    @Cacheable(cacheNames = CacheNames.WEATHER,
             key = "'accu:' + #a0.latitude() + ',' + #a0.longitude() + ',' + #a1.from() + ',' + #a1.to()",
             unless = "#result == null")
     @CircuitBreaker(name = "weatherAccuWeather")

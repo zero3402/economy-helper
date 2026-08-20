@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import java.time.Duration;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -20,6 +21,19 @@ import org.springframework.web.client.RestClientException;
  * <p><b>응답 본문을 반드시 읽는다.</b> 텔레그램은 실패를 4xx로도 주고 <b>200 + {@code ok:false}</b>로도
  * 준다. 후자를 안 읽으면 실패가 성공으로 집계돼, 아침 브리핑이 오지 않았는데 로그에는
  * "발송 완료"가 남는다. 무엇을 고쳐야 하는지는 응답의 {@code description}에 적혀 있다.
+ *
+ * <p><b>닿지 못한 것만 다시 시도한다.</b> 웹훅은 텔레그램에 200을 이미 줬으므로 저쪽이 다시
+ * 보내지 않는다 — 우리가 재시도하지 않으면 그 답은 영영 없다. 다만 {@code ok:false} 거절
+ * ({@code chat not found})은 설정이 틀린 것이라 세 번 불러도 같은 답이고, 그동안 브리핑
+ * 여섯 통이 통마다 두 배로 늦어진다. 그래서 {@link TelegramUnavailable}만 재시도한다.
+ *
+ * <p>⚠️ <b>{@code send} 셋에 {@code @Retry}·{@code @CircuitBreaker}가 전부 붙어 있는데 겹쳐
+ * 걸리지 않는다 — 자기 호출은 프록시를 타지 않기 때문이다.</b> 짧은 오버로드 둘은
+ * {@code this.send(...)}로 넘기므로 안쪽 애너테이션이 발동하지 않고, 바깥에서 불린 하나만
+ * 걸린다. 그래서 어느 오버로드로 들어와도 시도는 최대 세 번이다.
+ * <b>이걸 "중복이니 정리하자"며 자기 주입·{@code @Lazy}로 프록시를 타게 만들면 재시도가
+ * 겹쳐 한 통이 최대 아홉 번 나간다.</b> 브레이커만 있던 때는 그 실수의 대가가 작았지만
+ * 지금은 아니다.
  */
 @Component
 public class TelegramClient {
@@ -87,6 +101,7 @@ public class TelegramClient {
      *
      * <p><b>답글로 달지 않는다.</b> 브리핑은 아무도 묻지 않은 것에 대한 답이라 인용할 명령이 없다.
      */
+    @Retry(name = "telegram")
     @CircuitBreaker(name = "telegram")
     public void send(String text, boolean preview) {
         send(defaultChatId, noticeTopicId, null, text, preview);
@@ -102,6 +117,7 @@ public class TelegramClient {
      * (정기 발송용 {@code send(text, preview)}는 예외다. 대상이 설정에 박힌 방·토픽 하나뿐이라
      * 깜빡할 인자가 없다.)
      */
+    @Retry(name = "telegram")
     @CircuitBreaker(name = "telegram")
     public void send(String chatId, Integer topicId, Integer replyTo, String text) {
         send(chatId, topicId, replyTo, text, false);
@@ -112,9 +128,10 @@ public class TelegramClient {
      *                없어 켜 봐야 달라지는 것이 없다. 기사를 담은 통만 켠다.
      *                <p><b>텔레그램은 한 메시지에 미리보기를 하나만, 그것도 맨 아래에 붙인다.</b>
      *                그래서 기사를 묶어 보내면 첫 기사의 카드가 마지막 기사 것처럼 보였다 —
-     *                지금은 {@code MessageFormatter.formatNews}가 기사마다 통을 쪼개므로
+     *                지금은 {@code NewsFormatter}가 기사마다 통을 쪼개므로
      *                통마다 링크가 하나뿐이고 카드가 어느 기사 것인지 확정된다
      */
+    @Retry(name = "telegram")
     @CircuitBreaker(name = "telegram")
     public void send(String chatId, Integer topicId, Integer replyTo, String text, boolean preview) {
         call("sendMessage", new SendMessage(chatId, topicId, truncate(text), "HTML", !preview,
@@ -156,10 +173,11 @@ public class TelegramClient {
                     .onStatus(HttpStatusCode::isError, (request, res) -> { })
                     .body(responseType);
         } catch (RestClientException e) {
-            throw new TelegramException("텔레그램 " + method + " 호출 실패: " + e.getMessage(), e);
+            // 닿지 못한 것이다 — 거절이 아니라서 다시 시도할 값이 있다(TelegramUnavailable javadoc)
+            throw new TelegramUnavailable("텔레그램 " + method + " 호출 실패: " + e.getMessage(), e);
         }
         if (response == null) {
-            throw new TelegramException("텔레그램 " + method + " 응답이 비어 있습니다");
+            throw new TelegramUnavailable("텔레그램 " + method + " 응답이 비어 있습니다");
         }
         if (!response.ok()) {
             String reason = "텔레그램 " + method + " 거절: "
@@ -188,6 +206,29 @@ public class TelegramClient {
 
         public TelegramRateLimited(String message) {
             super(message);
+        }
+    }
+
+    /**
+     * <b>텔레그램에 닿지 못했다</b> — 거절당한 것이 아니다.
+     *
+     * <p>따로 두는 이유는 <b>재시도가 이 둘을 구분해야</b> 하기 때문이다. {@code ok:false}로
+     * 오는 거절({@code chat not found}·{@code message thread not found})은 설정이 틀린 것이라
+     * 세 번 불러도 같은 답이고, 그동안 브리핑 여섯 통이 통마다 두 배로 늦어진다. 게이트웨이
+     * 502나 읽기 타임아웃만 다시 시도한다 — {@link TelegramRateLimited}를 갈라낸 것과
+     * <b>같은 자리·같은 이유</b>이고, 그때는 브레이커가 이유였고 이번에는 재시도가 이유다.
+     *
+     * <p>{@link TelegramException}의 하위이므로 <b>브레이커 설정은 손대지 않는다</b> —
+     * 닿지 못한 것은 여전히 상대 장애로 세어야 한다.
+     */
+    public static class TelegramUnavailable extends TelegramException {
+
+        public TelegramUnavailable(String message) {
+            super(message);
+        }
+
+        TelegramUnavailable(String message, Throwable cause) {
+            super(message, cause);
         }
     }
 
@@ -283,8 +324,6 @@ public class TelegramClient {
      * only"라 토픽이 없을 때는 필드 자체가 없어야 한다 — {@code null}을 실어 보내면 포럼이
      * 아닌 방에서 거절당할 수 있다. 답글 두 필드도 같은 규칙에 기댄다.
      *
-     * <p>⚠️ javadoc 블록을 둘 연달아 두면 <b>앞 블록이 통째로 버려진다</b>(마지막 것만 붙는다).
-     * 예전에 그 상태였고, 하필 버려지던 쪽에 이 {@code NON_NULL} 근거가 적혀 있었다.
      *
      * @param disableWebPagePreview 링크 미리보기를 끌지. <b>호출자가 정한다</b> — 기사를 담은
      *                         통만 켠다. 예전에는 매체별로 묶어 보내느라 늘 껐지만, 지금은

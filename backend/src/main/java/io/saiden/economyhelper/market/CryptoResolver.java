@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market;
 
+import io.saiden.economyhelper.config.CacheNames;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.saiden.economyhelper.text.QueryNormalizer;
 import io.saiden.economyhelper.llm.GeminiApi;
@@ -63,7 +64,7 @@ public class CryptoResolver {
      * @return LLM이 판단한 코인. 실패하거나 특정하지 못하면 {@link Optional#empty()} —
      *         호출자는 업비트 이름 매칭으로 내려간다
      */
-    @Cacheable(cacheNames = "crypto-resolve", key = "#a0", unless = "#result == null")
+    @Cacheable(cacheNames = CacheNames.CRYPTO_RESOLVE, key = "#a0", unless = "#result == null")
     public Optional<ResolvedCoin> resolve(String normalizedQuery) {
         if (normalizedQuery == null || normalizedQuery.isBlank()) {
             return Optional.empty();

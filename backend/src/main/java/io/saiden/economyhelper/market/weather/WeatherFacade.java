@@ -2,6 +2,7 @@ package io.saiden.economyhelper.market.weather;
 
 import io.saiden.economyhelper.market.weather.WeatherResolver.ResolvedPlace;
 import io.saiden.economyhelper.market.weather.openmeteo.GeocodingApi;
+import io.saiden.economyhelper.support.FailureReason;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -48,7 +49,7 @@ public class WeatherFacade {
             // Redis가 죽으면 캐시 계층이 던지는데 그건 해석기 안쪽 try가 못 잡는다(메서드 밖이다).
             // StockService가 같은 이유로 같은 그물을 쳐 두었는데 여기와 CryptoService에는
             // 없어서, 같은 장애에서 /stock만 안내가 나가고 /weather는 무응답이었다
-            log.error("[weather] '{}' 조회 실패: {}", query, e.toString());
+            log.error("[weather] '{}' 조회 실패: {}", query, FailureReason.of(e));
             return Lookup.unavailable();
         }
     }
@@ -92,10 +93,15 @@ public class WeatherFacade {
      */
     private Optional<GeoLocation> locate(String query, ResolvedPlace resolved) {
         if (resolved != null && resolved.hasPlace()) {
+            String asked = resolved.query().trim();
             Optional<GeoLocation> byResolved =
                     // countryCode()가 "null" 문자열을 걸러 준다 — 그대로 넘기면
                     // countryCode=null이 쿼리에 실려 헛호출을 한 번 태운다
-                    geocoding.find(resolved.query().trim(), resolved.countryCode());
+                    geocoding.find(asked, resolved.countryCode())
+                            // 로마자로 온 이름을 물어본 한국어 지명으로 바꾼다. 지오코딩이
+                            // 담을 때가 아니라 여기서 하는 이유는 그 결과가 30일 캐시에
+                            // 들어가기 때문이다 — GeoLocation.labelledFor javadoc 참고
+                            .map(place -> place.labelledFor(asked));
             if (byResolved.isPresent()) {
                 return byResolved;
             }
@@ -104,7 +110,8 @@ public class WeatherFacade {
         // 지역이 아예 없는 물음('일주일치 날씨')도 여기까지 온다 — 그때는 빈손으로 돌려주고
         // 호출자가 "어느 지역인지 적어 주세요"로 답한다. 우리가 지역을 골라 주면
         // 그 답이 맞는지 사용자가 알 수 없다
-        return geocoding.find(query.trim(), null);
+        String asked = query.trim();
+        return geocoding.find(asked, null).map(place -> place.labelledFor(asked));
     }
 
     /**
@@ -140,7 +147,7 @@ public class WeatherFacade {
     /**
      * 조회 결과와 <b>못 된 이유</b>.
      *
-     * <p>넷을 구분하는 이유는 사용자가 할 일이 다르기 때문이다 — 지역을 못 찾은 것은 검색어를
+     * <p>여섯으로 가르는 이유는 사용자가 할 일이 다르기 때문이다 — 지역을 못 찾은 것은 검색어를
      * 고쳐야 하고, 너무 먼 미래는 고쳐도 안 되며, 조회 실패는 잠시 뒤 다시 치면 된다.
      */
     public record Lookup(List<Weather> places, Reason reason) {

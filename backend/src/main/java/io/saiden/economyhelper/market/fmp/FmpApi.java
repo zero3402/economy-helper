@@ -1,5 +1,7 @@
 package io.saiden.economyhelper.market.fmp;
 
+import io.saiden.economyhelper.config.CacheNames;
+import io.saiden.economyhelper.support.FailureReason;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
@@ -59,7 +61,7 @@ public class FmpApi {
      *
      * @return 없는 심볼이면 {@code null} — LLM이 지어낸 심볼이 여기서 걸러진다
      */
-    @Cacheable(cacheNames = "us-quote", key = "#symbol", unless = "#result == null")
+    @Cacheable(cacheNames = CacheNames.US_QUOTE, key = "#symbol", unless = "#result == null")
     @RateLimiter(name = "fmp")
     @CircuitBreaker(name = "fmp")
     public FmpQuote quote(String symbol) {
@@ -84,12 +86,25 @@ public class FmpApi {
         } catch (RuntimeException e) {
             // 원래 예외 메시지에는 apikey가 박힌 URL이 들어간다 — 그대로 흘리면 키가 유출된다.
             // 402/403은 요금제 문제라 재시도해도 소용없다는 것을 메시지로 구분해 둔다.
-            String reason = e.toString().contains("402") || e.toString().contains("403")
+            // ⚠️ 상태 코드를 e.toString()에서 찾지 않는다. 그 문자열에는 apikey가 실린 URL이
+            //    들어 있어, 키에 402가 섞이면 모든 실패가 "요금제로 막혔다"로 읽혔다.
+            //    그 밖의 실패는 FailureReason이 분류한다(브레이커 열림·리미터 거절·타임아웃).
+            //    FailureReason은 메시지를 싣지 않으므로 키가 새지 않는다
+            String reason = planBlocked(e)
                     ? "요금제로 막힌 심볼이거나 키가 잘못됐습니다"
-                    : e.getClass().getSimpleName();
+                    : FailureReason.of(e);
             log.warn("[fmp] '{}' 조회 실패: {}", symbol, reason);
             throw new IllegalStateException("FMP 조회 실패 (" + symbol + "): " + reason);
         }
+    }
+
+    /** 402(요금제)·403(권한)만 "영영 안 된다"로 읽는다 — 나머지는 다시 시도할 여지가 있다. */
+    private static boolean planBlocked(RuntimeException e) {
+        if (!(e instanceof org.springframework.web.client.RestClientResponseException failure)) {
+            return false;
+        }
+        int status = failure.getStatusCode().value();
+        return status == 402 || status == 403;
     }
 
     private static String encode(String value) {

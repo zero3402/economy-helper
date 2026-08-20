@@ -29,7 +29,6 @@ import org.springframework.web.client.RestClient;
 class KisFxClientTest {
 
     private static final String PATH = "/uapi/overseas-price/v1/quotations/inquire-daily-chartprice";
-    private static final String TOKEN = "secret-token-1234";
     /** KST 2026-08-18 17:00. */
     private static final Instant NOW = Instant.parse("2026-08-18T08:00:00Z");
 
@@ -43,7 +42,7 @@ class KisFxClientTest {
         WireMock.configureFor(server.port());
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
         client = new KisFxClient(RestClient.builder(), server.baseUrl(),
-                new FixedToken(clock), new KisHeaders("key", "secret"), clock,
+                new KisFixtures.FixedToken(clock), new KisHeaders("key", "secret"), clock,
                 KisThrottle.none());
     }
 
@@ -125,7 +124,7 @@ class KisFxClientTest {
         client.usdToKrw();
 
         server.verify(getRequestedFor(urlPathEqualTo(PATH))
-                .withHeader("authorization", WireMock.equalTo("Bearer " + TOKEN))
+                .withHeader("authorization", WireMock.equalTo("Bearer " + KisFixtures.TOKEN))
                 .withHeader("tr_id", WireMock.equalTo("FHKST03030100"))
                 .withHeader("custtype", WireMock.equalTo("P")));
     }
@@ -181,7 +180,7 @@ class KisFxClientTest {
         assertThatThrownBy(() -> client.usdToKrw())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("유효하지 않은 token")
-                .hasMessageNotContaining(TOKEN);
+                .hasMessageNotContaining(KisFixtures.TOKEN);
     }
 
     @Test
@@ -190,19 +189,8 @@ class KisFxClientTest {
         server.stubFor(get(urlPathEqualTo(PATH)).willReturn(aResponse().withStatus(500)));
 
         assertThatThrownBy(() -> client.usdToKrw())
-                .hasMessageNotContaining(TOKEN)
+                .hasMessageNotContaining(KisFixtures.TOKEN)
                 .hasMessageNotContaining("Bearer");
     }
 
-    /** 발급을 흉내 내지 않는다 — 토큰 재사용 규칙은 {@link KisTokenStoreTest}가 따로 본다. */
-    private static final class FixedToken extends KisTokenStore {
-        private FixedToken(Clock clock) {
-            super(RestClient.builder(), "http://localhost:1", "key", "secret", null, clock);
-        }
-
-        @Override
-        public String token() {
-            return TOKEN;
-        }
-    }
 }

@@ -14,6 +14,8 @@ import io.saiden.economyhelper.news.rank.KeywordGroup;
 import io.saiden.economyhelper.news.rank.PopularityScorer;
 import io.saiden.economyhelper.news.rank.RankingWeights;
 import io.saiden.economyhelper.news.rank.RelevanceScorer;
+import io.saiden.economyhelper.support.TestRetries;
+import io.saiden.economyhelper.support.TestProperties;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -238,14 +240,12 @@ class NewsServiceTest {
 
         private StubFetcher(Map<NewsSource, List<Article>> bySource) {
             super(RestClient.builder(),
-                    new EconomyHelperProperties(
-                            new EnumMap<NewsSource, Feed>(NewsSource.class),
-                            new Ranking(new Weights(1, 1, 1, 1), Duration.ofHours(6)),
-                            null,
-                            null,
-                            null,
-                            null),
+                    TestProperties.builder()
+                        .feeds(new EnumMap<NewsSource, Feed>(NewsSource.class))
+                        .ranking(new Ranking(new Weights(1, 1, 1, 1), Duration.ofHours(6)))
+                        .build(),
                     CircuitBreakerRegistry.ofDefaults(),
+                TestRetries.registry(),
                     Clock.systemUTC(),
                     Duration.ofDays(3),
                     List.of());

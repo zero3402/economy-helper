@@ -1,6 +1,7 @@
 package io.saiden.economyhelper.market.weather;
 
 import io.saiden.economyhelper.support.Failover;
+import io.saiden.economyhelper.support.FailureReason;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
@@ -71,7 +72,7 @@ public class WeatherService {
         Optional<Weather> found = Failover.first(eligible, client -> client.forecast(place, period),
                 // 다음 출처가 있으면 조용히 넘어간다. 이게 이중화가 하는 일이다
                 (client, e) -> log.warn("[weather] {} 조회 실패 — 다음 출처로 넘어갑니다: {}",
-                        client.source().displayName(), e.toString()));
+                        client.source().displayName(), FailureReason.of(e)));
         if (found.isEmpty()) {
             log.error("[weather] 모든 출처에서 날씨를 가져오지 못했습니다");
         }

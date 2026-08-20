@@ -1,7 +1,9 @@
 package io.saiden.economyhelper.market.binance;
 
+import io.saiden.economyhelper.config.CacheNames;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import java.math.BigDecimal;
 import java.net.URI;
@@ -46,8 +48,9 @@ public class BinanceApi {
      * {@code {"code":-1121,"msg":"Invalid symbol."}}). 그래서 호출 전에 걸러야 한다 —
      * {@link BinanceSymbol}이 그 일을 한다.
      */
-    @Cacheable(cacheNames = "binance-price", key = "#symbols", unless = "#result.isEmpty()")
+    @Cacheable(cacheNames = CacheNames.BINANCE_PRICE, key = "#symbols", unless = "#result.isEmpty()")
     @RateLimiter(name = "binance")
+    @Retry(name = "binance")
     @CircuitBreaker(name = "binance")
     public List<BinancePrice> prices(List<String> symbols) {
         if (symbols.isEmpty()) {
