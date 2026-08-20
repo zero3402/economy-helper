@@ -24,6 +24,9 @@ import org.springframework.core.env.EnumerablePropertySource;
 @SpringBootTest
 class HttpTimeoutsTest {
 
+    /** 어떤 {@code base-url}에도 없지만 반드시 목록에 있어야 하는 호스트. */
+    private static final String KIS_LIVE = "openapi.koreainvestment.com";
+
     @Autowired EconomyHelperProperties properties;
     @Autowired ConfigurableEnvironment environment;
 
@@ -34,6 +37,8 @@ class HttpTimeoutsTest {
 
         List<String> unknown = properties.httpTimeouts().stream()
                 .map(HttpTimeout::host)
+                // 실전 도메인은 아직 어느 base-url에도 없다 — 다음 테스트가 대신 지킨다
+                .filter(host -> !KIS_LIVE.equals(host))
                 .filter(host -> !known.contains(host))
                 .toList();
 
@@ -41,6 +46,21 @@ class HttpTimeoutsTest {
                 .as("이 호스트로는 아무 요청도 안 나간다 — 오타이거나 지운 출처의 잔재다. "
                         + "설정에 남아 있으면 '타임아웃을 줬다'고 믿게 된다. 아는 호스트: %s", known)
                 .isEmpty();
+    }
+
+    @Test
+    @DisplayName("KIS 실전 도메인도 목록에 있다 — 계정을 옮기는 날 조용히 15초로 떨어진다")
+    void carriesTheLiveKisDomainToo() {
+        // 호스트로 키를 잡았으므로 도메인이 바뀌면 매칭이 사라진다. 실전은 앱키와 도메인을
+        // 함께 바꾸는 일이라(application.yml의 market.kis 주석) 그날 조용히 전역 기본값으로
+        // 떨어지는데, KIS는 거절 하나에 2.2~3.5초를 쓰는 출처다
+        assertThat(properties.httpTimeouts()).anySatisfy(timeout ->
+                assertThat(timeout.host()).isEqualTo(KIS_LIVE));
+
+        HttpTimeout paper = timeoutFor("openapivts.koreainvestment.com");
+        HttpTimeout live = timeoutFor(KIS_LIVE);
+        assertThat(live.connect()).as("모의와 실전이 같은 값이어야 한다").isEqualTo(paper.connect());
+        assertThat(live.read()).isEqualTo(paper.read());
     }
 
     @Test
