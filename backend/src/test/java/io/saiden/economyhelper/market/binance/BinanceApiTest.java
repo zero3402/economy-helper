@@ -32,6 +32,56 @@ class BinanceApiTest {
     }
 
     @Test
+    @DisplayName("1순위가 451이면 미러로 우회한다 — 지역 차단은 재시도로도 이중화로도 안 낫는다")
+    void bypassesTheRegionBlockWithTheMirror() {
+        // Render 미국 리전에서 api.binance.com이 이걸 준다. 재시도해도 같은 답이고
+        // 브레이커도 4xx라 안 열린다 — 그래서 화면에 '조회 실패'만 영영 찍혔다.
+        // 공개 데이터 미러는 같은 스키마를 주므로 우회하면 값이 그대로 나온다
+        WireMockServer mirror = new WireMockServer(options().dynamicPort().http2PlainDisabled(true));
+        mirror.start();
+        try {
+            server.stubFor(get(anyUrl()).willReturn(aResponse().withStatus(451)));
+            mirror.stubFor(get(anyUrl()).willReturn(aResponse().withStatus(200)
+                    .withHeader("Content-Type", "application/json")
+                    .withBody("""
+                            [{"symbol":"ETHUSDT","lastPrice":"2256.31","priceChangePercent":"18.06"}]""")));
+
+            List<BinancePrice> prices = new BinanceApi(
+                    RestClient.builder(), server.baseUrl(), mirror.baseUrl())
+                    .prices(List.of("ETHUSDT"));
+
+            assertThat(prices).singleElement()
+                    .satisfies(price -> assertThat(price.lastPrice())
+                            .isEqualByComparingTo(new BigDecimal("2256.31")));
+        } finally {
+            mirror.stop();
+        }
+    }
+
+    @Test
+    @DisplayName("없는 심볼(400)에는 우회하지 않는다 — 호스트를 바꿔도 없는 것은 없다")
+    void neverBypassesForAnUnknownSymbol() {
+        // 400은 우리 잘못이다(실측: USDTUSDT → -1121 Invalid symbol). 미러에 한 번 더 물으면
+        // 헛호출만 늘고 답은 같다 — CryptoService가 이걸 '미상장'으로 읽어야 한다
+        WireMockServer mirror = new WireMockServer(options().dynamicPort().http2PlainDisabled(true));
+        mirror.start();
+        try {
+            server.stubFor(get(anyUrl()).willReturn(aResponse().withStatus(400)
+                    .withBody("{\"code\":-1121,\"msg\":\"Invalid symbol.\"}")));
+
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> new BinanceApi(
+                    RestClient.builder(), server.baseUrl(), mirror.baseUrl())
+                    .prices(List.of("USDTUSDT")))
+                    .isInstanceOf(org.springframework.web.client.HttpClientErrorException.class);
+
+            assertThat(mirror.getAllServeEvents())
+                    .as("미러를 부르지 않아야 한다 — 400은 호스트 문제가 아니다").isEmpty();
+        } finally {
+            mirror.stop();
+        }
+    }
+
+    @Test
     @DisplayName("여러 심볼을 한 번에 부르고 배열 응답을 그대로 읽는다")
     void readsBatchResponse() {
         // /ticker/24hr의 실제 응답 모양이다. 값 이름이 price가 아니라 lastPrice이고
@@ -75,6 +125,6 @@ class BinanceApiTest {
     }
 
     private BinanceApi api() {
-        return new BinanceApi(RestClient.builder(), server.baseUrl());
+        return new BinanceApi(RestClient.builder(), server.baseUrl(), "");
     }
 }

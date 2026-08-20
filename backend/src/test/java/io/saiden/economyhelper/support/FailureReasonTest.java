@@ -33,7 +33,7 @@ class FailureReasonTest {
         String reason = FailureReason.of(HttpClientErrorException.create(
                 HttpStatus.valueOf(451), "", null, null, null));
 
-        assertThat(reason).contains("451").contains("지역 차단").contains("리전");
+        assertThat(reason).contains("451").contains("지역 차단").contains("재시도로는 안 낫습니다");
     }
 
     @Test

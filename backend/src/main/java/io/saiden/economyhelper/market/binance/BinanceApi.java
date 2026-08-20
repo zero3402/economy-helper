@@ -1,6 +1,7 @@
 package io.saiden.economyhelper.market.binance;
 
 import io.saiden.economyhelper.config.CacheNames;
+import io.saiden.economyhelper.support.FailureReason;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
@@ -11,9 +12,12 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
 /**
@@ -22,6 +26,12 @@ import org.springframework.web.client.RestClient;
  * <p>인증이 없고 한도가 넉넉하다. 실측한 응답 헤더가 {@code x-mbx-used-weight-1m: 8}이고
  * 한도는 분당 1200(IP 기준)이라 우리 사용량으로는 닿을 일이 없다. 그래도 {@code @RateLimiter}를
  * 거는 것은 연타나 버그로 폭주할 때의 안전장치다.
+ *
+ * <p><b>호스트가 둘이다 — 지역 차단 때문이다.</b> {@code api.binance.com}이 451을 주면
+ * 공개 데이터 미러({@code data-api.binance.vision})로 한 번 더 묻는다. 같은 스키마를 주므로
+ * 파싱이 갈리지 않는다(실측 2026-08-20: 네 호스트가 모두 같은 본문을 준다).
+ * <b>이중화가 아니라 우회다</b> — 상대가 죽어서가 아니라 우리 IP가 막혀서 가는 길이라,
+ * 1순위가 살아 있으면 2순위는 영영 안 불린다.
  *
  * <p><b>지역 차단이 있다.</b> 미국 IP에서는 451이 떨어진다 — 이 서비스가 Singapore 리전에
  * 떠 있어서 쓸 수 있는 것이고, 리전을 옮기면 가장 먼저 깨질 연동이다.
@@ -32,13 +42,20 @@ import org.springframework.web.client.RestClient;
 @Component
 public class BinanceApi {
 
+    private static final Logger log = LoggerFactory.getLogger(BinanceApi.class);
+
     private final RestClient restClient;
-    private final String baseUrl;
+
+    /** 1순위와 2순위. 순서가 곧 우선순위다 — 앞의 것이 답하면 뒤는 부르지 않는다. */
+    private final List<String> baseUrls;
 
     public BinanceApi(RestClient.Builder builder,
-                      @Value("${economy-helper.market.binance.base-url}") String baseUrl) {
+                      @Value("${economy-helper.market.binance.base-url}") String baseUrl,
+                      @Value("${economy-helper.market.binance.fallback-base-url:}") String fallbackUrl) {
         this.restClient = builder.build();
-        this.baseUrl = baseUrl;
+        this.baseUrls = fallbackUrl == null || fallbackUrl.isBlank()
+                ? List.of(baseUrl)
+                : List.of(baseUrl, fallbackUrl);
     }
 
     /**
@@ -56,15 +73,33 @@ public class BinanceApi {
         if (symbols.isEmpty()) {
             return List.of();
         }
-        BinancePrice[] response = restClient.get()
-                .uri(URI.create(baseUrl + query(symbols)))
-                .retrieve()
-                .body(BinancePrice[].class);
+        RuntimeException failure = null;
+        for (String baseUrl : baseUrls) {
+            try {
+                BinancePrice[] response = restClient.get()
+                        .uri(URI.create(baseUrl + query(symbols)))
+                        .retrieve()
+                        .body(BinancePrice[].class);
 
-        if (response == null) {
-            throw new IllegalStateException("바이낸스 시세 응답이 비어 있습니다: " + symbols);
+                if (response == null) {
+                    throw new IllegalStateException("바이낸스 시세 응답이 비어 있습니다: " + symbols);
+                }
+                if (failure != null) {
+                    log.info("[crypto] 바이낸스 1순위가 막혀 {}가 답했습니다", host(baseUrl));
+                }
+                return List.of(response);
+            } catch (RuntimeException e) {
+                // ⚠️ 없는 심볼(400)은 호스트를 바꿔도 없다 — 그건 그대로 던져 CryptoService가
+                //    '미상장'으로 읽게 한다. 호스트를 바꿔 볼 값이 있는 것은 지역 차단·장애다
+                if (e instanceof HttpClientErrorException http
+                        && http.getStatusCode().value() == 400) {
+                    throw e;
+                }
+                log.warn("[crypto] 바이낸스 {} 조회 실패: {}", host(baseUrl), FailureReason.of(e));
+                failure = e;
+            }
         }
-        return List.of(response);
+        throw failure;
     }
 
     /**
@@ -78,6 +113,11 @@ public class BinanceApi {
      * <p>심볼이 하나뿐이어도 배열로 보낸다. 단수 {@code symbol=}은 객체를, 복수 {@code symbols=}는
      * 배열을 돌려주는데, 개수에 따라 응답 모양이 갈리면 파싱이 두 갈래가 된다.
      */
+    /** 로그에 호스트만 남긴다 — 어느 쪽이 답했는지가 진단의 전부다. */
+    private static String host(String baseUrl) {
+        return URI.create(baseUrl).getHost();
+    }
+
     static String query(List<String> symbols) {
         String json = symbols.stream()
                 .map(symbol -> "\"" + symbol + "\"")

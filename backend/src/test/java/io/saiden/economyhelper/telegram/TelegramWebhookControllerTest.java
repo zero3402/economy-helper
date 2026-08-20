@@ -541,7 +541,7 @@ class TelegramWebhookControllerTest {
     private static CryptoService crypto(Optional<CryptoQuote> result) {
         return new CryptoService(new UpbitApi(RestClient.builder(), "https://example.invalid"),
                 new io.saiden.economyhelper.market.binance.BinanceApi(
-                        RestClient.builder(), "https://example.invalid"),
+                        RestClient.builder(), "https://example.invalid", ""),
                 new io.saiden.economyhelper.market.CryptoResolver(null, null)) {
             @Override
             public Optional<CryptoQuote> quote(String query) {

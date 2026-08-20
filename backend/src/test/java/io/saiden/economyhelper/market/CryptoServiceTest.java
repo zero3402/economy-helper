@@ -294,7 +294,7 @@ class CryptoServiceTest {
 
     private static CryptoService cryptoService(UpbitApi upbit, Map<String, String> binancePrices,
                                                CryptoResolver resolver) {
-        return new CryptoService(upbit, new BinanceApi(RestClient.builder(), "https://example.invalid") {
+        return new CryptoService(upbit, new BinanceApi(RestClient.builder(), "https://example.invalid", "") {
             @Override
             public List<BinancePrice> prices(List<String> symbols) {
                 return symbols.stream()
@@ -312,7 +312,7 @@ class CryptoServiceTest {
     }
 
     private static BinanceApi explodingBinance(RuntimeException failure) {
-        return new BinanceApi(RestClient.builder(), "https://example.invalid") {
+        return new BinanceApi(RestClient.builder(), "https://example.invalid", "") {
             @Override
             public List<BinancePrice> prices(List<String> symbols) {
                 throw failure;

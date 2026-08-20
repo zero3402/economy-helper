@@ -70,8 +70,10 @@ public final class FailureReason {
         if (e instanceof RestClientResponseException failure) {
             int status = failure.getStatusCode().value();
             if (status == UNAVAILABLE_FOR_LEGAL_REASONS) {
-                return "HTTP 451 지역 차단 — 이 IP에서는 영영 안 됩니다. "
-                        + "재시도·이중화가 아니라 리전을 옮겨야 합니다";
+                // 처방은 출처마다 다르다 — 바이낸스는 공개 미러로 우회하고(BinanceApi),
+                // 그런 우회로가 없는 곳은 리전을 옮기는 수밖에 없다. 그래서 여기서는
+                // "무엇인지"만 말하고 "어떻게 하라"는 부르는 쪽에 맡긴다
+                return "HTTP 451 지역 차단 — 이 IP가 막힌 것이라 재시도로는 안 낫습니다";
             }
             return "HTTP " + status;
         }
