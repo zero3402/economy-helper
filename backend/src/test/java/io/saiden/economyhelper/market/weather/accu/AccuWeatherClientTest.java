@@ -133,8 +133,8 @@ class AccuWeatherClientTest {
 
         // 같은 날 Night는 아이콘 36·확률 8이다. 그걸 읽었다면 값이 다르게 나온다
         assertThat(today.sky()).isEqualTo(SkyCondition.PARTLY_CLOUDY);
-        assertThat(today.rainChance()).isEqualTo(55);
-        assertThat(today.rainAmount())
+        assertThat(today.precipitationChance()).isEqualTo(55);
+        assertThat(today.precipitationAmount())
                 .as("확률을 아는 출처는 강수량 칸을 비운다 — 한 줄에 둘을 적지 않는다")
                 .isNull();
     }

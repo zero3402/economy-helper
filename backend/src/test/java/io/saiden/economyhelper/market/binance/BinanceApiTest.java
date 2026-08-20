@@ -32,6 +32,50 @@ class BinanceApiTest {
     }
 
     @Test
+    @DisplayName("418(IP 밴)에는 미러를 부르지 않는다 — 밴 중에 더 부르면 밴이 길어진다")
+    void neverBypassesAnIpBan() {
+        // 바이낸스는 429를 받고도 계속 부르면 IP를 자동 밴하고(418), **밴 중의 호출이 밴을
+        // 연장한다**(2분~3일). 그리고 실측으로 두 호스트가 한 IP 예산을 공유한다 —
+        // x-mbx-used-weight-1m이 api→data-api를 번갈아 물어도 2·4·6·8로 이어졌다.
+        // 즉 우회는 아무 이득 없이 밴만 늘린다
+        WireMockServer mirror = new WireMockServer(options().dynamicPort().http2PlainDisabled(true));
+        mirror.start();
+        try {
+            server.stubFor(get(anyUrl()).willReturn(aResponse().withStatus(418)));
+
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> new BinanceApi(
+                    RestClient.builder(), server.baseUrl(), mirror.baseUrl())
+                    .prices(List.of("ETHUSDT")))
+                    .as("밴은 미상장이 아니다 — 좁은 타입으로 삼켜지면 브레이커가 안 열린다")
+                    .isNotInstanceOf(BinanceApi.UnknownSymbol.class);
+
+            assertThat(mirror.getAllServeEvents())
+                    .as("미러를 부르면 그것이 밴을 연장한다").isEmpty();
+        } finally {
+            mirror.stop();
+        }
+    }
+
+    @Test
+    @DisplayName("429에도 미러를 부르지 않는다 — 여기서 더 부르면 418로 굳는다")
+    void neverBypassesARateLimitWarning() {
+        WireMockServer mirror = new WireMockServer(options().dynamicPort().http2PlainDisabled(true));
+        mirror.start();
+        try {
+            server.stubFor(get(anyUrl()).willReturn(aResponse().withStatus(429)));
+
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> new BinanceApi(
+                    RestClient.builder(), server.baseUrl(), mirror.baseUrl())
+                    .prices(List.of("ETHUSDT")))
+                    .isInstanceOf(RuntimeException.class);
+
+            assertThat(mirror.getAllServeEvents()).isEmpty();
+        } finally {
+            mirror.stop();
+        }
+    }
+
+    @Test
     @DisplayName("1순위가 451이면 미러로 우회한다 — 지역 차단은 재시도로도 이중화로도 안 낫는다")
     void bypassesTheRegionBlockWithTheMirror() {
         // Render 미국 리전에서 api.binance.com이 이걸 준다. 재시도해도 같은 답이고
@@ -72,7 +116,8 @@ class BinanceApiTest {
             org.assertj.core.api.Assertions.assertThatThrownBy(() -> new BinanceApi(
                     RestClient.builder(), server.baseUrl(), mirror.baseUrl())
                     .prices(List.of("USDTUSDT")))
-                    .isInstanceOf(org.springframework.web.client.HttpClientErrorException.class);
+                    .as("좁은 타입으로 던져야 브레이커가 이것만 무시할 수 있다")
+                    .isInstanceOf(BinanceApi.UnknownSymbol.class);
 
             assertThat(mirror.getAllServeEvents())
                     .as("미러를 부르지 않아야 한다 — 400은 호스트 문제가 아니다").isEmpty();

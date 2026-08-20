@@ -89,13 +89,20 @@ public class BinanceApi {
                 }
                 return List.of(response);
             } catch (RuntimeException e) {
-                // ⚠️ 없는 심볼(400)은 호스트를 바꿔도 없다 — 그건 그대로 던져 CryptoService가
-                //    '미상장'으로 읽게 한다. 호스트를 바꿔 볼 값이 있는 것은 지역 차단·장애다
-                if (e instanceof HttpClientErrorException http
-                        && http.getStatusCode().value() == 400) {
-                    throw e;
+                // 없는 심볼은 호스트를 바꿔도 없다. 좁은 타입으로 갈라 던져 CryptoService가
+                // '미상장'으로 읽고, 브레이커도 이것만 무시하게 한다
+                if (statusOf(e) == UNKNOWN_SYMBOL) {
+                    throw new UnknownSymbol("바이낸스에 없는 심볼입니다: " + symbols, e);
                 }
                 log.warn("[crypto] 바이낸스 {} 조회 실패: {}", host(baseUrl), FailureReason.of(e));
+                // ⚠️ **451에만 다음 호스트로 간다.** 418은 IP 밴이고(429를 받고도 계속 불러서
+                //    생긴다) 바이낸스 규칙상 **계속 부르면 밴이 길어진다** — 미러를 부르는 것은
+                //    밴 회피이고, 실측으로 두 호스트가 **한 IP 예산을 공유한다**:
+                //    api → data-api를 번갈아 물으니 x-mbx-used-weight-1m이 2·4·6·8로 이어졌다.
+                //    즉 우회해도 같은 밴을 받는다. 아무 이득 없이 밴만 늘리는 일이다
+                if (statusOf(e) != REGION_BLOCKED) {
+                    throw e;
+                }
                 failure = e;
             }
         }
@@ -113,6 +120,34 @@ public class BinanceApi {
      * <p>심볼이 하나뿐이어도 배열로 보낸다. 단수 {@code symbol=}은 객체를, 복수 {@code symbols=}는
      * 배열을 돌려주는데, 개수에 따라 응답 모양이 갈리면 파싱이 두 갈래가 된다.
      */
+    /** {@code -1121 Invalid symbol.} — 우리가 없는 심볼을 물은 것이다. */
+    private static final int UNKNOWN_SYMBOL = 400;
+
+    /** 지역 차단. 호스트를 바꿔 볼 값이 있는 <b>유일한</b> 실패다. */
+    private static final int REGION_BLOCKED = 451;
+
+    /** @return HTTP 상태. HTTP 실패가 아니면 {@code 0} */
+    private static int statusOf(RuntimeException e) {
+        return e instanceof HttpClientErrorException http ? http.getStatusCode().value() : 0;
+    }
+
+    /**
+     * <b>바이낸스에 그 심볼이 없다</b>(400 {@code -1121}).
+     *
+     * <p>좁은 타입으로 두는 이유는 <b>브레이커</b>다. 예전에는 {@code binance} 인스턴스가
+     * {@code HttpClientErrorException}을 <b>통째로</b> 무시했다. 취지는 옳았다 — 없는 심볼의
+     * 400이 브레이커를 열면 멀쩡한 다른 코인까지 막힌다. 그런데 <b>418·429도 같은 4xx</b>라
+     * 함께 빠졌고, 그래서 IP가 밴된 동안에도 브레이커가 안 열려 <b>계속 찔렀다</b> —
+     * 바이낸스 규칙상 그것이 밴을 연장한다. 이제 무시 목록에 이 타입만 적는다.
+     * ({@code TelegramRateLimited}·{@code TelegramUnavailable}을 갈라낸 것과 같은 자리다.)
+     */
+    public static class UnknownSymbol extends RuntimeException {
+
+        public UnknownSymbol(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
+
     /** 로그에 호스트만 남긴다 — 어느 쪽이 답했는지가 진단의 전부다. */
     private static String host(String baseUrl) {
         return URI.create(baseUrl).getHost();

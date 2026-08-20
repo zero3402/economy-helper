@@ -168,7 +168,9 @@ public class CryptoService {
                     .map(price -> Quote.of(price.lastPrice(), price.priceChangePercent()))
                     .orElse(Quote.NOT_LISTED);
         } catch (RuntimeException e) {
-            if (e instanceof HttpClientErrorException http && http.getStatusCode().value() == 400) {
+            // 바이낸스가 "그 심볼 없다"를 좁은 타입으로 준다 — 400을 여기서 다시 읽지 않는다.
+            // 418(IP 밴)·451(지역 차단)도 4xx지만 그건 '없음'이 아니라 '지금 못 봄'이다
+            if (e instanceof BinanceApi.UnknownSymbol) {
                 return Quote.NOT_LISTED;
             }
             // ⚠️ 이유를 갈라 남긴다. 예전에는 e.toString() 한 줄이라 상대 장애·브레이커 열림·

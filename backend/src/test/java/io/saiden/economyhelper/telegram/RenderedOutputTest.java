@@ -21,6 +21,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import io.saiden.economyhelper.market.weather.PrecipitationSpell;
+import java.time.LocalTime;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.LinkedHashMap;
@@ -184,6 +186,24 @@ class RenderedOutputTest {
                 oneDay("잠실역", null, SkyCondition.RAIN, "20.1", "27.3", 80),
                 oneDay("삼성중앙역", null, SkyCondition.CLOUDY, "20.5", "28.0", 30))));
         cases.put("weather/multi-day", WeatherFormatter.format(List.of(seongnamWeek())));
+        // 강수 시각 — 「비옴」이 언제인지. 일 단위 요약이 못 말해 주는 것이 이 줄이다
+        cases.put("weather/precipitation-spell", WeatherFormatter.format(List.of(withSpells(
+                spell(13, 19, SkyCondition.RAIN, 80)))));
+        // ⚠️ **눈은 눈으로 나와야 한다.** ☔ 하나로 적으면 눈 오는 날에 우산 그림이 붙는다 —
+        //    이 기능을 만든 이유가 「소나기일 수도 눈일 수도 있다」였다
+        cases.put("weather/precipitation-snow", WeatherFormatter.format(List.of(withSpells(
+                spell(7, 10, SkyCondition.SNOW, 90)))));
+        cases.put("weather/precipitation-thunder", WeatherFormatter.format(List.of(withSpells(
+                spell(15, 15, SkyCondition.THUNDERSTORM, 70)))));
+        // 하루에 두 번 — 아침 비와 저녁 눈을 하나로 잇지 않는다
+        cases.put("weather/precipitation-twice", WeatherFormatter.format(List.of(withSpells(
+                spell(6, 8, SkyCondition.SHOWERS, 65), spell(20, 22, SkyCondition.SNOW, 85)))));
+        // 자정·정오는 「오후 12시」가 헷갈려 제 이름으로 적는다
+        cases.put("weather/precipitation-noon-midnight", WeatherFormatter.format(List.of(withSpells(
+                spell(0, 0, SkyCondition.SLEET, 55), spell(12, 12, SkyCondition.DRIZZLE, 60)))));
+        // 지나간 날은 확률이 없다 — 실제로 온 양으로 적는다
+        cases.put("weather/precipitation-measured", WeatherFormatter.format(List.of(
+                archivedWithSpells())));
         cases.put("weather/rain-amount", WeatherFormatter.format(List.of(openMeteoFallback())));
         cases.put("weather/archived", WeatherFormatter.format(List.of(archived())));
         // 0.25는 HALF_EVEN이면 0.2, HALF_UP이면 0.3이다 — oneDecimal만 반올림이 달랐던 자리를
@@ -290,6 +310,31 @@ class RenderedOutputTest {
 
     private static Weather seohyeon() {
         return oneDay("서현역", null, SkyCondition.CLEAR, "19.0", "30.1", 10);
+    }
+
+    /** 강수 토막이 붙은 하루 — 미금역 하루치에 토막만 얹는다. */
+    private static Weather withSpells(PrecipitationSpell... spells) {
+        return new Weather(place("미금역", null),
+                List.of(Weather.Daily.withChance(LocalDate.of(2026, 8, 17), SkyCondition.CLOUDY,
+                                new BigDecimal("18.2"), new BigDecimal("29.6"), 20)
+                        .withPrecipitation(List.of(spells))),
+                WeatherSource.ACCU_WEATHER);
+    }
+
+    /** 지나간 날 + 토막. 확률이 아니라 실제로 온 양이 적힌다. */
+    private static Weather archivedWithSpells() {
+        return new Weather(place("성남시", "대한민국"),
+                List.of(Weather.Daily.withAmount(LocalDate.of(2026, 8, 10), SkyCondition.RAIN,
+                                new BigDecimal("21.0"), new BigDecimal("26.4"), new BigDecimal("3.7"))
+                        .withPrecipitation(List.of(PrecipitationSpell.withAmount(
+                                LocalTime.of(2, 0), LocalTime.of(4, 0), SkyCondition.RAIN,
+                                new BigDecimal("3.7"))))),
+                WeatherSource.OPEN_METEO_ARCHIVE);
+    }
+
+    private static PrecipitationSpell spell(int from, int to, SkyCondition kind, int chance) {
+        return PrecipitationSpell.withChance(
+                LocalTime.of(from, 0), LocalTime.of(to, 0), kind, chance);
     }
 
     private static Weather oneDay(String name, String country, SkyCondition sky,

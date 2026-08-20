@@ -34,7 +34,8 @@ import org.springframework.web.client.RestClient;
 public class OpenMeteoForecastClient implements WeatherClient {
 
     /**
-     * 한 번에 받을 항목. <b>일일 값만 받는다</b> — 현재 기온은 쓰지 않기로 했으므로 부르지도 않는다.
+     * 한 번에 받을 항목. <b>현재 기온은 안 받는다</b> — 쓰지 않기로 했으므로 부르지도 않는다.
+     * (시간별 강수는 받는다 — 하루 안의 시각이라 현재값이 아니다. {@code HOURLY_FIELDS} 참고.)
      * 안 쓸 값을 받아 오면 응답만 무거워지고, 언젠가 화면에 새어 나온다.
      */
     private static final String DAILY_FIELDS =
@@ -47,6 +48,12 @@ public class OpenMeteoForecastClient implements WeatherClient {
             @Value("${economy-helper.weather.open-meteo.base-url}") String baseUrl) {
         this.restClient = builder.baseUrl(baseUrl).build();
     }
+
+    /**
+     * 하루 안의 강수 시각. <b>일일 값과 한 응답으로 온다</b> — 호출이 늘지 않는다.
+     * 예보는 확률과 양을 함께 준다.
+     */
+    private static final String HOURLY_FIELDS = "precipitation_probability,precipitation,weather_code";
 
     @Override
     public WeatherSource source() {
@@ -74,7 +81,7 @@ public class OpenMeteoForecastClient implements WeatherClient {
     @Retry(name = "weatherOpenMeteo")
     @CircuitBreaker(name = "weatherOpenMeteo")
     public Weather forecast(GeoLocation place, WeatherPeriod period) {
-        return OpenMeteoRequest.daily(restClient, "/v1/forecast", DAILY_FIELDS,
+        return OpenMeteoRequest.daily(restClient, "/v1/forecast", DAILY_FIELDS, HOURLY_FIELDS,
                 place, period, source());
     }
 }

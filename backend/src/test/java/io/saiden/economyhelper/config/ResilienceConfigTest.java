@@ -202,6 +202,37 @@ class ResilienceConfigTest {
     }
 
     @Test
+    @DisplayName("바이낸스 418·429는 브레이커를 연다 — 밴 중에 계속 찌르면 밴이 길어진다")
+    void binanceIpBanOpensTheBreaker() {
+        // ⚠️ 다른 출처의 429는 브레이커에서 빼 뒀다(텔레그램·Gemini) — 그쪽은 잠깐 물러서면
+        //    끝이라 상대 장애가 아니다. **바이낸스는 다르다.** 429를 받고도 계속 부르면 IP를
+        //    자동 밴하고(418) 밴 중의 호출이 밴을 연장한다. 즉 여기서는 "물러서기"가 옳고
+        //    브레이커가 그 수단이다. 같은 상태 코드가 출처에 따라 다른 뜻인 자리다
+        CircuitBreaker breaker = registry.circuitBreaker("binance");
+
+        long before = breaker.getMetrics().getNumberOfFailedCalls();
+        breaker.onError(0, java.util.concurrent.TimeUnit.MILLISECONDS,
+                org.springframework.web.client.HttpClientErrorException.create(
+                        org.springframework.http.HttpStatus.valueOf(418), "", null, null, null));
+        breaker.onError(0, java.util.concurrent.TimeUnit.MILLISECONDS,
+                org.springframework.web.client.HttpClientErrorException.create(
+                        org.springframework.http.HttpStatus.TOO_MANY_REQUESTS, "", null, null, null));
+
+        assertThat(breaker.getMetrics().getNumberOfFailedCalls())
+                .as("418·429가 실패로 세어져야 브레이커가 열려 호출이 멈춘다")
+                .isEqualTo(before + 2);
+
+        // 없는 심볼만 무시한다 — 그건 우리가 물은 것이지 상대 장애가 아니다
+        breaker.onError(0, java.util.concurrent.TimeUnit.MILLISECONDS,
+                new io.saiden.economyhelper.market.binance.BinanceApi.UnknownSymbol(
+                        "없는 심볼", new RuntimeException()));
+        assertThat(breaker.getMetrics().getNumberOfFailedCalls())
+                .as("없는 심볼의 400이 브레이커를 열면 멀쩡한 다른 코인까지 막힌다")
+                .isEqualTo(before + 2);
+    }
+
+
+    @Test
     @DisplayName("텔레그램 429는 브레이커를 열지 않는다 — 우리가 빨리 물은 것이지 상대 장애가 아니다")
     void telegramRateLimitDoesNotOpenTheBreaker() {
         // 429가 200 본문에 error_code로 오므로 HTTP 예외가 아니다. 하나의 TelegramException으로

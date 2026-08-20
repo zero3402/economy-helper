@@ -98,9 +98,9 @@ public final class TestProperties {
         }
     }
 
-    /** 스무 개가 같은 값인 TTL 묶음 — 캐시 설정만 보는 테스트가 값 자체는 안 본다. */
+    /** 스물한 개가 같은 값인 TTL 묶음 — 캐시 설정만 보는 테스트가 값 자체는 안 본다. */
     public static CacheTtl everyTtl(Duration any) {
         return new CacheTtl(any, any, any, any, any, any, any, any, any, any,
-                any, any, any, any, any, any, any, any, any, any);
+                any, any, any, any, any, any, any, any, any, any, any);
     }
 }

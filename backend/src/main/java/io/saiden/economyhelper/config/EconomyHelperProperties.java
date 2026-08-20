@@ -162,7 +162,7 @@ public record EconomyHelperProperties(
                            Duration stockPrice, Duration usQuote, Duration kisQuote,
                            Duration fx, Duration fxKexim, Duration fxKis,
                            Duration weather, Duration geocode, Duration accuLocation,
-                           Duration weatherResolve) {}
+                           Duration weatherResolve, Duration precipitationHours) {}
 
     /**
      * 오전 6시 날씨 알람.

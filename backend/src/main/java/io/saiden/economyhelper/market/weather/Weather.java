@@ -7,6 +7,10 @@ import java.util.List;
 /**
  * 한 지점의 날씨 — <b>언제나 일일 단위다.</b>
  *
+ * <p>⚠️ <b>다만 하루 <i>안</i>의 강수 시각은 담는다</b>({@code Daily.precipitation}).
+ * 일일 단위라는 것은 <b>현재값과 일일값을 한 화면에 섞지 않는다</b>는 뜻이고(현재 기온은
+ * 여전히 안 담는다), 「그날 언제 비가 오는가」는 그 하루에 속한 이야기다.
+ *
  * <p><b>현재 기온을 담지 않는다.</b> 알람이든 검색이든 답은 그날 하루치다. 현재값과 일일값을
  * 섞으면 "지금 21°C인데 최고가 29°C"처럼 두 시간축이 한 화면에 서고, 오전 6시 알람에서 그
  * 시각 기온은 하루를 계획하는 데 쓸모도 없다.
@@ -54,22 +58,45 @@ public record Weather(GeoLocation place, List<Daily> days, WeatherSource source)
      * @param sky        하늘 상태. 해석 못 한 값이면 {@link SkyCondition#UNKNOWN}이고 그 줄이 빠진다
      * @param low        최저 기온(°C)
      * @param high       최고 기온(°C)
-     * @param rainChance 강수확률(%). 예보가 아니거나 출처가 주지 않으면 {@code null}
-     * @param rainAmount 강수량(mm). 확률을 아는 출처에서는 {@code null}
+     * <p><b>{@code precipitation}은 그 하루 <i>안</i>의 시각이다.</b> 일 단위 요약이 「비옴」까지만
+     * 말하는 것을 메꾼다 — 실측(2026-08-20 성남시)으로 일 단위는 최대 강수확률 80%였는데
+     * 시간별로는 13~19시에 몰려 있고 오전은 말라 있었다. <b>비어 있을 수 있다</b>(마른 날,
+     * 또는 시간별 값을 못 받은 경우) — 그때는 화면에 그 줄이 없다.
+     *
+     * @param precipitationChance 강수확률(%). 예보가 아니거나 출처가 주지 않으면 {@code null}
+     * @param precipitationAmount 강수량(mm). 확률을 아는 출처에서는 {@code null}
+     * @param precipitation       그 하루 안의 강수 토막들. 없으면 빈 목록
      */
     public record Daily(LocalDate date, SkyCondition sky, BigDecimal low, BigDecimal high,
-                        Integer rainChance, BigDecimal rainAmount) {
+                        Integer precipitationChance, BigDecimal precipitationAmount,
+                        List<PrecipitationSpell> precipitation) {
+
+        public Daily {
+            // null을 안쪽에서 흡수한다 — 호출자 스물 남짓이 전부 빈 목록을 손으로 넘기게 하면
+            // 한 곳만 빠뜨려도 렌더에서 NPE가 난다(Weather가 days를 그렇게 막아 둔 것과 같다)
+            precipitation = precipitation == null ? List.of() : List.copyOf(precipitation);
+        }
 
         /** 확률을 아는 출처(Open-Meteo 예보)가 쓰는 생성자. */
         public static Daily withChance(LocalDate date, SkyCondition sky,
-                                       BigDecimal low, BigDecimal high, Integer rainChance) {
-            return new Daily(date, sky, low, high, rainChance, null);
+                                       BigDecimal low, BigDecimal high, Integer precipitationChance) {
+            return new Daily(date, sky, low, high, precipitationChance, null, List.of());
         }
 
         /** 강수량만 아는 출처(재분석, 그리고 확률이 빠진 예보 응답)가 쓰는 생성자. */
         public static Daily withAmount(LocalDate date, SkyCondition sky,
-                                       BigDecimal low, BigDecimal high, BigDecimal rainAmount) {
-            return new Daily(date, sky, low, high, null, rainAmount);
+                                       BigDecimal low, BigDecimal high, BigDecimal precipitationAmount) {
+            return new Daily(date, sky, low, high, null, precipitationAmount, List.of());
+        }
+
+        /**
+         * 같은 하루에 <b>강수 시각만</b> 붙인 사본.
+         *
+         * <p>시간별 값은 일별과 <b>다른 호출</b>에서 올 수 있다(1순위 AccuWeather는 낮/밤뿐이라
+         * 시간 단위를 Open-Meteo에 따로 묻는다). 그래서 일별을 만든 뒤에 얹는 자리가 필요하다.
+         */
+        public Daily withPrecipitation(List<PrecipitationSpell> spells) {
+            return new Daily(date, sky, low, high, precipitationChance, precipitationAmount, spells);
         }
     }
 }

@@ -247,17 +247,19 @@ class CryptoServiceTest {
     }
 
     @Test
-    @DisplayName("바이낸스 400만 미상장이다 — 451·429까지 묶으면 재시도하면 될 것을 '없는 코인'이라 답하게 된다")
+    @DisplayName("없는 심볼만 미상장이다 — 418·451까지 묶으면 물러서면 될 것을 '없는 코인'이라 답하게 된다")
     void separatesInvalidSymbolFromOutage() {
         CryptoService invalidSymbol = new CryptoService(new RecordingApi(),
-                explodingBinance(new HttpClientErrorException(HttpStatus.BAD_REQUEST)),
+                // BinanceApi가 400을 좁은 타입으로 갈라 던진다 — 그게 계약이다
+                explodingBinance(new BinanceApi.UnknownSymbol("없는 심볼",
+                        new HttpClientErrorException(HttpStatus.BAD_REQUEST))),
                 resolverOf("BNB"));
         CryptoService blocked = new CryptoService(new RecordingApi(),
                 explodingBinance(new HttpClientErrorException(HttpStatus.UNAVAILABLE_FOR_LEGAL_REASONS)),
                 resolverOf("BNB"));
 
         assertThat(invalidSymbol.quote("바이낸스코인"))
-                .as("Invalid symbol — 업비트에도 바이낸스에도 없으니 '찾지 못했다'가 맞다")
+                .as("없는 심볼 — 업비트에도 바이낸스에도 없으니 '찾지 못했다'가 맞다")
                 .isEmpty();
         assertThat(blocked.quote("바이낸스코인")).get()
                 .extracting(quote -> quote.binance().state())

@@ -45,6 +45,16 @@ public final class FailureReason {
     private static final int UNAVAILABLE_FOR_LEGAL_REASONS = 451;
 
     /**
+     * <b>바이낸스가 IP를 자동 밴했다.</b> 429를 받고도 계속 부른 결과이고, 밴은 2분에서 3일까지
+     * 늘어난다 — <b>계속 부르면 길어진다</b>는 것이 규칙의 일부다. 그래서 이 코드는 "물러서라"는
+     * 뜻이고, 브레이커가 열려 호출이 멈추는 것이 옳은 대응이다.
+     */
+    private static final int IP_BANNED = 418;
+
+    /** 밴 직전 경고. 여기서 물러서지 않으면 {@link #IP_BANNED}가 된다. */
+    private static final int TOO_MANY_REQUESTS = 429;
+
+    /**
      * @return {@code 지역 차단(451)}·{@code 브레이커 열림}처럼 짧은 이유. 모르면 예외 이름
      */
     public static String of(Throwable e) {
@@ -69,6 +79,13 @@ public final class FailureReason {
         }
         if (e instanceof RestClientResponseException failure) {
             int status = failure.getStatusCode().value();
+            if (status == IP_BANNED) {
+                return "HTTP 418 IP 자동 밴 — 429를 받고도 계속 불러서 막힌 것입니다. "
+                        + "계속 부르면 밴이 길어집니다(2분~3일). 물러서야 풀립니다";
+            }
+            if (status == TOO_MANY_REQUESTS) {
+                return "HTTP 429 한도 초과 — 여기서 더 부르면 418(IP 밴)로 굳습니다";
+            }
             if (status == UNAVAILABLE_FOR_LEGAL_REASONS) {
                 // 처방은 출처마다 다르다 — 바이낸스는 공개 미러로 우회하고(BinanceApi),
                 // 그런 우회로가 없는 곳은 리전을 옮기는 수밖에 없다. 그래서 여기서는

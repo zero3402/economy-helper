@@ -1,6 +1,7 @@
 package io.saiden.economyhelper.market.weather;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import io.saiden.economyhelper.support.TestWeather;
 
 import io.saiden.economyhelper.market.weather.Weather.Daily;
 import io.saiden.economyhelper.market.weather.WeatherResolver.ResolvedPlace;
@@ -120,7 +121,7 @@ class WeatherFacadeTest {
 
     private static WeatherFacade facade(WeatherResolver resolver, Geocoder geocoder) {
         return new WeatherFacade(resolver, geocoder,
-                new WeatherService(List.of(new Forecaster()), CLOCK));
+                new WeatherService(List.of(new Forecaster()), CLOCK, TestWeather.noHourly()));
     }
 
     private static GeoLocation place(String name, String country, double lat, double lon) {

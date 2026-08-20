@@ -14,6 +14,7 @@ import io.saiden.economyhelper.market.weather.WeatherPeriod;
 import io.saiden.economyhelper.market.weather.WeatherService;
 import io.saiden.economyhelper.market.weather.WeatherSource;
 import io.saiden.economyhelper.support.TestProperties;
+import io.saiden.economyhelper.support.TestWeather;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -108,7 +109,7 @@ class WeatherDigestJobTest {
 
     private static WeatherDigestJob job(RecordingClient telegram, InMemoryHistory history,
                                         WeatherClient client) {
-        WeatherService weather = new WeatherService(List.of(client), clock());
+        WeatherService weather = new WeatherService(List.of(client), clock(), TestWeather.noHourly());
         return new WeatherDigestJob(weather, telegram, history, clock(), properties());
     }
 

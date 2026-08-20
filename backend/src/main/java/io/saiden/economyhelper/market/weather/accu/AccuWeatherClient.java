@@ -127,11 +127,11 @@ public class AccuWeatherClient implements WeatherClient {
             // 없어서(5일 예보는 확률만 준다) 없는 값을 만들어 낼 수가 없다. Open-Meteo가
             // 확률→강수량으로 내려가는 것(DailyBlock.toDays)과 갈리는 이유가 그것이다.
             // ⚠️ details=true를 빼면 확률이 통째로 안 오므로 이 자리가 매번 빈다 — request()의 주석 참조
-            if (daily.rainChance() == null) {
+            if (daily.precipitationChance() == null) {
                 log.warn("[weather] AccuWeather가 {}의 강수확률을 주지 않았습니다 — 그 줄만 빠집니다", date);
             }
             days.add(Weather.Daily.withChance(date, SkyCondition.ofAccuWeatherIcon(daily.icon()),
-                    daily.low(), daily.high(), daily.rainChance()));
+                    daily.low(), daily.high(), daily.precipitationChance()));
         }
         return List.copyOf(days);
     }
@@ -186,7 +186,7 @@ public class AccuWeatherClient implements WeatherClient {
             return day == null ? null : day.icon();
         }
 
-        Integer rainChance() {
+        Integer precipitationChance() {
             return day == null ? null : day.precipitationProbability();
         }
     }

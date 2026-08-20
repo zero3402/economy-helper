@@ -8,6 +8,8 @@ import static io.saiden.economyhelper.telegram.MessageLayout.oneDecimal;
 import static io.saiden.economyhelper.telegram.MessageLayout.sources;
 import static io.saiden.economyhelper.telegram.MessageLayout.title;
 
+import io.saiden.economyhelper.market.weather.PrecipitationSpell;
+import io.saiden.economyhelper.market.weather.SkyCondition;
 import io.saiden.economyhelper.market.weather.Weather;
 import io.saiden.economyhelper.market.weather.WeatherPeriod;
 import io.saiden.economyhelper.market.weather.WeatherSource;
@@ -76,7 +78,8 @@ public final class WeatherFormatter {
             }
             message.append(oneDecimal(day.low())).append("°C / ")
                     .append(oneDecimal(day.high())).append("°C");
-            appendRain(message, day);
+            appendPrecipitation(message, day);
+        appendSpells(message, day);
         }
     }
 
@@ -87,11 +90,11 @@ public final class WeatherFormatter {
      * 빠지면 강수량으로 떨어진다. <b>강수량을 확률이라 부르지 않는다</b> — 값을 다른 것인 척
      * 하지 않는다는 규칙이 {@code (종가)}·{@code (고시)}와 같은 자리에서 여기에도 걸린다.
      */
-    private static void appendRain(StringBuilder message, Weather.Daily day) {
-        if (day.rainChance() != null) {
-            message.append("\n강수확률 ").append(day.rainChance()).append("%");
-        } else if (day.rainAmount() != null) {
-            message.append("\n강수량 ").append(oneDecimal(day.rainAmount())).append("mm");
+    private static void appendPrecipitation(StringBuilder message, Weather.Daily day) {
+        if (day.precipitationChance() != null) {
+            message.append("\n강수확률 ").append(day.precipitationChance()).append("%");
+        } else if (day.precipitationAmount() != null) {
+            message.append("\n강수량 ").append(oneDecimal(day.precipitationAmount())).append("mm");
         }
     }
 
@@ -101,7 +104,7 @@ public final class WeatherFormatter {
      *
      * <p><b>지역 블록에는 출처를 달지 않는다.</b> 넷 중 하나가 폴백했을 뿐인데 지역마다 달면
      * 같은 이름이 다섯 번 찍힌다. 대신 <b>어느 지역이 폴백했는지를 이름으로 밝히지 않는다</b> —
-     * 그래도 증상은 본문에 남는다. 그 지역만 강수확률이 아니라 강수량으로 바뀐다({@code appendRain}).
+     * 그래도 증상은 본문에 남는다. 그 지역만 강수확률이 아니라 강수량으로 바뀐다({@code appendPrecipitation}).
      *
      * <p><b>선언 순으로 정렬한다.</b> 등장 순이면 첫 지역이 폴백했을 때 2순위가 위로 올라오는데,
      * 세로로 쌓이면 그 순서가 눈에 보인다. {@code WeatherSource}의 선언 순이 곧 이중화
@@ -122,6 +125,78 @@ public final class WeatherFormatter {
      * {@code (고시)}와 같은 규칙으로 {@code (예보)}·{@code (실측)}을 붙인다 — 지나간 날은
      * 예보가 아니라 실제로 그랬던 값이다.
      */
+    /**
+     * 하루 안의 <b>강수 시각</b> — 「비옴」이 언제인지.
+     *
+     * <p><b>토막이 없으면 줄이 없다.</b> 마른 날에 「강수 없음」을 매일 찍으면 소잡이 되고,
+     * 여름 오후의 낮은 확률까지 적으면 「오전 9시~밤 11시 비」가 되어 아무것도 말해 주지 않는다
+     * (그 문턱은 {@code PrecipitationSpells}가 정한다).
+     *
+     * <p><b>그림은 종류마다 다르다.</b> {@code ☔} 하나로 적으면 눈 오는 날에 우산 그림이 붙는다 —
+     * 이 기능을 만든 이유가 「소나기일 수도 눈일 수도 있다」였으므로 거기서 갈려야 한다.
+     *
+     * <p>⚠️ {@code SkyCondition}은 <b>하늘 상태에 이모지를 쓰지 않는다</b>고 적어 뒀다(이모지는
+     * 등락률 전용). 그 규칙은 그대로 두고 <b>강수 줄만</b> 제 그림을 든다 — 그래서 그림 표가
+     * 그 열거형이 아니라 여기 있다. 하늘 상태 어휘는 깨끗하게 남는다.
+     */
+    private static void appendSpells(StringBuilder message, Weather.Daily day) {
+        for (PrecipitationSpell spell : day.precipitation()) {
+            message.append("\n").append(iconOf(spell.kind())).append(" ")
+                    .append(range(spell.from(), spell.to()))
+                    .append(" ").append(spell.kind().label());
+            if (spell.chance() != null) {
+                message.append(" (최대 ").append(spell.chance()).append("%)");
+            } else if (spell.amount() != null) {
+                message.append(" (").append(oneDecimal(spell.amount())).append("mm)");
+            }
+        }
+    }
+
+    /** 종류에 맞는 그림. 눈에 우산을 붙이지 않는 것이 요점이다. */
+    private static String iconOf(SkyCondition kind) {
+        return switch (kind) {
+            case SNOW, SNOW_SHOWERS -> "❄️";
+            case SLEET -> "🌨️";
+            case THUNDERSTORM, HAIL_THUNDERSTORM -> "⛈️";
+            default -> "☔";
+        };
+    }
+
+    /**
+     * {@code 오후 1시~7시} — 한 토막의 시간대.
+     *
+     * <p><b>같은 오전/오후 안이면 두 번 적지 않는다.</b> {@code 오후 1시~오후 7시}는 읽는 눈이
+     * 한 번 더 걸린다 — 정오를 넘는 토막만 양쪽에 적는다({@code 오전 11시~오후 2시}).
+     */
+    private static String range(java.time.LocalTime from, java.time.LocalTime to) {
+        if (from.equals(to)) {
+            return hour(from);
+        }
+        boolean sameHalf = from.getHour() / 12 == to.getHour() / 12;
+        // 자정·정오는 제 이름을 쓰므로 접두사를 생략할 대상이 아니다
+        boolean named = from.getHour() % 12 == 0 || to.getHour() % 12 == 0;
+        return sameHalf && !named
+                ? hour(from) + "~" + to.getHour() % 12 + "시"
+                : hour(from) + "~" + hour(to);
+    }
+
+    /**
+     * {@code 오후 1시} — 12시간제 한국어.
+     *
+     * <p>24시간제({@code 13시})보다 읽기 쉽고, 사용자가 고른 표기가 이것이다. 정오와 자정은
+     * 「오후 12시」·「오전 12시」가 헷갈리므로 제 이름으로 적는다.
+     */
+    private static String hour(java.time.LocalTime at) {
+        int hour = at.getHour();
+        if (hour == 0) {
+            return "자정";
+        }
+        if (hour == 12) {
+            return "정오";
+        }
+        return hour < 12 ? "오전 " + hour + "시" : "오후 " + (hour - 12) + "시";
+    }
+
     private static String basisOf(Weather weather) {
         String kind = weather.source().forecast() ? " (예보)" : " (실측)";
         return weather.from().equals(weather.to())

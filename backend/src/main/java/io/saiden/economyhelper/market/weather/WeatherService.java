@@ -1,9 +1,11 @@
 package io.saiden.economyhelper.market.weather;
 
 import io.saiden.economyhelper.support.Failover;
+import io.saiden.economyhelper.market.weather.openmeteo.OpenMeteoHourlyClient;
 import io.saiden.economyhelper.support.FailureReason;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.util.Map;
 import java.util.List;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -46,10 +48,19 @@ public class WeatherService {
     private final List<WeatherClient> clients;
     private final Clock clock;
 
-    public WeatherService(List<WeatherClient> clients, Clock clock) {
+    /**
+     * 강수 시각 보충. <b>{@code WeatherClient}가 아니다</b> — 그 계약은 실패를 던지라고 요구하는데
+     * 보충은 삼켜야 하고, 폴백 순서에 서지도 않는다. 인터페이스를 만들지 않는 이유이기도 하다
+     * (구현이 하나뿐인 인터페이스는 두지 않는다는 규칙).
+     */
+    private final OpenMeteoHourlyClient hourly;
+
+    public WeatherService(List<WeatherClient> clients, Clock clock,
+                          OpenMeteoHourlyClient hourly) {
         // 주입 순서를 믿지 않는다 — 위에 적은 순서가 곧 이 서비스의 계약이다
         this.clients = Failover.order(clients, ORDER, WeatherClient::source);
         this.clock = clock;
+        this.hourly = hourly;
     }
 
     /**
@@ -75,8 +86,46 @@ public class WeatherService {
                         client.source().displayName(), FailureReason.of(e)));
         if (found.isEmpty()) {
             log.error("[weather] 모든 출처에서 날씨를 가져오지 못했습니다");
+            return found;
         }
-        return found;
+        return found.map(weather -> withPrecipitationHours(weather, place, period, today));
+    }
+
+    /**
+     * 강수 시각을 채운다 — <b>1순위가 시간 단위를 못 줄 때만.</b>
+     *
+     * <p>Open-Meteo가 일별을 맡았으면 시간별이 <b>같은 응답에 함께 왔다</b>. 그때는 부를 것이
+     * 없다. AccuWeather가 맡았으면 그쪽은 낮/밤 두 칸뿐이라 시각이 없다 — 그것만 보충한다.
+     *
+     * <p><b>실패를 삼킨다.</b> 일별은 이미 손에 있으므로 여기서 예외를 올리면 답이 통째로
+     * 죽는다. 「실패를 삼키지 않는다」는 폴백 상대의 규칙이고 이것은 폴백이 아니다 —
+     * 없으면 화면에서 그 줄만 빠진다.
+     *
+     * <p>지나간 날은 부르지 않는다. 재분석이 이미 시간별 강수량을 함께 주고, 예보 엔드포인트에
+     * 과거를 물으면 빈손이다.
+     */
+    private Weather withPrecipitationHours(Weather weather, GeoLocation place,
+                                           WeatherPeriod period, LocalDate today) {
+        boolean alreadyHas = weather.days().stream()
+                .anyMatch(day -> !day.precipitation().isEmpty());
+        if (alreadyHas || period.past(today)) {
+            return weather;
+        }
+        try {
+            Map<LocalDate, List<PrecipitationSpell>> spells = hourly.spells(place, period);
+            if (spells.isEmpty()) {
+                return weather;
+            }
+            List<Weather.Daily> days = weather.days().stream()
+                    .map(day -> spells.containsKey(day.date())
+                            ? day.withPrecipitation(spells.get(day.date()))
+                            : day)
+                    .toList();
+            return new Weather(weather.place(), days, weather.source());
+        } catch (RuntimeException e) {
+            log.warn("[weather] 강수 시각 보충 실패 — 일일 예보만 내보냅니다: {}", FailureReason.of(e));
+            return weather;
+        }
     }
 
     /**

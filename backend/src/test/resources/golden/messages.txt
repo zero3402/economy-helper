@@ -544,6 +544,92 @@ Open-Meteo
 
 2026년 8월 18일(화) ~ 8월 19일(수) (예보)
 
+=== weather/precipitation-spell ===
+<b>날씨</b>
+
+<b>미금역</b>
+
+흐림
+18.2°C / 29.6°C
+강수확률 20%
+☔ 오후 1시~7시 비 (최대 80%)
+
+AccuWeather
+
+2026년 8월 17일(월) (예보)
+
+=== weather/precipitation-snow ===
+<b>날씨</b>
+
+<b>미금역</b>
+
+흐림
+18.2°C / 29.6°C
+강수확률 20%
+❄️ 오전 7시~10시 눈 (최대 90%)
+
+AccuWeather
+
+2026년 8월 17일(월) (예보)
+
+=== weather/precipitation-thunder ===
+<b>날씨</b>
+
+<b>미금역</b>
+
+흐림
+18.2°C / 29.6°C
+강수확률 20%
+⛈️ 오후 3시 뇌우 (최대 70%)
+
+AccuWeather
+
+2026년 8월 17일(월) (예보)
+
+=== weather/precipitation-twice ===
+<b>날씨</b>
+
+<b>미금역</b>
+
+흐림
+18.2°C / 29.6°C
+강수확률 20%
+☔ 오전 6시~8시 소나기 (최대 65%)
+❄️ 오후 8시~10시 눈 (최대 85%)
+
+AccuWeather
+
+2026년 8월 17일(월) (예보)
+
+=== weather/precipitation-noon-midnight ===
+<b>날씨</b>
+
+<b>미금역</b>
+
+흐림
+18.2°C / 29.6°C
+강수확률 20%
+🌨️ 자정 진눈깨비 (최대 55%)
+☔ 정오 이슬비 (최대 60%)
+
+AccuWeather
+
+2026년 8월 17일(월) (예보)
+
+=== weather/precipitation-measured ===
+<b>날씨</b>
+
+<b>성남시, 대한민국</b>
+
+비
+21.0°C / 26.4°C
+강수량 3.7mm
+☔ 오전 2시~4시 비 (3.7mm)
+
+Open-Meteo Archive
+
+2026년 8월 10일(월) (실측)
+
 === weather/rain-amount ===
 <b>날씨</b>
 

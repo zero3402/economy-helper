@@ -102,6 +102,14 @@ public final class CacheNames {
     /** 예보. 10분 — 길게 잡으면 '오늘 날씨'가 어제 예보가 된다. */
     public static final String WEATHER = "weather";
 
+    /**
+     * 강수 시각(날짜별 토막). 예보와 같은 급인 10분이다.
+     *
+     * <p>⚠️ {@link #WEATHER}와 나눠 쓰지 않는다 — 그쪽은 {@code Weather} 타입으로 못 박혀 있어
+     * 다른 것을 담으면 쓸 때는 넘어가고 <b>읽을 때 깨진다</b>. 「이름 하나에 타입 하나」다.
+     */
+    public static final String PRECIPITATION_HOURS = "precipitation-hours";
+
     /** 좌표 → AccuWeather 지점 키. 30일 — 하루 50회 한도의 실질 방어다. */
     public static final String ACCU_LOCATION = "accu-location";
 }
