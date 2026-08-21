@@ -242,6 +242,25 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
      * <p>⚠️ <b>지수만 표를 탄다.</b> {@code ^IXIC}는 KIS가 모르고 {@code COMP}여야 한다.
      * 종목은 심볼 그대로 보낸다 — 규칙이 없어 지수는 표가 유일한 길이고, <b>표에 없는 지수는
      * 차트가 없다.</b>
+     *
+     * <p>⚠️ <b>「종목 심볼도 받는다」에 예외가 있다 — 그리고 그 예외가 조용하다.</b>
+     * KIS가 모르는 심볼에는 에러가 아니라 <b>{@code rt_cd=0} · {@code output2: []}</b>가 온다.
+     * 실측 2026-08-21(모의, 창 25일):
+     *
+     * <pre>
+     * ORCL  rt_cd=0  output2 19행  최근 142.07     ← NYSE
+     * AAPL  rt_cd=0  output2 19행  최근 311.30
+     * COMP  rt_cd=0  output2 19행  최근 26,067.17  ← 지수
+     * PATH  rt_cd=0  output2  0행  output1도 전부 0.00
+     *       {"output1":{…전부 "0.00"…},"output2":[],
+     *        "rt_cd":"0","msg_cd":"MCA00000","msg1":"정상처리 되었습니다."}
+     * </pre>
+     *
+     * <b>대형주라서 되는 것이 아니다</b> — {@code ORCL}은 NYSE이고 FMP는 그 심볼을 402로 막는다.
+     * KIS의 해외 표에 그 종목이 실려 있느냐일 뿐이고 규칙은 우리가 모른다. 그래서
+     * <b>여기서 미리 막지 않는다</b>: 심볼을 그대로 보내고, 빈손이면 부르는 쪽이 사진만 빼고
+     * 값을 내보낸다({@code DailySeries.drawable}). 그 자리에 로그를 한 줄 남기는 것이
+     * 「모르는 심볼」과 「차트를 안 물었다」를 가르는 유일한 단서다.
      */
     @Cacheable(cacheNames = CacheNames.STOCK_SERIES, key = "'us:' + #symbol")
     @CircuitBreaker(name = "kisStock")
