@@ -699,13 +699,15 @@ class MessageFormattingTest {
     @Test
     @DisplayName("값이 없는 거래소는 이유를 적는다 — 다시 시도해야 하는지가 여기서 갈린다")
     void explainsMissingExchange() {
+        // ⚠️ 이유도 **그 자리의 값**이라 값과 같은 블록 모양이다 — 이름표 한 줄, 그 아래 내용.
+        //    한 줄에 붙여 쓰면 성공 블록(바이낸스 / 62,000 USDT)과 모양이 갈린다
         assertThat(crypto(btc(null), null))
                 .contains("업비트\n89,848,000 KRW")
-                .as("영영 안 나오는 것").contains("바이낸스 미상장");
+                .as("영영 안 나오는 것").contains("바이낸스\n미상장");
 
         assertThat(crypto(new CryptoQuote("비트코인", "KRW-BTC", NOW,
                 Quote.of(new BigDecimal("89848000"), null), Quote.FAILED), null))
-                .as("잠시 뒤 다시 치면 되는 것").contains("바이낸스 조회 실패");
+                .as("잠시 뒤 다시 치면 되는 것").contains("바이낸스\n조회 실패");
     }
 
     @Test
@@ -718,7 +720,7 @@ class MessageFormattingTest {
                 .contains("<b>BNB</b>")
                 .as("한글 이름을 확인할 곳이 없어 티커가 그대로 담긴다 — 그대로 두면 'BNB BNB'가 된다")
                 .doesNotContain("BNB</b> BNB")
-                .contains("업비트 미상장")
+                .contains("업비트\n미상장")
                 .contains("바이낸스\n612.40 USDT")
                 .as("BNBUSDT는 티커에 USDT를 붙인 것뿐이라 같은 말을 두 번 적는 셈이다")
                 .doesNotContain("BNBUSDT");
@@ -770,7 +772,7 @@ class MessageFormattingTest {
 
         assertThat(message).contains("<b>BTC</b>")
                 .contains("<b>ETH</b>")
-                .contains("업비트 조회 실패");
+                .contains("업비트\n조회 실패");
     }
 
     // --- 헬퍼 ---------------------------------------------------------------

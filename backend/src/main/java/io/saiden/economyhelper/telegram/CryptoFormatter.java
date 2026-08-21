@@ -101,6 +101,11 @@ public final class CryptoFormatter {
      * 보이고, 무엇보다 다시 시도해야 할지 알 수 없다. 그래서 이유를 갈라 쓴다 — {@code 미상장}은
      * 영영 안 나오는 것이고 {@code 조회 실패}는 잠시 뒤 다시 치면 되는 것이다.
      *
+     * <p>⚠️ <b>이유도 그 자리의 값이라 값과 같은 모양으로 적는다.</b> 거래소 이름이 한 줄,
+     * 그 아래가 내용이다 — 예전에는 실패만 {@code 바이낸스 조회 실패}로 한 줄에 붙어 있어
+     * 성공 블록({@code 바이낸스} / {@code 62,000 USDT})과 모양이 갈렸다. 한 통 안에서
+     * 같은 자리가 두 모양이면 읽는 사람이 그 차이를 뜻으로 읽는다.
+     *
      * <p><b>바이낸스 값의 단위는 코인이 안다</b>({@link CryptoQuote#binanceUnit()}) — 테더만
      * {@code USD}로 갈린다. 원화 환산은 어느 쪽이든 <b>환율(USD/KRW)</b>을 곱한다.
      *
@@ -114,12 +119,14 @@ public final class CryptoFormatter {
             lines.append("업비트\n").append(money(quote.upbit().price())).append(" KRW");
             appendChangeLine(lines, quote.upbit().changePercent());
         } else {
-            lines.append("업비트 ").append(reasonOf(quote.upbit()));
+            // 값이 있을 때와 같은 모양이다 — 이름표가 한 줄, 그 아래가 값이다.
+            // 이유도 그 자리의 값이므로 붙여 쓰면 이 블록만 모양이 갈린다
+            lines.append("업비트\n").append(reasonOf(quote.upbit()));
         }
 
         lines.append("\n\n");
         if (!quote.binance().hasPrice()) {
-            return lines.append("바이낸스 ").append(reasonOf(quote.binance())).toString();
+            return lines.append("바이낸스\n").append(reasonOf(quote.binance())).toString();
         }
         // 바이낸스: 이름 한 줄, 그 아래 값 → 원화 환산 → 등락률, 각각 제 줄에
         lines.append("바이낸스\n").append(money(quote.binance().price()))
@@ -174,7 +181,7 @@ public final class CryptoFormatter {
         return switch (quote.state()) {
             case NOT_LISTED -> "미상장";
             case FAILED -> "조회 실패";
-            case BANNED -> "IP 밴 (" + releaseOf(quote.bannedUntil()) + " 해제 예정)";
+            case BANNED -> "IP 밴(" + releaseOf(quote.bannedUntil()) + " 해제 예정)";
             // 도달 불가다 — 호출부가 hasPrice()의 else이고 Quote.of는 값이 없으면 FAILED를 준다.
             // enum switch 완전성 때문에 남기지만, 빈 문자열을 돌려주면 "업비트 " 하나가
             // 꼬리에 공백을 달고 나간다. 여기 오면 버그이므로 그렇다고 적는다
