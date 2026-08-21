@@ -162,7 +162,7 @@ public final class StockFormatter {
                 message.append("\n").append(money(krw(quote.price(), fx))).append(" KRW");
             }
             appendChangeLine(message, quote.changePercent());
-            appendOutlook(message, quote, outlooks.get(quote));
+            appendOutlook(message, quote, outlooks.get(quote), fx);
         }
         // 무리 하나가 통 하나처럼 끝맺는다 — 값 다음에 출처, 한 줄 띄고 기준.
         // 두 무리 것을 맨 아래에 모으면 "국내"·"미국"을 접두사로 네 번 반복해야 한다
@@ -182,15 +182,21 @@ public final class StockFormatter {
      * 뜻이 서는 값</b>이다. 그 이름표를 앞줄에 바싹 붙이면 위 숫자 무리에 딸려 붙어 읽힌다.
      *
      * <p>대가는 줄 수다 — 종목마다 최대 여덟 줄이 는다. 텔레그램 한 통 상한(4,096자)에는
-     * 한참 못 미치므로(실측 증시 통이 일곱 종목에 1,000자 남짓) 문제가 되지 않는다.
+     * 한참 못 미치므로(<b>실측 391자</b> — 지수 넷·종목 셋에 전망 셋을 다 붙인 브리핑 증시 통)
+     * 문제가 되지 않는다.
      *
      * <p>⚠️ <b>투자의견 줄은 없다.</b> 목표가 아래에 「매수 (111곳)」이 있었는데 요구가
      * 걷어내는 쪽으로 바뀌었다. 화면만 지우지 않고 {@code StockOutlook}의 필드와 FMP
      * {@code grades-consensus} 호출까지 함께 지웠다 — 화면에서만 빼면 심볼당 하루 한 번을
      * 아무도 안 보는 값에 쓴다.
+     *
+     * @param fx 목표가의 원화 환산에 쓴다. <b>값 줄이 쓰는 그 환율이어야 한다</b> —
+     *           둘이 다른 고시를 쓰면 같은 통에서 「311.30 USD = 434,684 KRW」와
+     *           「340.72 USD = 다른 환율의 원화」가 함께 찍혀 어느 쪽도 못 믿게 된다.
+     *           {@code null}이면 환산 줄만 빠지고 달러 목표가는 그대로 나간다
      */
     private static void appendOutlook(StringBuilder message, StockQuote quote,
-                                      StockOutlook outlook) {
+                                      StockOutlook outlook, FxRate fx) {
         if (outlook == null) {
             return;
         }
@@ -200,6 +206,11 @@ public final class StockFormatter {
             //    통화는 그 종목의 통화라고 StockOutlook이 적어 뒀으므로 그것을 그대로 쓴다
             message.append(LABELLED).append("목표").append(LABELLED)
                     .append(unitOf(quote, outlook.targetPrice()));
+            // 값 줄과 같은 규칙으로 환산한다 — 달러 목표가만 붙고, 국내는 이미 원화라 없다.
+            // 이 줄이 없던 동안 읽는 사람이 340.72에 환율을 손으로 곱해야 했다
+            if (convertible(quote, fx)) {
+                message.append("\n").append(money(krw(outlook.targetPrice(), fx))).append(" KRW");
+            }
         }
         if (outlook.earningsDate() != null) {
             message.append(LABELLED).append("실적발표").append(LABELLED)

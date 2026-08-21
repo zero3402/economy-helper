@@ -201,8 +201,13 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
      * {@link #dailyBars}와 같은 이유로 시세 캐시에 합치지 않는다 — 그쪽은 1분이고 이쪽은 하루다.
      *
      * <p>⚠️ <b>업종코드가 있어야 한다.</b> KIS에는 지수명 검색이 없어 코드 없이는 만들 수 있는
-     * 요청이 아예 없다. 그래서 <b>설정에 코드가 박힌 브리핑만</b> 이 경로를 탄다 —
-     * {@code /stock 코스피}는 이름으로 들어오므로 코드가 손에 없고 그때는 차트가 빠진다.
+     * 요청이 아예 없다. 그래서 <b>이름을 설정 표에서 찾아 코드로 바꾼다</b> — 부르는 쪽은
+     * 이름만 알면 된다.
+     *
+     * <p><b>그래서 {@code /stock 코스피}도 차트가 붙는다.</b> 「검색은 이름으로 들어오므로
+     * 코드가 손에 없다」고 적어 뒀던 자리인데 <b>틀린 진단이었다</b> — 코드는 사용자 입력이
+     * 아니라 설정에 있고, 이름이 그것을 찾는 열쇠다. 남은 조건은 하나뿐이다:
+     * <b>설정 표에 없는 지수</b>는 차트가 없다(그때만 아래에서 던진다).
      */
     @Cacheable(cacheNames = CacheNames.STOCK_SERIES, key = "'index:' + #name")
     @CircuitBreaker(name = "kisStock")

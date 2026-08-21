@@ -10,6 +10,7 @@ import io.saiden.economyhelper.market.FxSource;
 import io.saiden.economyhelper.market.StockQuote;
 import io.saiden.economyhelper.market.StockService;
 import io.saiden.economyhelper.market.StockService.Answer;
+import io.saiden.economyhelper.market.chart.DailyBar;
 import io.saiden.economyhelper.market.weather.WeatherFacade;
 import io.saiden.economyhelper.market.StockResolver;
 import io.saiden.economyhelper.market.data.DataGoStockClient;
@@ -119,6 +120,104 @@ class TelegramWebhookControllerTest {
                 .as("못 찾음 답도 제목에 검색어를 싣는다 — 여럿이 동시에 치면 어느 검색이 실패했는지 알아야 한다")
                 .startsWith("<b>증시</b>")
                 .contains("찾지 못했습니다");
+    }
+
+    // --- 검색 답의 차트 ---
+    //
+    // ⚠️ 이 자리가 통째로 비어 있었다. 배선(fxChart·stockChart·cryptoChart)은 맞는데 페이크가
+    //    sendPhoto를 안 받아 아무것도 못 보고 있었다 — 브리핑 쪽에서 찾은 그 구멍과 같다.
+    //    누가 Reply.plain(text)로 한 줄 바꾸면 사진이 조용히 사라진다.
+
+    @Test
+    @DisplayName("/fx 답에 차트가 따라간다 — 글이 먼저, 사진이 나중")
+    void sendsAChartWithTheFxAnswer() {
+        RecordingClient client = new RecordingClient();
+        FxRate rate = new FxRate("USD", "KRW", new BigDecimal("1412.17"), FxSource.KIS, NOW);
+        var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()),
+                fxWithSeries(rate, bars("1398.20", "1412.17")),
+                stock(Optional.empty()), client);
+
+        controller.onUpdate(null, update(1, "/fx"));
+
+        assertThat(client.captions).singleElement()
+                .as("그림에는 글자가 없다 — 낱말은 전부 caption에 있다")
+                .satisfies(caption -> assertThat(caption).startsWith("<b>환율</b>"));
+        assertThat(client.order)
+                .as("사진이 글보다 먼저 가면 무엇의 그림인지 알 수 없다")
+                .containsExactly("글", "사진");
+    }
+
+    @Test
+    @DisplayName("/stock 답에 차트가 따라간다 — 일봉 열쇠가 있는 답만")
+    void sendsAChartWithTheStockAnswer() {
+        RecordingClient client = new RecordingClient();
+        StockQuote match = new StockQuote("삼성전자", new BigDecimal("239500"), null,
+                StockQuote.Money.KRW, StockQuote.Market.DOMESTIC,
+                io.saiden.economyhelper.market.StockSource.KIS, NOW, true);
+        var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()),
+                fx(Optional.empty()),
+                stockWithSeries(match, bars("245000", "239500")), client);
+
+        controller.onUpdate(null, update(1, "/stock 삼성"));
+
+        assertThat(client.captions).singleElement()
+                .satisfies(caption -> assertThat(caption).startsWith("<b>삼성전자</b>")
+                        .as("종목의 통화가 caption 단위가 된다").contains("KRW"));
+        assertThat(client.order).containsExactly("글", "사진");
+    }
+
+    @Test
+    @DisplayName("이름으로만 찾은 종목에는 차트가 없다 — 일봉을 물을 열쇠가 손에 없다")
+    void omitsTheChartWhenThereIsNoSeriesKey() {
+        // 2순위(공공데이터포털)는 이름으로 찾고 종목코드를 돌려주지 않는다 → Answer.of(quote)라
+        // series가 null이다. 전망이 빠지는 것과 같은 이유로 차트도 빠진다
+        RecordingClient client = new RecordingClient();
+        StockQuote match = new StockQuote("삼성전자", new BigDecimal("239500"), null,
+                StockQuote.Money.KRW, StockQuote.Market.DOMESTIC,
+                io.saiden.economyhelper.market.StockSource.DATA_GO, NOW, false);
+        var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()),
+                fx(Optional.empty()), stock(Optional.of(match)), client);
+
+        controller.onUpdate(null, update(1, "/stock 삼성"));
+
+        assertThat(client.sent.get(0).text()).as("값은 그대로 나간다").contains("239,500 KRW");
+        assertThat(client.captions).as("차트만 빠진다 — 보충이지 폴백이 아니다").isEmpty();
+    }
+
+    @Test
+    @DisplayName("/crypto 답에 차트가 따라간다 — 업비트 마켓이 그 열쇠다")
+    void sendsAChartWithTheCryptoAnswer() {
+        RecordingClient client = new RecordingClient();
+        CryptoQuote btc = new CryptoQuote("비트코인", "KRW-BTC", NOW,
+                io.saiden.economyhelper.market.CryptoQuote.Quote.of(
+                        new BigDecimal("89848000"), null),
+                io.saiden.economyhelper.market.CryptoQuote.Quote.FAILED);
+        var controller = defaultController(facade(Optional.empty()),
+                cryptoWithSeries(btc, bars("92400000", "89848000")),
+                fx(Optional.empty()), stock(Optional.empty()), client);
+
+        controller.onUpdate(null, update(1, "/crypto 비트코인"));
+
+        assertThat(client.captions).singleElement()
+                .satisfies(caption -> assertThat(caption).startsWith("<b>비트코인</b>"));
+        assertThat(client.order).containsExactly("글", "사진");
+    }
+
+    @Test
+    @DisplayName("일봉 조회가 던져도 값은 나간다 — 차트는 보충이지 폴백이 아니다")
+    void stillAnswersWhenTheChartFails() {
+        RecordingClient client = new RecordingClient();
+        FxRate rate = new FxRate("USD", "KRW", new BigDecimal("1412.17"), FxSource.KIS, NOW);
+        var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()),
+                // series가 null이면 dailyBars()가 던진다 — 실제로 Frankfurter가 죽었을 때 그렇다.
+                // ⚠️ 환율 차트는 이중화가 없다: 시세는 KIS로 폴백하는데 일봉은 Frankfurter뿐이다
+                fxWithSeries(rate, null), stock(Optional.empty()), client);
+
+        controller.onUpdate(null, update(1, "/fx"));
+
+        assertThat(client.sent).hasSize(1);
+        assertThat(client.sent.get(0).text()).contains("1,412.17");
+        assertThat(client.captions).isEmpty();
     }
 
     @Test
@@ -540,6 +639,85 @@ class TelegramWebhookControllerTest {
         };
     }
 
+    /**
+     * 그릴 수 있는 최소 일봉 — {@code DailySeries.drawable}이 <b>둘 이상</b>을 요구한다
+     * (점 하나로는 선이 없다).
+     */
+    private static List<DailyBar> bars(String... closes) {
+        List<DailyBar> series = new ArrayList<>();
+        java.time.LocalDate day = java.time.LocalDate.of(2026, 8, 10);
+        for (String close : closes) {
+            series.add(new DailyBar(day, new BigDecimal(close)));
+            day = day.plusDays(1);
+        }
+        return series;
+    }
+
+    /**
+     * 일봉까지 주는 환율 페이크.
+     *
+     * <p>⚠️ <b>{@link #fx}로는 차트를 볼 수 없다.</b> 그쪽은 {@code series}에 {@code null}을
+     * 넘겨 만들어져서 {@code dailyBars()}가 NPE를 내고, 그 NPE는 {@code chartOf}가 삼킨다 —
+     * 테스트는 초록인데 사진은 한 장도 안 나가는 상태가 된다.
+     *
+     * @param series {@code null}이면 일봉 조회가 <b>던진다</b> — 「차트만 빠진다」를 시험하는 데 쓴다
+     */
+    private static FxService fxWithSeries(FxRate rate, List<DailyBar> series) {
+        return new FxService(List.of(), null) {
+            @Override
+            public Optional<FxRate> usdToKrw() {
+                return Optional.of(rate);
+            }
+
+            @Override
+            public List<DailyBar> dailyBars() {
+                if (series == null) {
+                    throw new IllegalStateException("Frankfurter 시계열 응답이 비어 있습니다");
+                }
+                return series;
+            }
+        };
+    }
+
+    /** 일봉까지 주는 종목 페이크 — {@code Series}가 있어야 차트가 붙는다. */
+    private static StockService stockWithSeries(StockQuote quote, List<DailyBar> series) {
+        return new StockService(List.of(), List.of(), new DataGoStockClient(null, null),
+                new StockResolver(null, null), code -> Optional.empty(),
+                symbol -> Optional.empty(), null) {
+            @Override
+            public Optional<Answer> answer(String query) {
+                return Optional.of(new Answer(quote, null,
+                        StockService.Series.domesticStock("005930")));
+            }
+
+            @Override
+            public List<DailyBar> dailyBarsOf(StockService.Series requested) {
+                return series;
+            }
+        };
+    }
+
+    /** 일봉까지 주는 코인 페이크. */
+    private static CryptoService cryptoWithSeries(CryptoQuote quote, List<DailyBar> series) {
+        return new CryptoService(new UpbitApi(RestClient.builder(), "https://example.invalid"),
+                new io.saiden.economyhelper.market.binance.BinanceApi(
+                        RestClient.builder(),
+                        new io.saiden.economyhelper.market.binance.BinanceBanGate(
+                                null, java.time.Clock.systemUTC()),
+                        "https://example.invalid", ""),
+                new io.saiden.economyhelper.market.CryptoResolver(null, null)) {
+            @Override
+            public Optional<CryptoQuote> quote(String query) {
+                return Optional.of(quote);
+            }
+
+            @Override
+            public List<DailyBar> dailyBars(String market) {
+                return series;
+            }
+        };
+    }
+
     /** 해석 규칙은 {@code CryptoServiceTest}가 본다. 여기서는 라우팅만 본다. */
     private static CryptoService crypto(Optional<CryptoQuote> result) {
         return new CryptoService(new UpbitApi(RestClient.builder(), "https://example.invalid"),
@@ -577,6 +755,13 @@ class TelegramWebhookControllerTest {
     /** 발송 내용을 기록하는 스텁. HTTP는 {@link TelegramClientTest}에서 따로 본다. */
     private static class RecordingClient extends TelegramClient {
         private final List<Sent> sent = new ArrayList<>();
+        /**
+         * 사진의 caption만 담는다 — 그림은 골든이 못 보고 낱말은 전부 caption에 있다
+         * ({@code ChartRenderer}가 글자를 안 그리기 때문이다).
+         */
+        private final List<String> captions = new ArrayList<>();
+        /** 글과 사진을 <b>보낸 순서</b>. 사진이 글보다 먼저 가면 무엇의 그림인지 알 수 없다. */
+        private final List<String> order = new ArrayList<>();
         /** 이 문구가 담긴 통만 거절한다 — 부분 실패를 심는 데 쓴다. {@code null}이면 다 받는다. */
         private final String rejectContaining;
 
@@ -592,6 +777,7 @@ class TelegramWebhookControllerTest {
         @Override
         public void send(String chatId, Integer topicId, Integer replyTo, String text) {
             sent.add(new Sent(chatId, topicId, replyTo, text, false));
+            order.add("글");
         }
 
         @Override
@@ -601,6 +787,19 @@ class TelegramWebhookControllerTest {
                 throw new TelegramException("거절: " + rejectContaining);
             }
             sent.add(new Sent(chatId, topicId, replyTo, text, preview));
+            order.add("글");
+        }
+
+        /**
+         * ⚠️ <b>이것을 안 받고 있었다.</b> 검색 답의 차트 배선({@code fxChart}·{@code stockChart}·
+         * {@code cryptoChart})에 테스트가 하나도 없어서, 누가 {@code Reply.plain(text)}로
+         * 한 줄 바꾸면 사진이 조용히 사라져도 아무도 알려 주지 않았다.
+         */
+        @Override
+        public void sendPhoto(String chatId, Integer topicId, Integer replyTo, byte[] png,
+                             String caption) {
+            captions.add(caption);
+            order.add("사진");
         }
     }
 

@@ -155,8 +155,8 @@ class RenderedOutputTest {
                 krStock("삼성전자", "82000", "-1.451")), null));
         cases.put("stock/escaped-name", StockFormatter.format(List.of(
                 usIndex("S&P 500", "6481.40")), null));
-        // 전망이 붙은 것 — 목표주가·투자의견이 값 줄 아래에 한 줄씩 붙는다.
-        // 몇 곳이 낸 의견인지를 함께 적는다: 한 곳의 매수와 열 곳의 매수는 같은 값이 아니다
+        // 전망이 붙은 것 — 이름표와 값이 빈 줄로 벌어진다.
+        // ⚠️ 국내 목표가에는 환산 줄이 없어야 한다. 이미 원화이므로 환산할 것이 없다
         cases.put("stock/with-outlook", withOutlook(
                 new StockOutlook(null, new BigDecimal("466667"), StockSource.KIS, BASIS)));
         // ⚠️ 둘이 따로 논다 — 국내는 목표가만 있고 실적발표일이 없다(무료 출처가 없다).
@@ -164,10 +164,17 @@ class RenderedOutputTest {
         cases.put("stock/outlook-target-only", withOutlook(
                 new StockOutlook(null, new BigDecimal("350000"), StockSource.KIS, BASIS)));
         // ⚠️ **실적발표일은 미국에만 있다.** FMP의 /stable/earnings가 유일한 무료 출처이고
-        //    국내(KIS invest-opinion)에는 그 필드가 아예 없다 — 그래서 이 케이스만 세 줄이 다 찬다
+        //    국내(KIS invest-opinion)에는 그 필드가 아예 없다 — 그래서 이 케이스만 세 줄이 다 찬다.
+        //    달러 목표가에는 **원화 환산이 한 줄 따라붙는다** — 값 줄과 같은 규칙이다
         cases.put("stock/outlook-with-earnings", usWithOutlook(
                 new StockOutlook(java.time.LocalDate.of(2026, 10, 29),
                         new BigDecimal("340.72"), StockSource.FMP, US_AT)));
+        // ⚠️ 환율을 못 구하면 **환산 줄만 빠지고** 달러 목표가는 그대로 나간다 —
+        //    값 줄이 stock/us-without-fx에서 하는 일의 전망 짝이다.
+        //    환산을 못 한다고 목표가를 빼는 것은 과하다
+        cases.put("stock/outlook-without-fx", usWithOutlook(
+                new StockOutlook(java.time.LocalDate.of(2026, 10, 29),
+                        new BigDecimal("340.72"), StockSource.FMP, US_AT), null));
         // 실적발표일만 있는 답도 정상이다 — FMP 무료 티어가 목표가만 402로 막을 수 있다
         cases.put("stock/outlook-earnings-only", usWithOutlook(
                 new StockOutlook(java.time.LocalDate.of(2026, 10, 29), null,
@@ -306,8 +313,13 @@ class RenderedOutputTest {
 
     /** 미국 종목에 전망을 붙인 것 — <b>실적발표일이 붙는 유일한 무리</b>다. */
     private static String usWithOutlook(StockOutlook outlook) {
+        return usWithOutlook(outlook, FX);
+    }
+
+    /** @param fx {@code null}이면 목표가의 원화 환산 줄이 빠진다 — 값 줄과 같은 규칙이다 */
+    private static String usWithOutlook(StockOutlook outlook, FxRate fx) {
         StockQuote quote = usStock("애플", "232.14");
-        return StockFormatter.format(List.of(quote), FX, java.util.Map.of(quote, outlook));
+        return StockFormatter.format(List.of(quote), fx, java.util.Map.of(quote, outlook));
     }
 
     /** 오르는 일봉 — 고정 값이라 골든이 지킨다. */
