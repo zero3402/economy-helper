@@ -232,7 +232,7 @@ class DigestIntegrationTest {
     }
 
     private static io.saiden.economyhelper.market.FxService deadFx() {
-        return new io.saiden.economyhelper.market.FxService(List.of()) {
+        return new io.saiden.economyhelper.market.FxService(List.of(), null) {
             @Override
             public java.util.Optional<io.saiden.economyhelper.market.FxRate> usdToKrw() {
                 return java.util.Optional.empty();

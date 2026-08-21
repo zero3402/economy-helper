@@ -163,7 +163,7 @@ public record EconomyHelperProperties(
                            Duration fx, Duration fxKexim, Duration fxKis,
                            Duration weather, Duration geocode, Duration accuLocation,
                            Duration weatherResolve, Duration precipitationHours,
-                           Duration kisOutlook, Duration usOutlook) {}
+                           Duration kisOutlook, Duration usOutlook, Duration fxSeries) {}
 
     /**
      * 오전 6시 날씨 알람.

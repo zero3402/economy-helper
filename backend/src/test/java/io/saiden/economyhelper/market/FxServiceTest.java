@@ -31,7 +31,7 @@ class FxServiceTest {
         CountingClient kexim = CountingClient.returning(FxSource.KEXIM, "1415");
 
         // ⚠️ 주입 순서를 일부러 뒤집는다 — 이중화 순서가 빈 등록 순서에 딸려 가면 안 된다
-        FxRate rate = new FxService(List.of(kexim, frankfurter, kis)).usdToKrw().orElseThrow();
+        FxRate rate = new FxService(List.of(kexim, frankfurter, kis), null).usdToKrw().orElseThrow();
 
         assertThat(rate.source())
                 .as("코드가 정한 순서가 이긴다 — 클래스 이름을 바꾸다 순서가 뒤집히면 안 된다")
@@ -48,7 +48,7 @@ class FxServiceTest {
         CountingClient frankfurter = CountingClient.returning(FxSource.FRANKFURTER, "1414.7");
         CountingClient kexim = CountingClient.returning(FxSource.KEXIM, "1415");
 
-        FxRate rate = new FxService(List.of(kis, frankfurter, kexim)).usdToKrw().orElseThrow();
+        FxRate rate = new FxService(List.of(kis, frankfurter, kexim), null).usdToKrw().orElseThrow();
 
         assertThat(rate.source()).isEqualTo(FxSource.FRANKFURTER);
         assertThat(rate.rate()).isEqualByComparingTo("1414.7");
@@ -63,7 +63,8 @@ class FxServiceTest {
         CountingClient kexim = CountingClient.returning(FxSource.KEXIM, "1415");
 
         FxRate rate = new FxService(List.of(CountingClient.failing(FxSource.KIS),
-                CountingClient.failing(FxSource.FRANKFURTER), kexim)).usdToKrw().orElseThrow();
+                CountingClient.failing(FxSource.FRANKFURTER), kexim), null)
+                .usdToKrw().orElseThrow();
 
         assertThat(rate.source()).isEqualTo(FxSource.KEXIM);
         assertThat(kexim.calls).hasValue(1);
@@ -73,7 +74,8 @@ class FxServiceTest {
     @DisplayName("전부 실패하면 빈 결과 — 예외를 밖으로 던지지 않는다")
     void returnsEmptyWhenAllFail() {
         FxService service = new FxService(List.of(CountingClient.failing(FxSource.KIS),
-                CountingClient.failing(FxSource.FRANKFURTER), CountingClient.failing(FxSource.KEXIM)));
+                CountingClient.failing(FxSource.FRANKFURTER),
+                CountingClient.failing(FxSource.KEXIM)), null);
 
         assertThat(service.usdToKrw()).isEmpty();
         assertThat(service.orNull())

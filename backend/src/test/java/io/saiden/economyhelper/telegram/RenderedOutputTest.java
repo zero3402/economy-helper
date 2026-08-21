@@ -165,6 +165,12 @@ class RenderedOutputTest {
         cases.put("stock/outlook-target-only", withOutlook(
                 new StockOutlook(null, new BigDecimal("350000"), null, null,
                         StockSource.KIS, BASIS)));
+        // 차트 사진의 설명 — **그림에 없는 낱말이 전부 여기 있다.** 그림은 골든이 못 보지만
+        // caption은 본다. 그림에 글자를 안 넣기로 한 대가로 이 줄들이 화면 회귀 그물에 남는다
+        cases.put("chart/caption-rising", ChartCaption.of("환율", "KRW", risingBars()));
+        cases.put("chart/caption-falling", ChartCaption.of("삼성전자", "KRW", fallingBars()));
+        // 지수는 단위가 없다 — 「6,345.53 포인트」라고 적을 근거가 없으므로 숫자만 적는다
+        cases.put("chart/caption-no-unit", ChartCaption.of("코스피", null, risingBars()));
         cases.put("stock/empty", StockFormatter.format(List.of(), FX));
         cases.put("stock/not-found", StockFormatter.notFound("없는종목 <b>"));
 
@@ -289,6 +295,25 @@ class RenderedOutputTest {
     private static String withOutlook(StockOutlook outlook) {
         StockQuote quote = krStock("삼성전자", "239500", "-1.26");
         return StockFormatter.format(List.of(quote), FX, java.util.Map.of(quote, outlook));
+    }
+
+    /** 오르는 일봉 — 고정 값이라 골든이 지킨다. */
+    private static List<io.saiden.economyhelper.market.chart.DailyBar> risingBars() {
+        return bars(1398.20, 1401.50, 1405.80, 1412.17);
+    }
+
+    private static List<io.saiden.economyhelper.market.chart.DailyBar> fallingBars() {
+        return bars(245000, 242500, 240100, 239500);
+    }
+
+    private static List<io.saiden.economyhelper.market.chart.DailyBar> bars(double... closes) {
+        List<io.saiden.economyhelper.market.chart.DailyBar> bars = new java.util.ArrayList<>();
+        java.time.LocalDate day = java.time.LocalDate.of(2026, 8, 4);
+        for (int i = 0; i < closes.length; i++) {
+            bars.add(new io.saiden.economyhelper.market.chart.DailyBar(
+                    day.plusDays(i), new BigDecimal(String.valueOf(closes[i]))));
+        }
+        return bars;
     }
 
     private static StockQuote krStock(String name, String price, String change) {

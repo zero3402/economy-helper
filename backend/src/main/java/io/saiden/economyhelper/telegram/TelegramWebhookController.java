@@ -8,6 +8,7 @@ import io.saiden.economyhelper.market.StockService;
 import io.saiden.economyhelper.market.weather.WeatherFacade;
 import io.saiden.economyhelper.news.NewsFacade;
 import io.saiden.economyhelper.news.NewsItem;
+import io.saiden.economyhelper.support.FailureReason;
 import java.util.List;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -211,6 +212,11 @@ public class TelegramWebhookController {
             // /news 3건 중 1건만 받고 왜 그런지 알 길이 없었다
             sendQuietly(chatId, topicId, replyTo, part, reply.preview());
         }
+        if (reply.chart() != null) {
+            // 같은 방에 초당 한 통 — 글 다음에 사진이므로 여기서도 쉬어 간다
+            TelegramClient.pause();
+            sendChartQuietly(chatId, topicId, replyTo, reply.chart());
+        }
 
         // 성공 경로에 유일하게 남는 줄이다. 세 가지를 여기서만 알 수 있다.
         //   · 토픽 번호 — 거절할 때만 찍으면 SEARCH_TOPIC_ID가 비었을 때(=아무것도 거절하지
@@ -232,6 +238,21 @@ public class TelegramWebhookController {
      * <p>여기서 던지면 남은 통이 통째로 사라지고, 사용자는 왜 답이 중간에 끊겼는지 알 수 없다.
      * {@code DailyDigestJob}이 통마다 실패를 삼키는 것과 같은 규칙이다.
      */
+    /**
+     * 차트 한 장 — <b>실패해도 답이 이미 나갔다.</b>
+     *
+     * <p>글이 먼저 나가므로 사진이 실패해도 사용자는 값을 받았다. 그래서 여기서 던지지 않고
+     * 로그만 남긴다 — 차트는 보충이지 답이 아니다({@code WeatherService}가 강수 시각을
+     * 다루는 방식과 같은 자리다).
+     */
+    private void sendChartQuietly(String chatId, Integer topicId, Integer replyTo, Chart chart) {
+        try {
+            telegramClient.sendPhoto(chatId, topicId, replyTo, chart.png(), chart.caption());
+        } catch (RuntimeException e) {
+            log.warn("[webhook] 차트 발송 실패 — 값은 이미 나갔습니다: {}", FailureReason.of(e));
+        }
+    }
+
     private void sendQuietly(String chatId, Integer topicId, Integer replyTo,
                              String text, boolean preview) {
         try {
@@ -247,10 +268,53 @@ public class TelegramWebhookController {
      * @param texts   보낼 본문들. 뉴스만 여럿이고 나머지는 한 통짜리 목록이다
      * @param preview 링크 미리보기를 띄울지. 링크가 있는 통(뉴스)만 참이다
      */
-    private record Reply(List<String> texts, boolean preview) {
+    private record Reply(List<String> texts, boolean preview, Chart chart) {
 
         static Reply plain(String text) {
-            return new Reply(List.of(text), false);
+            return new Reply(List.of(text), false, null);
+        }
+
+        static Reply plain(String text, Chart chart) {
+            return new Reply(List.of(text), false, chart);
+        }
+    }
+
+    /**
+     * 답에 딸린 차트 — <b>글은 통으로, 그림은 사진으로</b> 따로 나간다.
+     *
+     * <p>한 통에 합칠 수 없다. 텔레그램은 사진에 caption을 달 수 있지만 그 상한이 1024자라
+     * 본문(최대 4096)이 안 들어가고, 무엇보다 <b>글이 사진에 갇히면 골든이 그것을 못 본다.</b>
+     * 그래서 통이 먼저 나가고 사진이 따라간다 — 사이에 초당 한 통 간격을 지킨다.
+     *
+     * @param png     그림 바이트. 비어 있으면 {@code TelegramClient}가 아무것도 보내지 않는다
+     * @param caption 사진이 무엇인지 — 사진 홀로는 알 수 없으므로 반드시 있다
+     */
+    private record Chart(byte[] png, String caption) {
+    }
+
+    /**
+     * 환율 일봉 차트 — <b>못 만들면 {@code null}이고 답은 그대로 나간다.</b>
+     *
+     * <p>차트는 보충이지 답이 아니다. 일봉 조회가 실패하거나 점이 하나뿐이면 사진만 빠진다 —
+     * {@code WeatherService}가 강수 시각을 다루는 방식과 같은 자리다.
+     *
+     * <p>⚠️ <b>「현재값과 일일값을 섞지 않는다」는 규칙에 걸리지 않는다.</b> 그 규칙이 막으려는
+     * 것은 <b>모양이 같은 숫자 둘</b>이 서로 다른 축에 있어 모순처럼 읽히는 것이다
+     * (「지금 21°C인데 최고가 29°C」). 차트는 숫자가 아니라 눈에 보이게 다른 표현이고,
+     * 그 오른쪽 끝이 곧 현재값이라 둘이 이어진다. 게다가 caption이 창을 이름으로 밝힌다.
+     * 규칙을 잊은 것이 아니라 해당하지 않는다는 판단이다.
+     */
+    private Chart fxChart() {
+        try {
+            List<io.saiden.economyhelper.market.chart.DailyBar> bars = fxService.dailyBars();
+            if (!io.saiden.economyhelper.market.chart.DailySeries.drawable(bars)) {
+                return null;
+            }
+            byte[] png = io.saiden.economyhelper.market.chart.ChartRenderer.render(bars);
+            return png.length == 0 ? null : new Chart(png, ChartCaption.of("환율", "KRW", bars));
+        } catch (RuntimeException e) {
+            log.info("[webhook] 환율 일봉을 못 받아 차트를 빼고 보냅니다: {}", FailureReason.of(e));
+            return null;
         }
     }
 
@@ -268,7 +332,7 @@ public class TelegramWebhookController {
                 List<NewsItem> found = newsFacade.search(command.argument());
                 yield found.isEmpty()
                         ? Reply.plain(NewsFormatter.noResults(command.argument(), newsFacade.window()))
-                        : new Reply(NewsFormatter.formatAll(found), true);
+                        : new Reply(NewsFormatter.formatAll(found), true, null);
             }
             // 브리핑 코인 통과 같은 함수다 — 항목이 하나뿐일 뿐이다.
             // 바이낸스가 붙었을 때만 환율을 묻는다 — 안 쓸 값을 미리 부르지 않는다
@@ -276,9 +340,10 @@ public class TelegramWebhookController {
                     .map(quote -> Reply.plain(CryptoFormatter.format(List.of(quote),
                             quote.binance().hasPrice() ? fxService.orNull() : null)))
                     .orElseGet(() -> Reply.plain(CryptoFormatter.notFound(command.argument())));
-            case FX -> Reply.plain(fxService.usdToKrw()
-                    .map(FxFormatter::format)
-                    .orElseGet(FxFormatter::unavailable));
+            case FX -> fxService.usdToKrw()
+                    // 차트는 보충이다 — 일봉을 못 받아도 환율은 그대로 나간다
+                    .map(rate -> Reply.plain(FxFormatter.format(rate), fxChart()))
+                    .orElseGet(() -> Reply.plain(FxFormatter.unavailable()));
             // 미국 종목이면 원화도 함께 보여준다. 환율 조회가 실패하면 달러만 나간다 —
             // 환산을 못 한다고 시세 자체를 막을 이유가 없다.
             case STOCK -> stockService.answer(command.argument())

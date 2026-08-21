@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market;
 
+import io.saiden.economyhelper.market.frankfurter.FrankfurterFxClient;
 import io.saiden.economyhelper.support.Failover;
 import io.saiden.economyhelper.support.FailureReason;
 import java.util.List;
@@ -45,9 +46,27 @@ public class FxService {
             List.of(FxSource.KIS, FxSource.FRANKFURTER, FxSource.KEXIM);
 
     private final List<FxRateClient> clients;
+    private final FrankfurterFxClient series;
 
-    public FxService(List<FxRateClient> clients) {
+    /**
+     * @param series 일봉을 주는 출처 — <b>이중화되지 않는다.</b> 셋 중 유럽중앙은행만 시계열을
+     *               주고(수출입은행은 날짜당 호출 하나라 열나흘이면 열네 번, KIS는 이미 초당
+     *               간격을 지불한다), 그래서 SPI 목록이 아니라 그 하나를 직접 든다 —
+     *               {@code StockService}가 이름 검색에 공공데이터포털을 직접 드는 것과 같은 자리다
+     */
+    public FxService(List<FxRateClient> clients, FrankfurterFxClient series) {
         this.clients = Failover.order(clients, ORDER, FxRateClient::source);
+        this.series = series;
+    }
+
+    /**
+     * 차트용 일봉 — <b>실패를 삼키지 않는다.</b>
+     *
+     * <p>부르는 쪽(웹훅·브리핑)이 「차트만 빼고 보낸다」를 판단해야 하므로 여기서 던진다.
+     * 삼키면 클라이언트에 걸린 브레이커가 정상 반환을 보고 성공을 센다.
+     */
+    public List<io.saiden.economyhelper.market.chart.DailyBar> dailyBars() {
+        return series.dailyBars();
     }
 
     /**

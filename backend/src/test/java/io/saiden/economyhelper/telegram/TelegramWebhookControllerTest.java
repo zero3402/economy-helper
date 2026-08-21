@@ -532,7 +532,7 @@ class TelegramWebhookControllerTest {
 
     /** 이중화 규칙은 {@code FxServiceTest}가 본다. 여기서는 라우팅만 본다. */
     private static FxService fx(Optional<FxRate> result) {
-        return new FxService(List.of()) {
+        return new FxService(List.of(), null) {
             @Override
             public Optional<FxRate> usdToKrw() {
                 return result;

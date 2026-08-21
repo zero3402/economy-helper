@@ -105,6 +105,15 @@ public final class CacheNames {
      */
     public static final String US_OUTLOOK = "us-outlook";
 
+    /**
+     * 환율 일봉 — 차트가 그리는 것.
+     *
+     * <p><b>시세({@link #FX})와 따로 두는 이유가 수명이다.</b> 시세는 1분이고 일봉은 하루에
+     * 한 번 바뀐다 — 한 이름에 담으면 하루에 한 번 바뀌는 값을 1분마다 다시 받는다.
+     * 그리고 「이름 하나에 타입 하나」라 담기는 것이 {@code List<DailyBar>}인 이 값은 제 이름이 필요하다.
+     */
+    public static final String FX_SERIES = "fx-series";
+
     /** 유럽중앙은행 환율. */
     public static final String FX = "fx";
 

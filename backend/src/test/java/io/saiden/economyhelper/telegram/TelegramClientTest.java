@@ -243,4 +243,71 @@ class TelegramClientTest {
         return n;
     }
 
+
+    @Test
+    @DisplayName("사진은 multipart로 나가고 파일 이름이 붙는다 — 없으면 파일 업로드로 안 받는다")
+    void sendsPhotoAsMultipart() {
+        client().sendPhoto("12345", 42, 7, new byte[] {(byte) 0x89, 'P', 'N', 'G'}, "환율 최근 14일");
+
+        com.github.tomakehurst.wiremock.verification.LoggedRequest sent =
+                server.findAll(postRequestedFor(urlPathEqualTo("/bottest-token/sendPhoto")))
+                        .get(0);
+        String body = sent.getBodyAsString();
+
+        assertThat(sent.getHeader("Content-Type")).startsWith("multipart/form-data");
+        assertThat(body).as("파일 이름이 없으면 텔레그램이 파일로 받지 않는다")
+                .contains("filename=\"chart.png\"");
+        assertThat(body).contains("환율 최근 14일");
+        assertThat(body).contains("message_thread_id").contains("42");
+        assertThat(body).contains("reply_to_message_id").contains("7");
+    }
+
+    @Test
+    @DisplayName("토픽이 없으면 그 필드 자체가 없다 — null을 실으면 텔레그램이 거절한다")
+    void omitsThreadIdFromPhotoWhenAbsent() {
+        client().sendPhoto("12345", null, null, new byte[] {1, 2, 3}, "설명");
+
+        String body = server.findAll(postRequestedFor(
+                urlPathEqualTo("/bottest-token/sendPhoto"))).get(0).getBodyAsString();
+
+        assertThat(body).doesNotContain("message_thread_id");
+        assertThat(body).doesNotContain("reply_to_message_id");
+    }
+
+    @Test
+    @DisplayName("빈 그림은 보내지 않는다 — 점이 하나뿐인 계열이 그렇다")
+    void neverSendsAnEmptyPhoto() {
+        client().sendPhoto("12345", null, null, new byte[0], "설명");
+        client().sendPhoto("12345", null, null, null, "설명");
+
+        server.verify(0, postRequestedFor(urlPathEqualTo("/bottest-token/sendPhoto")));
+    }
+
+    @Test
+    @DisplayName("caption은 1024자에서 자른다 — 메시지 상한(4096)으로 자르면 400을 맞는다")
+    void truncatesCaptionAtItsOwnLimit() {
+        // ⚠️ 이 상한을 메시지와 같은 것으로 착각하면 사진이 통째로 안 나간다.
+        //    4096자를 넘지 않으므로 truncate(text) 쪽으로는 안 걸리는 길이를 쓴다
+        String tooLong = "가".repeat(2000);
+
+        client().sendPhoto("12345", null, null, new byte[] {1}, tooLong);
+
+        String body = server.findAll(postRequestedFor(
+                urlPathEqualTo("/bottest-token/sendPhoto"))).get(0).getBodyAsString();
+        int captionLength = captionOf(body).length();
+
+        assertThat(captionLength)
+                .as("caption이 1024자를 넘으면 텔레그램이 400으로 사진을 거절한다")
+                .isLessThanOrEqualTo(1024);
+        assertThat(captionLength).as("2000자가 1024 근처로 줄어야 한다").isGreaterThan(900);
+    }
+
+    /** multipart 본문에서 caption 파트의 값만 꺼낸다. */
+    private static String captionOf(String multipart) {
+        int marker = multipart.indexOf("name=\"caption\"");
+        assertThat(marker).as("caption 파트가 없다").isGreaterThan(-1);
+        int start = multipart.indexOf("\r\n\r\n", marker) + 4;
+        int end = multipart.indexOf("\r\n--", start);
+        return multipart.substring(start, end < 0 ? multipart.length() : end);
+    }
 }

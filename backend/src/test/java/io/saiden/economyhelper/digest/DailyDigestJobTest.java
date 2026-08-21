@@ -294,7 +294,7 @@ class DailyDigestJobTest {
     }
 
     private static FxService fx(boolean alive) {
-        return new FxService(List.of()) {
+        return new FxService(List.of(), null) {
             @Override
             public Optional<FxRate> usdToKrw() {
                 return alive

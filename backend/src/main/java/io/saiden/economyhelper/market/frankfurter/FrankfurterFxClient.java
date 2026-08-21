@@ -8,6 +8,8 @@ import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.FxRateClient;
 import io.saiden.economyhelper.market.FxSource;
 import io.saiden.economyhelper.market.PercentChange;
+import io.saiden.economyhelper.market.chart.DailyBar;
+import io.saiden.economyhelper.market.chart.DailySeries;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -55,6 +57,12 @@ public class FrankfurterFxClient implements FxRateClient {
      */
     private static final int LOOKBACK_DAYS = 10;
 
+    /**
+     * 차트용 창. 거래일 열나흘을 담으려면 주말 넷과 연휴를 넘겨야 한다 — 달력 사흘 남짓을
+     * 더 얹어 잡는다. 넉넉해도 응답이 몇 KB라 비용이 사실상 같다.
+     */
+    private static final int SERIES_LOOKBACK_DAYS = 25;
+
     private final RestClient restClient;
     private final Clock clock;
 
@@ -99,6 +107,47 @@ public class FrankfurterFxClient implements FxRateClient {
         // 고시일 00:00(KST)로 맞춘다 — 시각 정보가 없으므로 있는 척하지 않는다
         return new FxRate(USD, KRW, rate, changeOf(response, dates),
                 FxSource.FRANKFURTER, latest.atStartOfDay(SEOUL).toInstant());
+    }
+
+    /**
+     * 일봉 — <b>차트가 그리는 것.</b>
+     *
+     * <p>⚠️ <b>{@link #usdToKrw()}와 같은 응답을 쓰지 않는다.</b> 시계열이 이미 그 응답에 오지만
+     * 시세는 <b>1분 캐시</b>이고 일봉은 <b>하루에 한 번</b> 바뀐다. 한 항목으로 묶으면 하루에
+     * 한 번 바뀌는 값을 1분마다 다시 받는다(60배). 그래서 창을 넓혀 따로 부르고 따로 캐시한다 —
+     * 이 출처는 키도 한도도 없어 호출 하나가 값을 하지 않는 유일한 자리다.
+     *
+     * <p>창을 {@link #SERIES_LOOKBACK_DAYS}로 잡는 이유: 거래일 열나흘을 담으려면 주말과
+     * 연휴를 넘겨야 한다. 넉넉히 잡아도 응답이 몇 KB라 비용이 사실상 같다.
+     *
+     * @return 날짜 순 일봉. 비영업일은 <b>키 자체가 없어</b> 빈 칸으로 남는다 — 0으로 채우지 않는다
+     */
+    @Cacheable(cacheNames = CacheNames.FX_SERIES, key = "'usd-krw'")
+    @Retry(name = "fxFrankfurter")
+    @CircuitBreaker(name = "fxFrankfurter")
+    public List<DailyBar> dailyBars() {
+        TimeSeries response = restClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/v1/{start}..")
+                        .queryParam("base", USD)
+                        .queryParam("symbols", KRW)
+                        .build(LocalDate.ofInstant(clock.instant(), SEOUL)
+                                .minusDays(SERIES_LOOKBACK_DAYS)))
+                .retrieve()
+                .body(TimeSeries.class);
+
+        if (response == null || response.rates() == null) {
+            throw new IllegalStateException("Frankfurter 시계열 응답이 비어 있습니다");
+        }
+        List<DailyBar> bars = new java.util.ArrayList<>();
+        response.rates().forEach((date, byCurrency) -> {
+            BigDecimal rate = byCurrency == null ? null : byCurrency.get(KRW);
+            if (rate != null) {
+                bars.add(new DailyBar(LocalDate.parse(date), rate));
+            }
+        });
+        // 걸러내기와 정렬은 한 곳에서 한다 — 출처마다 순서와 쓰레기 모양이 다르다
+        return DailySeries.recent(bars, DailySeries.WINDOW);
     }
 
     /**

@@ -44,6 +44,15 @@ public class TelegramClient {
     private static final int MAX_MESSAGE_LENGTH = 4096;
 
     /**
+     * 사진 설명의 상한 — <b>메시지의 4096이 아니라 1024다.</b>
+     *
+     * <p>Bot API가 {@code caption}에만 다른 상한을 둔다. 이것을 모르고
+     * {@link #MAX_MESSAGE_LENGTH}로 자르면 4096자짜리 caption이 그대로 나가 400이 떨어지고
+     * <b>사진이 통째로 실패한다.</b>
+     */
+    private static final int MAX_CAPTION_LENGTH = 1024;
+
+    /**
      * 같은 방에 연달아 보낼 때 쉬는 간격.
      *
      * <p>텔레그램은 같은 채팅방에 <b>초당 한 통</b>을 권고한다. 붙여 쏘면 429와
@@ -139,6 +148,63 @@ public class TelegramClient {
     }
 
     /**
+     * 사진 한 장 — 차트를 보낸다.
+     *
+     * <p><b>caption이 설명을 든다.</b> 그림에는 글자가 없다({@code ChartRenderer}) — 배포
+     * 컨테이너에 폰트가 없으면 두부가 되기 때문이다. 그래서 낱말과 숫자가 전부 이쪽에 있고,
+     * 덤으로 <b>골든이 그것을 계속 덮는다.</b>
+     *
+     * <p>⚠️ <b>caption 상한은 1024다</b>({@link #MAX_CAPTION_LENGTH}) — 메시지의 4096이 아니다.
+     * 4096으로 자르면 400이 떨어져 <b>사진이 통째로 안 나간다.</b>
+     *
+     * <p>⚠️ <b>짧은 오버로드를 두지 않는다.</b> {@code sendPhoto(chatId, png)} 꼴이 있으면
+     * 토픽을 깜빡한 호출이 조용히 General로 떨어지고, 그건 아무 오류도 내지 않아 발견이 늦다 —
+     * {@link #send} 셋에 같은 규칙이 걸려 있다.
+     *
+     * <p>⚠️ <b>{@code send}를 자기 주입으로 부르지 않는다.</b> 이 클래스의 재시도·브레이커는
+     * 바깥에서 불린 하나만 걸리는데, 프록시를 타게 만들면 재시도가 겹쳐 <b>한 통이 최대 아홉 번</b>
+     * 나간다(클래스 javadoc의 경고). 사진과 글은 각자 제 호출로 나가고, 사이에
+     * {@link #pause()}를 두는 것은 부르는 쪽의 몫이다 — 같은 방에 초당 한 통이다.
+     *
+     * @param png 그림 바이트. <b>비어 있으면 아무것도 보내지 않는다</b> — 점이 하나뿐인
+     *            계열에서 {@code ChartRenderer}가 빈 배열을 준다
+     */
+    @Retry(name = "telegram")
+    @CircuitBreaker(name = "telegram")
+    public void sendPhoto(String chatId, Integer topicId, Integer replyTo,
+                          byte[] png, String caption) {
+        if (png == null || png.length == 0) {
+            // 그릴 것이 없었다는 뜻이다. 빈 사진을 보내는 것보다 안 보내는 것이 맞다
+            return;
+        }
+        org.springframework.util.MultiValueMap<String, Object> parts =
+                new org.springframework.util.LinkedMultiValueMap<>();
+        parts.add("chat_id", chatId);
+        // ⚠️ 토픽이 없을 때는 필드 자체가 없어야 한다 — "for forum supergroups only"라서
+        //    null을 실으면 거절된다(SendMessage가 @JsonInclude(NON_NULL)인 것과 같은 이유)
+        if (topicId != null) {
+            parts.add("message_thread_id", topicId);
+        }
+        parts.add("caption", truncate(caption, MAX_CAPTION_LENGTH));
+        parts.add("parse_mode", "HTML");
+        if (replyTo != null) {
+            parts.add("reply_to_message_id", replyTo);
+            parts.add("allow_sending_without_reply", true);
+        }
+        // ⚠️ 파일 이름이 있어야 텔레그램이 파일 업로드로 받는다. 없으면 그냥 문자열 파트가 된다
+        parts.add("photo", new org.springframework.core.io.ByteArrayResource(png) {
+            @Override
+            public String getFilename() {
+                return "chart.png";
+            }
+        });
+
+        exchange("sendPhoto", SendAck.class, request -> request
+                .contentType(org.springframework.http.MediaType.MULTIPART_FORM_DATA)
+                .body(parts));
+    }
+
+    /**
      * 설정된 채팅방의 정보 — 기동 시 자가진단에만 쓴다.
      *
      * <p>여기서 예외를 던지지 않는다. 진단이 앱을 죽이면 진단하려던 문제보다 큰 문제가 된다.
@@ -164,11 +230,22 @@ public class TelegramClient {
      * {@code message thread not found}인지).
      */
     private <T extends Ack> T call(String method, Object body, Class<T> responseType) {
+        return exchange(method, responseType, request -> request.body(body));
+    }
+
+    /**
+     * 호출 하나 — <b>본문 만드는 법만 다르고 응답 처리는 하나다.</b>
+     *
+     * <p>{@code sendPhoto}는 multipart이고 나머지는 JSON이지만, {@code ok:false} 판정과
+     * 429 가르기와 예외 감싸기는 <b>같아야 한다.</b> 두 벌로 두면 한쪽만 고쳐지는 날이 온다 —
+     * 이 저장소가 「같은 사실을 담은 두 번째 표」로 여러 번 물린 그 모양이다.
+     */
+    private <T extends Ack> T exchange(String method, Class<T> responseType,
+                                       java.util.function.UnaryOperator<
+                                               RestClient.RequestBodySpec> body) {
         T response;
         try {
-            response = restClient.post()
-                    .uri("/bot{token}/" + method, botToken)
-                    .body(body)
+            response = body.apply(restClient.post().uri("/bot{token}/" + method, botToken))
                     .retrieve()
                     .onStatus(HttpStatusCode::isError, (request, res) -> { })
                     .body(responseType);
@@ -251,24 +328,35 @@ public class TelegramClient {
      * 일부라도 보내려던 것이 도리어 전부를 잃는다.
      */
     static String truncate(String text) {
-        if (text == null || text.length() <= MAX_MESSAGE_LENGTH) {
+        return truncate(text, MAX_MESSAGE_LENGTH);
+    }
+
+    /**
+     * 상한을 받아 자른다 — <b>메시지와 caption의 상한이 다르다.</b>
+     *
+     * <p>⚠️ caption은 1024자다(메시지는 4096). {@link #MAX_MESSAGE_LENGTH}로 caption을 자르면
+     * 4096자짜리가 그대로 나가 <b>400을 맞고 사진이 통째로 안 나간다</b> — 일부라도 보내려던
+     * 것이 전부를 잃는 그 함정을 상한만 바꿔서 다시 밟는 셈이다.
+     */
+    static String truncate(String text, int limit) {
+        if (text == null || text.length() <= limit) {
             return text;
         }
-        log.warn("메시지가 {}자로 상한을 넘어 잘라 보냅니다", text.length());
+        log.warn("메시지가 {}자로 상한({})을 넘어 잘라 보냅니다", text.length(), limit);
 
         // ⚠️ 닫는 태그까지 예산에 넣는다. 예전에는 4,095자로 자르고 "…"를 붙여 예산을 다 쓴
         //    <b>뒤에</b> closeOpenTags가 </blockquote></b></a>를 더 붙여 4,096자를 넘겼고,
         //    그러면 텔레그램이 400으로 통째로 거절한다 — 일부라도 보내려던 것이 전부를 잃었다.
         //    자를 위치에 따라 닫을 태그가 달라져 한 번에 계산할 수 없으므로, 넘치면 그만큼
         //    더 줄여 다시 맞춘다.
-        int budget = MAX_MESSAGE_LENGTH - 1;
+        int budget = limit - 1;
         while (budget > 0) {
             // 생략 표시는 닫는 태그 앞에 넣는다 — 뒤에 붙이면 서식 밖으로 튀어나온다
             String candidate = closeOpenTags(cutAt(text, budget) + "…");
-            if (candidate.length() <= MAX_MESSAGE_LENGTH) {
+            if (candidate.length() <= limit) {
                 return candidate;
             }
-            budget -= Math.max(1, candidate.length() - MAX_MESSAGE_LENGTH);
+            budget -= Math.max(1, candidate.length() - limit);
         }
         return "…";
     }
