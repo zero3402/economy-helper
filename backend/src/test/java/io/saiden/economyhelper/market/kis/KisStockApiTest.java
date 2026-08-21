@@ -45,8 +45,29 @@ class KisStockApiTest {
     private static final String INDEX_PATH =
             "/uapi/domestic-stock/v1/quotations/inquire-daily-indexchartprice";
     private static final String US_STOCK_PATH = "/uapi/overseas-price/v1/quotations/price-detail";
+    private static final String US_STOCK_SERIES_PATH =
+            "/uapi/overseas-price/v1/quotations/dailyprice";
     private static final String US_INDEX_PATH =
             "/uapi/overseas-price/v1/quotations/inquire-daily-chartprice";
+
+    /**
+     * {@code PATH}에 {@code EXCD=NYS}로 물은 실측 응답을 줄인 것(2026-08-21, 모의).
+     *
+     * <p>줄이면서도 <b>필드 이름과 값은 그대로 둔다</b> — {@code xymd}·{@code clos}가 지수
+     * 경로의 {@code stck_bsop_date}·{@code ovrs_nmix_prpr}와 다르다는 것이 이 픽스처의 요점이고,
+     * {@code clos}가 소수 넷째 자리까지 온다는 것도 실물이다({@code zdiv:"4"}).
+     * {@code rsym}이 {@code DNYSPATH}인 것이 거래소·심볼이 맞았다는 응답 쪽 증거다.
+     */
+    private static final String US_STOCK_SERIES_BODY = """
+            {"rt_cd":"0","msg_cd":"MCA00000","msg1":"정상처리 되었습니다.",
+             "output1":{"rsym":"DNYSPATH","zdiv":"4","nrec":"100"},
+             "output2":[{"xymd":"20260821","clos":"15.9200","open":"15.9100"},
+                        {"xymd":"20260819","clos":"15.7800","open":"15.7000"}]}""";
+
+    /** 거래소가 틀렸을 때 — <b>에러가 아니라 빈 배열</b>이다. */
+    private static final String EMPTY_SERIES_BODY =
+            "{\"rt_cd\":\"0\",\"msg_cd\":\"MCA00000\",\"msg1\":\"정상처리 되었습니다.\","
+                    + "\"output1\":{\"rsym\":\"\",\"zdiv\":\"4\",\"nrec\":\"0\"},\"output2\":[]}";
 
     /** KST 2026-08-18 17:00. */
     private static final Instant NOW = Instant.parse("2026-08-18T08:00:00Z");
@@ -552,23 +573,92 @@ class KisStockApiTest {
     }
 
     @Test
-    @DisplayName("미국 종목도 같은 경로로 일봉을 받는다 — 표를 안 타고 심볼 그대로 묻는다")
-    void readsUsStockSeriesThroughTheSamePath() {
-        // ⚠️ 이것이 이번 실측의 핵심이다(2026-08-21, AAPL·NVDA·ORCL 모두 rt_cd=0 · 20행).
-        //    지수용으로 만든 경로가 종목 심볼도 받아서, 거래소 코드도 새 레코드도 필요 없었다.
-        //    후보였던 HHDFS76240000은 EXCD를 요구하고 xymd·clos라 필드를 새로 선언해야 했다
+    @DisplayName("미국 종목은 종목 전용 경로로 간다 — 지수 경로는 아는 종목이 일부뿐이었다")
+    void readsUsStockSeriesThroughTheStockPath() {
+        // ⚠️ 예전에는 지수 경로에 종목 심볼을 그냥 넣었다. AAPL·NVDA·ORCL이 200이길래
+        //    「거래소 코드가 필요 없다」를 이득으로 셌는데, 실측 2026-08-21에 PATH는
+        //    rt_cd=0인데 output2가 빈 배열이었다 — 주가는 나오는데 차트만 조용히 빠졌다.
+        //    아래 본문은 그날 dailyprice가 실제로 준 것을 줄인 것이다(clos는 소수 넷째까지 온다)
+        exchanges.remember("PATH", "NYS");
+        stub(US_STOCK_SERIES_PATH, US_STOCK_SERIES_BODY);
+
+        assertThat(api.dailyBarsOfUs("PATH"))
+                .extracting(bar -> bar.close().toPlainString())
+                .containsExactly("15.7800", "15.9200");
+
+        server.verify(getRequestedFor(urlPathEqualTo(US_STOCK_SERIES_PATH))
+                .withQueryParam("SYMB", WireMock.equalTo("PATH"))
+                .withQueryParam("EXCD", WireMock.equalTo("NYS"))
+                .withQueryParam("GUBN", WireMock.equalTo("0"))
+                // ⚠️ MODP=1은 최근 행까지 조정 단위로 스케일해 값이 주가와 어긋난다
+                //    (실측 AAPL: MODP=1이 311.94인데 price-detail은 312.06)
+                .withQueryParam("MODP", WireMock.equalTo("0")));
+        // 지수 경로는 부르지 않는다 — 둘을 함께 부르면 초당 한도를 헛되이 태운다
+        server.verify(0, getRequestedFor(urlPathEqualTo(US_INDEX_PATH)));
+    }
+
+    @Test
+    @DisplayName("기억해 둔 거래소가 있으면 탐색하지 않는다 — 그 한 번이 곧 1초다")
+    void reusesTheRememberedExchangeForSeries() {
+        exchanges.remember("PATH", "NYS");
+        stub(US_STOCK_SERIES_PATH, US_STOCK_SERIES_BODY);
+
+        api.dailyBarsOfUs("PATH");
+
+        server.verify(1, getRequestedFor(urlPathEqualTo(US_STOCK_SERIES_PATH)));
+        server.verify(0, getRequestedFor(urlPathEqualTo(US_STOCK_SERIES_PATH))
+                .withQueryParam("EXCD", WireMock.equalTo("NAS")));
+    }
+
+    @Test
+    @DisplayName("거래소를 모르면 훑고, 찾으면 기억한다 — 시세와 같은 순서·같은 목록이다")
+    void discoversAndRemembersTheExchangeForSeries() {
+        // 나스닥에 없는 종목은 에러가 아니라 빈 output2로 온다 — 시세가 빈 문자열을 주는 것과 같다
+        server.stubFor(get(urlPathEqualTo(US_STOCK_SERIES_PATH))
+                .withQueryParam("EXCD", WireMock.equalTo("NAS"))
+                .willReturn(aResponse().withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(EMPTY_SERIES_BODY)));
+        server.stubFor(get(urlPathEqualTo(US_STOCK_SERIES_PATH))
+                .withQueryParam("EXCD", WireMock.equalTo("NYS"))
+                .willReturn(aResponse().withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(US_STOCK_SERIES_BODY)));
+
+        assertThat(api.dailyBarsOfUs("PATH")).hasSize(2);
+
+        assertThat(exchanges.of("PATH"))
+                .as("기억하지 않으면 다음 조회마다 탐색이 되살아난다")
+                .isEqualTo("NYS");
+        server.verify(getRequestedFor(urlPathEqualTo(US_STOCK_SERIES_PATH))
+                .withQueryParam("EXCD", WireMock.equalTo("NAS")));
+    }
+
+    @Test
+    @DisplayName("어느 거래소에도 칸이 없으면 던진다 — 부르는 쪽이 사진만 뺀다")
+    void throwsWhenNoExchangeHasSeries() {
+        stub(US_STOCK_SERIES_PATH, EMPTY_SERIES_BODY);
+
+        assertThatThrownBy(() -> api.dailyBarsOfUs("PATH"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("PATH");
+    }
+
+    @Test
+    @DisplayName("미국 지수는 옛 경로 그대로다 — 지수에는 거래소가 없다")
+    void keepsIndexSeriesOnTheIndexPath() {
         stub(US_INDEX_PATH, """
                 {"rt_cd":"0","msg1":"정상처리 되었습니다.",
-                 "output2":[{"stck_bsop_date":"20260820","ovrs_nmix_prpr":"311.30"},
-                            {"stck_bsop_date":"20260819","ovrs_nmix_prpr":"316.83"}]}""");
+                 "output2":[{"stck_bsop_date":"20260820","ovrs_nmix_prpr":"26644.91"},
+                            {"stck_bsop_date":"20260819","ovrs_nmix_prpr":"26588.49"}]}""");
 
-        assertThat(api.dailyBarsOfUs("AAPL"))
+        assertThat(api.dailyBarsOfUs("^IXIC"))
                 .extracting(bar -> bar.close().toPlainString())
-                .containsExactly("316.83", "311.30");
+                .containsExactly("26588.49", "26644.91");
+
         server.verify(getRequestedFor(urlPathEqualTo(US_INDEX_PATH))
-                .withQueryParam("FID_COND_MRKT_DIV_CODE", WireMock.equalTo("N"))
-                // 종목은 표를 타지 않는다 — 심볼이 그대로 간다
-                .withQueryParam("FID_INPUT_ISCD", WireMock.equalTo("AAPL")));
+                .withQueryParam("FID_INPUT_ISCD", WireMock.equalTo("COMP")));
+        server.verify(0, getRequestedFor(urlPathEqualTo(US_STOCK_SERIES_PATH)));
     }
 
     @Test

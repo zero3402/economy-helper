@@ -80,6 +80,11 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
     private static final String INDEX_PATH =
             "/uapi/domestic-stock/v1/quotations/inquire-daily-indexchartprice";
     private static final String US_STOCK_PATH = "/uapi/overseas-price/v1/quotations/price-detail";
+    /**
+     * 미국 <b>종목</b> 일봉 — 지수 경로와 다른 곳이다({@link #usStockSeries} 참조).
+     */
+    private static final String US_STOCK_SERIES_PATH =
+            "/uapi/overseas-price/v1/quotations/dailyprice";
     /** 환율과 공유하는 경로다 — {@link KisChartPrice} 참조. */
     private static final String US_INDEX_PATH =
             "/uapi/overseas-price/v1/quotations/inquire-daily-chartprice";
@@ -87,7 +92,33 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
     private static final String STOCK_TR = "FHKST03010100";
     private static final String INDEX_TR = "FHKUP03500100";
     private static final String US_STOCK_TR = "HHDFS76200200";
+    private static final String US_STOCK_SERIES_TR = "HHDFS76240000";
     private static final String US_INDEX_TR = "FHKST03030100";
+
+    /** 일봉을 달라는 뜻({@code GUBN}) — 1이 주봉, 2가 월봉이다. */
+    private static final String DAILY = "0";
+
+    /**
+     * 수정주가로 받지 <b>않는다</b>({@code MODP=0}) — 국내 경로와 반대이고, 실측이 그렇게 시켰다.
+     *
+     * <p>국내는 {@code FID_ORG_ADJ_PRC=0}으로 수정주가를 받는다. 여기서 같은 판단을 하려다
+     * 값을 맞춰 보고 뒤집었다 (2026-08-21, 같은 순간의 {@code price-detail}과 대조):
+     *
+     * <pre>
+     *        MODP=1     MODP=0     price-detail last
+     * PATH   15.9200    15.9200    15.9200
+     * ORCL   143.3600   143.3600   143.3600
+     * AAPL   311.9400   312.0600   312.0600   ← MODP=1만 어긋난다
+     * </pre>
+     *
+     * <b>{@code MODP=1}은 가장 최근 행까지 조정 단위로 스케일한다.</b> 그러면 차트의 오른쪽
+     * 끝이 «지금 얼마냐»가 아니게 되고, 바로 위 본문이 {@code 312.06 USD}인데 caption은
+     * {@code 311.94}가 되어 <b>한 종목의 값이 한 통에 두 개 찍힌다.</b>
+     *
+     * <p>대가는 안다 — 창 안에 액면분할이 들어오면 원주가는 절벽을 그린다. 그래도 열나흘에
+     * 한 번 있을까 한 일이고, 어긋난 끝값은 <b>매일</b> 틀린다. 드문 왜곡보다 상시 모순이 나쁘다.
+     */
+    private static final String RAW_PRICE = "0";
 
     /** 거래소 코드({@code price-detail}의 {@code EXCD}). 모르면 이 순서로 찾아본다. */
     private static final String NASDAQ = "NAS";
@@ -265,14 +296,89 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
     @Cacheable(cacheNames = CacheNames.STOCK_SERIES, key = "'us:' + #symbol")
     @CircuitBreaker(name = "kisStock")
     public java.util.List<DailyBar> dailyBarsOfUs(String symbol) {
-        String kisSymbol = UsSymbol.isIndex(symbol) ? usIndices.get(symbol) : symbol;
+        return UsSymbol.isIndex(symbol) ? usIndexSeries(symbol) : usStockSeries(symbol);
+    }
+
+    /** 미국 지수 일봉 — 표가 유일한 길이다. {@code ^IXIC}를 KIS는 {@code COMP}로 부른다. */
+    private java.util.List<DailyBar> usIndexSeries(String symbol) {
+        String kisSymbol = usIndices.get(symbol);
         if (kisSymbol == null) {
             throw new IllegalStateException("KIS 심볼을 모르는 미국 지수입니다: " + symbol);
         }
-        DailyChart response = request(DailyChart.class, US_INDEX_TR,
-                "미국 일봉 " + symbol,
-                uri -> chartWindow(uri, US_INDEX_PATH, OVERSEAS_INDEX, kisSymbol).build());
-        return barsOf(response);
+        return barsOf(request(DailyChart.class, US_INDEX_TR, "미국 지수 일봉 " + symbol,
+                uri -> chartWindow(uri, US_INDEX_PATH, OVERSEAS_INDEX, kisSymbol).build()));
+    }
+
+    /**
+     * 미국 <b>종목</b> 일봉 — 거래소를 물어야 하는 대신 <b>종목을 안다.</b>
+     *
+     * <p>⚠️ 예전에는 지수 경로({@code FHKST03030100})에 종목 심볼을 그냥 넣었다.
+     * {@code AAPL}·{@code NVDA}·{@code ORCL}이 200이길래 「거래소 코드가 필요 없다」를 이득으로
+     * 세었는데, <b>그 경로가 아는 종목은 일부뿐이었다</b> — 실측 2026-08-21 {@code PATH}는
+     * {@code rt_cd=0}에 {@code output2}가 빈 배열이라 <b>주가는 나오는데 차트만 조용히 빠졌다.</b>
+     *
+     * <p>그래서 종목 전용 경로로 옮겼다. {@code EXCD}를 요구하는 것이 당시의 반대 이유였는데
+     * <b>그 값은 이미 손에 있다</b> — {@link #usStock}이 찾아 {@link KisExchangeCache}에 30일
+     * 담고, 차트는 시세 다음에 조회된다. 그래서 평상시 추가 호출이 <b>0</b>이다.
+     *
+     * <p>실측 2026-08-21(모의):
+     *
+     * <pre>
+     * PATH  EXCD=NYS  rsym=DNYSPATH  nrec=100  최근 15.9200
+     * ORCL  EXCD=NYS  rsym=DNYSORCL  nrec=100  최근 143.3600
+     * AAPL  EXCD=NAS  rsym=DNASAAPL  nrec=100  최근 312.0600
+     * </pre>
+     *
+     * <p><b>창을 우리가 정하지 않는다.</b> 이 경로는 {@code BYMD}(비우면 최신)에서 뒤로 100행을
+     * 준다 — {@code DailySeries.recent}가 열나흘로 줄이므로 그대로 받는다. 응답이 무거워지는
+     * 것이 대가이고, 그 대신 {@code FID_INPUT_DATE_1/2} 계산이 없어진다.
+     *
+     * <p><b>지수 경로보다 하루 신선하다.</b> 이쪽은 오늘 진행 중인 거래일도 한 행으로 주는데
+     * (실측 {@code 20260821}), 지수 경로는 전일까지만 줬다. 그래서 브리핑에서 지수 차트와
+     * 종목 차트의 caption 기간이 하루 어긋날 수 있다 — <b>버그가 아니라 각자 가진 것이다</b>.
+     * 오른쪽 끝이 「지금」이어야 한다는 규칙에는 이쪽이 더 맞는다.
+     *
+     * <p>거래소를 못 찾으면 <b>던진다</b> — 부르는 쪽이 사진만 빼고 값을 내보낸다.
+     */
+    private java.util.List<DailyBar> usStockSeries(String symbol) {
+        String what = "미국 종목 일봉 " + symbol;
+        RuntimeException failure = null;
+        // 시세와 같은 함수, 같은 순서다 — 기억해 둔 거래소가 있으면 그 하나뿐이고,
+        // 없으면 NAS→NYS를 훑는다. 목록을 여기 다시 적지 않는다
+        for (String exchange : exchangesToTry(symbol)) {
+            DailyChart response;
+            try {
+                response = request(DailyChart.class, US_STOCK_SERIES_TR, what,
+                        uri -> uri.path(US_STOCK_SERIES_PATH)
+                                // AUTH는 빈 값으로 보낸다 — 없으면 안 되고 값도 안 받는다
+                                .queryParam("AUTH", "")
+                                .queryParam("EXCD", exchange)
+                                .queryParam("SYMB", symbol)
+                                .queryParam("GUBN", DAILY)
+                                // BYMD를 비우면 최신부터다 — 창을 우리가 계산하지 않는다
+                                .queryParam("BYMD", "")
+                                .queryParam("MODP", RAW_PRICE)
+                                .build());
+            } catch (RuntimeException e) {
+                // 시세와 같은 이유로 거래소마다 따로 실패한다 — 초당 한도에 걸린 첫 거래소가
+                // 둘째를 못 물어보게 만들면 안 된다({@link #usStock}의 같은 자리 참조)
+                log.warn("[stock] {} — {} 조회 실패, 다음 거래소로 넘어갑니다: {}",
+                        what, exchange, FailureReason.of(e));
+                failure = e;
+                continue;
+            }
+            java.util.List<DailyBar> bars = barsOf(response);
+            if (bars.isEmpty()) {
+                // 거래소가 틀리면 에러가 아니라 빈 배열이 온다 — 시세가 빈 문자열을 주는 것과 같다
+                continue;
+            }
+            exchanges.remember(symbol, exchange);
+            return bars;
+        }
+        if (failure != null) {
+            throw failure;
+        }
+        throw new IllegalStateException("KIS " + what + " 응답에 칸이 없습니다");
     }
 
     /** {@code output2}를 일봉으로 — 걸러내기와 정렬은 {@code DailySeries}가 한 곳에서 한다. */
@@ -282,11 +388,11 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
         }
         java.util.List<DailyBar> bars = new java.util.ArrayList<>();
         for (Bar bar : response.bars()) {
-            if (bar == null || bar.date() == null || bar.close() == null) {
+            if (bar == null || bar.on() == null || bar.close() == null) {
                 continue;
             }
             bars.add(new DailyBar(
-                    java.time.LocalDate.parse(bar.date(),
+                    java.time.LocalDate.parse(bar.on(),
                             java.time.format.DateTimeFormatter.BASIC_ISO_DATE),
                     bar.close()));
         }
@@ -527,16 +633,29 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     record Bar(@JsonProperty("stck_bsop_date") String date,
+               @JsonProperty("xymd") String overseasStockDate,
                @JsonProperty("stck_clpr") BigDecimal domesticStock,
                @JsonProperty("bstp_nmix_prpr") BigDecimal domesticIndex,
-               @JsonProperty("ovrs_nmix_prpr") BigDecimal overseas) {
+               @JsonProperty("ovrs_nmix_prpr") BigDecimal overseasIndex,
+               @JsonProperty("clos") BigDecimal overseasStock) {
 
-        /** 온 것 하나. 셋 다 없으면 {@code null}이고 그 칸은 걸러진다. */
+        /** 온 것 하나. 넷 다 없으면 {@code null}이고 그 칸은 걸러진다. */
         BigDecimal close() {
             if (domesticStock != null) {
                 return domesticStock;
             }
-            return domesticIndex != null ? domesticIndex : overseas;
+            if (domesticIndex != null) {
+                return domesticIndex;
+            }
+            return overseasIndex != null ? overseasIndex : overseasStock;
+        }
+
+        /**
+         * 그 칸의 날짜. 경로마다 이름이 다르지만 <b>형식은 같다</b> —
+         * 넷 다 {@code yyyyMMdd}다(실측 {@code xymd:"20260821"}).
+         */
+        String on() {
+            return date != null ? date : overseasStockDate;
         }
     }
 
