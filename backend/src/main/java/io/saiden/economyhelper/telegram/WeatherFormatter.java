@@ -162,37 +162,41 @@ public final class WeatherFormatter {
      * 걸리므로 뒤쪽은 숫자만 적는다({@code 오후 1시~7시}).
      *
      * <p>⚠️ <b>토막은 정오를 넘지 않는다</b> — {@code PrecipitationSpells.fold}가 거기서 끊는다.
-     * 예전에는 넘는 경우를 여기서 다뤄 {@code 오전 11시~오후 2시}처럼 양쪽에 적었는데, 그
-     * 분기는 이제 도달할 수 없다. 도달 불가한 분기를 남겨 두면 다음 사람이 「여기가 정오를
-     * 처리한다」고 믿게 되므로 지운다 — 대신 그 불변을
+     * 그래서 앞끝과 뒤끝이 <b>언제나 같은 반나절</b>이고, 뒤쪽 접두사를 생략해도 뜻이 흐려지지
+     * 않는다. 예전에는 넘는 경우를 여기서 다뤄 {@code 오전 11시~오후 2시}처럼 양쪽에 적었는데
+     * 그 분기는 도달할 수 없다 — 그 불변을
      * {@code PrecipitationSpellsTest.neverLetsASpellCrossNoon}이 지킨다.
      */
     private static String range(java.time.LocalTime from, java.time.LocalTime to) {
         if (from.equals(to)) {
             return hour(from);
         }
-        // 자정·정오는 제 이름을 쓰므로 접두사를 생략할 대상이 아니다
-        boolean named = from.getHour() % 12 == 0 || to.getHour() % 12 == 0;
-        return named
-                ? hour(from) + "~" + hour(to)
-                : hour(from) + "~" + to.getHour() % 12 + "시";
+        return hour(from) + "~" + twelve(to.getHour()) + "시";
     }
 
     /**
      * {@code 오후 1시} — 12시간제 한국어.
      *
-     * <p>24시간제({@code 13시})보다 읽기 쉽고, 사용자가 고른 표기가 이것이다. 정오와 자정은
-     * 「오후 12시」·「오전 12시」가 헷갈리므로 제 이름으로 적는다.
+     * <p>24시간제({@code 13시})보다 읽기 쉽고, 사용자가 고른 표기가 이것이다.
+     *
+     * <p>⚠️ <b>{@code 정오}·{@code 자정}을 쓰지 않는다.</b> 「오후 12시」·「오전 12시」가
+     * 헷갈릴까 봐 그 두 낱말을 쓴 적이 있는데, 그러면 <b>한 화면에 두 표기가 섞인다</b> —
+     * {@code 오전 10시~11시} 다음 줄이 {@code 정오~오후 3시}였다. 반나절을 가르는 것이 이 줄의
+     * 요점이므로 <b>모든 줄이 오전·오후로 시작해야</b> 눈이 그 둘을 나란히 견줄 수 있다.
      */
     private static String hour(java.time.LocalTime at) {
         int hour = at.getHour();
-        if (hour == 0) {
-            return "자정";
-        }
-        if (hour == 12) {
-            return "정오";
-        }
-        return hour < 12 ? "오전 " + hour + "시" : "오후 " + (hour - 12) + "시";
+        return (hour < 12 ? "오전 " : "오후 ") + twelve(hour) + "시";
+    }
+
+    /**
+     * 12시간제의 시 숫자 — <b>0시와 12시가 모두 {@code 12}다.</b>
+     *
+     * <p>{@code hour % 12}만 쓰면 자정과 정오가 {@code 0시}가 되어 없는 표기가 나온다.
+     */
+    private static int twelve(int hour) {
+        int rest = hour % 12;
+        return rest == 0 ? 12 : rest;
     }
 
     /**

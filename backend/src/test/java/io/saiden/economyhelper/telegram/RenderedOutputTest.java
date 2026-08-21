@@ -234,7 +234,10 @@ class RenderedOutputTest {
         // 하루에 두 번 — 아침 비와 저녁 눈을 하나로 잇지 않는다
         cases.put("weather/precipitation-twice", WeatherFormatter.format(List.of(withSpells(
                 spell(6, 8, SkyCondition.SHOWERS, 65), spell(20, 22, SkyCondition.SNOW, 85)))));
-        // 자정·정오는 「오후 12시」가 헷갈려 제 이름으로 적는다
+        // ⚠️ 0시와 12시가 **모두 「12시」**다 — 오전 12시 / 오후 12시.
+        //    「자정」·「정오」로 적던 자리인데, 그러면 한 화면에 두 표기가 섞여
+        //    「오전 10시~11시」 다음 줄이 「정오~오후 3시」가 됐다. 반나절을 가르는 것이
+        //    이 줄의 요점이므로 모든 줄이 오전·오후로 시작해야 눈이 그 둘을 견줄 수 있다
         cases.put("weather/precipitation-noon-midnight", WeatherFormatter.format(List.of(withSpells(
                 spell(0, 0, SkyCondition.SLEET, 55), spell(12, 12, SkyCondition.DRIZZLE, 60)))));
         // 지나간 날은 확률이 없다 — 실제로 온 양으로 적는다
