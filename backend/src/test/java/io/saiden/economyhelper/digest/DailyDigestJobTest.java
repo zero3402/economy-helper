@@ -14,6 +14,7 @@ import io.saiden.economyhelper.market.FxSource;
 import io.saiden.economyhelper.market.StockQuote;
 import io.saiden.economyhelper.market.StockService;
 import io.saiden.economyhelper.market.StockService.Answer;
+import io.saiden.economyhelper.market.chart.DailyBar;
 import io.saiden.economyhelper.market.data.DataGoStockClient;
 import io.saiden.economyhelper.market.upbit.UpbitApi;
 import io.saiden.economyhelper.news.NewsFacade;
@@ -330,6 +331,14 @@ class DailyDigestJobTest {
                                 BASIS, false)))
                         : List.of();
             }
+
+            // ⚠️ 일봉도 가로채야 한다. 실물은 KisStockApi를 타고 이 페이크는 그 자리에 null을
+            //    넣으므로, 오버라이드하지 않으면 차트 경로가 **삼켜진 NPE로** 돈다 —
+            //    테스트는 초록인데 지수 차트를 아무도 안 보는 상태가 된다
+            @Override
+            public List<DailyBar> dailyBarsOfIndex(EconomyHelperProperties.Index index) {
+                return indicesAlive ? kospiBars() : List.of();
+            }
         };
     }
 
@@ -426,6 +435,37 @@ class DailyDigestJobTest {
         };
     }
 
+    @Test
+    @DisplayName("증시 통이 지수 차트를 함께 보낸다 — 글 다음에, 단위 없이")
+    void sendsAnIndexChartAfterTheStockMessage() {
+        // ⚠️ 이 자리가 통째로 비어 있었다. KIS 응답에 지수 일봉이 오는데도 배선을 안 해서
+        //    브리핑 증시 통의 여섯 심볼 중 차트가 하나도 없었다
+        RecordingClient telegram = new RecordingClient();
+
+        DigestResult result = job(telegram, new InMemoryHistory(), new CountingFacade(List.of()),
+                fx(false), stock(true, false), crypto(false)).run(false);
+
+        assertThat(result.delivered()).containsExactly("증시");
+        assertThat(telegram.captions)
+                .singleElement()
+                .as("지수는 단위가 없다 — 「6,869.83 KRW」라고 적을 근거가 없다")
+                .isEqualTo("""
+                        <b>코스피</b> 최근 2거래일
+                        6,801.20 → 6,869.83
+                        🔴 +1.01%
+                        2026년 8월 17일(월) ~ 2026년 8월 18일(화)""");
+        assertThat(telegram.order)
+                .as("사진이 글보다 먼저 가면 무엇의 그림인지 알 수 없다")
+                .containsExactly("글", "사진");
+    }
+
+    /** 코스피 실측 눈금대의 일봉 — 삼성전자(20만대)와 축 계산이 다른 자리를 탄다. */
+    private static List<DailyBar> kospiBars() {
+        return List.of(
+                new DailyBar(java.time.LocalDate.of(2026, 8, 17), new BigDecimal("6801.20")),
+                new DailyBar(java.time.LocalDate.of(2026, 8, 18), new BigDecimal("6869.83")));
+    }
+
     static EconomyHelperProperties properties() {
         return TestProperties.builder()
                 .feeds(Map.of())
@@ -486,6 +526,10 @@ class DailyDigestJobTest {
     static class RecordingClient extends TelegramClient {
         final List<String> sent = new ArrayList<>();
         final List<Boolean> previews = new ArrayList<>();
+        /** 사진의 caption만 담는다 — 그림은 골든이 못 보고 낱말은 caption에 다 있다. */
+        final List<String> captions = new ArrayList<>();
+        /** 글과 사진이 섞인 <b>보낸 순서</b>. 사진이 글 앞에 가면 무엇의 그림인지 알 수 없다. */
+        final List<String> order = new ArrayList<>();
 
         RecordingClient() {
             super(RestClient.builder(), "https://example.invalid", "token", "chat", "");
@@ -495,6 +539,13 @@ class DailyDigestJobTest {
         public void send(String text, boolean preview) {
             sent.add(text);
             previews.add(preview);
+            order.add("글");
+        }
+
+        @Override
+        public void sendPhoto(byte[] png, String caption) {
+            captions.add(caption);
+            order.add("사진");
         }
     }
 }

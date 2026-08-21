@@ -226,23 +226,41 @@ public class DailyDigestJob extends TriggerableJob {
     }
 
     /**
-     * 브리핑 증시 통의 차트 — <b>국내 종목마다 한 장.</b>
+     * 브리핑 증시 통의 차트 — <b>지수와 국내 종목마다 한 장.</b>
      *
-     * <p>지수와 미국 종목은 빠진다. 국내 지수는 이름으로 찾는 경로라 종목코드가 손에 없고,
-     * 미국 종목은 {@code price-detail}이 시계열을 아예 주지 않는다. <b>그 종목만 차트가 없고
-     * 값은 통에 그대로 있다</b> — 보충이지 폴백이 아니다.
+     * <p><b>순서가 통의 글과 같다</b>(국내 지수 → 국내 종목 → 미국 지수). 사진이 글 뒤에
+     * 줄줄이 나가므로 순서가 어긋나면 어느 값의 그림인지 세어 봐야 한다.
      *
-     * <p>KIS는 호출 사이 1초를 지키므로 종목 수만큼 늦어진다. 12시간 캐시가 그것을 하루
-     * 한 번으로 눌러 준다.
+     * <p>⚠️ <b>지수는 단위가 없다</b>({@code null}). 코스피에 {@code KRW}를 붙이면 「6,869 KRW」가
+     * 되어 값이 아닌 것에 통화를 붙이는 셈이다 — {@code StockQuote.Money.NONE}과 같은 판단이고
+     * {@code ChartCaption}이 이미 그 경우를 다룬다.
+     *
+     * <p><b>미국 종목만 빠진다.</b> {@code price-detail}은 시계열을 아예 주지 않고 KIS의 해외
+     * 일봉 경로는 아직 실측하지 않았다. <b>그 종목만 차트가 없고 값은 통에 그대로 있다</b> —
+     * 보충이지 폴백이 아니다.
+     *
+     * <p>KIS는 호출 사이 1초를 지키므로 그림 수만큼 늦어진다(지수 넷이 붙어 +4초).
+     * 12시간 캐시가 그것을 하루 한 번으로 눌러 준다.
      */
     private List<ChartImage> stockCharts() {
         List<ChartImage> charts = new ArrayList<>();
+        for (Index index : indexNames) {
+            charts.addAll(chartOf(index.name(), null, () -> stockService.dailyBarsOfIndex(index)));
+        }
         for (StockService.Answer answer : stockService.answersOf(stockCodes)) {
             if (answer.code() == null) {
                 continue;
             }
             charts.addAll(chartOf(answer.quote().name(), "KRW",
                     () -> stockService.dailyBars(answer.code())));
+        }
+        for (UsSymbol symbol : usSymbols) {
+            // 지수만 일봉 경로가 있다 — 종목을 물으면 KIS 심볼 표에 없어 어차피 던진다.
+            // 걸러내는 것은 호출을 아끼려는 것이 아니라 매일 그 로그를 남기지 않기 위함이다
+            if (symbol.isIndex()) {
+                charts.addAll(chartOf(symbol.name(), null,
+                        () -> stockService.dailyBarsOfUsIndex(symbol)));
+            }
         }
         return charts;
     }
@@ -338,17 +356,23 @@ public class DailyDigestJob extends TriggerableJob {
      */
     private List<String> stockMessage(FxRate fx) {
         List<StockQuote> quotes = new ArrayList<>(stockService.indicesOf(indexNames));
-        // 국내 종목만 전망이 붙는다 — 지수에는 목표주가를 낼 주체가 없고, 미국은 FMP 무료
-        // 티어가 심볼별 허용목록이라 아직 붙이지 않는다
+        // 종목에만 전망이 붙는다 — 지수에는 목표주가를 낼 주체가 없어 StockService가 걸러낸다.
+        // 국내와 미국을 한 지도에 담는다: 화면은 무리로 가르지만 전망은 종목마다 붙는다
         Map<StockQuote, StockOutlook> outlooks = new java.util.HashMap<>();
-        for (StockService.Answer answer : stockService.answersOf(stockCodes)) {
+        collect(stockService.answersOf(stockCodes), quotes, outlooks);
+        collect(stockService.usAnswersOf(usSymbols), quotes, outlooks);
+        return quotes.isEmpty() ? List.of() : List.of(StockFormatter.format(quotes, fx, outlooks));
+    }
+
+    /** 받은 답을 시세 목록과 전망 지도로 나눠 담는다 — 국내와 미국이 같은 모양이라 한 자리다. */
+    private static void collect(List<StockService.Answer> answers, List<StockQuote> quotes,
+                                Map<StockQuote, StockOutlook> outlooks) {
+        for (StockService.Answer answer : answers) {
             quotes.add(answer.quote());
             if (answer.outlook() != null) {
                 outlooks.put(answer.quote(), answer.outlook());
             }
         }
-        quotes.addAll(stockService.usQuotesOf(usSymbols));
-        return quotes.isEmpty() ? List.of() : List.of(StockFormatter.format(quotes, fx, outlooks));
     }
 
     /**

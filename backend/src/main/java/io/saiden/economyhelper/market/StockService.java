@@ -236,9 +236,18 @@ public class StockService {
         return indices.stream().map(this::index).flatMap(Optional::stream).toList();
     }
 
-    /** 미국 심볼을 이미 아는 경우 — 아침 브리핑의 나스닥·S&amp;P500·시총 상위가 여기로 온다. */
-    public List<StockQuote> usQuotesOf(List<UsSymbol> symbols) {
-        return symbols.stream().map(this::usQuote).flatMap(Optional::stream).toList();
+    /**
+     * 미국 심볼을 이미 아는 경우 — 아침 브리핑의 나스닥·S&amp;P500·시총 상위가 여기로 온다.
+     *
+     * <p><b>시세만 받던 자리였다.</b> 그래서 목표주가·의견·실적발표일이 {@code /stock} 검색에만
+     * 나오고 브리핑에는 없었는데, 요청은 「검색 <b>및 알림</b> 때 보여 준다」였다. 지수는
+     * {@link #withUsOutlook}이 알아서 걸러내므로 심볼 목록을 나눠 둘 필요가 없다.
+     *
+     * <p>대가는 FMP 호출이다 — 브리핑의 미국 <b>종목</b> 수 × 3회. 실측 설정은 둘(엔비디아·애플)
+     * 이라 하루 6회이고 한도가 250회다. 12시간 캐시라 그 사이 검색은 호출을 나눠 쓴다.
+     */
+    public List<Answer> usAnswersOf(List<UsSymbol> symbols) {
+        return symbols.stream().map(this::usAnswer).flatMap(Optional::stream).toList();
     }
 
     /**
@@ -264,21 +273,32 @@ public class StockService {
         }
     }
 
+    /** 검색으로 찾은 미국 종목. 브리핑은 {@link #usAnswersOf}로 들어와 같은 자리에서 만난다. */
+    private Optional<Answer> usAnswer(ResolvedStock resolved) {
+        return withUsOutlook(usQuote(resolved), resolved.code());
+    }
+
+    private Optional<Answer> usAnswer(UsSymbol symbol) {
+        return withUsOutlook(usQuote(symbol), symbol.symbol());
+    }
+
     /**
-     * 미국 종목 하나 — <b>지수에는 전망을 붙이지 않는다.</b>
+     * 시세에 전망을 붙인다 — <b>지수에는 붙이지 않는다.</b>
      *
      * <p>목표주가와 투자의견은 증권사가 <b>기업</b>에 대해 내는 것이다. {@code ^IXIC}에
      * 목표가를 낼 주체가 없으므로 부르지 않는다 — 호출을 아끼는 것이 아니라 있을 수 없는
-     * 값을 묻지 않는 것이다(FMP는 하루 250회이고 이쪽은 심볼당 2회를 쓴다).
+     * 값을 묻지 않는 것이다(FMP는 하루 250회이고 이쪽은 심볼당 3회를 쓴다).
+     *
+     * <p>검색과 브리핑이 <b>이 한 자리를 나눠 쓴다.</b> 두 벌로 두면 「지수를 걸러낸다」가
+     * 두 곳에 적히고 한쪽만 고쳐지는 날이 온다.
      */
-    private Optional<Answer> usAnswer(ResolvedStock resolved) {
-        Optional<StockQuote> quote = usQuote(resolved);
+    private Optional<Answer> withUsOutlook(Optional<StockQuote> quote, String symbol) {
         if (quote.isEmpty() || quote.get().currency() == StockQuote.Money.NONE) {
             // 통화가 없으면 지수다 — StockQuote가 지역·통화로 그것을 이미 가른다
             return quote.map(Answer::of);
         }
         // 미국 종목은 일봉 경로가 없어 코드를 담아도 쓸 곳이 없다 — null로 둔다
-        return quote.map(found -> new Answer(found, usOutlookOf(resolved.code()), null));
+        return quote.map(found -> new Answer(found, usOutlookOf(symbol), null));
     }
 
     /** {@link #outlookOf}와 같은 이유로 여기서 삼킨다 — 클라이언트가 삼키면 브레이커가 못 본다. */
@@ -298,6 +318,21 @@ public class StockService {
      */
     public List<io.saiden.economyhelper.market.chart.DailyBar> dailyBars(String code) {
         return kisSeries.dailyBars(code);
+    }
+
+    /**
+     * 국내 지수 일봉 — 브리핑의 코스피·코스닥.
+     *
+     * <p>⚠️ <b>이중화가 없는 자리다.</b> 시세는 2순위(공공데이터포털)가 받쳐 주지만 일봉은
+     * KIS에만 있다. 그래서 KIS가 죽으면 <b>값은 나가고 차트만 빠진다</b> — 보충이지 폴백이 아니다.
+     */
+    public List<io.saiden.economyhelper.market.chart.DailyBar> dailyBarsOfIndex(Index index) {
+        return kisSeries.dailyBarsOfIndex(index);
+    }
+
+    /** 미국 지수 일봉 — 브리핑의 나스닥·S&amp;P 500. {@link #dailyBarsOfIndex}와 같은 자리다. */
+    public List<io.saiden.economyhelper.market.chart.DailyBar> dailyBarsOfUsIndex(UsSymbol symbol) {
+        return kisSeries.dailyBarsOfUsIndex(symbol);
     }
 
     /** 국내 종목 하나 — <b>여기가 종목코드가 있는 유일한 자리</b>라 전망을 여기서 붙인다. */

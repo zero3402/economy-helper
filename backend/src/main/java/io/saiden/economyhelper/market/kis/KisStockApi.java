@@ -93,9 +93,6 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
     private static final String NASDAQ = "NAS";
     private static final String NYSE = "NYS";
 
-    /** FMP·LLM이 미국 지수에 붙이는 접두. KIS는 이 표기를 모른다({@code ^IXIC}가 아니라 {@code COMP}). */
-    private static final String INDEX_PREFIX = "^";
-
     /** 시장 구분. {@code J}가 국내 주식, {@code U}가 국내 업종, {@code N}이 해외지수다. */
     private static final String KRX_STOCK = "J";
     private static final String KRX_INDEX = "U";
@@ -196,6 +193,49 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
         return barsOf(response);
     }
 
+    /**
+     * 국내 지수 일봉 — 코스피·코스닥.
+     *
+     * <p>{@link #index}가 부르는 그 엔드포인트가 {@code output2}에 일자별 배열을 함께 준다
+     * (실측: {@code {"stck_bsop_date":"20260818","bstp_nmix_prpr":"6869.83"}}).
+     * {@link #dailyBars}와 같은 이유로 시세 캐시에 합치지 않는다 — 그쪽은 1분이고 이쪽은 하루다.
+     *
+     * <p>⚠️ <b>업종코드가 있어야 한다.</b> KIS에는 지수명 검색이 없어 코드 없이는 만들 수 있는
+     * 요청이 아예 없다. 그래서 <b>설정에 코드가 박힌 브리핑만</b> 이 경로를 탄다 —
+     * {@code /stock 코스피}는 이름으로 들어오므로 코드가 손에 없고 그때는 차트가 빠진다.
+     */
+    @Cacheable(cacheNames = CacheNames.STOCK_SERIES, key = "'index:' + #index.name()")
+    @CircuitBreaker(name = "kisStock")
+    public java.util.List<DailyBar> dailyBarsOfIndex(Index index) {
+        Index target = known(index);
+        if (!target.hasCode()) {
+            throw new IllegalStateException("KIS 지수 일봉에 업종코드가 없습니다: " + index.name());
+        }
+        DailyChart response = request(DailyChart.class, INDEX_TR,
+                "국내 지수 일봉 " + target.name(),
+                uri -> chartWindow(uri, INDEX_PATH, KRX_INDEX, target.code()).build());
+        return barsOf(response);
+    }
+
+    /**
+     * 미국 지수 일봉 — 나스닥·S&amp;P 500.
+     *
+     * <p>⚠️ <b>{@code ^IXIC}가 아니라 {@code COMP}다.</b> 시세 경로와 같은 표({@code usIndices})를
+     * 쓴다 — 규칙이 없어 표가 유일한 길이고, <b>표에 없는 심볼은 차트가 없다.</b>
+     */
+    @Cacheable(cacheNames = CacheNames.STOCK_SERIES, key = "'us-index:' + #symbol.symbol()")
+    @CircuitBreaker(name = "kisStock")
+    public java.util.List<DailyBar> dailyBarsOfUsIndex(UsSymbol symbol) {
+        String kisSymbol = usIndices.get(symbol.symbol());
+        if (kisSymbol == null) {
+            throw new IllegalStateException("KIS 심볼을 모르는 미국 지수입니다: " + symbol.symbol());
+        }
+        DailyChart response = request(DailyChart.class, US_INDEX_TR,
+                "미국 지수 일봉 " + symbol.name(),
+                uri -> chartWindow(uri, US_INDEX_PATH, OVERSEAS_INDEX, kisSymbol).build());
+        return barsOf(response);
+    }
+
     /** {@code output2}를 일봉으로 — 걸러내기와 정렬은 {@code DailySeries}가 한 곳에서 한다. */
     private static java.util.List<DailyBar> barsOf(DailyChart response) {
         if (response == null || response.bars() == null) {
@@ -258,7 +298,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
     @Cacheable(cacheNames = CacheNames.KIS_QUOTE, key = "'us:' + #symbol.symbol()")
     @CircuitBreaker(name = "kisStock")
     public StockQuote quote(UsSymbol symbol) {
-        if (symbol.symbol().startsWith(INDEX_PREFIX)) {
+        if (symbol.isIndex()) {
             String kisSymbol = usIndices.get(symbol.symbol());
             if (kisSymbol == null) {
                 // ^DJI를 그대로 물으면 KIS는 모른다(.DJI여야 한다). 지수는 ^IXIC → COMP 같은

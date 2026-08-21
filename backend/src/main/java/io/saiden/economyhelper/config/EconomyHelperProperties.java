@@ -145,7 +145,20 @@ public record EconomyHelperProperties(
      * @param name   화면에 쓸 한국어 이름. <b>미국 종목 응답에는 이름이 아예 없다</b>
      *               (KIS는 {@code rsym="DNASAAPL"}뿐이고 FMP는 영문명을 준다)
      */
-    public record UsSymbol(String symbol, String name) {}
+    public record UsSymbol(String symbol, String name) {
+
+        /**
+         * 지수인가 — {@code ^IXIC}는 지수고 {@code AAPL}은 종목이다.
+         *
+         * <p>목록 하나에 둘이 섞여 있어 가르는 자리가 필요하다. 접두 {@code ^}를 아는 곳이
+         * {@code KisStockApi} 안에 이미 있는데, <b>부르는 쪽도 알아야 하는 순간</b>이 왔다 —
+         * 지수는 차트 경로가 다르고 종목은 전망이 붙는다. 그 글자를 두 곳에 적지 않으려고
+         * 심볼 자신이 답한다.
+         */
+        public boolean isIndex() {
+            return symbol != null && symbol.startsWith("^");
+        }
+    }
 
     /**
      * 캐시별 만료 시간.

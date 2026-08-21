@@ -261,9 +261,9 @@ class StockServiceTest {
                 .extracting(StockQuote::name).containsExactly("삼성전자", "SK하이닉스");
         assertThat(service.indicesOf(List.of(KOSPI, new Index("코스닥", "1001"))))
                 .extracting(StockQuote::name).containsExactly("코스피", "코스닥");
-        assertThat(service.usQuotesOf(List.of(
+        assertThat(service.usAnswersOf(List.of(
                 new UsSymbol("^IXIC", "나스닥"), new UsSymbol("AAPL", "애플"))))
-                .extracting(StockQuote::name).containsExactly("나스닥", "애플");
+                .extracting(answer -> answer.quote().name()).containsExactly("나스닥", "애플");
     }
 
     @Test
@@ -279,9 +279,9 @@ class StockServiceTest {
                 .extracting(StockQuote::name).containsExactly("삼성전자");
         assertThat(service.indicesOf(List.of(KOSPI, new Index("없는지수", "9999"))))
                 .extracting(StockQuote::name).containsExactly("코스피");
-        assertThat(service.usQuotesOf(List.of(
+        assertThat(service.usAnswersOf(List.of(
                 new UsSymbol("AAPL", "애플"), new UsSymbol("BAD", "없는것"))))
-                .extracting(StockQuote::name).containsExactly("애플");
+                .extracting(answer -> answer.quote().name()).containsExactly("애플");
     }
 
     // --- 스텁 ---

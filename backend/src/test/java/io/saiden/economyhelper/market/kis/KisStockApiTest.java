@@ -504,4 +504,107 @@ class KisStockApiTest {
                 .hasMessageNotContaining("Bearer");
     }
 
+    // --- 일봉(차트) ---
+    //
+    // ⚠️ 이 자리가 통째로 비어 있었다. 시세 셋은 촘촘히 덮여 있는데 일봉은 하나도 없었고,
+    //    그래서 지수 둘을 배선하지 않은 것도 아무도 알려 주지 않았다.
+
+    @Test
+    @DisplayName("국내 종목 일봉은 output2에서 읽는다 — 시세는 output1이다")
+    void readsDomesticStockSeries() {
+        stub(STOCK_PATH, """
+                {"rt_cd":"0","output1":{"stck_prpr":"268500"},
+                 "output2":[{"stck_bsop_date":"20260818","stck_clpr":"268500"},
+                            {"stck_bsop_date":"20260817","stck_clpr":"274500"},
+                            {"stck_bsop_date":"20260814","stck_clpr":"271000"}]}""");
+
+        assertThat(api.dailyBars("005930"))
+                .as("응답은 최신순인데 그림은 왼쪽이 과거다 — DailySeries가 뒤집는다")
+                .extracting(bar -> bar.date().toString())
+                .containsExactly("2026-08-14", "2026-08-17", "2026-08-18");
+    }
+
+    @Test
+    @DisplayName("국내 지수 일봉은 bstp_nmix_prpr다 — 종목 필드로 읽으면 통째로 빈다")
+    void readsDomesticIndexSeries() {
+        stubIndex();
+
+        assertThat(api.dailyBarsOfIndex(KOSPI))
+                .singleElement()
+                .satisfies(bar -> assertThat(bar.close()).isEqualByComparingTo("6869.83"));
+        server.verify(getRequestedFor(urlPathEqualTo(INDEX_PATH))
+                .withQueryParam("FID_COND_MRKT_DIV_CODE", WireMock.equalTo("U"))
+                .withQueryParam("FID_INPUT_ISCD", WireMock.equalTo("0001"))
+                .withQueryParam("FID_PERIOD_DIV_CODE", WireMock.equalTo("D")));
+    }
+
+    @Test
+    @DisplayName("미국 지수 일봉은 ^IXIC가 아니라 COMP로 묻는다 — 시세와 같은 표를 쓴다")
+    void readsUsIndexSeries() {
+        stubUsIndex();
+
+        assertThat(api.dailyBarsOfUsIndex(NASDAQ))
+                .singleElement()
+                .satisfies(bar -> assertThat(bar.close()).isEqualByComparingTo("26644.91"));
+        server.verify(getRequestedFor(urlPathEqualTo(US_INDEX_PATH))
+                .withQueryParam("FID_COND_MRKT_DIV_CODE", WireMock.equalTo("N"))
+                .withQueryParam("FID_INPUT_ISCD", WireMock.equalTo("COMP")));
+    }
+
+    @Test
+    @DisplayName("차트는 창이 더 넓다 — 거래일 열나흘을 담으려면 주말 넷을 넘겨야 한다")
+    void widensTheWindowForSeries() {
+        stubStock();
+
+        api.dailyBars("005930");
+
+        server.verify(getRequestedFor(urlPathEqualTo(STOCK_PATH))
+                // 시세 경로는 이레(20260811)인데 차트는 스무닷새다
+                .withQueryParam("FID_INPUT_DATE_1", WireMock.equalTo("20260724"))
+                .withQueryParam("FID_INPUT_DATE_2", WireMock.equalTo("20260818")));
+    }
+
+    @Test
+    @DisplayName("0.00은 값이 아니라 절벽이다 — 없는 코드에 에러가 아니라 0이 온다")
+    void dropsZeroBars() {
+        stub(STOCK_PATH, """
+                {"rt_cd":"0","output1":{"stck_prpr":"268500"},
+                 "output2":[{"stck_bsop_date":"20260818","stck_clpr":"268500"},
+                            {"stck_bsop_date":"20260817","stck_clpr":"0.00"}]}""");
+
+        assertThat(api.dailyBars("005930"))
+                .as("그대로 그리면 차트가 0으로 떨어지는 절벽을 그린다")
+                .singleElement()
+                .satisfies(bar -> assertThat(bar.close()).isEqualByComparingTo("268500"));
+    }
+
+    @Test
+    @DisplayName("표에 없는 미국 지수는 부르지도 않는다 — 만들 수 있는 요청이 아니다")
+    void refusesAnUnknownUsIndexSeries() {
+        assertThatThrownBy(() -> api.dailyBarsOfUsIndex(new UsSymbol("^DJI", "다우")))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("^DJI");
+
+        server.verify(0, getRequestedFor(urlPathEqualTo(US_INDEX_PATH)));
+    }
+
+    @Test
+    @DisplayName("업종코드 없는 지수는 부르지도 않는다 — KIS에는 지수명 검색이 없다")
+    void refusesAnIndexSeriesWithoutACode() {
+        assertThatThrownBy(() -> api.dailyBarsOfIndex(new Index("없는지수", null)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("업종코드");
+
+        server.verify(0, getRequestedFor(urlPathEqualTo(INDEX_PATH)));
+    }
+
+    @Test
+    @DisplayName("일봉이 아예 없으면 빈 목록 — 던지지 않는다. 값은 이미 시세가 냈다")
+    void returnsEmptyWhenThereAreNoBars() {
+        stub(STOCK_PATH, "{\"rt_cd\":\"0\",\"output1\":{\"stck_prpr\":\"268500\"}}");
+
+        assertThat(api.dailyBars("005930"))
+                .as("차트는 보충이지 폴백이 아니다 — 그 그림만 빠진다")
+                .isEmpty();
+    }
 }

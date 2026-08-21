@@ -165,6 +165,12 @@ class RenderedOutputTest {
         cases.put("stock/outlook-target-only", withOutlook(
                 new StockOutlook(null, new BigDecimal("350000"), null, null,
                         StockSource.KIS, BASIS)));
+        // ⚠️ **실적발표일은 미국에만 있다.** FMP의 /stable/earnings가 유일한 무료 출처이고
+        //    국내(KIS invest-opinion)에는 그 필드가 아예 없다 — 그래서 이 케이스만 세 줄이 다 찬다
+        cases.put("stock/outlook-with-earnings", usWithOutlook(
+                new StockOutlook(java.time.LocalDate.of(2026, 10, 29),
+                        new BigDecimal("340.72"), StockOutlook.Rating.BUY, 111,
+                        StockSource.FMP, US_AT)));
         // 차트 사진의 설명 — **그림에 없는 낱말이 전부 여기 있다.** 그림은 골든이 못 보지만
         // caption은 본다. 그림에 글자를 안 넣기로 한 대가로 이 줄들이 화면 회귀 그물에 남는다
         cases.put("chart/caption-rising", ChartCaption.of("환율", "KRW", risingBars()));
@@ -294,6 +300,12 @@ class RenderedOutputTest {
     /** 전망이 붙은 국내 종목 하나. 전망은 시세와 <b>따로</b> 전달된다 — 캐시 수명이 다르다. */
     private static String withOutlook(StockOutlook outlook) {
         StockQuote quote = krStock("삼성전자", "239500", "-1.26");
+        return StockFormatter.format(List.of(quote), FX, java.util.Map.of(quote, outlook));
+    }
+
+    /** 미국 종목에 전망을 붙인 것 — <b>실적발표일이 붙는 유일한 무리</b>다. */
+    private static String usWithOutlook(StockOutlook outlook) {
+        StockQuote quote = usStock("애플", "232.14");
         return StockFormatter.format(List.of(quote), FX, java.util.Map.of(quote, outlook));
     }
 

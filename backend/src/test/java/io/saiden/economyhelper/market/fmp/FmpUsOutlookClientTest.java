@@ -14,6 +14,7 @@ import io.saiden.economyhelper.market.StockSource;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneOffset;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,6 +32,7 @@ class FmpUsOutlookClientTest {
 
     private static final String GRADES = "/stable/grades-consensus";
     private static final String TARGET = "/stable/price-target-consensus";
+    private static final String EARNINGS = "/stable/earnings";
     private static final String API_KEY = "test-key-402";
 
     private WireMockServer server;
@@ -56,20 +58,31 @@ class FmpUsOutlookClientTest {
                 .withHeader("Content-Type", "application/json").withBody(body)));
     }
 
-    /** 실측 그대로. */
-    private void stubBoth() {
+    /**
+     * 실측 그대로(2026-08-21, 무료 티어, {@code AAPL} 셋 다 200).
+     *
+     * <p>실적발표는 <b>최신순으로 여러 분기</b>가 온다 — 첫 행이 앞날이고 나머지가 지난 것이다.
+     */
+    private void stubAll() {
         stub(GRADES, 200, """
                 [{"symbol":"AAPL","strongBuy":1,"buy":69,"hold":32,"sell":9,
                   "strongSell":0,"consensus":"Buy"}]""");
         stub(TARGET, 200, """
                 [{"symbol":"AAPL","targetHigh":400,"targetLow":245,
                   "targetConsensus":340.72,"targetMedian":360}]""");
+        stub(EARNINGS, 200, """
+                [{"symbol":"AAPL","date":"2026-10-29","epsActual":null,"epsEstimated":1.98,
+                  "revenueEstimated":113340900000,"lastUpdated":"2026-08-21"},
+                 {"symbol":"AAPL","date":"2026-07-30","epsActual":2.02,"epsEstimated":1.89,
+                  "revenueActual":109417000000,"lastUpdated":"2026-08-21"},
+                 {"symbol":"AAPL","date":"2026-04-30","epsActual":2.01,"epsEstimated":1.95,
+                  "revenueActual":111184000000,"lastUpdated":"2026-07-29"}]""");
     }
 
     @Test
     @DisplayName("실측 응답을 그대로 읽는다 — 곳 수는 다섯 버킷의 합이다")
     void readsTheMeasuredResponse() {
-        stubBoth();
+        stubAll();
 
         StockOutlook outlook = client().outlook("AAPL").orElseThrow();
 
@@ -86,7 +99,7 @@ class FmpUsOutlookClientTest {
     @Test
     @DisplayName("고가가 아니라 컨센서스를 쓴다 — 고가는 가장 낙관적인 한 곳이다")
     void usesConsensusNotTheHigh() {
-        stubBoth();
+        stubAll();
 
         assertThat(client().outlook("AAPL").orElseThrow().targetPrice())
                 .as("400(고가)을 쓰면 목표주가가 부풀려진다")
@@ -123,10 +136,11 @@ class FmpUsOutlookClientTest {
     }
 
     @Test
-    @DisplayName("둘 다 실패하면 던진다 — 「의견이 없다」와 구분해야 한다")
-    void throwsWhenBothFail() {
+    @DisplayName("셋 다 실패하면 던진다 — 「의견이 없다」와 구분해야 한다")
+    void throwsWhenAllFail() {
         stub(GRADES, 402, "{}");
         stub(TARGET, 402, "{}");
+        stub(EARNINGS, 402, "{}");
 
         // 삼키면 그 위의 @CircuitBreaker가 정상 반환을 보고 성공을 센다.
         // 삼키는 일은 StockService가 한다
@@ -201,6 +215,78 @@ class FmpUsOutlookClientTest {
 
         assertThatThrownBy(() -> client().outlook("AAPL"))
                 .hasMessageNotContaining(API_KEY);
+    }
+
+    @Test
+    @DisplayName("다음 실적발표일을 읽는다 — 요청받은 세 값 중 마지막 하나다")
+    void readsTheNextEarningsDate() {
+        stubAll();
+
+        assertThat(client().outlook("AAPL").orElseThrow().earningsDate())
+                .as("실측 첫 행이 2026-10-29이고 나머지 둘은 지난 분기다")
+                .isEqualTo(LocalDate.of(2026, 10, 29));
+    }
+
+    @Test
+    @DisplayName("지난 분기를 집지 않는다 — 응답 순서가 어긋나도 앞날을 고른다")
+    void ignoresPastQuarters() {
+        // ⚠️ 첫 행을 그냥 집는 구현이면 여기서 2026-04-30이 「다음 발표」로 나간다
+        stub(GRADES, 200, "[]");
+        stub(TARGET, 200, "[]");
+        stub(EARNINGS, 200, """
+                [{"symbol":"AAPL","date":"2026-04-30","epsActual":2.01},
+                 {"symbol":"AAPL","date":"2026-10-29","epsActual":null},
+                 {"symbol":"AAPL","date":"2026-07-30","epsActual":2.02}]""");
+
+        assertThat(client().outlook("AAPL").orElseThrow().earningsDate())
+                .isEqualTo(LocalDate.of(2026, 10, 29));
+    }
+
+    @Test
+    @DisplayName("앞날이 하나도 없으면 안 적는다 — 지난 날짜를 「예정」이라 부르지 않는다")
+    void omitsEarningsWhenEveryDateIsPast() {
+        stub(GRADES, 200, "[]");
+        stub(TARGET, 200, "[]");
+        stub(EARNINGS, 200, """
+                [{"symbol":"AAPL","date":"2026-07-30","epsActual":2.02},
+                 {"symbol":"AAPL","date":"2026-04-30","epsActual":2.01}]""");
+
+        assertThat(client().outlook("AAPL"))
+                .as("셋이 다 비면 붙일 것이 없다")
+                .isEmpty();
+    }
+
+    @Test
+    @DisplayName("나머지 둘이 402여도 실적발표일은 살린다 — 셋이 따로 논다")
+    void keepsEarningsWhenTheOthersAreBlocked() {
+        stub(GRADES, 402, "{\"Error Message\":\"Exclusive Endpoint\"}");
+        stub(TARGET, 402, "{\"Error Message\":\"Exclusive Endpoint\"}");
+        stub(EARNINGS, 200, """
+                [{"symbol":"ORCL","date":"2026-09-10","epsActual":null}]""");
+
+        StockOutlook outlook = client().outlook("ORCL").orElseThrow();
+
+        assertThat(outlook.earningsDate()).isEqualTo(LocalDate.of(2026, 9, 10));
+        assertThat(outlook.targetPrice()).isNull();
+        assertThat(outlook.rating()).isNull();
+    }
+
+    @Test
+    @DisplayName("오늘을 미국 달력으로 자른다 — KST로 자르면 하루가 어긋난다")
+    void cutsTodayByTheMarketCalendar() {
+        // 2026-10-29T02:00Z는 뉴욕에서 10-28 22시이고 서울에서 10-29 11시다.
+        // 10-28 발표 건은 미국 달력으로 「오늘」이라 아직 예정이고, KST로 자르면 지난 것이 된다
+        FmpUsOutlookClient client = new FmpUsOutlookClient(RestClient.builder(), server.baseUrl(),
+                API_KEY, new AlwaysAllow(),
+                Clock.fixed(Instant.parse("2026-10-29T02:00:00Z"), ZoneOffset.UTC));
+        stub(GRADES, 200, "[]");
+        stub(TARGET, 200, "[]");
+        stub(EARNINGS, 200, """
+                [{"symbol":"AAPL","date":"2026-10-28","epsActual":null}]""");
+
+        assertThat(client.outlook("AAPL").orElseThrow().earningsDate())
+                .as("현지로 아직 오늘인 발표를 지난 것으로 버리면 안 된다")
+                .isEqualTo(LocalDate.of(2026, 10, 28));
     }
 
     /** 한도를 세지 않는 가드 — 세는 규칙은 {@code FmpQuotaGuard}가 스스로 시험한다. */

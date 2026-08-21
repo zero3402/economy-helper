@@ -61,7 +61,7 @@ public class FmpStockClient implements UsStockClient {
      * 검색은 LLM이 해석한 한국어 이름이 {@link UsSymbol#name()}에 담겨 온다.
      */
     private StockQuote toQuote(FmpQuote quote, UsSymbol symbol) {
-        boolean index = symbol.symbol() != null && symbol.symbol().startsWith("^");
+        boolean index = symbol.isIndex();
         String name = symbol.name() == null || symbol.name().isBlank() ? quote.name() : symbol.name();
         // 미국 폴백의 마지막 자리다 — 여기서 빈 값이 새면 받아 줄 출처가 없다.
         // FMP는 상장폐지·장전 무거래에 price를 null로 주고, 그건 "없다"이지 값이 아니다
