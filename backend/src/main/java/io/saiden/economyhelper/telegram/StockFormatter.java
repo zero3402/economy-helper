@@ -33,12 +33,23 @@ import java.util.List;
 public final class StockFormatter {
 
     /**
-     * 이름표와 값 사이, 그리고 앞 무리와의 사이를 벌리는 <b>빈 줄</b>.
+     * 이름표를 단 블록의 머리 — <b>앞과는 빈 줄로 벌리고 값은 바로 아랫줄에 붙인다.</b>
      *
-     * <p>이 통의 규칙이 「빈 줄은 블록 사이, 한 줄은 블록 안」인데 전망은 <b>이름표+값이 한
-     * 블록</b>이라 그 규칙만으로는 갈리지 않았다. 그래서 이름표 자체를 블록 경계로 쓴다.
+     * <pre>
+     * 🔵 -0.33%      ← 앞 무리
+     *                ← 빈 줄이 블록을 가른다
+     * 목표           ← 이름표
+     * 212.40 USD     ← 값은 바로 아랫줄
+     * 296,585 KRW
+     * </pre>
+     *
+     * <p>이 통의 규칙이 「빈 줄은 블록 사이, 한 줄은 블록 안」이다. 전망은 <b>이름표와 값이
+     * 한 블록</b>이므로 그 안은 한 줄이고, 블록 앞에만 빈 줄이 온다 — 시세 블록이
+     * 「이름 / 값 / 환산 / 등락률」로 붙어 있는 것과 같은 모양이다.
      */
-    private static final String LABELLED = "\n\n";
+    private static String labelled(String name) {
+        return "\n\n" + name + "\n";
+    }
 
     private StockFormatter() {
     }
@@ -177,12 +188,13 @@ public final class StockFormatter {
      * (국내에 무료 출처가 없다). <b>없는 것을 {@code 0}이나 「-」로 찍지 않는다</b> —
      * 「목표가 0원」은 모른다는 뜻이 아니라 <b>값</b>이다.
      *
-     * <p><b>이름표와 값을 빈 줄로 벌린다</b>({@link #LABELLED}). 시세 줄들은 이름표가 없어
+     * <p><b>이름표가 블록의 머리다</b>({@link #labelled}). 시세 줄들은 이름표가 없어
      * (「311.30 USD」·「🔵 -1.75%」) 줄만 바꿔도 무엇인지 읽히지만, 전망은 <b>이름표를 달아야
-     * 뜻이 서는 값</b>이다. 그 이름표를 앞줄에 바싹 붙이면 위 숫자 무리에 딸려 붙어 읽힌다.
+     * 뜻이 서는 값</b>이다. 그 이름표를 앞줄에 바싹 붙이면 위 숫자 무리에 딸려 붙어 읽히므로
+     * <b>앞에 빈 줄을 둔다</b>. 값은 이름표 바로 아랫줄이다 — 한 블록 안이기 때문이다.
      *
-     * <p>대가는 줄 수다 — 종목마다 최대 여덟 줄이 는다. 텔레그램 한 통 상한(4,096자)에는
-     * 한참 못 미치므로(<b>실측 391자</b> — 지수 넷·종목 셋에 전망 셋을 다 붙인 브리핑 증시 통)
+     * <p>대가는 줄 수다 — 종목마다 최대 여섯 줄이 는다. 텔레그램 한 통 상한(4,096자)에는
+     * 한참 못 미치므로(<b>실측 415자</b> — 지수 넷·종목 셋에 전망 셋을 다 붙인 브리핑 증시 통)
      * 문제가 되지 않는다.
      *
      * <p>⚠️ <b>투자의견 줄은 없다.</b> 목표가 아래에 「매수 (111곳)」이 있었는데 요구가
@@ -204,8 +216,7 @@ public final class StockFormatter {
             // ⚠️ 값 줄과 같은 모양으로 단위를 붙인다. 바로 위가 「239,500 KRW」인데 여기가
             //    「목표 466,667」이면 무슨 단위인지 읽는 사람이 짐작해야 한다 — 목표주가의
             //    통화는 그 종목의 통화라고 StockOutlook이 적어 뒀으므로 그것을 그대로 쓴다
-            message.append(LABELLED).append("목표").append(LABELLED)
-                    .append(unitOf(quote, outlook.targetPrice()));
+            message.append(labelled("목표")).append(unitOf(quote, outlook.targetPrice()));
             // 값 줄과 같은 규칙으로 환산한다 — 달러 목표가만 붙고, 국내는 이미 원화라 없다.
             // 이 줄이 없던 동안 읽는 사람이 340.72에 환율을 손으로 곱해야 했다
             if (convertible(quote, fx)) {
@@ -213,7 +224,7 @@ public final class StockFormatter {
             }
         }
         if (outlook.earningsDate() != null) {
-            message.append(LABELLED).append("실적발표").append(LABELLED)
+            message.append(labelled("실적발표"))
                     .append(SHORT_DATE.format(outlook.earningsDate()));
         }
     }
