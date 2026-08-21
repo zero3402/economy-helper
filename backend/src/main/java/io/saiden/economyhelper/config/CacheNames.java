@@ -98,6 +98,13 @@ public final class CacheNames {
      */
     public static final String KIS_OUTLOOK = "kis-outlook";
 
+    /**
+     * 미국 종목의 목표주가·투자의견. <b>심볼당 FMP 호출이 둘</b>(목표가와 의견이 다른
+     * 엔드포인트이고 무료 티어는 배치가 막혔다)이라 하루 250회에서 심볼 하나가 2회를 쓴다 —
+     * 이 캐시가 그 한도의 실질 방어다.
+     */
+    public static final String US_OUTLOOK = "us-outlook";
+
     /** 유럽중앙은행 환율. */
     public static final String FX = "fx";
 

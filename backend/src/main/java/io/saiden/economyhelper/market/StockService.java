@@ -74,6 +74,7 @@ public class StockService {
     private final DataGoStockClient names;
     private final StockResolver resolver;
     private final DomesticOutlookClient outlooks;
+    private final UsOutlookClient usOutlooks;
 
     /**
      * @param names <b>이름으로 찾는 경로는 이중화되지 않는다</b> — 한국투자증권에 종목명 검색이
@@ -82,13 +83,14 @@ public class StockService {
      */
     public StockService(List<DomesticStockClient> domestic, List<UsStockClient> us,
                         DataGoStockClient names, StockResolver resolver,
-                        DomesticOutlookClient outlooks) {
+                        DomesticOutlookClient outlooks, UsOutlookClient usOutlooks) {
         // 순서는 여기서 정한다 — 주입 순서에 딸려 가면 클래스 이름을 바꾸다 뒤집힌다
         this.domestic = Failover.order(domestic, DOMESTIC_ORDER, StockClient::source);
         this.us = Failover.order(us, US_ORDER, StockClient::source);
         this.names = names;
         this.resolver = resolver;
         this.outlooks = outlooks;
+        this.usOutlooks = usOutlooks;
     }
 
 
@@ -125,8 +127,7 @@ public class StockService {
             Optional<ResolvedStock> resolved = resolver.resolve(key);
 
             if (resolved.filter(ResolvedStock::isUs).isPresent()) {
-                // 미국 종목의 전망은 FMP인데 무료 티어가 심볼별 허용목록이다 — 아직 붙이지 않는다
-                return usQuote(resolved.get()).map(Answer::of);
+                return usAnswer(resolved.get());
             }
             // 국내 지수는 조회가 통째로 다르다 — 종목코드가 없고 시가총액도 없다
             if (resolved.filter(ResolvedStock::isIndex).isPresent()) {
@@ -244,6 +245,32 @@ public class StockService {
         /** 전망이 없는 것 — 지수·미국 종목·이름 검색이 그렇다. */
         public static Answer of(StockQuote quote) {
             return new Answer(quote, null);
+        }
+    }
+
+    /**
+     * 미국 종목 하나 — <b>지수에는 전망을 붙이지 않는다.</b>
+     *
+     * <p>목표주가와 투자의견은 증권사가 <b>기업</b>에 대해 내는 것이다. {@code ^IXIC}에
+     * 목표가를 낼 주체가 없으므로 부르지 않는다 — 호출을 아끼는 것이 아니라 있을 수 없는
+     * 값을 묻지 않는 것이다(FMP는 하루 250회이고 이쪽은 심볼당 2회를 쓴다).
+     */
+    private Optional<Answer> usAnswer(ResolvedStock resolved) {
+        Optional<StockQuote> quote = usQuote(resolved);
+        if (quote.isEmpty() || quote.get().currency() == StockQuote.Money.NONE) {
+            // 통화가 없으면 지수다 — StockQuote가 지역·통화로 그것을 이미 가른다
+            return quote.map(Answer::of);
+        }
+        return quote.map(found -> new Answer(found, usOutlookOf(resolved.code())));
+    }
+
+    /** {@link #outlookOf}와 같은 이유로 여기서 삼킨다 — 클라이언트가 삼키면 브레이커가 못 본다. */
+    private StockOutlook usOutlookOf(String symbol) {
+        try {
+            return usOutlooks.outlook(symbol).filter(outlook -> !outlook.isEmpty()).orElse(null);
+        } catch (RuntimeException e) {
+            log.info("[stock] {} 전망 조회 실패 — 시세만 내보냅니다: {}", symbol, FailureReason.of(e));
+            return null;
         }
     }
 

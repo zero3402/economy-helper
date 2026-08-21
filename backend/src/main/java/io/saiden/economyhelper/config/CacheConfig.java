@@ -106,6 +106,9 @@ public class CacheConfig {
                 .withCacheConfiguration(CacheNames.KIS_OUTLOOK,
                         cache(ttl.kisOutlook(),
                                 new TypeReference<java.util.Optional<StockOutlook>>() {}))
+                .withCacheConfiguration(CacheNames.US_OUTLOOK,
+                        cache(ttl.usOutlook(),
+                                new TypeReference<java.util.Optional<StockOutlook>>() {}))
                 .withCacheConfiguration(CacheNames.FX,
                         cache(ttl.fx(), new TypeReference<FxRate>() {}))
                 // 하루 1,000회 한도를 지키는 실질 방어다 — 1시간이면 하루 최대 24회

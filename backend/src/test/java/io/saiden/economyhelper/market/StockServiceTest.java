@@ -294,7 +294,7 @@ class StockServiceTest {
     private static StockService service(List<DomesticStockClient> domestic, List<UsStockClient> us,
                                         StockResolver resolver, DataGoStockClient names) {
         // 전망은 여기서 보지 않는다 — KisDomesticOutlookClientTest가 본다
-        return new StockService(domestic, us, names, resolver, code -> java.util.Optional.empty());
+        return new StockService(domestic, us, names, resolver, code -> java.util.Optional.empty(), symbol -> java.util.Optional.empty());
     }
 
     private static FakeDomestic domestic(StockSource source, Map<String, StockQuote> stocks) {
