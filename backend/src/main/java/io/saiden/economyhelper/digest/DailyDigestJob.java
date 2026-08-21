@@ -9,6 +9,12 @@ import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.FxService;
 import io.saiden.economyhelper.market.StockOutlook;
 import java.util.Map;
+import io.saiden.economyhelper.market.chart.ChartImage;
+import io.saiden.economyhelper.market.chart.ChartRenderer;
+import io.saiden.economyhelper.market.chart.DailyBar;
+import io.saiden.economyhelper.market.chart.DailySeries;
+import io.saiden.economyhelper.telegram.ChartCaption;
+import io.saiden.economyhelper.support.FailureReason;
 import io.saiden.economyhelper.market.StockQuote;
 import io.saiden.economyhelper.market.StockService;
 import io.saiden.economyhelper.news.NewsFacade;
@@ -129,9 +135,12 @@ public class DailyDigestJob extends TriggerableJob {
         // 네 통의 수집을 겹친다. 서로 무관한 외부 호출인데 줄줄이 기다렸고, 그중 뉴스 하나가
         // (피드 5 + Gemini 10) 대부분을 차지했다.
         List<Section> sections = Concurrently.map(List.of(
-                section("환율", () -> fx == null ? List.of() : List.of(FxFormatter.format(fx))),
-                section("증시", () -> stockMessage(fx)),
-                section("코인", () -> cryptoMessage(fx)),
+                section("환율", () -> fx == null ? List.of() : List.of(FxFormatter.format(fx)),
+                        false, () -> chartOf("환율", "KRW", fxService::dailyBars)),
+                // ⚠️ 국내 종목만 차트가 붙는다. 지수는 종목코드가 없고(이름으로 찾는다) 미국
+                //    종목은 시계열을 주는 경로가 없다 — 그 종목만 빠지고 통은 그대로 나간다
+                section("증시", () -> stockMessage(fx), false, this::stockCharts),
+                section("코인", () -> cryptoMessage(fx), false, this::cryptoCharts),
                 // 뉴스 통만 미리보기를 켠다 — 링크가 있는 통이 여기뿐이다.
                 // 기사마다 통을 쪼개므로 통마다 그 기사의 카드가 붙는다
                 section("뉴스", this::newsMessages, true)), Supplier::get);
@@ -164,7 +173,19 @@ public class DailyDigestJob extends TriggerableJob {
      * @param failure 실패 사유. 성공이면 {@code null}
      * @param preview 링크 미리보기를 띄울지. 기사를 담은 통만 참이다
      */
-    private record Section(String name, List<String> texts, String failure, boolean preview) {}
+    /**
+     * @param charts 통에 딸린 차트들 — <b>종목마다 한 장</b>이고 글 다음에 순차로 나간다.
+     *               텍스트 통은 그대로 둔다: 「무리 하나가 통 하나처럼 끝맺는다」가 출처·기준을
+     *               한 번만 적기 위해 있는 규칙이라, 쪼개면 「국내」·「미국」과 출처 줄이
+     *               종목마다 되풀이된다. 글이 요약을 맡고 사진이 차트를 맡는다
+     */
+    private record Section(String name, List<String> texts, String failure, boolean preview,
+                           List<ChartImage> charts) {
+
+        static Section of(String name, List<String> texts, boolean preview) {
+            return new Section(name, texts, null, preview, List.of());
+        }
+    }
 
     /**
      * 수집을 <b>예외 없이</b> 끝낸다.
@@ -178,20 +199,97 @@ public class DailyDigestJob extends TriggerableJob {
 
     private Supplier<Section> section(String name, Supplier<List<String>> message,
                                       boolean preview) {
+        return section(name, message, preview, List::of);
+    }
+
+    /**
+     * @param charts 통에 딸릴 차트들. <b>여기서 실패해도 통은 나간다</b> — 차트는 보충이지
+     *               답이 아니다. 그래서 글을 모으는 {@code message}와 달리 이 공급자의 실패는
+     *               통을 죽이지 않는다
+     */
+    private Supplier<Section> section(String name, Supplier<List<String>> message,
+                                      boolean preview, Supplier<List<ChartImage>> charts) {
         return () -> {
             try {
                 List<String> texts = message.get();
                 if (texts.isEmpty()) {
                     log.info("[digest] {} 통에 보낼 내용이 없습니다", name);
-                    return new Section(name, List.of(), "보낼 내용이 없습니다", preview);
+                    return new Section(name, List.of(), "보낼 내용이 없습니다", preview, List.of());
                 }
-                return new Section(name, texts, null, preview);
+                return new Section(name, texts, null, preview, chartsOrNone(name, charts));
             } catch (RuntimeException e) {
                 log.error("[digest] {} 통 수집 실패: {}", name, e.toString());
                 return new Section(name, List.of(), DigestResult.Failure.of(name, e).reason(),
-                        preview);
+                        preview, List.of());
             }
         };
+    }
+
+    /**
+     * 브리핑 증시 통의 차트 — <b>국내 종목마다 한 장.</b>
+     *
+     * <p>지수와 미국 종목은 빠진다. 국내 지수는 이름으로 찾는 경로라 종목코드가 손에 없고,
+     * 미국 종목은 {@code price-detail}이 시계열을 아예 주지 않는다. <b>그 종목만 차트가 없고
+     * 값은 통에 그대로 있다</b> — 보충이지 폴백이 아니다.
+     *
+     * <p>KIS는 호출 사이 1초를 지키므로 종목 수만큼 늦어진다. 12시간 캐시가 그것을 하루
+     * 한 번으로 눌러 준다.
+     */
+    private List<ChartImage> stockCharts() {
+        List<ChartImage> charts = new ArrayList<>();
+        for (StockService.Answer answer : stockService.answersOf(stockCodes)) {
+            if (answer.code() == null) {
+                continue;
+            }
+            charts.addAll(chartOf(answer.quote().name(), "KRW",
+                    () -> stockService.dailyBars(answer.code())));
+        }
+        return charts;
+    }
+
+    /** 브리핑 코인 통의 차트 — 코인마다 한 장. 업비트는 키가 없고 한 호출로 열나흘을 준다. */
+    private List<ChartImage> cryptoCharts() {
+        List<ChartImage> charts = new ArrayList<>();
+        for (CryptoQuote quote : cryptoService.quotesOf(cryptoMarkets)) {
+            if (quote.market() == null) {
+                continue;
+            }
+            charts.addAll(chartOf(quote.name(), "KRW",
+                    () -> cryptoService.dailyBars(quote.market())));
+        }
+        return charts;
+    }
+
+    /** 차트 수집은 실패해도 삼킨다 — 값은 이미 통에 담겼다. */
+    private List<ChartImage> chartsOrNone(String name, Supplier<List<ChartImage>> charts) {
+        try {
+            return charts.get();
+        } catch (RuntimeException e) {
+            log.info("[digest] {} 통의 차트를 빼고 보냅니다: {}", name, FailureReason.of(e));
+            return List.of();
+        }
+    }
+
+    /**
+     * 일봉 하나를 사진으로 — <b>못 그리면 빈 값</b>이라 그 종목만 빠진다.
+     *
+     * <p>세 도메인이 같은 규칙을 쓰므로 한 자리에 둔다.
+     */
+    private static List<ChartImage> chartOf(String subject, String unit,
+                                            Supplier<List<DailyBar>> bars) {
+        try {
+            List<DailyBar> series = bars.get();
+            if (!DailySeries.drawable(series)) {
+                return List.of();
+            }
+            byte[] png = ChartRenderer.render(series);
+            return png.length == 0
+                    ? List.of()
+                    : List.of(new ChartImage(png, ChartCaption.of(subject, unit, series)));
+        } catch (RuntimeException e) {
+            log.info("[digest] {} 일봉을 못 받아 차트를 뺍니다: {}", subject, FailureReason.of(e));
+            return List.of();
+        }
     }
 
     /**
@@ -218,6 +316,11 @@ public class DailyDigestJob extends TriggerableJob {
                 if (!delivered.contains(section.name())) {
                     delivered.add(section.name());
                 }
+            }
+            // 사진은 글 다음에 종목마다 한 장씩 — 같은 방에 초당 한 통이라 사이를 쉰다
+            for (ChartImage chart : section.charts()) {
+                TelegramClient.pause();
+                telegram.sendPhoto(chart.png(), chart.caption());
             }
         } catch (RuntimeException e) {
             log.error("[digest] {} 통 발송 실패: {}", section.name(), e.toString());

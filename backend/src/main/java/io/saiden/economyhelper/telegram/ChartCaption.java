@@ -25,7 +25,7 @@ import java.util.List;
  * 같은 입력에 다른 글자가 나오고 그 순간 골든이 못 지키는 자리가 된다
  * ({@code CryptoFormatter}가 같은 이유로 「오늘이면 시각만」을 거부한다).
  */
-final class ChartCaption {
+public final class ChartCaption {
 
     private ChartCaption() {
     }
@@ -35,7 +35,7 @@ final class ChartCaption {
      * @param unit    값의 단위({@code KRW}). 지수처럼 단위가 없으면 {@code null}
      * @param bars    그린 일봉. {@link DailySeries#drawable}이 참인 것만 온다
      */
-    static String of(String subject, String unit, List<DailyBar> bars) {
+    public static String of(String subject, String unit, List<DailyBar> bars) {
         DailyBar first = bars.get(0);
         DailyBar last = bars.get(bars.size() - 1);
 
@@ -55,10 +55,5 @@ final class ChartCaption {
         caption.append("\n").append(DATE.format(first.date()))
                 .append(" ~ ").append(DATE.format(last.date()));
         return caption.toString();
-    }
-
-    /** 날짜만 필요한 자리 — {@link SEOUL}은 일봉이 이미 그 지역 달력이라 쓰지 않는다. */
-    static String window(List<DailyBar> bars) {
-        return DATE.format(bars.get(0).date()) + " ~ " + DATE.format(bars.get(bars.size() - 1).date());
     }
 }

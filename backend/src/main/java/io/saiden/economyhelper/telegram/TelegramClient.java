@@ -148,6 +148,22 @@ public class TelegramClient {
     }
 
     /**
+     * 브리핑이 보내는 사진 — <b>설정된 채팅방과 공지 토픽으로.</b>
+     *
+     * <p>{@link #send(String, boolean)}과 같은 자리다. 답글로 달지 않는다 — 브리핑은 아무도
+     * 묻지 않은 것에 대한 답이라 인용할 명령이 없다.
+     *
+     * <p>⚠️ 이것은 {@code sendPhoto(chatId, png)} 꼴의 편의 오버로드가 <b>아니다.</b> 방을
+     * 인자로 받지 않고 <b>설정된 곳으로만</b> 보내므로 토픽을 깜빡할 여지가 없다 —
+     * 그 함정을 만드는 것은 방을 받으면서 토픽을 생략하는 형태다.
+     */
+    @Retry(name = "telegram")
+    @CircuitBreaker(name = "telegram")
+    public void sendPhoto(byte[] png, String caption) {
+        sendPhoto(defaultChatId, noticeTopicId, null, png, caption);
+    }
+
+    /**
      * 사진 한 장 — 차트를 보낸다.
      *
      * <p><b>caption이 설명을 든다.</b> 그림에는 글자가 없다({@code ChartRenderer}) — 배포

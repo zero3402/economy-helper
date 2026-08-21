@@ -1,6 +1,8 @@
 package io.saiden.economyhelper.market.kis;
 
 import io.saiden.economyhelper.config.CacheNames;
+import io.saiden.economyhelper.market.chart.DailySeries;
+import io.saiden.economyhelper.market.chart.DailyBar;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
@@ -105,6 +107,11 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
      */
     private static final int LOOKBACK_DAYS = 7;
 
+    /**
+     * 차트용 창. 거래일 열나흘이면 주말이 넷이고 연휴가 끼므로 달력 사흘 남짓을 더 얹는다.
+     */
+    private static final int SERIES_LOOKBACK_DAYS = 25;
+
     private final RestClient restClient;
     private final KisTokenStore tokens;
     private final KisHeaders headers;
@@ -162,6 +169,49 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
     @Override
     public StockSource source() {
         return StockSource.KIS;
+    }
+
+    /**
+     * 국내 종목 일봉 — <b>차트가 그리는 것.</b>
+     *
+     * <p>⚠️ <b>시세 응답에 이미 오는 값이다.</b> {@link #stock}이 부르는 그 엔드포인트가
+     * {@code output2}에 일자별 배열을 함께 주는데 우리가 {@code output1}만 읽고 버려 왔다.
+     * 그래도 <b>합치지 않는다</b>: 시세는 1분 캐시이고 일봉은 하루에 한 번 바뀌어서, 한 항목에
+     * 담으면 하루치 값을 1분마다 다시 받는다(60배). 게다가 {@code kis-quote}는
+     * {@code TypeReference<StockQuote>}로 타입이 못 박혀 있어 다른 모양을 담으면
+     * 쓸 때는 넘어가고 읽을 때 깨진다.
+     *
+     * <p>대가는 조회당 KIS 호출 하나(간격 1초)이고, 12시간 캐시가 그것을 눌러 준다.
+     *
+     * <p>⚠️ <b>{@code 0.00}은 값이 아니다.</b> 없는 종목코드에 에러가 아니라 0이 오므로
+     * 그대로 그리면 차트가 0으로 절벽을 그린다 — {@code DailySeries}가 걸러낸다.
+     */
+    @Cacheable(cacheNames = CacheNames.STOCK_SERIES, key = "'stock:' + #code")
+    @CircuitBreaker(name = "kisStock")
+    public java.util.List<DailyBar> dailyBars(String code) {
+        DailyChart response = request(DailyChart.class, STOCK_TR, "국내 종목 일봉 " + code,
+                uri -> chartWindow(uri, STOCK_PATH, KRX_STOCK, code)
+                        .queryParam("FID_ORG_ADJ_PRC", "0")
+                        .build());
+        return barsOf(response);
+    }
+
+    /** {@code output2}를 일봉으로 — 걸러내기와 정렬은 {@code DailySeries}가 한 곳에서 한다. */
+    private static java.util.List<DailyBar> barsOf(DailyChart response) {
+        if (response == null || response.bars() == null) {
+            return java.util.List.of();
+        }
+        java.util.List<DailyBar> bars = new java.util.ArrayList<>();
+        for (Bar bar : response.bars()) {
+            if (bar == null || bar.date() == null || bar.close() == null) {
+                continue;
+            }
+            bars.add(new DailyBar(
+                    java.time.LocalDate.parse(bar.date(),
+                            java.time.format.DateTimeFormatter.BASIC_ISO_DATE),
+                    bar.close()));
+        }
+        return DailySeries.recent(bars, DailySeries.WINDOW);
     }
 
     @Override
@@ -311,10 +361,24 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
 
     /** 일자별 차트 셋(국내 종목·국내 지수·해외지수)이 쓰는 공통 파라미터. */
     private UriBuilder chart(UriBuilder uri, String path, String market, String code) {
+        return window(uri, path, market, code, LOOKBACK_DAYS);
+    }
+
+    /**
+     * 차트용 — <b>창만 넓다.</b> 거래일 열나흘을 담으려면 주말 넷과 연휴를 넘겨야 한다.
+     *
+     * <p>시세 경로({@link #chart})의 창을 넓히지 않는다. 그쪽은 「지금 얼마냐」를 찾는 데
+     * 이레면 넉넉하고, 넓히면 응답만 무거워진다.
+     */
+    private UriBuilder chartWindow(UriBuilder uri, String path, String market, String code) {
+        return window(uri, path, market, code, SERIES_LOOKBACK_DAYS);
+    }
+
+    private UriBuilder window(UriBuilder uri, String path, String market, String code, int days) {
         return uri.path(path)
                 .queryParam("FID_COND_MRKT_DIV_CODE", market)
                 .queryParam("FID_INPUT_ISCD", code)
-                .queryParam("FID_INPUT_DATE_1", KisHeaders.daysAgo(clock, LOOKBACK_DAYS))
+                .queryParam("FID_INPUT_DATE_1", KisHeaders.daysAgo(clock, days))
                 .queryParam("FID_INPUT_DATE_2", KisHeaders.today(clock))
                 .queryParam("FID_PERIOD_DIV_CODE", "D");
     }
@@ -368,8 +432,42 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
     }
 
     /**
-     * @param output {@code output1}. {@code output2}는 일자별 배열인데 우리는 현재가만 쓴다
+     * @param output {@code output1} — 현재가. 같은 응답의 {@code output2}(일자별 배열)는
+     *               {@link DailyChart}가 따로 읽는다: 수명이 달라 캐시를 나눴다
      */
+    /**
+     * {@code output2}의 한 칸 — <b>세 시장의 종가 필드 이름이 다르다.</b>
+     *
+     * <p>국내 종목은 {@code stck_clpr}, 국내 지수는 {@code bstp_nmix_prpr}, 해외(환율·미국
+     * 지수)는 {@code ovrs_nmix_prpr}다(실측 픽스처 셋이 그것을 못 박고 있다). 셋을 다 선언해
+     * 두고 <b>온 것을 쓴다</b> — {@code @JsonIgnoreProperties}라 없는 필드는 그냥 {@code null}이
+     * 되므로 한 타입이 셋을 덮는다. 시장마다 레코드를 두면 세 벌이 생기고 한쪽만 고쳐지는
+     * 날이 온다({@code KisChartPrice}가 환율과 미국 지수를 한 스키마로 두는 것과 같은 판단이다).
+     *
+     * @param date 그 거래일 {@code yyyyMMdd}
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record Bar(@JsonProperty("stck_bsop_date") String date,
+               @JsonProperty("stck_clpr") BigDecimal domesticStock,
+               @JsonProperty("bstp_nmix_prpr") BigDecimal domesticIndex,
+               @JsonProperty("ovrs_nmix_prpr") BigDecimal overseas) {
+
+        /** 온 것 하나. 셋 다 없으면 {@code null}이고 그 칸은 걸러진다. */
+        BigDecimal close() {
+            if (domesticStock != null) {
+                return domesticStock;
+            }
+            return domesticIndex != null ? domesticIndex : overseas;
+        }
+    }
+
+    /** 일자별 배열만 필요한 응답 — 현재가는 시세 경로가 이미 제 캐시로 든다. */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record DailyChart(@JsonProperty("rt_cd") String resultCode,
+                      @JsonProperty("msg1") String message,
+                      @JsonProperty("output2") java.util.List<Bar> bars) implements KisResponse {
+    }
+
     @JsonIgnoreProperties(ignoreUnknown = true)
     record DomesticStock(@JsonProperty("rt_cd") String resultCode,
                          @JsonProperty("msg1") String message,

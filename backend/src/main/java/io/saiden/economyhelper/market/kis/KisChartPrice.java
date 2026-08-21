@@ -13,7 +13,8 @@ import java.math.BigDecimal;
  * 날이 온다.
  *
  * @param output 이름이 {@code output1}이다 — 해외시세 쪽은 {@code output}이 아니다.
- *               {@code output2}는 일자별 배열인데 우리는 현재가만 쓴다
+ *               {@code output2}는 일자별 배열이다 — 환율 차트는 그것을 쓰지 않고
+ *               Frankfurter 시계열로 그린다(키도 한도도 없어 호출 하나가 값을 안 한다)
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 record KisChartPrice(@JsonProperty("rt_cd") String resultCode,

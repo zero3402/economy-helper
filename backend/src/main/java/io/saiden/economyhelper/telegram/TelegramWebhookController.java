@@ -7,6 +7,7 @@ import io.saiden.economyhelper.market.FxService;
 import io.saiden.economyhelper.market.StockService;
 import io.saiden.economyhelper.market.weather.WeatherFacade;
 import io.saiden.economyhelper.news.NewsFacade;
+import io.saiden.economyhelper.market.chart.ChartImage;
 import io.saiden.economyhelper.news.NewsItem;
 import io.saiden.economyhelper.support.FailureReason;
 import java.util.List;
@@ -245,7 +246,7 @@ public class TelegramWebhookController {
      * 로그만 남긴다 — 차트는 보충이지 답이 아니다({@code WeatherService}가 강수 시각을
      * 다루는 방식과 같은 자리다).
      */
-    private void sendChartQuietly(String chatId, Integer topicId, Integer replyTo, Chart chart) {
+    private void sendChartQuietly(String chatId, Integer topicId, Integer replyTo, ChartImage chart) {
         try {
             telegramClient.sendPhoto(chatId, topicId, replyTo, chart.png(), chart.caption());
         } catch (RuntimeException e) {
@@ -268,29 +269,18 @@ public class TelegramWebhookController {
      * @param texts   보낼 본문들. 뉴스만 여럿이고 나머지는 한 통짜리 목록이다
      * @param preview 링크 미리보기를 띄울지. 링크가 있는 통(뉴스)만 참이다
      */
-    private record Reply(List<String> texts, boolean preview, Chart chart) {
+    private record Reply(List<String> texts, boolean preview, ChartImage chart) {
 
         static Reply plain(String text) {
             return new Reply(List.of(text), false, null);
         }
 
-        static Reply plain(String text, Chart chart) {
+        static Reply plain(String text, ChartImage chart) {
             return new Reply(List.of(text), false, chart);
         }
     }
 
-    /**
-     * 답에 딸린 차트 — <b>글은 통으로, 그림은 사진으로</b> 따로 나간다.
-     *
-     * <p>한 통에 합칠 수 없다. 텔레그램은 사진에 caption을 달 수 있지만 그 상한이 1024자라
-     * 본문(최대 4096)이 안 들어가고, 무엇보다 <b>글이 사진에 갇히면 골든이 그것을 못 본다.</b>
-     * 그래서 통이 먼저 나가고 사진이 따라간다 — 사이에 초당 한 통 간격을 지킨다.
-     *
-     * @param png     그림 바이트. 비어 있으면 {@code TelegramClient}가 아무것도 보내지 않는다
-     * @param caption 사진이 무엇인지 — 사진 홀로는 알 수 없으므로 반드시 있다
-     */
-    private record Chart(byte[] png, String caption) {
-    }
+
 
     /**
      * 환율 일봉 차트 — <b>못 만들면 {@code null}이고 답은 그대로 나간다.</b>
@@ -304,18 +294,66 @@ public class TelegramWebhookController {
      * 그 오른쪽 끝이 곧 현재값이라 둘이 이어진다. 게다가 caption이 창을 이름으로 밝힌다.
      * 규칙을 잊은 것이 아니라 해당하지 않는다는 판단이다.
      */
-    private Chart fxChart() {
-        try {
-            List<io.saiden.economyhelper.market.chart.DailyBar> bars = fxService.dailyBars();
-            if (!io.saiden.economyhelper.market.chart.DailySeries.drawable(bars)) {
-                return null;
-            }
-            byte[] png = io.saiden.economyhelper.market.chart.ChartRenderer.render(bars);
-            return png.length == 0 ? null : new Chart(png, ChartCaption.of("환율", "KRW", bars));
-        } catch (RuntimeException e) {
-            log.info("[webhook] 환율 일봉을 못 받아 차트를 빼고 보냅니다: {}", FailureReason.of(e));
+    /** 코인 일봉 차트 — 상장 직후 코인은 칸이 모자라 그림이 없을 수 있다. */
+    private ChartImage cryptoChart(io.saiden.economyhelper.market.CryptoQuote quote) {
+        if (quote.market() == null) {
+            // 업비트에 없는 코인이다(바이낸스만 상장) — 일봉을 물을 곳이 없다
             return null;
         }
+        return chartOf(quote.name(), "KRW", () -> cryptoService.dailyBars(quote.market()));
+    }
+
+    /**
+     * 차트 하나 — <b>못 만들면 {@code null}이고 답은 그대로 나간다.</b>
+     *
+     * <p>세 도메인이 같은 규칙을 쓰므로 한 자리에 둔다. 차트는 보충이지 답이 아니다 —
+     * 일봉 조회가 실패하거나 점이 하나뿐이면 사진만 빠진다({@code WeatherService}가 강수
+     * 시각을 다루는 방식과 같은 자리다).
+     *
+     * <p>⚠️ <b>「현재값과 일일값을 섞지 않는다」는 규칙에 걸리지 않는다.</b> 그 규칙이 막으려는
+     * 것은 <b>모양이 같은 숫자 둘</b>이 서로 다른 축에 있어 모순처럼 읽히는 것이다
+     * (「지금 21°C인데 최고가 29°C」). 차트는 숫자가 아니라 눈에 보이게 다른 표현이고, 그
+     * 오른쪽 끝이 곧 현재값이라 둘이 이어진다. 게다가 caption이 창을 이름으로 밝힌다.
+     * 규칙을 잊은 것이 아니라 해당하지 않는다는 판단이다.
+     */
+    private ChartImage chartOf(String subject, String unit,
+                          java.util.function.Supplier<
+                                  List<io.saiden.economyhelper.market.chart.DailyBar>> bars) {
+        try {
+            List<io.saiden.economyhelper.market.chart.DailyBar> series = bars.get();
+            if (!io.saiden.economyhelper.market.chart.DailySeries.drawable(series)) {
+                return null;
+            }
+            byte[] png = io.saiden.economyhelper.market.chart.ChartRenderer.render(series);
+            return png.length == 0 ? null : new ChartImage(png, ChartCaption.of(subject, unit, series));
+        } catch (RuntimeException e) {
+            log.info("[webhook] {} 일봉을 못 받아 차트를 빼고 보냅니다: {}",
+                    subject, FailureReason.of(e));
+            return null;
+        }
+    }
+
+    /**
+     * 국내 종목 일봉 차트 — <b>국내 종목만이다.</b>
+     *
+     * <p>지수와 미국 종목은 빠진다. 국내 지수는 {@code output2}에 오지만 이름으로 찾는 경로라
+     * 종목코드가 손에 없고, 미국 종목은 {@code price-detail}이 시계열을 아예 주지 않는다
+     * (해외 일봉 경로는 아직 실측하지 않았다). <b>그 도메인만 차트가 빠지고 답은 그대로
+     * 나간다</b> — 전망과 같은 「보충이지 폴백이 아니다」 규칙이다.
+     */
+    private ChartImage stockChart(io.saiden.economyhelper.market.StockService.Answer answer) {
+        String code = answer.code();
+        if (code == null) {
+            return null;
+        }
+        return chartOf(answer.quote().name(),
+                answer.quote().currency() == io.saiden.economyhelper.market.StockQuote.Money.NONE
+                        ? null : answer.quote().currency().name(),
+                () -> stockService.dailyBars(code));
+    }
+
+    private ChartImage fxChart() {
+        return chartOf("환율", "KRW", fxService::dailyBars);
     }
 
     /**
@@ -338,7 +376,8 @@ public class TelegramWebhookController {
             // 바이낸스가 붙었을 때만 환율을 묻는다 — 안 쓸 값을 미리 부르지 않는다
             case CRYPTO -> cryptoService.quote(command.argument())
                     .map(quote -> Reply.plain(CryptoFormatter.format(List.of(quote),
-                            quote.binance().hasPrice() ? fxService.orNull() : null)))
+                                    quote.binance().hasPrice() ? fxService.orNull() : null),
+                            cryptoChart(quote)))
                     .orElseGet(() -> Reply.plain(CryptoFormatter.notFound(command.argument())));
             case FX -> fxService.usdToKrw()
                     // 차트는 보충이다 — 일봉을 못 받아도 환율은 그대로 나간다
@@ -348,11 +387,12 @@ public class TelegramWebhookController {
             // 환산을 못 한다고 시세 자체를 막을 이유가 없다.
             case STOCK -> stockService.answer(command.argument())
                     .map(answer -> Reply.plain(StockFormatter.format(
-                            List.of(answer.quote()), fxService.orNull(),
-                            // 전망이 없으면 빈 맵 — 그러면 그 줄이 아예 안 적힌다
-                            answer.outlook() == null
-                                    ? java.util.Map.of()
-                                    : java.util.Map.of(answer.quote(), answer.outlook()))))
+                                    List.of(answer.quote()), fxService.orNull(),
+                                    // 전망이 없으면 빈 맵 — 그러면 그 줄이 아예 안 적힌다
+                                    answer.outlook() == null
+                                            ? java.util.Map.of()
+                                            : java.util.Map.of(answer.quote(), answer.outlook())),
+                            stockChart(answer)))
                     .orElseGet(() -> Reply.plain(StockFormatter.notFound(command.argument())));
             // 답이 일일 예보라 링크가 없다 — 미리보기를 켤 이유가 없다
             case WEATHER -> {

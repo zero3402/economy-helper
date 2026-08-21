@@ -119,4 +119,48 @@ class UpbitApiTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("업비트 마켓 목록");
     }
+
+    @Test
+    @DisplayName("일봉을 날짜 순으로 뒤집어 담는다 — 업비트는 최근 것이 먼저 온다")
+    void reversesCandlesIntoDateOrder() {
+        stub("/v1/candles/days", """
+                [{"candle_date_time_kst":"2026-08-21T00:00:00","trade_price":161000000},
+                 {"candle_date_time_kst":"2026-08-20T00:00:00","trade_price":158500000},
+                 {"candle_date_time_kst":"2026-08-19T00:00:00","trade_price":159200000}]""");
+
+        var bars = api.dailyBars("KRW-BTC");
+
+        assertThat(bars).extracting(bar -> bar.date().toString())
+                .as("그림은 왼쪽이 과거여야 한다")
+                .containsExactly("2026-08-19", "2026-08-20", "2026-08-21");
+        assertThat(bars.get(2).close()).isEqualByComparingTo(new java.math.BigDecimal("161000000"));
+    }
+
+    @Test
+    @DisplayName("KST 날짜를 쓴다 — UTC를 쓰면 하루가 어긋난다")
+    void usesTheKstDate() {
+        // 두 필드가 함께 오는데 utc는 하루 앞이다. 잘못 고르면 차트의 x축이 통째로 밀린다
+        stub("/v1/candles/days", """
+                [{"candle_date_time_utc":"2026-08-20T15:00:00",
+                  "candle_date_time_kst":"2026-08-21T00:00:00","trade_price":161000000},
+                 {"candle_date_time_utc":"2026-08-19T15:00:00",
+                  "candle_date_time_kst":"2026-08-20T00:00:00","trade_price":158500000}]""");
+
+        assertThat(api.dailyBars("KRW-BTC")).extracting(bar -> bar.date().toString())
+                .containsExactly("2026-08-20", "2026-08-21");
+    }
+
+    @Test
+    @DisplayName("상장 직후라 칸이 하나뿐이면 그림을 안 그린다 — 실패가 아니라 「그만큼밖에 없다」다")
+    void toleratesTooFewCandles() {
+        stub("/v1/candles/days", """
+                [{"candle_date_time_kst":"2026-08-21T00:00:00","trade_price":1000}]""");
+
+        var bars = api.dailyBars("KRW-NEW");
+
+        assertThat(bars).hasSize(1);
+        assertThat(io.saiden.economyhelper.market.chart.DailySeries.drawable(bars))
+                .as("점 하나로는 선이 없다")
+                .isFalse();
+    }
 }

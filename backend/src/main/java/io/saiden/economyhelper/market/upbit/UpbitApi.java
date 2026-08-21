@@ -1,6 +1,8 @@
 package io.saiden.economyhelper.market.upbit;
 
 import io.saiden.economyhelper.config.CacheNames;
+import io.saiden.economyhelper.market.chart.DailySeries;
+import io.saiden.economyhelper.market.chart.DailyBar;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
@@ -64,6 +66,50 @@ public class UpbitApi {
     }
 
     /**
+     * 일봉 — <b>차트가 그리는 것.</b>
+     *
+     * <p>⚠️ <b>세 도메인 중 여기만 진짜 새 호출이다.</b> 환율과 주식은 일봉이 이미 시세 응답에
+     * 오는데(버리고 있었다) 코인은 캔들 엔드포인트가 따로다. 대신 업비트는 <b>키가 없고</b>
+     * 이 호출도 같은 quotation 그룹이라 초당 10회(우리는 8회로 낮춰 잡음) 안에서 돈다 —
+     * 조회당 하나 늘어도 한도에 닿지 않는다.
+     *
+     * <p><b>바이낸스 klines를 쓰지 않는다.</b> 원화 시세는 업비트가 주므로 얻을 것이 없고,
+     * 그쪽은 밴 게이트 옆이라 호출을 늘리는 값이 다르다 — 밴 중의 호출이 밴을 연장한다.
+     *
+     * <p>⚠️ {@code count}로 개수를 받으므로 되짚기가 없다. 다만 <b>상장 직후 코인은 요청한
+     * 개수보다 적게 온다</b> — 그건 실패가 아니라 「그만큼밖에 없다」이고,
+     * {@code DailySeries.drawable}이 점 하나짜리를 걸러낸다.
+     *
+     * @param market 마켓 코드({@code KRW-BTC})
+     */
+    @Cacheable(cacheNames = CacheNames.CRYPTO_SERIES, key = "#market")
+    @RateLimiter(name = "upbit")
+    @Retry(name = "upbit")
+    @CircuitBreaker(name = "upbit")
+    public List<DailyBar> dailyBars(String market) {
+        Candle[] response = restClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/v1/candles/days")
+                        .queryParam("market", market)
+                        .queryParam("count", DailySeries.WINDOW)
+                        .build())
+                .retrieve()
+                .body(Candle[].class);
+
+        if (response == null) {
+            throw new IllegalStateException("업비트 일봉 응답이 비어 있습니다: " + market);
+        }
+        List<DailyBar> bars = new java.util.ArrayList<>();
+        for (Candle candle : response) {
+            if (candle != null && candle.date() != null && candle.close() != null) {
+                bars.add(new DailyBar(java.time.LocalDate.parse(candle.date()), candle.close()));
+            }
+        }
+        // 업비트는 최근 것이 먼저 온다 — 정렬과 걸러내기는 한 곳에서 한다
+        return DailySeries.recent(bars, DailySeries.WINDOW);
+    }
+
+    /**
      * 여러 마켓의 시세를 <b>한 번에</b> 가져온다.
      *
      * <p>동명 후보를 거래대금으로 가릴 때도 이 호출 하나로 끝난다 — 후보마다 따로 부르면
@@ -117,4 +163,21 @@ public class UpbitApi {
                               @JsonProperty("acc_trade_price_24h") BigDecimal accTradePrice24h,
                               @JsonProperty("signed_change_rate") BigDecimal signedChangeRate,
                               @JsonProperty("trade_timestamp") Long tradeTimestamp) {}
+
+    /**
+     * 일봉 한 칸.
+     *
+     * @param date  {@code candle_date_time_kst} 앞 열 자리 — <b>KST 기준</b>이라 우리 달력과 같다
+     *              ({@code candle_date_time_utc}를 쓰면 하루가 어긋난다)
+     * @param close {@code trade_price} — 그 날의 종가
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record Candle(@JsonProperty("candle_date_time_kst") String dateTime,
+                  @JsonProperty("trade_price") java.math.BigDecimal close) {
+
+        /** {@code 2026-08-21T00:00:00} → {@code 2026-08-21}. */
+        String date() {
+            return dateTime == null || dateTime.length() < 10 ? null : dateTime.substring(0, 10);
+        }
+    }
 }

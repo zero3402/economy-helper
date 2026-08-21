@@ -243,7 +243,7 @@ class DigestIntegrationTest {
     private static io.saiden.economyhelper.market.StockService deadStock() {
         return new io.saiden.economyhelper.market.StockService(List.of(), List.of(),
                 new io.saiden.economyhelper.market.data.DataGoStockClient(null, null), null,
-                code -> java.util.Optional.empty(), symbol -> java.util.Optional.empty()) {
+                code -> java.util.Optional.empty(), symbol -> java.util.Optional.empty(), null) {
             @Override
             public List<io.saiden.economyhelper.market.StockService.Answer> answersOf(
                     List<String> codes) {

@@ -114,6 +114,18 @@ public final class CacheNames {
      */
     public static final String FX_SERIES = "fx-series";
 
+    /**
+     * 코인 일봉. <b>세 도메인 중 여기만 진짜 새 호출</b>이라(환율·주식은 시세 응답에 이미 온다)
+     * 캐시가 하는 일이 가장 크다 — 업비트는 키가 없지만 초당 한도는 있다.
+     */
+    public static final String CRYPTO_SERIES = "crypto-series";
+
+    /**
+     * 국내 종목 일봉. <b>시세 응답에 이미 오는 값이지만 따로 담는다</b> — 시세는 1분이고
+     * 일봉은 하루에 한 번 바뀌어서, 한 이름에 담으면 하루치 값을 1분마다 다시 받는다.
+     */
+    public static final String STOCK_SERIES = "stock-series";
+
     /** 유럽중앙은행 환율. */
     public static final String FX = "fx";
 

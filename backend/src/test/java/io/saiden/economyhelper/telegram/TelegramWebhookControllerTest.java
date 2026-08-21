@@ -520,7 +520,7 @@ class TelegramWebhookControllerTest {
     /** 해석 규칙은 {@code StockServiceTest}가 본다. 여기서는 라우팅만 본다. */
     private static StockService stock(Optional<StockQuote> result) {
         return new StockService(List.of(), List.of(), new DataGoStockClient(null, null),
-                new StockResolver(null, null), code -> java.util.Optional.empty(), symbol -> java.util.Optional.empty()) {
+                new StockResolver(null, null), code -> java.util.Optional.empty(), symbol -> java.util.Optional.empty(), null) {
             // ⚠️ quote가 아니라 answer를 덮는다. 컨트롤러가 전망을 함께 받으려고 answer로
             //    옮겨 갔으므로, quote를 덮어 두면 페이크가 가로채지 못한다
             @Override

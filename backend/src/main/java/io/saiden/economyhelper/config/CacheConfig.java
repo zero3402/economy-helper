@@ -113,6 +113,14 @@ public class CacheConfig {
                         cache(ttl.fxSeries(),
                                 new TypeReference<java.util.List<
                                         io.saiden.economyhelper.market.chart.DailyBar>>() {}))
+                .withCacheConfiguration(CacheNames.CRYPTO_SERIES,
+                        cache(ttl.cryptoSeries(),
+                                new TypeReference<java.util.List<
+                                        io.saiden.economyhelper.market.chart.DailyBar>>() {}))
+                .withCacheConfiguration(CacheNames.STOCK_SERIES,
+                        cache(ttl.stockSeries(),
+                                new TypeReference<java.util.List<
+                                        io.saiden.economyhelper.market.chart.DailyBar>>() {}))
                 .withCacheConfiguration(CacheNames.FX,
                         cache(ttl.fx(), new TypeReference<FxRate>() {}))
                 // 하루 1,000회 한도를 지키는 실질 방어다 — 1시간이면 하루 최대 24회

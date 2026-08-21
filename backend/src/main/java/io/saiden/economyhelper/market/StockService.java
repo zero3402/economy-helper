@@ -77,13 +77,21 @@ public class StockService {
     private final UsOutlookClient usOutlooks;
 
     /**
+     * 일봉을 주는 출처 — <b>이중화되지 않는다.</b> 공공데이터포털은 날짜당 호출 하나라 열나흘이면
+     * 열네 번이고, KIS는 한 호출로 {@code output2}를 통째로 준다. 그래서 SPI 목록이 아니라
+     * 그 하나를 직접 든다 — 이름 검색에 공공데이터포털을 직접 드는 것과 같은 자리다.
+     */
+    private final io.saiden.economyhelper.market.kis.KisStockApi kisSeries;
+
+    /**
      * @param names <b>이름으로 찾는 경로는 이중화되지 않는다</b> — 한국투자증권에 종목명 검색이
      *              없어서다(조회가 언제나 코드 → 이름 방향이다). 그래서 SPI 목록이 아니라
      *              공공데이터포털을 직접 든다
      */
     public StockService(List<DomesticStockClient> domestic, List<UsStockClient> us,
                         DataGoStockClient names, StockResolver resolver,
-                        DomesticOutlookClient outlooks, UsOutlookClient usOutlooks) {
+                        DomesticOutlookClient outlooks, UsOutlookClient usOutlooks,
+                        io.saiden.economyhelper.market.kis.KisStockApi kisSeries) {
         // 순서는 여기서 정한다 — 주입 순서에 딸려 가면 클래스 이름을 바꾸다 뒤집힌다
         this.domestic = Failover.order(domestic, DOMESTIC_ORDER, StockClient::source);
         this.us = Failover.order(us, US_ORDER, StockClient::source);
@@ -91,6 +99,7 @@ public class StockService {
         this.resolver = resolver;
         this.outlooks = outlooks;
         this.usOutlooks = usOutlooks;
+        this.kisSeries = kisSeries;
     }
 
 
@@ -240,11 +249,18 @@ public class StockService {
      * (60배), {@code kis-quote}는 {@code TypeReference<StockQuote>}로 타입이 못 박혀 있어
      * 다른 모양을 담으면 <b>쓸 때는 넘어가고 읽을 때 깨진다</b>.
      */
-    public record Answer(StockQuote quote, StockOutlook outlook) {
+    public record Answer(StockQuote quote, StockOutlook outlook, String code) {
 
-        /** 전망이 없는 것 — 지수·미국 종목·이름 검색이 그렇다. */
+        /**
+         * 전망도 코드도 없는 것 — 지수·미국 종목·이름 검색이 그렇다.
+         *
+         * <p><b>{@code code}가 왜 여기 있나.</b> {@link StockQuote}에는 종목코드가 없다(화면이
+         * 안 쓴다). 그런데 일봉을 물으려면 코드가 필요하고, 그것을 아는 자리는 여기까지다 —
+         * 이름 검색으로 찾은 종목은 공공데이터포털이 코드를 안 주므로 {@code null}이고
+         * 그때는 차트가 빠진다.
+         */
         public static Answer of(StockQuote quote) {
-            return new Answer(quote, null);
+            return new Answer(quote, null, null);
         }
     }
 
@@ -261,7 +277,8 @@ public class StockService {
             // 통화가 없으면 지수다 — StockQuote가 지역·통화로 그것을 이미 가른다
             return quote.map(Answer::of);
         }
-        return quote.map(found -> new Answer(found, usOutlookOf(resolved.code())));
+        // 미국 종목은 일봉 경로가 없어 코드를 담아도 쓸 곳이 없다 — null로 둔다
+        return quote.map(found -> new Answer(found, usOutlookOf(resolved.code()), null));
     }
 
     /** {@link #outlookOf}와 같은 이유로 여기서 삼킨다 — 클라이언트가 삼키면 브레이커가 못 본다. */
@@ -274,9 +291,18 @@ public class StockService {
         }
     }
 
+    /**
+     * 차트용 일봉 — <b>실패를 삼키지 않는다.</b>
+     *
+     * <p>부르는 쪽이 「차트만 빼고 보낸다」를 판단해야 하므로 던진다.
+     */
+    public List<io.saiden.economyhelper.market.chart.DailyBar> dailyBars(String code) {
+        return kisSeries.dailyBars(code);
+    }
+
     /** 국내 종목 하나 — <b>여기가 종목코드가 있는 유일한 자리</b>라 전망을 여기서 붙인다. */
     private Optional<Answer> stockAnswer(String code) {
-        return stock(code).map(quote -> new Answer(quote, outlookOf(code)));
+        return stock(code).map(quote -> new Answer(quote, outlookOf(code), code));
     }
 
     /**

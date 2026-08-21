@@ -207,6 +207,19 @@ public class CryptoService {
     }
 
     /** 마켓 코드를 이미 아는 경우 — 아침 브리핑처럼 설정에 박힌 코인들이 여기로 온다. */
+    /**
+     * 차트용 일봉 — <b>실패를 삼키지 않는다.</b>
+     *
+     * <p>부르는 쪽이 「차트만 빼고 보낸다」를 판단해야 하므로 던진다. 삼키면 클라이언트에 걸린
+     * 브레이커가 정상 반환을 보고 성공을 센다.
+     *
+     * @param market 업비트 마켓 코드. 바이낸스 쪽은 쓰지 않는다 — 원화 시세는 업비트가 주고
+     *               그쪽은 밴 게이트 옆이라 호출을 늘리는 값이 다르다
+     */
+    public List<io.saiden.economyhelper.market.chart.DailyBar> dailyBars(String market) {
+        return upbitApi.dailyBars(market);
+    }
+
     public List<CryptoQuote> quotesOf(List<String> markets) {
         if (markets.isEmpty()) {
             return List.of();

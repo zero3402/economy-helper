@@ -309,7 +309,7 @@ class DailyDigestJobTest {
     }
 
     private static StockService stock(boolean indicesAlive, boolean stocksAlive) {
-        return new StockService(List.of(), List.of(), noNames(), null, code -> java.util.Optional.empty(), symbol -> java.util.Optional.empty()) {
+        return new StockService(List.of(), List.of(), noNames(), null, code -> java.util.Optional.empty(), symbol -> java.util.Optional.empty(), null) {
             @Override
             public List<StockQuote> indicesOf(List<EconomyHelperProperties.Index> indices) {
                 return indicesAlive
