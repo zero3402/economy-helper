@@ -158,19 +158,24 @@ public final class WeatherFormatter {
     /**
      * {@code 오후 1시~7시} — 한 토막의 시간대.
      *
-     * <p><b>같은 오전/오후 안이면 두 번 적지 않는다.</b> {@code 오후 1시~오후 7시}는 읽는 눈이
-     * 한 번 더 걸린다 — 정오를 넘는 토막만 양쪽에 적는다({@code 오전 11시~오후 2시}).
+     * <p><b>접두사를 두 번 적지 않는다.</b> {@code 오후 1시~오후 7시}는 읽는 눈이 한 번 더
+     * 걸리므로 뒤쪽은 숫자만 적는다({@code 오후 1시~7시}).
+     *
+     * <p>⚠️ <b>토막은 정오를 넘지 않는다</b> — {@code PrecipitationSpells.fold}가 거기서 끊는다.
+     * 예전에는 넘는 경우를 여기서 다뤄 {@code 오전 11시~오후 2시}처럼 양쪽에 적었는데, 그
+     * 분기는 이제 도달할 수 없다. 도달 불가한 분기를 남겨 두면 다음 사람이 「여기가 정오를
+     * 처리한다」고 믿게 되므로 지운다 — 대신 그 불변을
+     * {@code PrecipitationSpellsTest.neverLetsASpellCrossNoon}이 지킨다.
      */
     private static String range(java.time.LocalTime from, java.time.LocalTime to) {
         if (from.equals(to)) {
             return hour(from);
         }
-        boolean sameHalf = from.getHour() / 12 == to.getHour() / 12;
         // 자정·정오는 제 이름을 쓰므로 접두사를 생략할 대상이 아니다
         boolean named = from.getHour() % 12 == 0 || to.getHour() % 12 == 0;
-        return sameHalf && !named
-                ? hour(from) + "~" + to.getHour() % 12 + "시"
-                : hour(from) + "~" + hour(to);
+        return named
+                ? hour(from) + "~" + hour(to)
+                : hour(from) + "~" + to.getHour() % 12 + "시";
     }
 
     /**

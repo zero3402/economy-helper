@@ -92,7 +92,25 @@ public final class PrecipitationSpells {
         return byDay;
     }
 
-    /** 하루치 슬롯을 연속 구간으로 접는다 — 문턱은 그날 봉우리가 정한다. */
+    /**
+     * 하루치 슬롯을 연속 구간으로 접는다 — 문턱은 그날 봉우리가 정한다.
+     *
+     * <p><b>정오에서도 끊는다.</b> {@code byDay}가 자정에서 끊는 것과 같은 이유다 —
+     * 「오전 8시~오후 5시 비」는 아홉 시간의 폭이라 「비옴」에서 별로 나아가지 못한다.
+     * 오전과 오후를 따로 적으면 사용자가 우산을 언제 챙길지 두 번 판단할 수 있다.
+     *
+     * <p><b>쪼개는 것이 화면이 아니라 여기인 이유.</b> 토막은 그 구간의 <b>최대 확률</b>과
+     * <b>합계 강수량</b>을 든다. 화면에서 한 토막을 두 줄로 그리면 두 줄에 같은 숫자가 찍혀
+     * 「오전에도 80%, 오후에도 80%」가 되는데, 실제로는 오전 55%·오후 80%일 수 있다 —
+     * 그건 값을 다른 것인 척 하는 일이다. 여기서 끊으면 {@link #spell}이 반나절마다 다시
+     * 세므로 두 숫자가 각각 사실이 된다.
+     *
+     * <p>⚠️ <b>문턱은 그날 것을 그대로 쓴다.</b> 반나절마다 봉우리를 다시 재면 안 된다 —
+     * 오전 봉우리가 60%인 날 그 80%는 48%이고, 절대 문턱 50%에 밀려 결국 50%가 되는데,
+     * 그러면 하루 기준(80%의 80% = 64%)에서는 걸러지던 55% 시간대가 오전에만 새로 통과한다.
+     * 같은 날 같은 비를 반나절에 따라 다르게 판정하는 것이라 {@link #PEAK_RATIO}가 말하는
+     * 「그날 봉우리」가 아니게 된다. <b>끊는 것만 하고 문턱은 건드리지 않는다.</b>
+     */
     private static List<PrecipitationSpell> fold(List<LocalDateTime> times, List<Integer> chances,
                                         List<BigDecimal> amounts, List<Integer> codes,
                                         List<Integer> slots, Thresholds cut) {
@@ -105,13 +123,28 @@ public final class PrecipitationSpells {
                 start = position;
             }
             boolean last = position == slots.size() - 1;
-            if (start >= 0 && (!wet || last)) {
-                int end = wet && last ? position : position - 1;
+            // 다음 슬롯이 오후면 여기가 오전 토막의 끝이다
+            boolean noonBoundary = wet && !last
+                    && morning(times, slots, position) && !morning(times, slots, position + 1);
+            if (start >= 0 && (!wet || last || noonBoundary)) {
+                int end = wet && (last || noonBoundary) ? position : position - 1;
                 spells.add(spell(times, chances, amounts, codes, slots, start, end));
                 start = -1;
             }
         }
         return spells;
+    }
+
+    /**
+     * 그 슬롯이 오전인가.
+     *
+     * <p>⚠️ <b>시간대를 다시 계산하지 않는다.</b> Open-Meteo를 {@code timezone=auto}로 부르므로
+     * {@code times}의 시각이 이미 그 지역 현지시다 — 여기서 {@code ZoneId}를 끼우면 남의 정오를
+     * 우리 시계로 옮기게 된다({@code byDay}가 날짜를 가를 때와 같은 규칙이다).
+     */
+    private static boolean morning(List<LocalDateTime> times, List<Integer> slots, int position) {
+        LocalDateTime at = at(times, slots.get(position));
+        return at != null && at.getHour() < 12;
     }
 
     /**

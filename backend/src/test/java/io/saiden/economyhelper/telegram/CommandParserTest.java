@@ -127,8 +127,49 @@ class CommandParserTest {
     @Test
     @DisplayName("선언하지 않은 한 글자는 여전히 모르는 명령이다 — 있는 것만 받는다")
     void stillRejectsUndeclaredShortTokens() {
-        assertThat(CommandParser.parse("/n 금리")).isEmpty();
-        assertThat(CommandParser.isUnknownCommand("/n 금리")).isTrue();
+        // ⚠️ 예전에는 여기가 /n이었다. 그때는 /news에 줄임말이 없었고 Command javadoc이
+        //    "지어내지 않는다"고 적어 뒀다. 이제 /n이 선언됐으므로 이 단언은 아직 아무도
+        //    쓰지 않는 글자로 옮긴다 — 「선언한 것만 받는다」는 주장 자체는 그대로다
+        assertThat(CommandParser.parse("/z 금리")).isEmpty();
+        assertThat(CommandParser.isUnknownCommand("/z 금리")).isTrue();
         assertThat(CommandParser.isUnknownCommand("/x")).isTrue();
+    }
+
+    @Test
+    @DisplayName("줄임말이 서로 겹치지 않는다 — 겹치면 하나가 먼저 걸려 나머지가 죽는다")
+    void shortTokensNeverCollide() {
+        // Command javadoc이 이 그물을 가리키므로 실제로 있어야 한다. 여섯이 전부 첫 글자 하나를
+        // 쓰는데, 같은 글자를 두 명령이 들면 파서가 먼저 만난 쪽만 살고 나머지는 조용히 죽는다 —
+        // 그 실패는 "그 명령만 동작하지 않는다"라서 발견이 늦다
+        java.util.List<String> shorts = java.util.Arrays.stream(Command.values())
+                .map(Command::shortToken)
+                .filter(java.util.Objects::nonNull)
+                .toList();
+
+        assertThat(shorts).as("줄임말이 하나도 없으면 이 단언이 공허하게 통과한다").isNotEmpty();
+        assertThat(shorts).doesNotHaveDuplicates();
+
+        // 줄임말이 다른 명령의 정식 토큰과 겹치지 않는지도 본다. token()은 공개 접근자가
+        // 없으므로(Command 안에서만 읽는다) 파서를 통해 확인한다 — 그게 실제로 걸리는 경로다
+        for (String shortToken : shorts) {
+            assertThat(CommandParser.parse(shortToken + " 아무거나"))
+                    .as("%s가 아무 명령에도 안 걸린다", shortToken)
+                    .isPresent();
+        }
+    }
+
+    @Test
+    @DisplayName("모든 명령이 줄임말로도 불린다 — /n을 더한 뒤 여섯이 전부 갖췄다")
+    void everyCommandAnswersToItsShortToken() {
+        for (Command command : Command.values()) {
+            assertThat(command.shortToken())
+                    .as("%s에 줄임말이 없다", command)
+                    .isNotNull();
+            assertThat(CommandParser.parse(command.shortToken()
+                            + (command.requiresArgument() ? " 아무거나" : "")))
+                    .as("%s가 %s로 안 걸린다", command, command.shortToken())
+                    .map(ParsedCommand::command)
+                    .contains(command);
+        }
     }
 }

@@ -642,6 +642,21 @@ Open-Meteo Archive
 
 2026년 8월 10일(월) (실측)
 
+=== weather/precipitation-across-noon ===
+<b>날씨</b>
+
+<b>미금역</b>
+
+흐림
+18.2°C / 29.6°C
+강수확률 20%
+☔ 오전 10시~11시 비 (최대 80%)
+☔ 정오~오후 3시 비 (최대 90%)
+
+AccuWeather
+
+2026년 8월 17일(월) (예보)
+
 === weather/rain-amount ===
 <b>날씨</b>
 
@@ -800,7 +815,7 @@ AccuWeather
 === help ===
 <b>사용할 수 있는 명령</b>
 
-/news 금리
+/news 금리 (또는 /n)
 뉴스
 
 /fx (또는 /f)
@@ -823,7 +838,7 @@ AccuWeather
 
 입력하신 명령을 찾지 못했습니다.
 
-/news 금리
+/news 금리 (또는 /n)
 뉴스
 
 /fx (또는 /f)

@@ -209,6 +209,13 @@ class RenderedOutputTest {
         // 지나간 날은 확률이 없다 — 실제로 온 양으로 적는다
         cases.put("weather/precipitation-measured", WeatherFormatter.format(List.of(
                 archivedWithSpells())));
+        // ⚠️ 정오를 넘는 비는 **두 줄**로 나와야 한다. PrecipitationSpells.fold가 거기서 끊으므로
+        //    포매터에 오는 것은 이미 토막 둘이고, 각 줄이 제 반나절의 확률을 든다 —
+        //    한 토막을 두 줄로 그리면 두 줄에 같은 숫자가 찍혀 한쪽이 거짓이 된다.
+        //    이 케이스가 없던 동안에는 골든 어디에도 정오를 넘는 비가 없어, 쪼개는 동작이
+        //    화면에서 무엇이 되는지 아무 오라클도 보지 못했다
+        cases.put("weather/precipitation-across-noon", WeatherFormatter.format(List.of(withSpells(
+                spell(10, 11, SkyCondition.RAIN, 80), spell(12, 15, SkyCondition.RAIN, 90)))));
         cases.put("weather/rain-amount", WeatherFormatter.format(List.of(openMeteoFallback())));
         cases.put("weather/archived", WeatherFormatter.format(List.of(archived())));
         // 0.25는 HALF_EVEN이면 0.2, HALF_UP이면 0.3이다 — oneDecimal만 반올림이 달랐던 자리를

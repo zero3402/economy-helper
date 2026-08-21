@@ -188,6 +188,87 @@ class PrecipitationSpellsTest {
         return spells.get(0).kind();
     }
 
+    @Test
+    @DisplayName("정오를 넘는 비는 오전과 오후로 쪼개진다 — 아홉 시간 폭은 「비옴」과 다를 게 없다")
+    void splitsAtNoon() {
+        // 오전 10시부터 오후 3시까지 이어지는 비. 한 토막이면 「오전 10시~오후 3시」가 되는데
+        // 그 여섯 시간 폭으로는 우산을 언제 챙길지 알 수 없다
+        List<Integer> chances = new java.util.ArrayList<>(java.util.Collections.nCopies(24, 0));
+        for (int hour = 10; hour <= 15; hour++) {
+            chances.set(hour, 80);
+        }
+
+        List<PrecipitationSpell> spells =
+                PrecipitationSpells.byDay(hours(DAY, 24), chances, null, null).get(DAY);
+
+        assertThat(spells).hasSize(2);
+        assertThat(spells.get(0).from()).isEqualTo(LocalTime.of(10, 0));
+        assertThat(spells.get(0).to())
+                .as("오전 토막은 11시에 끝난다 — 12시는 이미 오후다")
+                .isEqualTo(LocalTime.of(11, 0));
+        assertThat(spells.get(1).from()).isEqualTo(LocalTime.of(12, 0));
+        assertThat(spells.get(1).to()).isEqualTo(LocalTime.of(15, 0));
+    }
+
+    @Test
+    @DisplayName("쪼갠 두 토막이 각각 제 확률을 든다 — 한 숫자를 두 줄에 찍으면 거짓이 된다")
+    void eachHalfCarriesItsOwnPeak() {
+        // 오전은 80%, 오후는 90%. 화면에서 한 토막을 두 줄로 그리면 둘 다 90%가 되는데
+        // 그건 오전에 대해 거짓이다. 쪼개는 일이 포매터가 아니라 접는 층에 있는 이유다.
+        // ⚠️ 두 값이 **둘 다 그날 문턱을 넘어야** 이 테스트가 뜻을 갖는다 — 봉우리 90%의
+        //    80%는 72%이므로 80·90이 함께 통과한다. 오전을 55%로 두면 문턱에 밀려
+        //    토막이 하나만 나오고, 그건 thresholdStaysScopedToTheWholeDay가 보는 것이다
+        List<Integer> chances = new java.util.ArrayList<>(java.util.Collections.nCopies(24, 0));
+        chances.set(10, 80);
+        chances.set(11, 80);
+        chances.set(12, 90);
+        chances.set(13, 90);
+
+        List<PrecipitationSpell> spells =
+                PrecipitationSpells.byDay(hours(DAY, 24), chances, null, null).get(DAY);
+
+        assertThat(spells).hasSize(2);
+        assertThat(spells.get(0).chance()).as("오전은 오전 것을 든다").isEqualTo(80);
+        assertThat(spells.get(1).chance()).as("오후는 오후 것을 든다").isEqualTo(90);
+    }
+
+    @Test
+    @DisplayName("문턱은 반나절이 아니라 그날 봉우리로 잰다 — 반나절마다 재면 필터가 조용히 느슨해진다")
+    void thresholdStaysScopedToTheWholeDay() {
+        // 그날 봉우리가 오후 90%다. 하루 기준 문턱은 max(50, 72) = 72이므로 오전 60%는 걸러진다.
+        // 반나절마다 다시 재면 오전 문턱이 max(50, 48) = 50이 되어 그 60%가 새로 통과한다 —
+        // 같은 날 같은 비를 반나절에 따라 다르게 판정하는 것이라 틀린다
+        List<Integer> chances = new java.util.ArrayList<>(java.util.Collections.nCopies(24, 0));
+        chances.set(9, 60);
+        chances.set(10, 60);
+        chances.set(14, 90);
+        chances.set(15, 90);
+
+        List<PrecipitationSpell> spells =
+                PrecipitationSpells.byDay(hours(DAY, 24), chances, null, null).get(DAY);
+
+        assertThat(spells)
+                .as("오전 60%는 그날 봉우리(90%)의 80%인 72%에 밀려 토막이 되지 않는다")
+                .singleElement()
+                .satisfies(spell -> assertThat(spell.from()).isEqualTo(LocalTime.of(14, 0)));
+    }
+
+    @Test
+    @DisplayName("어떤 토막도 정오를 넘지 않는다 — WeatherFormatter.range()가 이 불변에 기대고 있다")
+    void neverLetsASpellCrossNoon() {
+        // range()에서 「정오를 넘는 토막」 분기를 지웠으므로 그 불변이 여기서 지켜져야 한다.
+        // 종일 비가 오는 극단을 먹여 본다 — 쪼개지지 않으면 자정~밤 11시 한 토막이 된다
+        List<Integer> chances = java.util.Collections.nCopies(24, 90);
+
+        List<PrecipitationSpell> spells =
+                PrecipitationSpells.byDay(hours(DAY, 24), chances, null, null).get(DAY);
+
+        assertThat(spells).as("종일 비인데 토막이 없으면 이 단언이 공허하다").isNotEmpty();
+        assertThat(spells).allSatisfy(spell -> assertThat(spell.from().getHour() / 12)
+                .as("%s~%s가 정오를 넘는다", spell.from(), spell.to())
+                .isEqualTo(spell.to().getHour() / 12));
+    }
+
     private static List<LocalDateTime> hours(LocalDate day, int count) {
         return java.util.stream.IntStream.range(0, count)
                 .mapToObj(hour -> day.atTime(hour, 0)).toList();
