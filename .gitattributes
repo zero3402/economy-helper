@@ -1,0 +1,10 @@
+# 골든은 바이트를 견주는 파일이라 줄 끝이 값이다.
+#
+# ⚠️ RenderedOutputTest는 렌더한 문자열(\n)과 이 파일을 Files.readString으로 읽은 것을
+#    **글자 그대로** 견준다. 그런데 core.autocrlf=true인 윈도우에서는 git이 저장은 LF로
+#    하고 체크아웃은 CRLF로 해 준다 — 그러면 파일을 한 자도 안 고쳤는데 테스트가 깨진다
+#    (실측 2026-08-21: 작업 트리는 CRLF, 저장된 블롭은 LF).
+#
+# 사람의 git 설정을 고쳐서 막지 않는다. 그건 이 저장소 밖의 값이고, 다음 사람이 같은 자리를
+# 다시 밟는다. 파일의 성질은 파일 옆에 적는다.
+backend/src/test/resources/golden/messages.txt text eol=lf

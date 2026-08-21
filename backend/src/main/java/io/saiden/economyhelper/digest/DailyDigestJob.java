@@ -313,6 +313,11 @@ public class DailyDigestJob extends TriggerableJob {
         try {
             List<DailyBar> series = bars.get();
             if (!DailySeries.drawable(series)) {
+                // 검색 경로(TelegramWebhookController.chartOf)와 같은 말을 남긴다 —
+                // 조용한 빈손은 「차트가 안 나온다」와 「차트를 안 물었다」를 못 가른다
+                log.info("[digest] {} 일봉이 {}칸뿐이라 차트를 뺍니다 — "
+                                + "KIS가 모르는 심볼이면 0.00만 와서 전부 걸러집니다",
+                        subject, series == null ? 0 : series.size());
                 return List.of();
             }
             byte[] png = ChartRenderer.render(series);

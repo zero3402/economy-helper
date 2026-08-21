@@ -322,6 +322,13 @@ public class TelegramWebhookController {
         try {
             List<io.saiden.economyhelper.market.chart.DailyBar> series = bars.get();
             if (!io.saiden.economyhelper.market.chart.DailySeries.drawable(series)) {
+                // ⚠️ 조용히 빠지지 않는다. 여기까지 왔다는 것은 <b>열쇠는 있었는데 칸이 없다</b>는
+                //    뜻이고 원인이 둘이다: KIS가 모르는 심볼이라 0.00만 와서 DailySeries가 전부
+                //    걸러냈거나, 상장 직후라 칸이 모자라거나. 예전에는 이 자리가 로그 한 줄 없이
+                //    null이어서 「차트가 안 나온다」와 「차트를 안 물었다」를 구분할 수 없었다
+                log.info("[webhook] {} 일봉이 {}칸뿐이라 차트를 빼고 보냅니다 — "
+                                + "KIS가 모르는 심볼이면 0.00만 와서 전부 걸러집니다",
+                        subject, series == null ? 0 : series.size());
                 return null;
             }
             byte[] png = io.saiden.economyhelper.market.chart.ChartRenderer.render(series);

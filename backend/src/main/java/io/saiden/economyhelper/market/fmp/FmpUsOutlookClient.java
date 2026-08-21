@@ -99,7 +99,11 @@ public class FmpUsOutlookClient implements UsOutlookClient {
     @Override
     @Cacheable(cacheNames = CacheNames.US_OUTLOOK, key = "#symbol")
     @RateLimiter(name = "fmp")
-    @CircuitBreaker(name = "fmp")
+    // ⚠️ 브레이커는 시세와 <b>따로</b>다. 리미터는 같이 쓴다 — 하루 250회가 한 예산이라
+    //    초당 연타를 막는 일은 둘이 함께 해야 하지만, 「상대가 죽었나」는 갈린다:
+    //    허용목록 밖 심볼(PATH·ORCL)의 전망은 언제나 402여서, 한 브레이커면 그 402가
+    //    미국 시세의 2순위까지 끊는다. KIS를 kisFx·kisStock으로 나눈 것과 같은 판단이다
+    @CircuitBreaker(name = "fmpOutlook")
     public Optional<StockOutlook> outlook(String symbol) {
         if (apiKey.isBlank()) {
             throw new IllegalStateException("FMP API 키가 없습니다");
