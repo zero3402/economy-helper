@@ -323,7 +323,6 @@ Financial Modeling Prep
 239,500 KRW
 🔵 -1.26%
 목표 466,667 KRW
-매수 (3곳)
 
 금융위원회
 
@@ -352,7 +351,22 @@ Financial Modeling Prep
 232.14 USD
 327,821 KRW
 목표 340.72 USD
-매수 (111곳)
+
+실적발표 10월 29일(목)
+
+Financial Modeling Prep
+
+2026년 8월 13일(목) 07:00:00
+
+=== stock/outlook-earnings-only ===
+<b>증시</b>
+
+<b>미국</b>
+
+애플
+232.14 USD
+327,821 KRW
+
 실적발표 10월 29일(목)
 
 Financial Modeling Prep

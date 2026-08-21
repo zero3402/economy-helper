@@ -137,8 +137,8 @@ public class DailyDigestJob extends TriggerableJob {
         List<Section> sections = Concurrently.map(List.of(
                 section("환율", () -> fx == null ? List.of() : List.of(FxFormatter.format(fx)),
                         false, () -> chartOf("환율", "KRW", fxService::dailyBars)),
-                // ⚠️ 국내 종목만 차트가 붙는다. 지수는 종목코드가 없고(이름으로 찾는다) 미국
-                //    종목은 시계열을 주는 경로가 없다 — 그 종목만 빠지고 통은 그대로 나간다
+                // 증시 통은 실리는 것마다 차트가 한 장씩 붙는다(지수 넷 · 국내 종목 · 미국 종목).
+                // 못 그린 것만 빠지고 통은 그대로 나간다 — 보충이지 폴백이 아니다
                 section("증시", () -> stockMessage(fx), false, this::stockCharts),
                 section("코인", () -> cryptoMessage(fx), false, this::cryptoCharts),
                 // 뉴스 통만 미리보기를 켠다 — 링크가 있는 통이 여기뿐이다.
@@ -235,34 +235,44 @@ public class DailyDigestJob extends TriggerableJob {
      * 되어 값이 아닌 것에 통화를 붙이는 셈이다 — {@code StockQuote.Money.NONE}과 같은 판단이고
      * {@code ChartCaption}이 이미 그 경우를 다룬다.
      *
-     * <p><b>미국 종목만 빠진다.</b> {@code price-detail}은 시계열을 아예 주지 않고 KIS의 해외
-     * 일봉 경로는 아직 실측하지 않았다. <b>그 종목만 차트가 없고 값은 통에 그대로 있다</b> —
-     * 보충이지 폴백이 아니다.
+     * <p><b>이제 빠지는 것이 없다.</b> 미국 종목이 마지막 구멍이었는데 지수용으로 만든 경로가
+     * 종목 심볼도 받는 것을 실측으로 확인해(2026-08-21 {@code AAPL}·{@code NVDA}·{@code ORCL})
+     * 같은 메서드로 붙었다. 그래도 <b>실패하면 그 한 장만 빠진다</b> — 보충이지 폴백이 아니다.
      *
-     * <p>KIS는 호출 사이 1초를 지키므로 그림 수만큼 늦어진다(지수 넷이 붙어 +4초).
-     * 12시간 캐시가 그것을 하루 한 번으로 눌러 준다.
+     * <p>⚠️ <b>KIS 호출이 통마다 늘어난다.</b> 호출 사이 1초를 지키므로 그림 수만큼 늦어진다
+     * (설정 그대로면 지수 넷 + 국내 종목 + 미국 종목 둘). 발송 창이 두 시간이라 문제가 되지
+     * 않고, 12시간 캐시가 그것을 하루 한 번으로 눌러 준다.
      */
     private List<ChartImage> stockCharts() {
         List<ChartImage> charts = new ArrayList<>();
         for (Index index : indexNames) {
-            charts.addAll(chartOf(index.name(), null, () -> stockService.dailyBarsOfIndex(index)));
+            charts.addAll(chartOf(index.name(), null,
+                    StockService.Series.domesticIndex(index.name())));
         }
-        for (StockService.Answer answer : stockService.answersOf(stockCodes)) {
-            if (answer.code() == null) {
+        charts.addAll(chartsOf(stockService.answersOf(stockCodes)));
+        charts.addAll(chartsOf(stockService.usAnswersOf(usSymbols)));
+        return charts;
+    }
+
+    /**
+     * 답마다 차트 한 장 — <b>열쇠가 없는 것만 빠진다.</b>
+     *
+     * <p>단위는 시세가 든 통화를 그대로 쓴다. 지수는 {@code Money.NONE}이라 {@code null}이 되고
+     * caption이 숫자만 적는다 — 「6,869.83 KRW」라고 적을 근거가 없다.
+     */
+    private List<ChartImage> chartsOf(List<StockService.Answer> answers) {
+        List<ChartImage> charts = new ArrayList<>();
+        for (StockService.Answer answer : answers) {
+            if (answer.series() == null) {
                 continue;
             }
-            charts.addAll(chartOf(answer.quote().name(), "KRW",
-                    () -> stockService.dailyBars(answer.code())));
-        }
-        for (UsSymbol symbol : usSymbols) {
-            // 지수만 일봉 경로가 있다 — 종목을 물으면 KIS 심볼 표에 없어 어차피 던진다.
-            // 걸러내는 것은 호출을 아끼려는 것이 아니라 매일 그 로그를 남기지 않기 위함이다
-            if (symbol.isIndex()) {
-                charts.addAll(chartOf(symbol.name(), null,
-                        () -> stockService.dailyBarsOfUsIndex(symbol)));
-            }
+            charts.addAll(chartOf(answer.quote().name(), unitOf(answer.quote()), answer.series()));
         }
         return charts;
+    }
+
+    private static String unitOf(StockQuote quote) {
+        return quote.currency() == StockQuote.Money.NONE ? null : quote.currency().name();
     }
 
     /** 브리핑 코인 통의 차트 — 코인마다 한 장. 업비트는 키가 없고 한 호출로 열나흘을 준다. */
@@ -293,6 +303,11 @@ public class DailyDigestJob extends TriggerableJob {
      *
      * <p>세 도메인이 같은 규칙을 쓰므로 한 자리에 둔다.
      */
+    private List<ChartImage> chartOf(String subject, String unit,
+                                     StockService.Series series) {
+        return chartOf(subject, unit, () -> stockService.dailyBarsOf(series));
+    }
+
     private static List<ChartImage> chartOf(String subject, String unit,
                                             Supplier<List<DailyBar>> bars) {
         try {

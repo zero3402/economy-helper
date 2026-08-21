@@ -334,22 +334,26 @@ public class TelegramWebhookController {
     }
 
     /**
-     * 국내 종목 일봉 차트 — <b>국내 종목만이다.</b>
+     * 일봉 차트 — <b>국내 종목·국내 지수·미국 종목·미국 지수 전부.</b>
      *
-     * <p>지수와 미국 종목은 빠진다. 국내 지수는 {@code output2}에 오지만 이름으로 찾는 경로라
-     * 종목코드가 손에 없고, 미국 종목은 {@code price-detail}이 시계열을 아예 주지 않는다
-     * (해외 일봉 경로는 아직 실측하지 않았다). <b>그 도메인만 차트가 빠지고 답은 그대로
-     * 나간다</b> — 전망과 같은 「보충이지 폴백이 아니다」 규칙이다.
+     * <p>{@code Answer}가 일봉 열쇠({@code Series})를 들고 오므로 여기서 종류를 가리지 않는다.
+     * 예전에는 국내 종목만 붙었다 — 지수는 코드가 손에 없다고 봤고(실은 설정 표가 이름으로
+     * 안다) 미국 종목은 경로를 실측하지 않았다.
+     *
+     * <p><b>열쇠가 없는 답만 빠진다</b> — 이름 검색(공공데이터포털)이 코드를 안 주는 경우다.
+     * 그때도 답은 그대로 나간다: 전망과 같은 「보충이지 폴백이 아니다」 규칙이다.
+     *
+     * <p>단위는 시세가 든 통화를 그대로 쓴다. 지수는 {@code Money.NONE}이라 {@code null}이 되고
+     * caption이 숫자만 적는다 — 「6,869.83 KRW」라고 적을 근거가 없다.
      */
     private ChartImage stockChart(io.saiden.economyhelper.market.StockService.Answer answer) {
-        String code = answer.code();
-        if (code == null) {
+        if (answer.series() == null) {
             return null;
         }
         return chartOf(answer.quote().name(),
                 answer.quote().currency() == io.saiden.economyhelper.market.StockQuote.Money.NONE
                         ? null : answer.quote().currency().name(),
-                () -> stockService.dailyBars(code));
+                () -> stockService.dailyBarsOf(answer.series()));
     }
 
     private ChartImage fxChart() {

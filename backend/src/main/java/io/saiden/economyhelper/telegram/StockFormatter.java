@@ -165,15 +165,18 @@ public final class StockFormatter {
     /**
      * 전망 줄 — <b>있는 것만 적는다.</b>
      *
-     * <p>셋이 따로 논다. 목표주가는 있는데 의견이 없을 수 있고(모르는 표기는 등급으로 세지
-     * 않는다), 실적발표일은 국내에 무료 출처가 없어 대개 없다. <b>없는 것을 {@code 0}이나
-     * 「-」로 찍지 않는다</b> — 「목표가 0원」은 모른다는 뜻이 아니라 <b>값</b>이다.
+     * <p>둘이 따로 논다. 목표주가는 두 시장 다 있지만 실적발표일은 <b>미국에만</b> 있다
+     * (국내에 무료 출처가 없다). <b>없는 것을 {@code 0}이나 「-」로 찍지 않는다</b> —
+     * 「목표가 0원」은 모른다는 뜻이 아니라 <b>값</b>이다.
      *
-     * <p>값 줄 아래에 한 줄씩 붙인다(빈 줄로 벌리지 않는다) — 같은 종목에 대한 이야기라
-     * 한 블록이기 때문이다. 이 통의 규칙 그대로다: 빈 줄은 블록 사이, 한 줄은 블록 안.
+     * <p><b>목표가는 값에 붙이고, 실적발표일은 한 줄 띄운다.</b> 목표가는 「지금 얼마인가」와
+     * 같은 축의 숫자라 값 줄 바로 아래가 맞다. 실적발표일은 <b>돈이 아니라 날짜</b>라
+     * 성격이 다르고, 붙여 두면 숫자 넷이 줄줄이 쌓여 어디까지가 가격인지 읽기 어려워진다.
      *
-     * <p>몇 곳이 낸 의견인지를 함께 적는다. 「매수」 한 마디보다 <b>몇 곳인지가 무게를
-     * 말한다</b> — 한 곳의 매수와 열 곳의 매수는 같은 값이 아니다.
+     * <p>⚠️ <b>투자의견 줄은 없다.</b> 목표가 아래에 「매수 (111곳)」이 있었는데 요구가
+     * 걷어내는 쪽으로 바뀌었다. 화면만 지우지 않고 {@code StockOutlook}의 필드와 FMP
+     * {@code grades-consensus} 호출까지 함께 지웠다 — 화면에서만 빼면 심볼당 하루 한 번을
+     * 아무도 안 보는 값에 쓴다.
      */
     private static void appendOutlook(StringBuilder message, StockQuote quote,
                                       StockOutlook outlook) {
@@ -186,14 +189,9 @@ public final class StockFormatter {
             //    통화는 그 종목의 통화라고 StockOutlook이 적어 뒀으므로 그것을 그대로 쓴다
             message.append("\n목표 ").append(unitOf(quote, outlook.targetPrice()));
         }
-        if (outlook.rating() != null) {
-            message.append("\n").append(outlook.rating().label());
-            if (outlook.analystCount() != null) {
-                message.append(" (").append(outlook.analystCount()).append("곳)");
-            }
-        }
         if (outlook.earningsDate() != null) {
-            message.append("\n실적발표 ").append(SHORT_DATE.format(outlook.earningsDate()));
+            // 빈 줄로 벌린다 — 값과 성격이 다르다(돈이 아니라 날짜다)
+            message.append("\n\n실적발표 ").append(SHORT_DATE.format(outlook.earningsDate()));
         }
     }
 

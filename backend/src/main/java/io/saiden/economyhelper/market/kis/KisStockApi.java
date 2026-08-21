@@ -204,34 +204,49 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
      * 요청이 아예 없다. 그래서 <b>설정에 코드가 박힌 브리핑만</b> 이 경로를 탄다 —
      * {@code /stock 코스피}는 이름으로 들어오므로 코드가 손에 없고 그때는 차트가 빠진다.
      */
-    @Cacheable(cacheNames = CacheNames.STOCK_SERIES, key = "'index:' + #index.name()")
+    @Cacheable(cacheNames = CacheNames.STOCK_SERIES, key = "'index:' + #name")
     @CircuitBreaker(name = "kisStock")
-    public java.util.List<DailyBar> dailyBarsOfIndex(Index index) {
-        Index target = known(index);
-        if (!target.hasCode()) {
-            throw new IllegalStateException("KIS 지수 일봉에 업종코드가 없습니다: " + index.name());
+    public java.util.List<DailyBar> dailyBarsOfIndex(String name) {
+        Index target = indices.get(name);
+        if (target == null || !target.hasCode()) {
+            // KIS에는 지수명 검색이 없다 — 코드가 없으면 만들 수 있는 요청이 아예 없다
+            throw new IllegalStateException("KIS 지수 일봉에 업종코드가 없습니다: " + name);
         }
         DailyChart response = request(DailyChart.class, INDEX_TR,
-                "국내 지수 일봉 " + target.name(),
+                "국내 지수 일봉 " + name,
                 uri -> chartWindow(uri, INDEX_PATH, KRX_INDEX, target.code()).build());
         return barsOf(response);
     }
 
     /**
-     * 미국 지수 일봉 — 나스닥·S&amp;P 500.
+     * 미국 일봉 — <b>지수와 종목을 한 경로가 덮는다.</b>
      *
-     * <p>⚠️ <b>{@code ^IXIC}가 아니라 {@code COMP}다.</b> 시세 경로와 같은 표({@code usIndices})를
-     * 쓴다 — 규칙이 없어 표가 유일한 길이고, <b>표에 없는 심볼은 차트가 없다.</b>
+     * <p>지수용으로 만들었는데 실측에서 <b>종목 심볼도 그대로 받았다</b>(2026-08-21,
+     * {@code AAPL}·{@code NVDA}·{@code ORCL} 모두 {@code rt_cd=0} · 20행). 그래서 미국 종목
+     * 차트가 이 메서드로 붙었다 — 얻은 것이 셋이다:
+     *
+     * <ul>
+     *   <li><b>거래소를 안 묻는다.</b> {@code price-detail}은 {@code EXCD}를 요구해 NAS→NYS를
+     *       탐색해야 하는데 이쪽은 심볼만 받는다. {@code ORCL}(NYSE)도 200이었다
+     *   <li><b>새 레코드가 없다.</b> {@code output2}가 {@code stck_bsop_date}·
+     *       {@code ovrs_nmix_prpr}로 와서 {@link Bar}가 이미 읽는다. 후보였던
+     *       {@code HHDFS76240000}은 {@code xymd}·{@code clos}라 필드를 새로 선언해야 했다
+     *   <li><b>가볍다.</b> 창을 우리가 정하므로 20행이다({@code HHDFS76240000}은 100행을 준다)
+     * </ul>
+     *
+     * <p>⚠️ <b>지수만 표를 탄다.</b> {@code ^IXIC}는 KIS가 모르고 {@code COMP}여야 한다.
+     * 종목은 심볼 그대로 보낸다 — 규칙이 없어 지수는 표가 유일한 길이고, <b>표에 없는 지수는
+     * 차트가 없다.</b>
      */
-    @Cacheable(cacheNames = CacheNames.STOCK_SERIES, key = "'us-index:' + #symbol.symbol()")
+    @Cacheable(cacheNames = CacheNames.STOCK_SERIES, key = "'us:' + #symbol")
     @CircuitBreaker(name = "kisStock")
-    public java.util.List<DailyBar> dailyBarsOfUsIndex(UsSymbol symbol) {
-        String kisSymbol = usIndices.get(symbol.symbol());
+    public java.util.List<DailyBar> dailyBarsOfUs(String symbol) {
+        String kisSymbol = UsSymbol.isIndex(symbol) ? usIndices.get(symbol) : symbol;
         if (kisSymbol == null) {
-            throw new IllegalStateException("KIS 심볼을 모르는 미국 지수입니다: " + symbol.symbol());
+            throw new IllegalStateException("KIS 심볼을 모르는 미국 지수입니다: " + symbol);
         }
         DailyChart response = request(DailyChart.class, US_INDEX_TR,
-                "미국 지수 일봉 " + symbol.name(),
+                "미국 일봉 " + symbol,
                 uri -> chartWindow(uri, US_INDEX_PATH, OVERSEAS_INDEX, kisSymbol).build());
         return barsOf(response);
     }

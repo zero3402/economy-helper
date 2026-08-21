@@ -336,7 +336,7 @@ class DailyDigestJobTest {
             //    넣으므로, 오버라이드하지 않으면 차트 경로가 **삼켜진 NPE로** 돈다 —
             //    테스트는 초록인데 지수 차트를 아무도 안 보는 상태가 된다
             @Override
-            public List<DailyBar> dailyBarsOfIndex(EconomyHelperProperties.Index index) {
+            public List<DailyBar> dailyBarsOf(StockService.Series series) {
                 return indicesAlive ? kospiBars() : List.of();
             }
         };

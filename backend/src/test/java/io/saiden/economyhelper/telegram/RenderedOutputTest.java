@@ -158,18 +158,19 @@ class RenderedOutputTest {
         // 전망이 붙은 것 — 목표주가·투자의견이 값 줄 아래에 한 줄씩 붙는다.
         // 몇 곳이 낸 의견인지를 함께 적는다: 한 곳의 매수와 열 곳의 매수는 같은 값이 아니다
         cases.put("stock/with-outlook", withOutlook(
-                new StockOutlook(null, new BigDecimal("466667"), StockOutlook.Rating.BUY, 3,
-                        StockSource.KIS, BASIS)));
-        // ⚠️ 셋이 따로 논다 — 목표가는 있는데 의견이 없을 수 있다(모르는 표기는 세지 않는다).
+                new StockOutlook(null, new BigDecimal("466667"), StockSource.KIS, BASIS)));
+        // ⚠️ 둘이 따로 논다 — 국내는 목표가만 있고 실적발표일이 없다(무료 출처가 없다).
         //    없는 것은 줄이 아예 없다. 「-」나 0으로 찍으면 그건 모른다는 뜻이 아니라 값이다
         cases.put("stock/outlook-target-only", withOutlook(
-                new StockOutlook(null, new BigDecimal("350000"), null, null,
-                        StockSource.KIS, BASIS)));
+                new StockOutlook(null, new BigDecimal("350000"), StockSource.KIS, BASIS)));
         // ⚠️ **실적발표일은 미국에만 있다.** FMP의 /stable/earnings가 유일한 무료 출처이고
         //    국내(KIS invest-opinion)에는 그 필드가 아예 없다 — 그래서 이 케이스만 세 줄이 다 찬다
         cases.put("stock/outlook-with-earnings", usWithOutlook(
                 new StockOutlook(java.time.LocalDate.of(2026, 10, 29),
-                        new BigDecimal("340.72"), StockOutlook.Rating.BUY, 111,
+                        new BigDecimal("340.72"), StockSource.FMP, US_AT)));
+        // 실적발표일만 있는 답도 정상이다 — FMP 무료 티어가 목표가만 402로 막을 수 있다
+        cases.put("stock/outlook-earnings-only", usWithOutlook(
+                new StockOutlook(java.time.LocalDate.of(2026, 10, 29), null,
                         StockSource.FMP, US_AT)));
         // 차트 사진의 설명 — **그림에 없는 낱말이 전부 여기 있다.** 그림은 골든이 못 보지만
         // caption은 본다. 그림에 글자를 안 넣기로 한 대가로 이 줄들이 화면 회귀 그물에 남는다

@@ -141,9 +141,11 @@ public class StockService {
             // 국내 지수는 조회가 통째로 다르다 — 종목코드가 없고 시가총액도 없다
             if (resolved.filter(ResolvedStock::isIndex).isPresent()) {
                 // 업종코드는 비워 보낸다. 설정에 있는 지수면 KIS가 제 표에서 채우고,
-                // 없으면 이름으로 찾는 2순위가 맡는다 — LLM에게 지수코드를 지어내게 두지 않는다
-                // 지수에는 목표주가도 투자의견도 없다 — 낼 주체가 없다
-                return index(new Index(resolved.get().name(), null)).map(Answer::of);
+                // 없으면 이름으로 찾는 2순위가 맡는다 — LLM에게 지수코드를 지어내게 두지 않는다.
+                // 목표주가는 없다(낼 주체가 없다). 차트는 붙는다 — 열쇠가 그 이름이다
+                String name = resolved.get().name();
+                return index(new Index(name, null))
+                        .map(quote -> new Answer(quote, null, Series.domesticIndex(name)));
             }
             return search(resolved, key);
         } catch (RuntimeException e) {
@@ -258,18 +260,45 @@ public class StockService {
      * (60배), {@code kis-quote}는 {@code TypeReference<StockQuote>}로 타입이 못 박혀 있어
      * 다른 모양을 담으면 <b>쓸 때는 넘어가고 읽을 때 깨진다</b>.
      */
-    public record Answer(StockQuote quote, StockOutlook outlook, String code) {
+    public record Answer(StockQuote quote, StockOutlook outlook, Series series) {
 
         /**
-         * 전망도 코드도 없는 것 — 지수·미국 종목·이름 검색이 그렇다.
+         * 전망도 일봉 열쇠도 없는 것 — <b>이름 검색</b>이 그렇다.
          *
-         * <p><b>{@code code}가 왜 여기 있나.</b> {@link StockQuote}에는 종목코드가 없다(화면이
-         * 안 쓴다). 그런데 일봉을 물으려면 코드가 필요하고, 그것을 아는 자리는 여기까지다 —
-         * 이름 검색으로 찾은 종목은 공공데이터포털이 코드를 안 주므로 {@code null}이고
-         * 그때는 차트가 빠진다.
+         * <p>공공데이터포털은 이름으로 찾고 코드를 돌려주지 않아, 전망도 차트도 붙일 열쇠가
+         * 없다. 그때는 값만 나가고 그 둘이 빠진다 — 보충이지 폴백이 아니다.
          */
         public static Answer of(StockQuote quote) {
             return new Answer(quote, null, null);
+        }
+    }
+
+    /**
+     * 일봉을 <b>어느 경로로 물을지</b> — 화면에 쓰는 값이 아니라 조회 열쇠다.
+     *
+     * <p>{@link StockQuote}에는 이것이 없다(화면이 안 쓴다). 그런데 차트를 그리려면 필요하고,
+     * 아는 자리는 조회한 곳까지다. 셋을 한 타입으로 묶는 이유는 <b>부르는 쪽이 갈리지 않게</b>
+     * 하려는 것이다 — 예전에는 검색이 국내 종목만 차트를 냈고 브리핑이 지수를 따로 처리했다.
+     *
+     * @param kind 어느 시장·어느 엔드포인트인가
+     * @param key  그 경로가 요구하는 열쇠. 국내 종목은 종목코드({@code 005930}), 국내 지수는
+     *             <b>이름</b>({@code 코스피} — 업종코드는 설정 표가 안다), 미국은 심볼
+     *             ({@code AAPL}·{@code ^IXIC})
+     */
+    public record Series(Kind kind, String key) {
+
+        public enum Kind { DOMESTIC_STOCK, DOMESTIC_INDEX, US }
+
+        public static Series domesticStock(String code) {
+            return new Series(Kind.DOMESTIC_STOCK, code);
+        }
+
+        public static Series domesticIndex(String name) {
+            return new Series(Kind.DOMESTIC_INDEX, name);
+        }
+
+        public static Series us(String symbol) {
+            return new Series(Kind.US, symbol);
         }
     }
 
@@ -293,12 +322,14 @@ public class StockService {
      * 두 곳에 적히고 한쪽만 고쳐지는 날이 온다.
      */
     private Optional<Answer> withUsOutlook(Optional<StockQuote> quote, String symbol) {
-        if (quote.isEmpty() || quote.get().currency() == StockQuote.Money.NONE) {
-            // 통화가 없으면 지수다 — StockQuote가 지역·통화로 그것을 이미 가른다
-            return quote.map(Answer::of);
+        if (quote.isEmpty()) {
+            return Optional.empty();
         }
-        // 미국 종목은 일봉 경로가 없어 코드를 담아도 쓸 곳이 없다 — null로 둔다
-        return quote.map(found -> new Answer(found, usOutlookOf(symbol), null));
+        // 통화가 없으면 지수다 — StockQuote가 지역·통화로 그것을 이미 가른다.
+        // 지수에는 전망을 안 붙이지만 차트는 붙는다(둘의 조건이 다르다)
+        boolean index = quote.get().currency() == StockQuote.Money.NONE;
+        return quote.map(found -> new Answer(found,
+                index ? null : usOutlookOf(symbol), Series.us(symbol)));
     }
 
     /** {@link #outlookOf}와 같은 이유로 여기서 삼킨다 — 클라이언트가 삼키면 브레이커가 못 본다. */
@@ -316,28 +347,19 @@ public class StockService {
      *
      * <p>부르는 쪽이 「차트만 빼고 보낸다」를 판단해야 하므로 던진다.
      */
-    public List<io.saiden.economyhelper.market.chart.DailyBar> dailyBars(String code) {
-        return kisSeries.dailyBars(code);
-    }
-
-    /**
-     * 국내 지수 일봉 — 브리핑의 코스피·코스닥.
-     *
-     * <p>⚠️ <b>이중화가 없는 자리다.</b> 시세는 2순위(공공데이터포털)가 받쳐 주지만 일봉은
-     * KIS에만 있다. 그래서 KIS가 죽으면 <b>값은 나가고 차트만 빠진다</b> — 보충이지 폴백이 아니다.
-     */
-    public List<io.saiden.economyhelper.market.chart.DailyBar> dailyBarsOfIndex(Index index) {
-        return kisSeries.dailyBarsOfIndex(index);
-    }
-
-    /** 미국 지수 일봉 — 브리핑의 나스닥·S&amp;P 500. {@link #dailyBarsOfIndex}와 같은 자리다. */
-    public List<io.saiden.economyhelper.market.chart.DailyBar> dailyBarsOfUsIndex(UsSymbol symbol) {
-        return kisSeries.dailyBarsOfUsIndex(symbol);
+    public List<io.saiden.economyhelper.market.chart.DailyBar> dailyBarsOf(Series series) {
+        return switch (series.kind()) {
+            case DOMESTIC_STOCK -> kisSeries.dailyBars(series.key());
+            case DOMESTIC_INDEX -> kisSeries.dailyBarsOfIndex(series.key());
+            // 지수와 종목이 같은 엔드포인트다 — 실측으로 확인했다(KisStockApi.dailyBarsOfUs)
+            case US -> kisSeries.dailyBarsOfUs(series.key());
+        };
     }
 
     /** 국내 종목 하나 — <b>여기가 종목코드가 있는 유일한 자리</b>라 전망을 여기서 붙인다. */
     private Optional<Answer> stockAnswer(String code) {
-        return stock(code).map(quote -> new Answer(quote, outlookOf(code), code));
+        return stock(code).map(quote ->
+                new Answer(quote, outlookOf(code), Series.domesticStock(code)));
     }
 
     /**

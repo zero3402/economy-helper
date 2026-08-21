@@ -529,7 +529,7 @@ class KisStockApiTest {
     void readsDomesticIndexSeries() {
         stubIndex();
 
-        assertThat(api.dailyBarsOfIndex(KOSPI))
+        assertThat(api.dailyBarsOfIndex("코스피"))
                 .singleElement()
                 .satisfies(bar -> assertThat(bar.close()).isEqualByComparingTo("6869.83"));
         server.verify(getRequestedFor(urlPathEqualTo(INDEX_PATH))
@@ -543,12 +543,32 @@ class KisStockApiTest {
     void readsUsIndexSeries() {
         stubUsIndex();
 
-        assertThat(api.dailyBarsOfUsIndex(NASDAQ))
+        assertThat(api.dailyBarsOfUs("^IXIC"))
                 .singleElement()
                 .satisfies(bar -> assertThat(bar.close()).isEqualByComparingTo("26644.91"));
         server.verify(getRequestedFor(urlPathEqualTo(US_INDEX_PATH))
                 .withQueryParam("FID_COND_MRKT_DIV_CODE", WireMock.equalTo("N"))
                 .withQueryParam("FID_INPUT_ISCD", WireMock.equalTo("COMP")));
+    }
+
+    @Test
+    @DisplayName("미국 종목도 같은 경로로 일봉을 받는다 — 표를 안 타고 심볼 그대로 묻는다")
+    void readsUsStockSeriesThroughTheSamePath() {
+        // ⚠️ 이것이 이번 실측의 핵심이다(2026-08-21, AAPL·NVDA·ORCL 모두 rt_cd=0 · 20행).
+        //    지수용으로 만든 경로가 종목 심볼도 받아서, 거래소 코드도 새 레코드도 필요 없었다.
+        //    후보였던 HHDFS76240000은 EXCD를 요구하고 xymd·clos라 필드를 새로 선언해야 했다
+        stub(US_INDEX_PATH, """
+                {"rt_cd":"0","msg1":"정상처리 되었습니다.",
+                 "output2":[{"stck_bsop_date":"20260820","ovrs_nmix_prpr":"311.30"},
+                            {"stck_bsop_date":"20260819","ovrs_nmix_prpr":"316.83"}]}""");
+
+        assertThat(api.dailyBarsOfUs("AAPL"))
+                .extracting(bar -> bar.close().toPlainString())
+                .containsExactly("316.83", "311.30");
+        server.verify(getRequestedFor(urlPathEqualTo(US_INDEX_PATH))
+                .withQueryParam("FID_COND_MRKT_DIV_CODE", WireMock.equalTo("N"))
+                // 종목은 표를 타지 않는다 — 심볼이 그대로 간다
+                .withQueryParam("FID_INPUT_ISCD", WireMock.equalTo("AAPL")));
     }
 
     @Test
@@ -581,7 +601,7 @@ class KisStockApiTest {
     @Test
     @DisplayName("표에 없는 미국 지수는 부르지도 않는다 — 만들 수 있는 요청이 아니다")
     void refusesAnUnknownUsIndexSeries() {
-        assertThatThrownBy(() -> api.dailyBarsOfUsIndex(new UsSymbol("^DJI", "다우")))
+        assertThatThrownBy(() -> api.dailyBarsOfUs("^DJI"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("^DJI");
 
@@ -591,7 +611,7 @@ class KisStockApiTest {
     @Test
     @DisplayName("업종코드 없는 지수는 부르지도 않는다 — KIS에는 지수명 검색이 없다")
     void refusesAnIndexSeriesWithoutACode() {
-        assertThatThrownBy(() -> api.dailyBarsOfIndex(new Index("없는지수", null)))
+        assertThatThrownBy(() -> api.dailyBarsOfIndex("없는지수"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("업종코드");
 

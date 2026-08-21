@@ -34,11 +34,11 @@ import org.springframework.web.client.RestClient;
  * 그래서 {@link InvestOpinions}가 증권사별 최신 한 건만 남겨 접는다 — 자주 내는 증권사가
  * 여러 표를 갖지 않게 하려는 것이다.
  *
- * <p>⚠️ <b>등급은 {@code invt_opnn_cls_code}가 아니라 {@code invt_opnn}에서 읽는다.</b>
- * 코드는 등급이 아니다(실측: 코드 하나에 {@code Strong BUY}·{@code Hold}·{@code Outperform}·
- * {@code Buy}가 섞여 있었다). 그리고 <b>같은 응답 안에서 표기가 갈린다</b> — 위 실측 12행에
- * {@code "BUY"}(키움·삼성)와 {@code "매수"}(한국투자)가 함께 왔다. 그래서 정규화가
- * {@code StockOutlook.Rating.ofLabel}에 있고, 그것이 영문과 한글을 둘 다 받는다.
+ * <p>⚠️ <b>이 응답에서 읽는 것은 목표가뿐이다.</b> 같은 행에 {@code invt_opnn}(의견 글자)이
+ * 함께 오지만 <b>읽지 않는다</b> — 투자의견을 화면에서 걷어냈기 때문이다. 다시 넣을 일이
+ * 있으면 {@code invt_opnn_cls_code}를 등급으로 쓰지 말 것: 실측에서 코드 하나에
+ * {@code Strong BUY}·{@code Hold}·{@code Outperform}·{@code Buy}가 섞여 있었고, 같은 응답
+ * 안에서 표기도 갈렸다({@code "BUY"} 키움·삼성 / {@code "매수"} 한국투자).
  *
  * <p>⚠️ <b>실패를 삼키지 않는다 — 던진다.</b> {@link DomesticOutlookClient}가 「빈 값으로
  * 실패한다」고 적혀 있었지만 그대로 하면 아래 {@code @CircuitBreaker}가 <b>정상 반환을 보고
@@ -130,13 +130,11 @@ public class KisDomesticOutlookClient implements DomesticOutlookClient {
         // ⚠️ 에러가 HTTP 200 본문에 실려 온다 — rt_cd를 봐야 한다
         KisHeaders.verify(response.resultCode(), response.message(), code + " 투자의견");
 
-        return InvestOpinions.of(rowsOf(response))
-                .map(consensus -> new StockOutlook(
+        return InvestOpinions.averageTargetOf(rowsOf(response))
+                .map(target -> new StockOutlook(
                         // 실적발표일은 이 엔드포인트가 주지 않는다. 국내에 무료 출처가 없어
                         // null로 남고, 화면은 그 줄을 안 적는다
-                        null,
-                        consensus.targetPrice(), consensus.rating(), consensus.analystCount(),
-                        StockSource.KIS, clock.instant()));
+                        null, target, StockSource.KIS, clock.instant()));
     }
 
     private static List<InvestOpinions.Opinion> rowsOf(Opinions response) {
@@ -146,7 +144,7 @@ public class KisDomesticOutlookClient implements DomesticOutlookClient {
         return response.output().stream()
                 .filter(java.util.Objects::nonNull)
                 .map(row -> new InvestOpinions.Opinion(
-                        row.broker(), row.date(), row.opinion(), row.targetPrice()))
+                        row.broker(), row.date(), row.targetPrice()))
                 .toList();
     }
 
@@ -167,13 +165,11 @@ public class KisDomesticOutlookClient implements DomesticOutlookClient {
      *
      * @param date        {@code stck_bsop_date} — 발표일 {@code yyyyMMdd}
      * @param broker      {@code mbcr_name} — 증권사. 같은 곳의 옛 발표를 걷어내는 키다
-     * @param opinion     {@code invt_opnn} — <b>증권사가 쓴 글자 그대로.</b> 등급 코드가 아니다
      * @param targetPrice {@code hts_goal_prc} — 목표가. {@code 0}일 수 있고 그건 값이 아니다
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     record Row(@JsonProperty("stck_bsop_date") String date,
                @JsonProperty("mbcr_name") String broker,
-               @JsonProperty("invt_opnn") String opinion,
                @JsonProperty("hts_goal_prc") BigDecimal targetPrice) {
     }
 }

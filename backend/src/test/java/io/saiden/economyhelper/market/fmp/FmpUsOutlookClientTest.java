@@ -10,7 +10,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import io.saiden.economyhelper.market.StockOutlook;
-import io.saiden.economyhelper.market.StockSource;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -26,11 +25,13 @@ import org.springframework.web.client.RestClient;
  * FMP 전망의 실측 응답을 그대로 먹인다(2026-08-21, 무료 티어, {@code AAPL} 둘 다 200).
  *
  * <p>이 파일의 중심은 <b>「둘 중 하나만 와도 답이다」</b>다. 무료 티어가 심볼별 허용목록이라
- * 목표가와 의견 중 한쪽만 402일 수 있고, 그때 살아 있는 쪽을 버리면 이유 없이 화면이 빈다.
+ * 목표가와 실적발표일 중 한쪽만 402일 수 있고, 그때 살아 있는 쪽을 버리면 이유 없이 화면이 빈다.
+ *
+ * <p>⚠️ <b>{@code grades-consensus}는 더 이상 부르지 않는다.</b> 투자의견을 화면에서 걷어내면서
+ * 그 호출과 등급 정규화 테스트를 함께 지웠다 — 심볼당 호출이 셋에서 둘로 줄었다.
  */
 class FmpUsOutlookClientTest {
 
-    private static final String GRADES = "/stable/grades-consensus";
     private static final String TARGET = "/stable/price-target-consensus";
     private static final String EARNINGS = "/stable/earnings";
     private static final String API_KEY = "test-key-402";
@@ -64,9 +65,6 @@ class FmpUsOutlookClientTest {
      * <p>실적발표는 <b>최신순으로 여러 분기</b>가 온다 — 첫 행이 앞날이고 나머지가 지난 것이다.
      */
     private void stubAll() {
-        stub(GRADES, 200, """
-                [{"symbol":"AAPL","strongBuy":1,"buy":69,"hold":32,"sell":9,
-                  "strongSell":0,"consensus":"Buy"}]""");
         stub(TARGET, 200, """
                 [{"symbol":"AAPL","targetHigh":400,"targetLow":245,
                   "targetConsensus":340.72,"targetMedian":360}]""");
@@ -80,23 +78,6 @@ class FmpUsOutlookClientTest {
     }
 
     @Test
-    @DisplayName("실측 응답을 그대로 읽는다 — 곳 수는 다섯 버킷의 합이다")
-    void readsTheMeasuredResponse() {
-        stubAll();
-
-        StockOutlook outlook = client().outlook("AAPL").orElseThrow();
-
-        assertThat(outlook.rating())
-                .as("consensus는 글자다 — 국내와 같은 정규화를 탄다")
-                .isEqualTo(StockOutlook.Rating.BUY);
-        assertThat(outlook.analystCount())
-                .as("1 + 69 + 32 + 9 + 0")
-                .isEqualTo(111);
-        assertThat(outlook.targetPrice()).isEqualByComparingTo(new BigDecimal("340.72"));
-        assertThat(outlook.source()).isEqualTo(StockSource.FMP);
-    }
-
-    @Test
     @DisplayName("고가가 아니라 컨센서스를 쓴다 — 고가는 가장 낙관적인 한 곳이다")
     void usesConsensusNotTheHigh() {
         stubAll();
@@ -107,38 +88,20 @@ class FmpUsOutlookClientTest {
     }
 
     @Test
-    @DisplayName("의견이 402여도 목표가는 살린다 — 무료 티어는 심볼별 허용목록이다")
-    void keepsTheTargetWhenGradesAreBlocked() {
-        stub(GRADES, 402, "{\"Error Message\":\"Exclusive Endpoint\"}");
+    @DisplayName("실적발표일이 없어도 목표가는 살린다 — 무료 티어는 심볼별 허용목록이다")
+    void keepsTheTargetWhenEarningsAreBlocked() {
         stub(TARGET, 200, """
                 [{"symbol":"ORCL","targetConsensus":250.5}]""");
 
         StockOutlook outlook = client().outlook("ORCL").orElseThrow();
 
         assertThat(outlook.targetPrice()).isEqualByComparingTo(new BigDecimal("250.5"));
-        assertThat(outlook.rating()).as("못 구한 의견은 null이지 중립이 아니다").isNull();
-        assertThat(outlook.analystCount()).isNull();
+        assertThat(outlook.earningsDate()).as("못 구한 날짜는 null이다 — 지어내지 않는다").isNull();
     }
 
     @Test
-    @DisplayName("목표가가 402여도 의견은 살린다 — 반대 방향도 같다")
-    void keepsTheRatingWhenTargetIsBlocked() {
-        stub(GRADES, 200, """
-                [{"symbol":"ORCL","strongBuy":0,"buy":5,"hold":1,"sell":0,
-                  "strongSell":0,"consensus":"Buy"}]""");
-        stub(TARGET, 402, "{\"Error Message\":\"Exclusive Endpoint\"}");
-
-        StockOutlook outlook = client().outlook("ORCL").orElseThrow();
-
-        assertThat(outlook.rating()).isEqualTo(StockOutlook.Rating.BUY);
-        assertThat(outlook.analystCount()).isEqualTo(6);
-        assertThat(outlook.targetPrice()).isNull();
-    }
-
-    @Test
-    @DisplayName("셋 다 실패하면 던진다 — 「의견이 없다」와 구분해야 한다")
+    @DisplayName("둘 다 실패하면 던진다 — 「값이 없다」와 구분해야 한다")
     void throwsWhenAllFail() {
-        stub(GRADES, 402, "{}");
         stub(TARGET, 402, "{}");
         stub(EARNINGS, 402, "{}");
 
@@ -149,9 +112,8 @@ class FmpUsOutlookClientTest {
     }
 
     @Test
-    @DisplayName("빈 배열은 값이다 — 의견을 낸 곳이 없는 것이라 던지지 않는다")
+    @DisplayName("빈 배열은 값이다 — 목표가를 낸 곳이 없는 것이라 던지지 않는다")
     void emptyArrayIsAValue() {
-        stub(GRADES, 200, "[]");
         stub(TARGET, 200, "[]");
 
         assertThat(client().outlook("AAPL"))
@@ -162,25 +124,10 @@ class FmpUsOutlookClientTest {
     @Test
     @DisplayName("목표가 0은 값이 아니다 — 「목표가 0달러」가 화면에 나가면 거짓이다")
     void ignoresAZeroTarget() {
-        stub(GRADES, 200, "[]");
         stub(TARGET, 200, """
                 [{"symbol":"AAPL","targetConsensus":0}]""");
 
         assertThat(client().outlook("AAPL")).isEmpty();
-    }
-
-    @Test
-    @DisplayName("곳 수가 0이면 안 적는다 — 「0곳이 매수」는 뜻이 없다")
-    void omitsAZeroAnalystCount() {
-        stub(GRADES, 200, """
-                [{"symbol":"AAPL","strongBuy":0,"buy":0,"hold":0,"sell":0,
-                  "strongSell":0,"consensus":"Buy"}]""");
-        stub(TARGET, 200, "[]");
-
-        StockOutlook outlook = client().outlook("AAPL").orElseThrow();
-
-        assertThat(outlook.rating()).isEqualTo(StockOutlook.Rating.BUY);
-        assertThat(outlook.analystCount()).isNull();
     }
 
     @Test
@@ -192,7 +139,7 @@ class FmpUsOutlookClientTest {
 
         assertThatThrownBy(() -> limited.outlook("AAPL")).hasMessageContaining("한도");
 
-        server.verify(0, getRequestedFor(urlPathEqualTo(GRADES)));
+        server.verify(0, getRequestedFor(urlPathEqualTo(TARGET)));
     }
 
     @Test
@@ -204,13 +151,12 @@ class FmpUsOutlookClientTest {
 
         assertThatThrownBy(() -> keyless.outlook("AAPL")).hasMessageContaining("키");
 
-        server.verify(0, getRequestedFor(urlPathEqualTo(GRADES)));
+        server.verify(0, getRequestedFor(urlPathEqualTo(TARGET)));
     }
 
     @Test
     @DisplayName("실패 메시지에 API 키가 새지 않는다 — 예외 메시지에 URL이 실려 온다")
     void neverLeaksTheApiKey() {
-        stub(GRADES, 500, "{}");
         stub(TARGET, 500, "{}");
 
         assertThatThrownBy(() -> client().outlook("AAPL"))
@@ -218,7 +164,7 @@ class FmpUsOutlookClientTest {
     }
 
     @Test
-    @DisplayName("다음 실적발표일을 읽는다 — 요청받은 세 값 중 마지막 하나다")
+    @DisplayName("다음 실적발표일을 읽는다 — 화면의 「실적발표」 줄이 이 값이다")
     void readsTheNextEarningsDate() {
         stubAll();
 
@@ -231,7 +177,6 @@ class FmpUsOutlookClientTest {
     @DisplayName("지난 분기를 집지 않는다 — 응답 순서가 어긋나도 앞날을 고른다")
     void ignoresPastQuarters() {
         // ⚠️ 첫 행을 그냥 집는 구현이면 여기서 2026-04-30이 「다음 발표」로 나간다
-        stub(GRADES, 200, "[]");
         stub(TARGET, 200, "[]");
         stub(EARNINGS, 200, """
                 [{"symbol":"AAPL","date":"2026-04-30","epsActual":2.01},
@@ -245,7 +190,6 @@ class FmpUsOutlookClientTest {
     @Test
     @DisplayName("앞날이 하나도 없으면 안 적는다 — 지난 날짜를 「예정」이라 부르지 않는다")
     void omitsEarningsWhenEveryDateIsPast() {
-        stub(GRADES, 200, "[]");
         stub(TARGET, 200, "[]");
         stub(EARNINGS, 200, """
                 [{"symbol":"AAPL","date":"2026-07-30","epsActual":2.02},
@@ -257,9 +201,8 @@ class FmpUsOutlookClientTest {
     }
 
     @Test
-    @DisplayName("나머지 둘이 402여도 실적발표일은 살린다 — 셋이 따로 논다")
-    void keepsEarningsWhenTheOthersAreBlocked() {
-        stub(GRADES, 402, "{\"Error Message\":\"Exclusive Endpoint\"}");
+    @DisplayName("목표가가 402여도 실적발표일은 살린다 — 둘이 따로 논다")
+    void keepsEarningsWhenTheTargetIsBlocked() {
         stub(TARGET, 402, "{\"Error Message\":\"Exclusive Endpoint\"}");
         stub(EARNINGS, 200, """
                 [{"symbol":"ORCL","date":"2026-09-10","epsActual":null}]""");
@@ -268,7 +211,6 @@ class FmpUsOutlookClientTest {
 
         assertThat(outlook.earningsDate()).isEqualTo(LocalDate.of(2026, 9, 10));
         assertThat(outlook.targetPrice()).isNull();
-        assertThat(outlook.rating()).isNull();
     }
 
     @Test
@@ -279,7 +221,6 @@ class FmpUsOutlookClientTest {
         FmpUsOutlookClient client = new FmpUsOutlookClient(RestClient.builder(), server.baseUrl(),
                 API_KEY, new AlwaysAllow(),
                 Clock.fixed(Instant.parse("2026-10-29T02:00:00Z"), ZoneOffset.UTC));
-        stub(GRADES, 200, "[]");
         stub(TARGET, 200, "[]");
         stub(EARNINGS, 200, """
                 [{"symbol":"AAPL","date":"2026-10-28","epsActual":null}]""");

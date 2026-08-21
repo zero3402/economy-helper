@@ -63,10 +63,10 @@ class KisDomesticOutlookClientTest {
     }
 
     @Test
-    @DisplayName("실측 응답을 접어 목표가 평균과 의견을 낸다 — BUY와 매수가 같은 응답에 섞여 온다")
+    @DisplayName("실측 응답을 접어 목표가 평균을 낸다 — 증권사 셋의 평균이다")
     void foldsTheMeasuredResponse() {
-        // 실측 2026-08-21: 키움·삼성은 "BUY", 한국투자는 "매수"로 적었다. 표기가 갈리므로
-        // invt_opnn_cls_code가 아니라 이 글자를 정규화해야 셋이 한 등급으로 모인다
+        // 실측 2026-08-21. invt_opnn(의견 글자)이 함께 오지만 읽지 않는다 —
+        // 투자의견을 화면에서 걷어냈으므로 이 응답에서 쓰는 것은 hts_goal_prc뿐이다
         stub("""
                 {"rt_cd":"0","msg_cd":"MCA00000","msg1":"정상처리 되었습니다.","output":[
                   {"stck_bsop_date":"20260810","mbcr_name":"키움","invt_opnn":"BUY",
@@ -78,13 +78,9 @@ class KisDomesticOutlookClientTest {
 
         StockOutlook outlook = client.outlook("005930").orElseThrow();
 
-        assertThat(outlook.rating())
-                .as("BUY 둘과 매수 하나가 같은 등급으로 모여야 한다")
-                .isEqualTo(StockOutlook.Rating.BUY);
         assertThat(outlook.targetPrice())
                 .as("(350000 + 400000 + 650000) / 3")
                 .isEqualByComparingTo(new BigDecimal("466667"));
-        assertThat(outlook.analystCount()).isEqualTo(3);
         assertThat(outlook.source()).isEqualTo(StockSource.KIS);
         assertThat(outlook.earningsDate())
                 .as("이 엔드포인트는 실적발표일을 주지 않는다 — 0이 아니라 null이어야 한다")
@@ -104,11 +100,9 @@ class KisDomesticOutlookClientTest {
 
         StockOutlook outlook = client.outlook("005930").orElseThrow();
 
-        assertThat(outlook.analystCount()).as("한 증권사는 한 표다").isEqualTo(1);
-        assertThat(outlook.rating())
-                .as("3월의 매도가 아니라 8월의 BUY가 남아야 한다")
-                .isEqualTo(StockOutlook.Rating.BUY);
-        assertThat(outlook.targetPrice()).isEqualByComparingTo(new BigDecimal("350000"));
+        assertThat(outlook.targetPrice())
+                .as("3월의 100000이 아니라 8월의 350000만 남아야 한다 — 둘의 평균(225000)이 아니다")
+                .isEqualByComparingTo(new BigDecimal("350000"));
     }
 
     @Test
@@ -129,28 +123,12 @@ class KisDomesticOutlookClientTest {
     }
 
     @Test
-    @DisplayName("의견 낸 증권사가 없으면 빈 값 — 그건 값이고 실패가 아니다")
+    @DisplayName("발표한 증권사가 없으면 빈 값 — 그건 값이고 실패가 아니다")
     void emptyWhenNobodyPublished() {
         stub("""
                 {"rt_cd":"0","msg1":"정상처리 되었습니다.","output":[]}""");
 
         assertThat(client.outlook("005930")).isEmpty();
-    }
-
-    @Test
-    @DisplayName("모르는 의견 글자는 세지 않는다 — 넘겨짚어 중립으로 떨어뜨리면 매도가 사라진다")
-    void neverGuessesAnUnknownLabel() {
-        stub("""
-                {"rt_cd":"0","msg1":"정상처리 되었습니다.","output":[
-                  {"stck_bsop_date":"20260810","mbcr_name":"키움","invt_opnn":"아무말",
-                   "hts_goal_prc":"350000"}]}""");
-
-        StockOutlook outlook = client.outlook("005930").orElseThrow();
-
-        assertThat(outlook.rating()).as("모르는 글자는 등급이 되지 않는다").isNull();
-        assertThat(outlook.targetPrice())
-                .as("의견을 못 읽어도 목표가는 살아 있다 — 셋이 따로 논다")
-                .isEqualByComparingTo(new BigDecimal("350000"));
     }
 
     @Test
@@ -191,24 +169,5 @@ class KisDomesticOutlookClientTest {
         assertThat(tokens.invalidated())
                 .as("KIS 클라이언트 셋의 공통 계약이다 — 어느 쪽이 먼저 알아차려도 같은 일을 한다")
                 .isTrue();
-    }
-
-    @Test
-    @DisplayName("등급 코드가 아니라 증권사가 쓴 글자를 읽는다 — 코드 하나에 여러 등급이 섞여 있다")
-    void readsTheTextNotTheCode() {
-        // 실측: 코드 3 하나에 Strong BUY·Hold·Outperform·Buy가 함께 있었다.
-        // 여기서는 같은 코드 "3"에 서로 다른 글자를 넣어, 우리가 코드를 안 본다는 것을 못 박는다
-        stub("""
-                {"rt_cd":"0","msg1":"정상처리 되었습니다.","output":[
-                  {"stck_bsop_date":"20260810","mbcr_name":"키움","invt_opnn":"Hold",
-                   "invt_opnn_cls_code":"3","hts_goal_prc":"300000"},
-                  {"stck_bsop_date":"20260810","mbcr_name":"삼성","invt_opnn":"Hold",
-                   "invt_opnn_cls_code":"3","hts_goal_prc":"300000"},
-                  {"stck_bsop_date":"20260810","mbcr_name":"미래","invt_opnn":"Strong BUY",
-                   "invt_opnn_cls_code":"3","hts_goal_prc":"300000"}]}""");
-
-        assertThat(client.outlook("005930").orElseThrow().rating())
-                .as("코드로 읽으면 셋이 한 등급이 된다 — 글자로 읽으면 중립 둘이 이긴다")
-                .isEqualTo(StockOutlook.Rating.HOLD);
     }
 }

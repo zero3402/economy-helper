@@ -156,6 +156,11 @@ public record EconomyHelperProperties(
          * 심볼 자신이 답한다.
          */
         public boolean isIndex() {
+            return isIndex(symbol);
+        }
+
+        /** 심볼 글자만 손에 있을 때 — 일봉 경로가 그 상태로 판별해야 한다. */
+        public static boolean isIndex(String symbol) {
             return symbol != null && symbol.startsWith("^");
         }
     }
