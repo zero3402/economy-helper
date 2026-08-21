@@ -32,6 +32,14 @@ import java.util.List;
  */
 public final class StockFormatter {
 
+    /**
+     * 이름표와 값 사이, 그리고 앞 무리와의 사이를 벌리는 <b>빈 줄</b>.
+     *
+     * <p>이 통의 규칙이 「빈 줄은 블록 사이, 한 줄은 블록 안」인데 전망은 <b>이름표+값이 한
+     * 블록</b>이라 그 규칙만으로는 갈리지 않았다. 그래서 이름표 자체를 블록 경계로 쓴다.
+     */
+    private static final String LABELLED = "\n\n";
+
     private StockFormatter() {
     }
 
@@ -169,9 +177,12 @@ public final class StockFormatter {
      * (국내에 무료 출처가 없다). <b>없는 것을 {@code 0}이나 「-」로 찍지 않는다</b> —
      * 「목표가 0원」은 모른다는 뜻이 아니라 <b>값</b>이다.
      *
-     * <p><b>목표가는 값에 붙이고, 실적발표일은 한 줄 띄운다.</b> 목표가는 「지금 얼마인가」와
-     * 같은 축의 숫자라 값 줄 바로 아래가 맞다. 실적발표일은 <b>돈이 아니라 날짜</b>라
-     * 성격이 다르고, 붙여 두면 숫자 넷이 줄줄이 쌓여 어디까지가 가격인지 읽기 어려워진다.
+     * <p><b>이름표와 값을 빈 줄로 벌린다</b>({@link #LABELLED}). 시세 줄들은 이름표가 없어
+     * (「311.30 USD」·「🔵 -1.75%」) 줄만 바꿔도 무엇인지 읽히지만, 전망은 <b>이름표를 달아야
+     * 뜻이 서는 값</b>이다. 그 이름표를 앞줄에 바싹 붙이면 위 숫자 무리에 딸려 붙어 읽힌다.
+     *
+     * <p>대가는 줄 수다 — 종목마다 최대 여덟 줄이 는다. 텔레그램 한 통 상한(4,096자)에는
+     * 한참 못 미치므로(실측 증시 통이 일곱 종목에 1,000자 남짓) 문제가 되지 않는다.
      *
      * <p>⚠️ <b>투자의견 줄은 없다.</b> 목표가 아래에 「매수 (111곳)」이 있었는데 요구가
      * 걷어내는 쪽으로 바뀌었다. 화면만 지우지 않고 {@code StockOutlook}의 필드와 FMP
@@ -187,11 +198,12 @@ public final class StockFormatter {
             // ⚠️ 값 줄과 같은 모양으로 단위를 붙인다. 바로 위가 「239,500 KRW」인데 여기가
             //    「목표 466,667」이면 무슨 단위인지 읽는 사람이 짐작해야 한다 — 목표주가의
             //    통화는 그 종목의 통화라고 StockOutlook이 적어 뒀으므로 그것을 그대로 쓴다
-            message.append("\n목표 ").append(unitOf(quote, outlook.targetPrice()));
+            message.append(LABELLED).append("목표").append(LABELLED)
+                    .append(unitOf(quote, outlook.targetPrice()));
         }
         if (outlook.earningsDate() != null) {
-            // 빈 줄로 벌린다 — 값과 성격이 다르다(돈이 아니라 날짜다)
-            message.append("\n\n실적발표 ").append(SHORT_DATE.format(outlook.earningsDate()));
+            message.append(LABELLED).append("실적발표").append(LABELLED)
+                    .append(SHORT_DATE.format(outlook.earningsDate()));
         }
     }
 

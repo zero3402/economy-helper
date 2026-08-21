@@ -322,7 +322,10 @@ Financial Modeling Prep
 삼성전자
 239,500 KRW
 🔵 -1.26%
-목표 466,667 KRW
+
+목표
+
+466,667 KRW
 
 금융위원회
 
@@ -336,7 +339,10 @@ Financial Modeling Prep
 삼성전자
 239,500 KRW
 🔵 -1.26%
-목표 350,000 KRW
+
+목표
+
+350,000 KRW
 
 금융위원회
 
@@ -350,9 +356,14 @@ Financial Modeling Prep
 애플
 232.14 USD
 327,821 KRW
-목표 340.72 USD
 
-실적발표 10월 29일(목)
+목표
+
+340.72 USD
+
+실적발표
+
+10월 29일(목)
 
 Financial Modeling Prep
 
@@ -367,7 +378,9 @@ Financial Modeling Prep
 232.14 USD
 327,821 KRW
 
-실적발표 10월 29일(목)
+실적발표
+
+10월 29일(목)
 
 Financial Modeling Prep
 
