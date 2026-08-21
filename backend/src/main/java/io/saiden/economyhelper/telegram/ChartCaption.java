@@ -39,8 +39,15 @@ public final class ChartCaption {
         DailyBar first = bars.get(0);
         DailyBar last = bars.get(bars.size() - 1);
 
+        // 이름을 제 줄에 올린다 — 한 줄에 붙여 두면(「삼성전자 최근 14거래일」) 이름과 창이
+        // 한 낱말처럼 읽히는데, 이름은 '무엇의 그림인가'이고 창은 '어느 기간인가'라 뜻이 다르다.
+        //
+        // ⚠️ <b>빈 줄은 이름 뒤에만 둔다.</b> 창과 값은 <b>한 블록</b>이다 —
+        //    「최근 14거래일」이 이름표이고 「3,150.22 → 3,182.44」가 그 값이라,
+        //    본문 통의 전망 블록(「목표」 / 값)과 똑같은 모양이다. 사이를 벌리면 창이
+        //    홀로 떠서 무엇에 걸린 말인지 흐려진다 — 「빈 줄은 블록 사이, 한 줄은 블록 안」
         StringBuilder caption = new StringBuilder("<b>").append(Html.escape(subject))
-                .append("</b> 최근 ").append(bars.size()).append("거래일");
+                .append("</b>\n\n최근 ").append(bars.size()).append("거래일");
         caption.append("\n").append(money(first.close()))
                 .append(" → ").append(money(last.close()));
         if (unit != null) {

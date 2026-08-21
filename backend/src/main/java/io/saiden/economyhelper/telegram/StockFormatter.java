@@ -126,7 +126,8 @@ public final class StockFormatter {
     /**
      * 무리 하나. 비어 있으면 제목도 남기지 않는다.
      *
-     * <p>굵게는 <b>제목에만</b> 쓴다 — 값까지 굵으면 무엇이 계층인지 드러나지 않는다.
+     * <p>굵게는 <b>제목과 이름에</b> 쓴다 — 값과 이름표({@code 목표}·{@code 실적발표})는 맨
+     * 글자다. 값까지 굵으면 무엇이 계층인지 드러나지 않는다.
      *
      * <p><b>종목 하나가 블록 하나다</b> — 이름을 제 줄에 올리고 블록끼리는 빈 줄로 가른다.
      * 코인 통이 거래소마다 그렇게 하는 것과 같은 규칙이다. 예전에는 {@code 삼성전자 82,000 KRW}가
@@ -146,8 +147,12 @@ public final class StockFormatter {
         message.append("\n\n<b>").append(market.title()).append("</b>");
 
         for (StockQuote quote : quotes) {
-            // 블록 사이는 빈 줄 — 굵은 무리 제목 다음도 마찬가지다
-            message.append("\n\n").append(Html.escape(quote.name()))
+            // 블록 사이는 빈 줄 — 굵은 무리 제목 다음도 마찬가지다.
+            // 이름을 굵게 쓴다: 코인이 <b>BTC</b> 비트코인, 날씨가 <b>미금역</b>으로
+            // 이미 그렇게 쓰고 있어서, 여기만 맨 글자면 같은 자리의 표기가 통마다 갈린다.
+            // 지수와 종목이 이 한 줄을 함께 지나므로 코스피도 함께 굵어진다 —
+            // 한 무리 안에서 어떤 이름은 굵고 어떤 이름은 아니면 그게 계층으로 읽힌다
+            message.append("\n\n<b>").append(Html.escape(quote.name())).append("</b>")
                     .append("\n").append(priceOf(quote));
             // 무리 기준과 어긋난 줄에만 표시한다. 맨 밑 기준 줄이 그 값까지 대표하는 것처럼
             // 보이면 거짓말이 된다. 값의 날짜라 값 줄에 함께 둔다.

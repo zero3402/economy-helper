@@ -102,7 +102,7 @@ class TelegramWebhookControllerTest {
         assertThat(client.sent.get(0).text())
                 .contains("삼성전자").contains("239,500 KRW")
                 .as("전일 종가라는 사실은 값의 성격이라 반드시 남긴다")
-                .contains("2026년 8월 11일(화) (종가)")
+                .contains("2026.08.11(화) (종가)")
                 .as("이름·값·시각 셋뿐이다 — 종목코드도 거래소도 적지 않는다")
                 .doesNotContain("005930").doesNotContain("KOSPI");
     }

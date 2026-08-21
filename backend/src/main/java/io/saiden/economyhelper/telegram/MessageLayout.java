@@ -26,7 +26,9 @@ import java.util.stream.Stream;
  * 대상이 되고, 호출부가 한 번 더 하면 {@code S&P 500}이 두 번 이스케이프된다.
  *
  * <p>텔레그램이 허용하는 태그는 부분집합이다({@code b·i·u·s·a·code·pre·blockquote}).
- * 굵게는 <b>제목에만</b> 쓴다 — 값까지 굵으면 무엇이 계층인지 드러나지 않는다.
+ * 굵게는 <b>제목과 이름에</b> 쓴다 — 통 제목, 무리 제목, 그리고 그 아래 종목·코인·지역의
+ * 이름이다. <b>값과 이름표에는 안 쓴다</b>({@code 239,500 KRW}·{@code 🔵 -1.26%}·{@code 목표}) —
+ * 값까지 굵으면 무엇이 계층인지 드러나지 않는다.
  */
 final class MessageLayout {
 
@@ -37,29 +39,34 @@ final class MessageLayout {
     static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
 
     /**
-     * 날짜에는 <b>언제나 요일을 붙인다</b> — {@code 2026년 8월 17일(월)}.
+     * 날짜에는 <b>언제나 요일을 붙인다</b> — {@code 2026.08.17(월)}.
      *
-     * <p>값이 언제 것인지를 사람이 실제로 판단하는 단위가 요일이다. "8월 15일 종가"만 보면
+     * <p>값이 언제 것인지를 사람이 실제로 판단하는 단위가 요일이다. {@code 08.15} 종가만 보면
      * 그게 금요일 종가인지 주말에 멈춘 값인지 세어 봐야 알고, 일주일치 날씨에서 찾는 것도
      * 날짜가 아니라 "이번 주말"이다. 환율의 {@code (고시)}, 증시의 {@code (종가)}처럼
      * <b>값의 성격을 밝히는 일</b>의 연장이다.
      *
+     * <p><b>월·일은 두 자리로 채운다.</b> {@code M}·{@code d}로 두면 {@code 2026.8.7}과
+     * {@code 2026.08.21}이 한 화면에 섞여 자릿수가 들쭉날쭉해진다 — 「년·월·일」이라는 글자가
+     * 자리를 잡아 주던 것이 점 표기에는 없기 때문이다. {@link #money}가 같은 칸의 정밀도를
+     * 맞추는 것과 같은 판단이다.
+     *
      * <p>⚠️ {@link Locale#KOREAN}을 명시하지 않으면 서버 로케일에 따라 {@code Mon}으로 나온다.
      */
     static final DateTimeFormatter DATE_TIME =
-            DateTimeFormatter.ofPattern("yyyy년 M월 d일(E) HH:mm:ss", Locale.KOREAN);
+            DateTimeFormatter.ofPattern("yyyy.MM.dd(E) HH:mm:ss", Locale.KOREAN);
 
     static final DateTimeFormatter DATE =
-            DateTimeFormatter.ofPattern("yyyy년 M월 d일(E)", Locale.KOREAN);
+            DateTimeFormatter.ofPattern("yyyy.MM.dd(E)", Locale.KOREAN);
 
     /**
-     * 연도를 되풀이하지 않는 자리 — 범위의 끝({@code ~ 8월 24일(월)})과 날짜별 블록 제목.
+     * 연도를 되풀이하지 않는 자리 — 범위의 끝({@code ~ 08.24(월)})과 날짜별 블록 제목.
      *
      * <p>둘이 같은 모양이라 상수도 하나다. 범위의 시작에 이미 연도가 적혀 있고, 날짜별 블록은
      * 맨 아래 기준 줄이 연도를 이고 있다.
      */
     static final DateTimeFormatter SHORT_DATE =
-            DateTimeFormatter.ofPattern("M월 d일(E)", Locale.KOREAN);
+            DateTimeFormatter.ofPattern("MM.dd(E)", Locale.KOREAN);
 
     /**
      * <b>답을 만들다 예상 못 한 곳에서 실패했을 때.</b>

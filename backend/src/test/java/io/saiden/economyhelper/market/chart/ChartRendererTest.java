@@ -67,17 +67,20 @@ class ChartRendererTest {
     }
 
     @Test
-    @DisplayName("오른 날과 내린 날의 선 색이 다르다 — 등락률 이모지와 같은 방향이다")
+    @DisplayName("오른 날은 붉고 내린 날은 푸르다 — 본문의 🔴/🔵와 같은 방향이다")
     void colorsRisingAndFallingDifferently() {
-        // 색을 RGB 리터럴로 못 박지 않는다. 「둘이 다르다」가 주장이고, 그것만 본다
-        long rising = distinctColors(ChartRenderer.render(bars(100, 200)));
-        long falling = distinctColors(ChartRenderer.render(bars(200, 100)));
+        // 색을 RGB 리터럴로 못 박지 않는다. 안티앨리어싱과 면 그라데이션이 같은 색을 수십
+        // 단계로 흩어 놓으므로 「가장 흔한 색 하나」도 못 박을 수 없다. 대신 **기울기**를 본다:
+        // 판이 아닌 화소 전체에서 붉은 기가 우세한가 푸른 기가 우세한가.
+        // 이것이 「등락률 이모지와 같은 방향」이라는 주장 그대로다 — 예전 단언(둘이 다르다)은
+        // 상승과 하락을 뒤바꿔도 그대로 초록이었다
+        assertThat(redOverBlue(ChartRenderer.render(bars(100, 200))))
+                .as("오른 날이 붉지 않다").isPositive();
+        assertThat(redOverBlue(ChartRenderer.render(bars(200, 100))))
+                .as("내린 날이 푸르지 않다").isNegative();
 
-        assertThat(rising).as("선과 배경과 기준선이 보여야 한다").isGreaterThan(1);
-        assertThat(dominantLineColor(ChartRenderer.render(bars(100, 200))))
-                .as("오른 날과 내린 날이 같은 색이면 방향을 색으로 읽을 수 없다")
-                .isNotEqualTo(dominantLineColor(ChartRenderer.render(bars(200, 100))));
-        assertThat(falling).isGreaterThan(1);
+        assertThat(distinctColors(ChartRenderer.render(bars(100, 200))))
+                .as("선과 판이 함께 보여야 한다").isGreaterThan(1);
     }
 
     @Test
@@ -113,13 +116,26 @@ class ChartRendererTest {
         assertThat(png.length).as("실측 3~4KB 급이어야 한다").isLessThan(30_000);
     }
 
-    /** 그 세로줄에서 배경도 기준선도 아닌 화소들의 평균 y — 선의 위치를 대신한다. */
+    /**
+     * 판에 속한 색인가 — 배경·격자·기준선.
+     *
+     * <p><b>값을 여기 리터럴로 적지 않는다.</b> 예전에는 흰 배경 {@code 0xFFFFFF}와 회색
+     * 기준선 {@code 0xC8C8C8}이 이 파일에 박혀 있었는데, 렌더러의 판 색을 바꾸는 순간
+     * 그 둘이 아무것도 못 걸러 <b>판 전체가 「선」으로 세어졌다</b> — 단언은 그대로 초록인데
+     * 보는 것이 없어진다. 그래서 렌더러가 든 상수를 그대로 든다.
+     */
+    private static boolean board(int rgb) {
+        return rgb == (ChartRenderer.BACKGROUND.getRGB() & 0xFFFFFF)
+                || rgb == (ChartRenderer.GRID.getRGB() & 0xFFFFFF)
+                || rgb == (ChartRenderer.BASELINE.getRGB() & 0xFFFFFF);
+    }
+
+    /** 그 세로줄에서 판이 아닌 화소들의 평균 y — 선의 위치를 대신한다. */
     private static int averageLineY(BufferedImage image, int x) {
         long sum = 0;
         int count = 0;
         for (int y = 0; y < image.getHeight(); y++) {
-            int rgb = image.getRGB(x, y) & 0xFFFFFF;
-            if (rgb != 0xFFFFFF && rgb != 0xC8C8C8) {
+            if (!board(image.getRGB(x, y) & 0xFFFFFF)) {
                 sum += y;
                 count++;
             }
@@ -141,21 +157,23 @@ class ChartRendererTest {
         return colors.size();
     }
 
-    /** 배경·기준선을 뺀 가장 흔한 색 — 선의 색이다. */
-    private static int dominantLineColor(byte[] png) {
+    /**
+     * 판이 아닌 화소들의 <b>붉은 기 − 푸른 기</b> 합.
+     *
+     * <p>양수면 붉고 음수면 푸르다. 화소 하나하나의 색이 아니라 그림 전체의 기울기를 보므로
+     * 안티앨리어싱과 면 그라데이션이 값을 흩어 놓아도 부호는 흔들리지 않는다.
+     */
+    private static long redOverBlue(byte[] png) {
         BufferedImage image = decode(png);
-        java.util.Map<Integer, Integer> counts = new java.util.HashMap<>();
+        long sum = 0;
         for (int x = 0; x < image.getWidth(); x++) {
             for (int y = 0; y < image.getHeight(); y++) {
                 int rgb = image.getRGB(x, y) & 0xFFFFFF;
-                if (rgb != 0xFFFFFF && rgb != 0xC8C8C8) {
-                    counts.merge(rgb, 1, Integer::sum);
+                if (!board(rgb)) {
+                    sum += ((rgb >> 16) & 0xFF) - (rgb & 0xFF);
                 }
             }
         }
-        return counts.entrySet().stream()
-                .max(java.util.Map.Entry.comparingByValue())
-                .map(java.util.Map.Entry::getKey)
-                .orElseThrow(() -> new AssertionError("선이 없다"));
+        return sum;
     }
 }

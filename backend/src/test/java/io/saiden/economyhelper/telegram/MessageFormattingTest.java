@@ -47,7 +47,7 @@ class MessageFormattingTest {
 
                         CNBC
 
-                        2026년 8월 11일(화) 09:00:00""");
+                        2026.08.11(화) 09:00:00""");
     }
 
     @Test
@@ -104,7 +104,7 @@ class MessageFormattingTest {
                 .as("한 통에 링크가 하나뿐이어야 카드가 어느 기사 것인지 확정된다")
                 .doesNotContain("두 번째").doesNotContain("세 번째")
                 .as("통마다 자기 매체와 발행 시각으로 끝맺는다")
-                .endsWith("CNBC\n\n2026년 8월 11일(화) 09:00:00");
+                .endsWith("CNBC\n\n2026.08.11(화) 09:00:00");
         assertThat(messages.get(1)).startsWith("<b>뉴스 2/3</b>\n\n").contains("두 번째");
         assertThat(messages.get(2)).startsWith("<b>뉴스 3/3</b>\n\n").contains("세 번째");
     }
@@ -244,7 +244,7 @@ class MessageFormattingTest {
 
                 수출입은행 매매기준율
 
-                2026년 8월 11일(화) (고시)""");
+                2026.08.11(화) (고시)""");
     }
 
     @Test
@@ -273,28 +273,28 @@ class MessageFormattingTest {
 
                 <b>국내</b>
 
-                코스피
+                <b>코스피</b>
                 6,345.53
 
-                삼성전자
+                <b>삼성전자</b>
                 239,500 KRW
 
                 금융위원회
 
-                2026년 8월 11일(화) (종가)
+                2026.08.11(화) (종가)
 
                 <b>미국</b>
 
-                나스닥
+                <b>나스닥</b>
                 26,588.49
 
-                애플
+                <b>애플</b>
                 302.25 USD
                 426,828 KRW
 
                 Financial Modeling Prep
 
-                2026년 8월 13일(목) 07:00:00""");
+                2026.08.13(목) 07:00:00""");
         assertThat(message)
                 .as("복사 버튼이 붙는 코드 블록을 쓰지 않는다").doesNotContain("<pre>")
                 .as("환율은 바로 앞 환율 통에 이미 있다 — 여기 또 넣으면 중복이다")
@@ -317,28 +317,28 @@ class MessageFormattingTest {
 
                 <b>국내</b>
 
-                코스피
+                <b>코스피</b>
                 6,869.83
 
-                삼성전자
+                <b>삼성전자</b>
                 268,500 KRW
 
                 한국투자증권
 
-                2026년 8월 13일(목) 07:00:00
+                2026.08.13(목) 07:00:00
 
                 <b>미국</b>
 
-                나스닥
+                <b>나스닥</b>
                 26,644.91
 
-                애플
+                <b>애플</b>
                 306.192 USD
                 432,395 KRW
 
                 한국투자증권
 
-                2026년 8월 13일(목) 07:00:00""");
+                2026.08.13(목) 07:00:00""");
     }
 
     @Test
@@ -351,15 +351,18 @@ class MessageFormattingTest {
 
                 <b>미국</b>
 
-                애플
+                <b>애플</b>
                 302.25 USD
                 426,828 KRW
 
                 Financial Modeling Prep
 
-                2026년 8월 13일(목) 07:00:00""");
-        assertThat(single).as("굵게는 제목에만 — 값까지 굵으면 무엇이 계층인지 안 드러난다")
-                .doesNotContain("<b>302.25");
+                2026.08.13(목) 07:00:00""");
+        assertThat(single)
+                .as("이름은 굵다 — 코인이 <b>BTC</b>, 날씨가 <b>미금역</b>으로 쓰는 그 자리다")
+                .contains("<b>애플</b>")
+                .as("값에는 안 쓴다 — 값까지 굵으면 무엇이 계층인지 안 드러난다")
+                .doesNotContain("<b>302.25").doesNotContain("<b>426,828");
     }
 
     @Test
@@ -371,12 +374,12 @@ class MessageFormattingTest {
 
                         <b>국내</b>
 
-                        삼성전자
+                        <b>삼성전자</b>
                         239,500 KRW
 
                         금융위원회
 
-                        2026년 8월 11일(화) (종가)""");
+                        2026.08.11(화) (종가)""");
     }
 
     @Test
@@ -402,11 +405,11 @@ class MessageFormattingTest {
 
         assertThat(StockFormatter.format(List.of(krIndex("코스피", "6345.53"), stale), FX))
                 .as("무리 기준은 그 무리 끝에 단독으로 — 모든 통이 같은 순서다")
-                .endsWith("금융위원회\n\n2026년 8월 11일(화) (종가)")
+                .endsWith("금융위원회\n\n2026.08.11(화) (종가)")
                 .as("무리 기준이 대표하지 못하는 줄에만 날짜를 붙인다")
-                .contains("코스닥\n857.84 · 2026년 8월 10일(월)")
+                .contains("<b>코스닥</b>\n857.84 · 2026.08.10(월)")
                 .as("종목끼리는 빈 줄로 갈린다 — 코인 통과 같은 규칙이다")
-                .contains("코스피\n6,345.53\n\n코스닥");
+                .contains("<b>코스피</b>\n6,345.53\n\n<b>코스닥</b>");
     }
 
     @Test
@@ -423,9 +426,9 @@ class MessageFormattingTest {
 
         assertThat(message)
                 .as("무리 기준은 한 번, 맨 아래에만 찍힌다")
-                .endsWith("Financial Modeling Prep\n\n2026년 8월 13일(목) 07:00:00")
+                .endsWith("Financial Modeling Prep\n\n2026.08.13(목) 07:00:00")
                 .as("값 줄에는 날짜가 한 줄도 붙지 않는다 — 같은 날이기 때문이다")
-                .doesNotContain(" · 2026년");
+                .doesNotContain(" · 2026.");
     }
 
     @Test
@@ -440,7 +443,7 @@ class MessageFormattingTest {
 
         assertThat(StockFormatter.format(List.of(krStock("코스피", "6345.53"), second), FX))
                 .as("출처는 여럿이어도 블록 하나다 — 사이를 빈 줄로 벌리지 않는다")
-                .contains("금융위원회\nFinancial Modeling Prep\n\n2026년")
+                .contains("금융위원회\nFinancial Modeling Prep\n\n2026.")
                 .as("한 줄에 잇지 않는다")
                 .doesNotContain(" · ")
                 .as("빈 줄이 겹치지 않는다")
@@ -460,7 +463,7 @@ class MessageFormattingTest {
 
         assertThat(message)
                 .as("성격마다 한 줄 — 실시간이 위다. 출처를 쌓는 것과 같은 규칙이다")
-                .endsWith("2026년 8월 11일(화) 09:00:00\n2026년 8월 11일(화) (종가)")
+                .endsWith("2026.08.11(화) 09:00:00\n2026.08.11(화) (종가)")
                 .as("값 줄은 깨끗하게 둔다 — 넷 중 하나가 폴백했다고 값마다 꼬리표를 달지 않는다")
                 .doesNotContain("KRW · ")
                 .as("출처도 둘이 쌓인다")
@@ -483,7 +486,7 @@ class MessageFormattingTest {
 
                 AccuWeather
 
-                2026년 8월 17일(월) (예보)""");
+                2026.08.17(월) (예보)""");
     }
 
     @Test
@@ -496,7 +499,7 @@ class MessageFormattingTest {
                 .as("지역끼리는 굵은 제목이 경계를 진다 — 증시의 국내·미국과 같은 규칙")
                 .contains("강수확률 20%\n\n<b>서현역</b>")
                 .as("다른 통과 같은 순서로 끝맺는다 — 값 다음 빈 줄, 출처, 빈 줄, 기준")
-                .endsWith("AccuWeather\n\n2026년 8월 17일(월) (예보)");
+                .endsWith("AccuWeather\n\n2026.08.17(월) (예보)");
     }
 
     @Test
@@ -507,10 +510,10 @@ class MessageFormattingTest {
         assertThat(message)
                 .startsWith("<b>날씨</b>")
                 .as("온도는 소수 한 자리로 맞춘다 — 22°C와 30.5°C가 한 줄에 서면 정밀도가 갈린다")
-                .contains("<b>성남시, 대한민국</b>\n\n8월 18일(화)\n흐림\n22.0°C / 30.5°C\n강수확률 49%")
-                .contains("8월 19일(수)")
+                .contains("<b>성남시, 대한민국</b>\n\n08.18(화)\n흐림\n22.0°C / 30.5°C\n강수확률 49%")
+                .contains("08.19(수)")
                 .as("범위는 시작과 끝을 함께 적는다 — 연도는 한 번이면 된다")
-                .endsWith("Open-Meteo\n\n2026년 8월 18일(화) ~ 8월 19일(수) (예보)");
+                .endsWith("Open-Meteo\n\n2026.08.18(화) ~ 08.19(수) (예보)");
     }
 
     @Test
@@ -522,18 +525,18 @@ class MessageFormattingTest {
                 .as("지역 블록에는 출처가 붙지 않는다 — 넷 중 하나가 폴백했다고 이름을 다섯 번 적지 않는다")
                 .doesNotContain("2.4mm\nOpen-Meteo")
                 .as("한 줄에 잇지도, 빈 줄로 벌리지도 않는다 — 출처는 여럿이어도 블록 하나다")
-                .endsWith("AccuWeather\nOpen-Meteo\n\n2026년 8월 17일(월) (예보)")
+                .endsWith("AccuWeather\nOpen-Meteo\n\n2026.08.17(월) (예보)")
                 .as("빈 줄이 겹치지 않는다")
                 .doesNotContain("\n\n\n");
 
         assertThat(WeatherFormatter.format(List.of(openMeteoFallback(), seohyeon())))
                 .as("첫 지역이 폴백해도 1순위가 위다 — 등장 순이 아니라 이중화 순서로 적는다")
-                .endsWith("AccuWeather\nOpen-Meteo\n\n2026년 8월 17일(월) (예보)");
+                .endsWith("AccuWeather\nOpen-Meteo\n\n2026.08.17(월) (예보)");
 
         assertThat(WeatherFormatter.format(List.of(migeum(), seohyeon())))
                 .as("갈리지 않으면 평상시 화면 그대로다 — 지역 블록에 출처가 붙지 않는다")
                 .contains("강수확률 20%\n\n<b>서현역</b>")
-                .endsWith("AccuWeather\n\n2026년 8월 17일(월) (예보)");
+                .endsWith("AccuWeather\n\n2026.08.17(월) (예보)");
     }
 
     @Test
@@ -551,7 +554,7 @@ class MessageFormattingTest {
     @DisplayName("지나간 날은 (실측)이다 — 예보가 아니었던 값을 예보라 적으면 거짓말이 된다")
     void pastWeatherIsMarkedAsMeasured() {
         assertThat(WeatherFormatter.format(List.of(archived())))
-                .endsWith("Open-Meteo Archive\n\n2025년 8월 19일(화) (실측)");
+                .endsWith("Open-Meteo Archive\n\n2025.08.19(화) (실측)");
     }
 
     @Test
@@ -742,7 +745,7 @@ class MessageFormattingTest {
                 바이낸스
                 62,000 USDT
 
-                2026년 8월 11일(화) 09:00:00""");
+                2026.08.11(화) 09:00:00""");
         assertThat(message).as("들여쓰기를 쓰지 않는다 — 통마다 제각각이던 것을 하나로 맞췄다")
                 .doesNotContain("  업비트");
     }

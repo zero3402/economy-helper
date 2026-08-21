@@ -31,9 +31,15 @@ import java.util.List;
  */
 public final class CryptoFormatter {
 
-    /** 밴 해제 시각의 표기 — 날짜와 분까지. 초는 밴에 뜻이 없다. */
+    /**
+     * 밴 해제 시각의 표기 — 날짜와 분까지. 초는 밴에 뜻이 없다.
+     *
+     * <p><b>{@code MessageLayout.SHORT_DATE}와 같은 모양이어야 한다.</b> 이 줄과 통 맨 아래
+     * 기준 줄이 한 화면에 함께 서므로, 한쪽만 점 표기이면 같은 통에서 날짜 표기가 갈린다.
+     * 상수를 따로 든 것은 뒤에 시각이 붙기 때문일 뿐이다.
+     */
     private static final DateTimeFormatter RELEASE =
-            DateTimeFormatter.ofPattern("M월 d일(E) HH:mm", java.util.Locale.KOREAN);
+            DateTimeFormatter.ofPattern("MM.dd(E) HH:mm", java.util.Locale.KOREAN);
 
     private CryptoFormatter() {
     }
