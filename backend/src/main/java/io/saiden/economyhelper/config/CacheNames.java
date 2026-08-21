@@ -90,6 +90,14 @@ public final class CacheNames {
     /** KIS 시세 셋(국내 종목·국내 지수·미국). 1분 — 가르는 것은 키 접두사다. */
     public static final String KIS_QUOTE = "kis-quote";
 
+    /**
+     * 국내 종목의 목표주가·투자의견. 시세와 <b>수명이 전혀 다르다</b> — 증권사는 분기에 몇 번
+     * 낼 뿐이라 하루를 캐시해도 낡지 않는다. 그리고 그 길이가 이 기능의 실질 방어다:
+     * 브리핑이 종목마다 조회를 하나 더 하는데 KIS는 <b>호출 사이 1초</b>를 지키므로,
+     * 캐시가 없으면 브리핑이 종목 수만큼 더 늦어진다.
+     */
+    public static final String KIS_OUTLOOK = "kis-outlook";
+
     /** 유럽중앙은행 환율. */
     public static final String FX = "fx";
 

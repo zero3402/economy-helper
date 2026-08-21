@@ -9,6 +9,7 @@ import io.saiden.economyhelper.market.FxService;
 import io.saiden.economyhelper.market.FxSource;
 import io.saiden.economyhelper.market.StockQuote;
 import io.saiden.economyhelper.market.StockService;
+import io.saiden.economyhelper.market.StockService.Answer;
 import io.saiden.economyhelper.market.weather.WeatherFacade;
 import io.saiden.economyhelper.market.StockResolver;
 import io.saiden.economyhelper.market.data.DataGoStockClient;
@@ -519,10 +520,12 @@ class TelegramWebhookControllerTest {
     /** 해석 규칙은 {@code StockServiceTest}가 본다. 여기서는 라우팅만 본다. */
     private static StockService stock(Optional<StockQuote> result) {
         return new StockService(List.of(), List.of(), new DataGoStockClient(null, null),
-                new StockResolver(null, null)) {
+                new StockResolver(null, null), code -> java.util.Optional.empty()) {
+            // ⚠️ quote가 아니라 answer를 덮는다. 컨트롤러가 전망을 함께 받으려고 answer로
+            //    옮겨 갔으므로, quote를 덮어 두면 페이크가 가로채지 못한다
             @Override
-            public Optional<StockQuote> quote(String query) {
-                return result;
+            public Optional<Answer> answer(String query) {
+                return result.map(Answer::of);
             }
         };
     }

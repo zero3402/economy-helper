@@ -98,9 +98,22 @@ public final class TestProperties {
         }
     }
 
-    /** 스물한 개가 같은 값인 TTL 묶음 — 캐시 설정만 보는 테스트가 값 자체는 안 본다. */
+    /**
+     * 모든 성분이 같은 값인 TTL 묶음 — 캐시 설정만 보는 테스트가 값 자체는 안 본다.
+     *
+     * <p><b>인자를 손으로 나열하지 않는다.</b> 예전에는 {@code any}를 스물한 번 적고 javadoc에
+     * 「스물한 개」라고 써 뒀는데, 캐시가 하나 늘 때마다 <b>둘 다</b> 고쳐야 했고 실제로
+     * {@code kis-outlook}을 더할 때 컴파일이 깨졌다. 개수를 아는 유일한 곳은 레코드 자신이므로
+     * 거기서 읽는다 — 「늘 때마다 여러 곳을 고쳐야 하는 값은 반드시 낡는다」는 규칙 그대로다.
+     */
     public static CacheTtl everyTtl(Duration any) {
-        return new CacheTtl(any, any, any, any, any, any, any, any, any, any,
-                any, any, any, any, any, any, any, any, any, any, any);
+        var constructor = CacheTtl.class.getDeclaredConstructors()[0];
+        Object[] args = new Object[constructor.getParameterCount()];
+        java.util.Arrays.fill(args, any);
+        try {
+            return (CacheTtl) constructor.newInstance(args);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("CacheTtl을 만들 수 없다 — 성분 타입이 Duration이 아닌가?", e);
+        }
     }
 }

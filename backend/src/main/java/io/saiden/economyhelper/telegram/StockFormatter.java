@@ -3,6 +3,7 @@ package io.saiden.economyhelper.telegram;
 import static io.saiden.economyhelper.telegram.MessageLayout.DATE;
 import static io.saiden.economyhelper.telegram.MessageLayout.DATE_TIME;
 import static io.saiden.economyhelper.telegram.MessageLayout.SEOUL;
+import static io.saiden.economyhelper.telegram.MessageLayout.SHORT_DATE;
 import static io.saiden.economyhelper.telegram.MessageLayout.appendChangeLine;
 import static io.saiden.economyhelper.telegram.MessageLayout.empty;
 import static io.saiden.economyhelper.telegram.MessageLayout.head;
@@ -12,6 +13,8 @@ import static io.saiden.economyhelper.telegram.MessageLayout.sources;
 import static io.saiden.economyhelper.telegram.MessageLayout.title;
 
 import io.saiden.economyhelper.market.FxRate;
+import io.saiden.economyhelper.market.StockOutlook;
+import java.util.Map;
 import io.saiden.economyhelper.market.StockQuote;
 import io.saiden.economyhelper.market.StockSource;
 import java.time.Instant;
@@ -56,6 +59,23 @@ public final class StockFormatter {
      * 환율도 적지 않는다 — 환율은 {@code /fx}와 브리핑 환율 통이 따로 있다.
      */
     public static String format(List<StockQuote> quotes, FxRate fx) {
+        return format(quotes, fx, Map.of());
+    }
+
+    /**
+     * 전망까지 붙인 것 — 목표주가·투자의견이 있는 종목에만 줄이 는다.
+     *
+     * <p><b>왜 시세 목록과 따로 받나.</b> {@link StockQuote}에는 종목코드가 없고 넣을 수도
+     * 없다 — 시세는 1분 캐시이고 전망은 12시간이라 한 항목으로 묶으면 하루에 한 번 바뀌는
+     * 값을 1분마다 다시 받는다. 그래서 {@code StockService}가 둘을 따로 들고 와 여기서 만난다.
+     *
+     * <p>맵의 열쇠가 시세 자체인 것은 레코드가 값 동등성을 갖기 때문이다 — 이름으로 잇지
+     * 않는다(같은 이름의 지수와 종목이 있을 수 있다).
+     *
+     * @param outlooks 시세 → 전망. 없는 종목은 아예 담기지 않는다
+     */
+    public static String format(List<StockQuote> quotes, FxRate fx,
+                                Map<StockQuote, StockOutlook> outlooks) {
         if (quotes.isEmpty()) {
             return empty(Command.STOCK);
         }
@@ -64,7 +84,7 @@ public final class StockFormatter {
         StringBuilder message = new StringBuilder(title(Command.STOCK));
         for (StockQuote.Market market : StockQuote.Market.values()) {
             appendGroup(message, market, quotes.stream()
-                    .filter(quote -> quote.market() == market).toList(), fx);
+                    .filter(quote -> quote.market() == market).toList(), fx, outlooks);
         }
 
         // 환율 줄을 붙이지 않는다. 브리핑은 환율 통을 이 통 바로 앞에 보내므로 중복이다
@@ -95,7 +115,8 @@ public final class StockFormatter {
      * 읽는 사람이 셀 수 없었다.
      */
     private static void appendGroup(StringBuilder message, StockQuote.Market market,
-                                    List<StockQuote> quotes, FxRate fx) {
+                                    List<StockQuote> quotes, FxRate fx,
+                                    Map<StockQuote, StockOutlook> outlooks) {
         if (quotes.isEmpty()) {
             return;
         }
@@ -133,11 +154,47 @@ public final class StockFormatter {
                 message.append("\n").append(money(krw(quote.price(), fx))).append(" KRW");
             }
             appendChangeLine(message, quote.changePercent());
+            appendOutlook(message, quote, outlooks.get(quote));
         }
         // 무리 하나가 통 하나처럼 끝맺는다 — 값 다음에 출처, 한 줄 띄고 기준.
         // 두 무리 것을 맨 아래에 모으면 "국내"·"미국"을 접두사로 네 번 반복해야 한다
         message.append("\n\n").append(sourcesOf(quotes))
                 .append("\n\n").append(basisLines(live, closing));
+    }
+
+    /**
+     * 전망 줄 — <b>있는 것만 적는다.</b>
+     *
+     * <p>셋이 따로 논다. 목표주가는 있는데 의견이 없을 수 있고(모르는 표기는 등급으로 세지
+     * 않는다), 실적발표일은 국내에 무료 출처가 없어 대개 없다. <b>없는 것을 {@code 0}이나
+     * 「-」로 찍지 않는다</b> — 「목표가 0원」은 모른다는 뜻이 아니라 <b>값</b>이다.
+     *
+     * <p>값 줄 아래에 한 줄씩 붙인다(빈 줄로 벌리지 않는다) — 같은 종목에 대한 이야기라
+     * 한 블록이기 때문이다. 이 통의 규칙 그대로다: 빈 줄은 블록 사이, 한 줄은 블록 안.
+     *
+     * <p>몇 곳이 낸 의견인지를 함께 적는다. 「매수」 한 마디보다 <b>몇 곳인지가 무게를
+     * 말한다</b> — 한 곳의 매수와 열 곳의 매수는 같은 값이 아니다.
+     */
+    private static void appendOutlook(StringBuilder message, StockQuote quote,
+                                      StockOutlook outlook) {
+        if (outlook == null) {
+            return;
+        }
+        if (outlook.targetPrice() != null) {
+            // ⚠️ 값 줄과 같은 모양으로 단위를 붙인다. 바로 위가 「239,500 KRW」인데 여기가
+            //    「목표 466,667」이면 무슨 단위인지 읽는 사람이 짐작해야 한다 — 목표주가의
+            //    통화는 그 종목의 통화라고 StockOutlook이 적어 뒀으므로 그것을 그대로 쓴다
+            message.append("\n목표 ").append(unitOf(quote, outlook.targetPrice()));
+        }
+        if (outlook.rating() != null) {
+            message.append("\n").append(outlook.rating().label());
+            if (outlook.analystCount() != null) {
+                message.append(" (").append(outlook.analystCount()).append("곳)");
+            }
+        }
+        if (outlook.earningsDate() != null) {
+            message.append("\n실적발표 ").append(SHORT_DATE.format(outlook.earningsDate()));
+        }
     }
 
     /** 두 시각이 KST 같은 날인가 — 값의 신선도를 가르는 단위는 초가 아니라 하루다. */
@@ -180,10 +237,20 @@ public final class StockFormatter {
 
     /** 통화 코드까지 붙인 값. 지수는 통화가 없어 숫자만 나간다. */
     private static String priceOf(StockQuote quote) {
+        return unitOf(quote, quote.price());
+    }
+
+    /**
+     * 그 종목의 통화를 붙인 숫자 — 시세와 목표주가가 <b>같은 모양</b>이어야 한다.
+     *
+     * <p>둘이 갈리면 한 블록 안에서 「239,500 KRW」 아래에 「466,667」이 서고, 읽는 사람이
+     * 단위를 짐작하게 된다.
+     */
+    private static String unitOf(StockQuote quote, java.math.BigDecimal amount) {
         return switch (quote.currency()) {
-            case NONE -> money(quote.price());
-            case KRW -> money(quote.price()) + " KRW";
-            case USD -> money(quote.price()) + " USD";
+            case NONE -> money(amount);
+            case KRW -> money(amount) + " KRW";
+            case USD -> money(amount) + " USD";
         };
     }
 

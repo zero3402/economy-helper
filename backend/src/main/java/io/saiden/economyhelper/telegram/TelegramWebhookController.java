@@ -281,9 +281,13 @@ public class TelegramWebhookController {
                     .orElseGet(FxFormatter::unavailable));
             // 미국 종목이면 원화도 함께 보여준다. 환율 조회가 실패하면 달러만 나간다 —
             // 환산을 못 한다고 시세 자체를 막을 이유가 없다.
-            case STOCK -> stockService.quote(command.argument())
-                    .map(quote -> Reply.plain(
-                            StockFormatter.format(List.of(quote), fxService.orNull())))
+            case STOCK -> stockService.answer(command.argument())
+                    .map(answer -> Reply.plain(StockFormatter.format(
+                            List.of(answer.quote()), fxService.orNull(),
+                            // 전망이 없으면 빈 맵 — 그러면 그 줄이 아예 안 적힌다
+                            answer.outlook() == null
+                                    ? java.util.Map.of()
+                                    : java.util.Map.of(answer.quote(), answer.outlook()))))
                     .orElseGet(() -> Reply.plain(StockFormatter.notFound(command.argument())));
             // 답이 일일 예보라 링크가 없다 — 미리보기를 켤 이유가 없다
             case WEATHER -> {

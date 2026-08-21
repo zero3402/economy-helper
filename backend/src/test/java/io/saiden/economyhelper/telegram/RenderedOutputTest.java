@@ -7,6 +7,7 @@ import io.saiden.economyhelper.market.CryptoQuote;
 import io.saiden.economyhelper.market.CryptoQuote.Quote;
 import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.FxSource;
+import io.saiden.economyhelper.market.StockOutlook;
 import io.saiden.economyhelper.market.StockQuote;
 import io.saiden.economyhelper.market.StockSource;
 import io.saiden.economyhelper.market.weather.GeoLocation;
@@ -154,6 +155,16 @@ class RenderedOutputTest {
                 krStock("삼성전자", "82000", "-1.451")), null));
         cases.put("stock/escaped-name", StockFormatter.format(List.of(
                 usIndex("S&P 500", "6481.40")), null));
+        // 전망이 붙은 것 — 목표주가·투자의견이 값 줄 아래에 한 줄씩 붙는다.
+        // 몇 곳이 낸 의견인지를 함께 적는다: 한 곳의 매수와 열 곳의 매수는 같은 값이 아니다
+        cases.put("stock/with-outlook", withOutlook(
+                new StockOutlook(null, new BigDecimal("466667"), StockOutlook.Rating.BUY, 3,
+                        StockSource.KIS, BASIS)));
+        // ⚠️ 셋이 따로 논다 — 목표가는 있는데 의견이 없을 수 있다(모르는 표기는 세지 않는다).
+        //    없는 것은 줄이 아예 없다. 「-」나 0으로 찍으면 그건 모른다는 뜻이 아니라 값이다
+        cases.put("stock/outlook-target-only", withOutlook(
+                new StockOutlook(null, new BigDecimal("350000"), null, null,
+                        StockSource.KIS, BASIS)));
         cases.put("stock/empty", StockFormatter.format(List.of(), FX));
         cases.put("stock/not-found", StockFormatter.notFound("없는종목 <b>"));
 
@@ -272,6 +283,12 @@ class RenderedOutputTest {
     private static StockQuote krIndex(String name, String price) {
         return new StockQuote(name, new BigDecimal(price), null,
                 StockQuote.Money.NONE, StockQuote.Market.DOMESTIC, StockSource.DATA_GO, BASIS, false);
+    }
+
+    /** 전망이 붙은 국내 종목 하나. 전망은 시세와 <b>따로</b> 전달된다 — 캐시 수명이 다르다. */
+    private static String withOutlook(StockOutlook outlook) {
+        StockQuote quote = krStock("삼성전자", "239500", "-1.26");
+        return StockFormatter.format(List.of(quote), FX, java.util.Map.of(quote, outlook));
     }
 
     private static StockQuote krStock(String name, String price, String change) {

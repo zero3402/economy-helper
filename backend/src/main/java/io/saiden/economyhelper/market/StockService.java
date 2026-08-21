@@ -73,6 +73,7 @@ public class StockService {
     private final List<UsStockClient> us;
     private final DataGoStockClient names;
     private final StockResolver resolver;
+    private final DomesticOutlookClient outlooks;
 
     /**
      * @param names <b>이름으로 찾는 경로는 이중화되지 않는다</b> — 한국투자증권에 종목명 검색이
@@ -80,12 +81,14 @@ public class StockService {
      *              공공데이터포털을 직접 든다
      */
     public StockService(List<DomesticStockClient> domestic, List<UsStockClient> us,
-                        DataGoStockClient names, StockResolver resolver) {
+                        DataGoStockClient names, StockResolver resolver,
+                        DomesticOutlookClient outlooks) {
         // 순서는 여기서 정한다 — 주입 순서에 딸려 가면 클래스 이름을 바꾸다 뒤집힌다
         this.domestic = Failover.order(domestic, DOMESTIC_ORDER, StockClient::source);
         this.us = Failover.order(us, US_ORDER, StockClient::source);
         this.names = names;
         this.resolver = resolver;
+        this.outlooks = outlooks;
     }
 
 
@@ -94,6 +97,17 @@ public class StockService {
      *         {@link Optional#empty()}
      */
     public Optional<StockQuote> quote(String query) {
+        return answer(query).map(Answer::quote);
+    }
+
+    /**
+     * 시세와 <b>전망</b>을 함께 — {@code /stock} 검색이 쓴다.
+     *
+     * <p>전망을 여기서 붙이는 이유는 <b>종목코드가 여기까지만 있기 때문</b>이다.
+     * {@link StockQuote}에는 코드가 없고(화면이 안 쓴다) 넣을 수도 없다 — 그쪽은 1분 캐시이고
+     * 전망은 12시간이라, 한 항목으로 묶으면 하루에 한 번 바뀌는 값을 1분마다 다시 받는다.
+     */
+    public Optional<Answer> answer(String query) {
         String key = StockResolver.cacheKeyOf(query);
         if (key.isEmpty()) {
             return Optional.empty();
@@ -105,19 +119,21 @@ public class StockService {
             Optional<String> code = directCode(query);
             if (code.isPresent()) {
                 // 없는 코드라고 이름 검색으로 넘기지 않는다 — 6자리 숫자는 종목명일 수 없다
-                return stock(code.get());
+                return stockAnswer(code.get());
             }
 
             Optional<ResolvedStock> resolved = resolver.resolve(key);
 
             if (resolved.filter(ResolvedStock::isUs).isPresent()) {
-                return usQuote(resolved.get());
+                // 미국 종목의 전망은 FMP인데 무료 티어가 심볼별 허용목록이다 — 아직 붙이지 않는다
+                return usQuote(resolved.get()).map(Answer::of);
             }
             // 국내 지수는 조회가 통째로 다르다 — 종목코드가 없고 시가총액도 없다
             if (resolved.filter(ResolvedStock::isIndex).isPresent()) {
                 // 업종코드는 비워 보낸다. 설정에 있는 지수면 KIS가 제 표에서 채우고,
                 // 없으면 이름으로 찾는 2순위가 맡는다 — LLM에게 지수코드를 지어내게 두지 않는다
-                return index(new Index(resolved.get().name(), null));
+                // 지수에는 목표주가도 투자의견도 없다 — 낼 주체가 없다
+                return index(new Index(resolved.get().name(), null)).map(Answer::of);
             }
             return search(resolved, key);
         } catch (RuntimeException e) {
@@ -152,25 +168,26 @@ public class StockService {
      * {@code 삼성전자}·{@code 하이닉스}처럼 이름을 그대로 친 경우는 LLM 없이도 걸린다 —
      * Gemini가 죽었다고 {@code /stock} 전체가 멈추면 안 된다.
      */
-    private Optional<StockQuote> search(Optional<ResolvedStock> resolved, String cacheKey) {
+    private Optional<Answer> search(Optional<ResolvedStock> resolved, String cacheKey) {
         if (resolved.isPresent()) {
             ResolvedStock found = resolved.get();
             if (found.hasCode()) {
-                Optional<StockQuote> byCode = stock(found.code());
+                Optional<Answer> byCode = stockAnswer(found.code());
                 if (byCode.isPresent()) {
                     return byCode;
                 }
                 log.info("[stock] LLM이 준 코드 {}가 시세에 없습니다 — 이름으로 다시 찾습니다", found.code());
             }
             if (found.hasName()) {
-                Optional<StockQuote> byName = byName(found.name());
+                // 이름 검색은 공공데이터포털이고 코드를 돌려주지 않는다 — 전망을 붙일 열쇠가 없다
+                Optional<Answer> byName = byName(found.name()).map(Answer::of);
                 if (byName.isPresent()) {
                     return byName;
                 }
             }
         }
         // LLM이 죽었거나 특정하지 못했다. 원문이 그대로 종목명일 수 있다
-        return byName(cacheKey);
+        return byName(cacheKey).map(Answer::of);
     }
 
     /** 미국 종목·지수 하나. <b>지수</b>는 설정에 KIS 심볼이 있으면 1순위가 맡고 없으면 FMP로 간다.
@@ -192,6 +209,14 @@ public class StockService {
     }
 
     /**
+     * 브리핑의 국내 종목 — 시세와 전망을 함께. {@link #quotesOf}와 같은 모양으로
+     * <b>종목마다 따로 실패한다.</b>
+     */
+    public List<Answer> answersOf(List<String> codes) {
+        return codes.stream().map(this::stockAnswer).flatMap(Optional::stream).toList();
+    }
+
+    /**
      * 지수를 이미 아는 경우 — 아침 브리핑처럼 설정에 박힌 지수들이 여기로 온다.
      *
      * <p>{@link #quotesOf}와 같은 모양으로 <b>지수마다 따로 실패한다</b> —
@@ -204,6 +229,48 @@ public class StockService {
     /** 미국 심볼을 이미 아는 경우 — 아침 브리핑의 나스닥·S&amp;P500·시총 상위가 여기로 온다. */
     public List<StockQuote> usQuotesOf(List<UsSymbol> symbols) {
         return symbols.stream().map(this::usQuote).flatMap(Optional::stream).toList();
+    }
+
+    /**
+     * 시세 하나에 <b>전망을 붙인 것</b> — 전망은 {@code null}일 수 있다.
+     *
+     * <p>왜 {@link StockQuote}에 필드를 더하지 않았나. 그쪽은 <b>1분 캐시</b>이고 전망은
+     * <b>12시간</b>이다. 한 항목으로 묶으면 하루에 한 번 바뀌는 값을 1분마다 다시 받게 되고
+     * (60배), {@code kis-quote}는 {@code TypeReference<StockQuote>}로 타입이 못 박혀 있어
+     * 다른 모양을 담으면 <b>쓸 때는 넘어가고 읽을 때 깨진다</b>.
+     */
+    public record Answer(StockQuote quote, StockOutlook outlook) {
+
+        /** 전망이 없는 것 — 지수·미국 종목·이름 검색이 그렇다. */
+        public static Answer of(StockQuote quote) {
+            return new Answer(quote, null);
+        }
+    }
+
+    /** 국내 종목 하나 — <b>여기가 종목코드가 있는 유일한 자리</b>라 전망을 여기서 붙인다. */
+    private Optional<Answer> stockAnswer(String code) {
+        return stock(code).map(quote -> new Answer(quote, outlookOf(code)));
+    }
+
+    /**
+     * 그 종목의 목표주가·투자의견 — <b>못 구하면 {@code null}이고 시세는 그대로 나간다.</b>
+     *
+     * <p><b>삼키는 일이 왜 클라이언트가 아니라 여기 있나.</b> 클라이언트가 삼키면 거기 걸린
+     * {@code @CircuitBreaker}가 <b>정상 반환을 보고 성공을 센다</b> — 실패율이 영원히 0이라
+     * 브레이커가 열리지 않고, KIS가 죽어 있는 동안 조회마다 간격 1초를 헛되이 지불한다.
+     * {@code HackerNewsApi}가 실제로 그 상태였고 그 브레이커의 설정값이 전부 죽은 값이었다.
+     * 그래서 클라이언트는 던지고 <b>강등은 한 칸 위인 여기서</b> 한다.
+     *
+     * <p>화면에서 「의견이 없는 종목」과 「조회 실패」가 같은 결과(그 줄이 없음)라는 것은
+     * 여전히 맞다 — 그 판단을 브레이커가 실패를 본 <b>뒤에</b> 하는 것뿐이다.
+     */
+    private StockOutlook outlookOf(String code) {
+        try {
+            return outlooks.outlook(code).filter(outlook -> !outlook.isEmpty()).orElse(null);
+        } catch (RuntimeException e) {
+            log.info("[stock] {} 전망 조회 실패 — 시세만 내보냅니다: {}", code, FailureReason.of(e));
+            return null;
+        }
     }
 
     private Optional<StockQuote> stock(String code) {

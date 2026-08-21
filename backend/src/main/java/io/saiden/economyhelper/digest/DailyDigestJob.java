@@ -7,6 +7,8 @@ import io.saiden.economyhelper.market.CryptoQuote;
 import io.saiden.economyhelper.market.CryptoService;
 import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.FxService;
+import io.saiden.economyhelper.market.StockOutlook;
+import java.util.Map;
 import io.saiden.economyhelper.market.StockQuote;
 import io.saiden.economyhelper.market.StockService;
 import io.saiden.economyhelper.news.NewsFacade;
@@ -233,9 +235,17 @@ public class DailyDigestJob extends TriggerableJob {
      */
     private List<String> stockMessage(FxRate fx) {
         List<StockQuote> quotes = new ArrayList<>(stockService.indicesOf(indexNames));
-        quotes.addAll(stockService.quotesOf(stockCodes));
+        // 국내 종목만 전망이 붙는다 — 지수에는 목표주가를 낼 주체가 없고, 미국은 FMP 무료
+        // 티어가 심볼별 허용목록이라 아직 붙이지 않는다
+        Map<StockQuote, StockOutlook> outlooks = new java.util.HashMap<>();
+        for (StockService.Answer answer : stockService.answersOf(stockCodes)) {
+            quotes.add(answer.quote());
+            if (answer.outlook() != null) {
+                outlooks.put(answer.quote(), answer.outlook());
+            }
+        }
         quotes.addAll(stockService.usQuotesOf(usSymbols));
-        return quotes.isEmpty() ? List.of() : List.of(StockFormatter.format(quotes, fx));
+        return quotes.isEmpty() ? List.of() : List.of(StockFormatter.format(quotes, fx, outlooks));
     }
 
     /**

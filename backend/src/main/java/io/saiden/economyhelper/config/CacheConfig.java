@@ -3,6 +3,7 @@ package io.saiden.economyhelper.config;
 import io.saiden.economyhelper.config.EconomyHelperProperties.CacheTtl;
 import io.saiden.economyhelper.market.CryptoResolver.ResolvedCoin;
 import io.saiden.economyhelper.market.FxRate;
+import io.saiden.economyhelper.market.StockOutlook;
 import io.saiden.economyhelper.market.StockQuote;
 import io.saiden.economyhelper.market.StockResolver.ResolvedStock;
 import io.saiden.economyhelper.market.binance.BinanceApi.BinancePrice;
@@ -99,6 +100,12 @@ public class CacheConfig {
                 // 가르는 것은 키의 접두사('stock:'·'index:'·'us:')다
                 .withCacheConfiguration(CacheNames.KIS_QUOTE,
                         cache(ttl.kisQuote(), new TypeReference<StockQuote>() {}))
+                // 담기는 것이 Optional이다 — 「의견 낸 증권사가 없다」가 값이라 그것도 캐시된다.
+                // 빈 Optional은 스프링이 벗겨 null이 되고 disableCachingNullValues가 막으므로
+                // 실제로는 값이 있는 종목만 캐시된다
+                .withCacheConfiguration(CacheNames.KIS_OUTLOOK,
+                        cache(ttl.kisOutlook(),
+                                new TypeReference<java.util.Optional<StockOutlook>>() {}))
                 .withCacheConfiguration(CacheNames.FX,
                         cache(ttl.fx(), new TypeReference<FxRate>() {}))
                 // 하루 1,000회 한도를 지키는 실질 방어다 — 1시간이면 하루 최대 24회

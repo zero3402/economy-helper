@@ -13,6 +13,7 @@ import io.saiden.economyhelper.market.FxService;
 import io.saiden.economyhelper.market.FxSource;
 import io.saiden.economyhelper.market.StockQuote;
 import io.saiden.economyhelper.market.StockService;
+import io.saiden.economyhelper.market.StockService.Answer;
 import io.saiden.economyhelper.market.data.DataGoStockClient;
 import io.saiden.economyhelper.market.upbit.UpbitApi;
 import io.saiden.economyhelper.news.NewsFacade;
@@ -308,7 +309,7 @@ class DailyDigestJobTest {
     }
 
     private static StockService stock(boolean indicesAlive, boolean stocksAlive) {
-        return new StockService(List.of(), List.of(), noNames(), null) {
+        return new StockService(List.of(), List.of(), noNames(), null, code -> java.util.Optional.empty()) {
             @Override
             public List<StockQuote> indicesOf(List<EconomyHelperProperties.Index> indices) {
                 return indicesAlive
@@ -318,12 +319,15 @@ class DailyDigestJobTest {
                         : List.of();
             }
 
+            // ⚠️ quotesOf가 아니라 answersOf다. 브리핑이 국내 종목에 전망을 붙이면서 그쪽으로
+            //    옮겨 갔으므로, quotesOf를 오버라이드해 두면 페이크가 **가로채지 못하고**
+            //    실물 경로가 돈다 — 테스트가 조용히 딴 것을 시험하게 된다
             @Override
-            public List<StockQuote> quotesOf(List<String> codes) {
+            public List<Answer> answersOf(List<String> codes) {
                 return stocksAlive
-                        ? List.of(new StockQuote("삼성전자", new BigDecimal("239500"), null,
+                        ? List.of(Answer.of(new StockQuote("삼성전자", new BigDecimal("239500"), null,
                                 StockQuote.Money.KRW, StockQuote.Market.DOMESTIC, io.saiden.economyhelper.market.StockSource.DATA_GO,
-                                BASIS, false))
+                                BASIS, false)))
                         : List.of();
             }
         };
