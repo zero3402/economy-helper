@@ -4,7 +4,6 @@ import io.saiden.economyhelper.market.FxRate;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.NumberFormat;
-import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
@@ -128,7 +127,7 @@ final class MessageLayout {
      *
      * <p>제목 문자열이 {@link Command}에만 있으므로 검색 답과 브리핑 답의 제목이 갈릴 수 없다.
      *
-     * <p>부르는 곳은 뉴스({@link #newsTitle})·증시·날씨·도움말, 그리고 {@link #section}이다 —
+     * <p>부르는 곳은 뉴스({@code NewsFormatter}의 제목)·증시·날씨·도움말, 그리고 {@link #section}이다 —
      * 코인은 {@link #section}을 거쳐 간접적으로 쓴다.
      *
      * <p><b>검색어를 붙이지 않는다.</b> 붙이던 때가 있었는데({@code 증시 '삼성전자'}) 답이

@@ -61,8 +61,7 @@ public class OpenMeteoArchiveClient implements WeatherClient {
     @Override
     // ⚠️ 예보와 한 캐시를 쓰므로 접두사로 가른다 — OpenMeteoForecastClient의 주석 참조
     @Cacheable(cacheNames = CacheNames.WEATHER,
-            key = "'oma:' + #a0.latitude() + ',' + #a0.longitude() + ',' + #a1.from() + ',' + #a1.to()",
-            unless = "#result == null")
+            key = "'oma:' + #a0.latitude() + ',' + #a0.longitude() + ',' + #a1.from() + ',' + #a1.to()")
     @Retry(name = "weatherOpenMeteoArchive")
     @CircuitBreaker(name = "weatherOpenMeteoArchive")
     public Weather forecast(GeoLocation place, WeatherPeriod period) {

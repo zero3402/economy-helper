@@ -1,6 +1,7 @@
 package io.saiden.economyhelper.news.rank;
 
 import io.saiden.economyhelper.news.Article;
+import io.saiden.economyhelper.support.FailureReason;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
@@ -9,6 +10,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -22,6 +25,8 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class HackerNewsBuzzClient {
+
+    private static final Logger log = LoggerFactory.getLogger(HackerNewsBuzzClient.class);
 
     private final HackerNewsApi api;
     private final Duration window;
@@ -59,7 +64,20 @@ public class HackerNewsBuzzClient {
         Instant since = now.minus(window);
         Map<String, Integer> byNormalizedUrl = new HashMap<>();
         for (String domain : domains) {
-            byNormalizedUrl.putAll(api.storiesForDomain(domain, since));
+            try {
+                byNormalizedUrl.putAll(api.storiesForDomain(domain, since));
+            } catch (RuntimeException e) {
+                // ⚠️ 강등이 여기 있는 이유가 있다. 예전에는 HackerNewsApi가 스스로 삼켜 빈 맵을
+                //    돌려줬는데, 그러면 그 메서드의 @CircuitBreaker가 **정상 반환을 보고 성공을
+                //    센다** — 실패율이 영원히 0이라 브레이커가 절대 열리지 않았다. 한 칸 위인
+                //    여기서 잡으면 브레이커가 실패를 먼저 세고, 열린 뒤에는
+                //    CallNotPermittedException이 같은 자리에 걸려 같은 강등이 일어난다.
+                //    즉 사용자에게 보이는 결과는 그대로이고 브레이커만 살아난다.
+                //    도메인마다 잡는 것도 뜻이 있다 — 루프 밖에서 한 번 잡으면 첫 실패가
+                //    뒤의 매체를 통째로 버린다
+                log.warn("[{}] HN 조회 실패 — 이 도메인의 buzz를 0으로 강등합니다: {}",
+                        domain, FailureReason.of(e));
+            }
         }
 
         Map<String, Integer> byLink = new HashMap<>();

@@ -2,7 +2,6 @@ package io.saiden.economyhelper.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.saiden.economyhelper.config.EconomyHelperProperties.CacheTtl;
 import io.saiden.economyhelper.market.CryptoResolver;
 import io.saiden.economyhelper.market.CryptoResolver.ResolvedCoin;
 import io.saiden.economyhelper.market.StockResolver;

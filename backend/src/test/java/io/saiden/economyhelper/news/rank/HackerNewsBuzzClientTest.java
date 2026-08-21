@@ -141,12 +141,29 @@ class HackerNewsBuzzClientTest {
         }
 
         @Test
-        @DisplayName("HN이 죽어 빈 맵을 줘도 조용히 넘어간다 — 랭킹은 나머지 지표로 계속된다")
+        @DisplayName("HN이 던져도 랭킹은 계속된다 — 강등이 여기 있어야 브레이커가 실패를 본다")
         void survivesHackerNewsOutage() {
+            // ⚠️ 예전에는 HackerNewsApi가 스스로 삼켜 빈 맵을 돌려줬고, 그래서 이 테스트도
+            //    빈 맵을 먹였다. 그 설계에서는 그 메서드의 @CircuitBreaker가 정상 반환을 보고
+            //    **성공을 세** 절대 열리지 않았다. 이제 API는 던지고 강등은 이 클래스가 한다 —
+            //    브레이커가 실패를 먼저 세고, 사용자에게 보이는 결과는 똑같이 빈손이다
             HackerNewsBuzzClient client =
-                    new HackerNewsBuzzClient(new CountingApi(Map.of()), Duration.ofDays(7));
+                    new HackerNewsBuzzClient(new ExplodingApi(), Duration.ofDays(7));
 
             assertThat(client.buzzByLink(List.of(article("https://ft.com/c")), NOW)).isEmpty();
+        }
+
+        @Test
+        @DisplayName("한 도메인이 실패해도 나머지 도메인의 buzz는 살아남는다")
+        void oneBadDomainDoesNotSinkTheRest() {
+            // 루프 **안**에서 잡는 이유다. 밖에서 한 번만 잡으면 첫 실패가 뒤의 매체를 통째로 버린다
+            Article good = article("https://cnbc.com/a");
+            Article bad = article("https://ft.com/b");
+            HackerNewsBuzzClient client = new HackerNewsBuzzClient(
+                    new FailingDomainApi("ft.com", Map.of("cnbc.com/a", 12)), Duration.ofDays(7));
+
+            assertThat(client.buzzByLink(List.of(good, bad), NOW))
+                    .containsExactly(Map.entry(good.link(), 12));
         }
 
         @Test
@@ -176,6 +193,38 @@ class HackerNewsBuzzClientTest {
     }
 
     /** 호출 횟수를 세는 스텁 — 도메인당 한 번만 부르는지 확인하려고 둔다. */
+    /** 실패를 던지는 API — 강등이 {@link HackerNewsBuzzClient}에 있음을 보인다. */
+    private static final class ExplodingApi extends HackerNewsApi {
+        private ExplodingApi() {
+            super(RestClient.builder(), "https://example.invalid", 100);
+        }
+
+        @Override
+        public Map<String, Integer> storiesForDomain(String domain, Instant since) {
+            throw new IllegalStateException("HN이 죽었다");
+        }
+    }
+
+    /** 지목한 도메인만 실패시킨다 — 도메인별로 잡는지 보려면 하나는 성공해야 한다. */
+    private static final class FailingDomainApi extends HackerNewsApi {
+        private final String failing;
+        private final Map<String, Integer> canned;
+
+        private FailingDomainApi(String failing, Map<String, Integer> canned) {
+            super(RestClient.builder(), "https://example.invalid", 100);
+            this.failing = failing;
+            this.canned = canned;
+        }
+
+        @Override
+        public Map<String, Integer> storiesForDomain(String domain, Instant since) {
+            if (failing.equals(domain)) {
+                throw new IllegalStateException(domain + " 조회 실패");
+            }
+            return canned;
+        }
+    }
+
     private static final class CountingApi extends HackerNewsApi {
         private final Map<String, Integer> canned;
         private int calls;

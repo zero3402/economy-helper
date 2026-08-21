@@ -119,13 +119,6 @@ public final class WeatherFormatter {
     }
 
     /**
-     * 기준 줄 — 날짜와 <b>그 값의 성격</b>이다.
-     *
-     * <p>하루치 값에 시각을 붙이면 그 시각의 값인 것처럼 읽힌다. 그래서 {@code (종가)}·
-     * {@code (고시)}와 같은 규칙으로 {@code (예보)}·{@code (실측)}을 붙인다 — 지나간 날은
-     * 예보가 아니라 실제로 그랬던 값이다.
-     */
-    /**
      * 하루 안의 <b>강수 시각</b> — 「비옴」이 언제인지.
      *
      * <p><b>토막이 없으면 줄이 없다.</b> 마른 날에 「강수 없음」을 매일 찍으면 소잡이 되고,
@@ -197,6 +190,13 @@ public final class WeatherFormatter {
         return hour < 12 ? "오전 " + hour + "시" : "오후 " + (hour - 12) + "시";
     }
 
+    /**
+     * 기준 줄 — 날짜와 <b>그 값의 성격</b>이다.
+     *
+     * <p>하루치 값에 시각을 붙이면 그 시각의 값인 것처럼 읽힌다. 그래서 {@code (종가)}·
+     * {@code (고시)}와 같은 규칙으로 {@code (예보)}·{@code (실측)}을 붙인다 — 지나간 날은
+     * 예보가 아니라 실제로 그랬던 값이다.
+     */
     private static String basisOf(Weather weather) {
         String kind = weather.source().forecast() ? " (예보)" : " (실측)";
         return weather.from().equals(weather.to())

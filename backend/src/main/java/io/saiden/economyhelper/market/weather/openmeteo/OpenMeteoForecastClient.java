@@ -76,8 +76,7 @@ public class OpenMeteoForecastClient implements WeatherClient {
     //    안 붙이면 자정 경계에서 섞인다 — 23:57에 '오늘 예보'로 담긴 항목이 00:00 이후에는
     //    과거 조회가 되어, TTL(10분)이 끝나기까지 실측 자리에 예보값이 나간다
     @Cacheable(cacheNames = CacheNames.WEATHER,
-            key = "'om:' + #a0.latitude() + ',' + #a0.longitude() + ',' + #a1.from() + ',' + #a1.to()",
-            unless = "#result == null")
+            key = "'om:' + #a0.latitude() + ',' + #a0.longitude() + ',' + #a1.from() + ',' + #a1.to()")
     @Retry(name = "weatherOpenMeteo")
     @CircuitBreaker(name = "weatherOpenMeteo")
     public Weather forecast(GeoLocation place, WeatherPeriod period) {

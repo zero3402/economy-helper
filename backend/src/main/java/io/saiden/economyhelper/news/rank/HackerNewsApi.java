@@ -8,13 +8,10 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
-import io.saiden.economyhelper.support.FailureReason;
 
 /**
  * HN Algolia 조회 — 매체 도메인 하나당 한 번.
@@ -28,8 +25,6 @@ import io.saiden.economyhelper.support.FailureReason;
  */
 @Component
 public class HackerNewsApi {
-
-    private static final Logger log = LoggerFactory.getLogger(HackerNewsApi.class);
 
     private final RestClient restClient;
     private final int hitsPerPage;
@@ -47,30 +42,34 @@ public class HackerNewsApi {
      * <p>{@code restrictSearchableAttributes=url}로 좁히지 않으면 본문에 도메인만 언급한 글이
      * 섞여 들어온다.
      *
-     * <p>실패해도 예외를 던지지 않고 빈 맵을 준다 — buzz는 랭킹의 부속 신호일 뿐이라
-     * HN이 죽었다고 뉴스 발송 전체가 멈추면 안 된다. 서킷브레이커는 반복 실패 시
-     * 호출 자체를 끊으려고 얹는다.
+     * <p><b>실패는 던진다 — 삼키지 않는다.</b> buzz가 랭킹의 부속 신호일 뿐인 것은 맞고 HN이
+     * 죽었다고 발송이 멈춰선 안 되지만, <b>그 강등을 여기서 하면 안 된다.</b> 여기서 빈 맵을
+     * 돌려주면 {@code @CircuitBreaker}가 <b>정상 반환을 보고 성공을 센다</b> — 실패율이 영원히
+     * 0이라 브레이커가 절대 열리지 않는다. 그러면 HN이 죽어 있는 동안 랭킹이 돌 때마다 도메인을
+     * 전부 새로 찌른다({@code unless = "#result.isEmpty()"} 때문에 빈 결과는 캐시되지도 않는다).
+     * 실제로 그 상태였고 {@code application.yml}의 {@code failureRateThreshold: 30}·
+     * {@code waitDurationInOpenState: 300s}가 아무 일도 하지 않는 죽은 값이었다.
+     *
+     * <p>그래서 강등은 <b>한 칸 위</b>에서 한다 — {@link HackerNewsBuzzClient}가 도메인마다
+     * 잡아서 건너뛴다. 브레이커가 실패를 먼저 보고, 열린 뒤에는 {@code CallNotPermittedException}이
+     * 같은 자리에서 잡혀 같은 강등이 일어난다. {@code FeedFetcher}가 {@code @Retry}에 대해
+     * 적어 둔 「예외를 스스로 삼키면 발동조차 하지 않는다」가 브레이커에도 그대로 적용된다.
      */
     @CircuitBreaker(name = "hackerNews")
     @Cacheable(cacheNames = CacheNames.HN_BUZZ, key = "#domain", unless = "#result.isEmpty()")
     public Map<String, Integer> storiesForDomain(String domain, Instant since) {
-        try {
-            SearchResponse response = restClient.get()
-                    .uri(uriBuilder -> uriBuilder
-                            .path("/api/v1/search")
-                            .queryParam("query", domain)
-                            .queryParam("restrictSearchableAttributes", "url")
-                            .queryParam("tags", "story")
-                            .queryParam("numericFilters", "created_at_i>" + since.getEpochSecond())
-                            .queryParam("hitsPerPage", hitsPerPage)
-                            .build())
-                    .retrieve()
-                    .body(SearchResponse.class);
-            return toBuzzMap(response);
-        } catch (Exception e) {
-            log.warn("[{}] HN 조회 실패 — buzz를 0으로 강등합니다: {}", domain, FailureReason.of(e));
-            return Map.of();
-        }
+        SearchResponse response = restClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/api/v1/search")
+                        .queryParam("query", domain)
+                        .queryParam("restrictSearchableAttributes", "url")
+                        .queryParam("tags", "story")
+                        .queryParam("numericFilters", "created_at_i>" + since.getEpochSecond())
+                        .queryParam("hitsPerPage", hitsPerPage)
+                        .build())
+                .retrieve()
+                .body(SearchResponse.class);
+        return toBuzzMap(response);
     }
 
     /**

@@ -168,17 +168,6 @@ public class BinanceApi {
         }
     }
 
-    /**
-     * {@code /api/v3/ticker/24hr?symbols=["BTCUSDT","ETHUSDT"]} 를 인코딩한다.
-     * (등락률이 24hr에만 있어 {@code /ticker/price}에서 옮겼다 — 아래 레코드 주석 참조.)
-     *
-     * <p><b>직접 조립해 완성된 URI로 넘긴다.</b> {@code uriBuilder}에 맡기면 이 값이 한 번 더
-     * 인코딩돼 {@code %255B}가 되고 400이 난다 — {@code StockPriceApi}·{@code FmpApi}가
-     * 같은 이유로 같은 방식을 쓴다.
-     *
-     * <p>심볼이 하나뿐이어도 배열로 보낸다. 단수 {@code symbol=}은 객체를, 복수 {@code symbols=}는
-     * 배열을 돌려주는데, 개수에 따라 응답 모양이 갈리면 파싱이 두 갈래가 된다.
-     */
     /** {@code -1121 Invalid symbol.} — 우리가 없는 심볼을 물은 것이다. */
     private static final int UNKNOWN_SYMBOL = 400;
 
@@ -242,6 +231,17 @@ public class BinanceApi {
         return URI.create(baseUrl).getHost();
     }
 
+    /**
+     * {@code /api/v3/ticker/24hr?symbols=["BTCUSDT","ETHUSDT"]} 를 인코딩한다.
+     * (등락률이 24hr에만 있어 {@code /ticker/price}에서 옮겼다 — BinancePrice 레코드 주석 참조.)
+     *
+     * <p><b>직접 조립해 완성된 URI로 넘긴다.</b> {@code uriBuilder}에 맡기면 이 값이 한 번 더
+     * 인코딩돼 {@code %255B}가 되고 400이 난다 — {@code StockPriceApi}·{@code FmpApi}가
+     * 같은 이유로 같은 방식을 쓴다.
+     *
+     * <p>심볼이 하나뿐이어도 배열로 보낸다. 단수 {@code symbol=}은 객체를, 복수 {@code symbols=}는
+     * 배열을 돌려주는데, 개수에 따라 응답 모양이 갈리면 파싱이 두 갈래가 된다.
+     */
     static String query(List<String> symbols) {
         String json = symbols.stream()
                 .map(symbol -> "\"" + symbol + "\"")

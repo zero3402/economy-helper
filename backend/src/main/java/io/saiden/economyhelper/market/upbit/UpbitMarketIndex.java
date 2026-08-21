@@ -1,6 +1,5 @@
 package io.saiden.economyhelper.market.upbit;
 
-import io.saiden.economyhelper.text.QueryNormalizer;
 import java.util.List;
 
 /**

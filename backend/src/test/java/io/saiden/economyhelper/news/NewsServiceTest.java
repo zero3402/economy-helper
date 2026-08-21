@@ -3,7 +3,6 @@ package io.saiden.economyhelper.news;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
-import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.config.EconomyHelperProperties.Feed;
 import io.saiden.economyhelper.config.EconomyHelperProperties.Ranking;
 import io.saiden.economyhelper.config.EconomyHelperProperties.Weights;

@@ -21,7 +21,7 @@ spring:
   threads:
     virtual:
       enabled: true
-  # 외부 호출(피드 5개·HN·Gemini·텔레그램)에 타임아웃을 건다. 없으면 응답 없는 상대를 만났을 때
+  # 외부 호출(피드 여섯·HN·Gemini·텔레그램)에 타임아웃을 건다. 없으면 응답 없는 상대를 만났을 때
   # 정기 발송이 무한히 멈추고 그 사이 ShedLock을 lockAtMostFor(20분)까지 쥐고 있는다.
   # Boot 4.0부터 단수 spring.http.client.*는 deprecated다 — clients(복수)를 쓴다.
   http:
@@ -198,7 +198,7 @@ economy-helper:
 
   cache-ttl:
     # 값을 주지 않으면 Redis 캐시는 만료 없이 저장한다. 특히 feed가 영구 캐시되면
-    # 09시와 21시 발송이 같은 기사로 나간다 — 반드시 명시할 것.
+    # 발송 창(09~10시) 안에서 같은 기사가 되풀이되고 다음 날까지 남는다 — 반드시 명시할 것.
     #
     # 여기에 이름을 적는 것만으로는 부족하다. CacheConfig에도 같은 이름을 등록해야 하고,
     # 빠뜨리면 Redis 기본값(JDK 직렬화·무기한)으로 떨어져 레코드를 담는 순간 예외가 난다.

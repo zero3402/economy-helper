@@ -79,7 +79,7 @@ public class KisFxClient implements FxRateClient {
     }
 
     @Override
-    @Cacheable(cacheNames = CacheNames.FX_KIS, unless = "#result == null")
+    @Cacheable(cacheNames = CacheNames.FX_KIS)
     @CircuitBreaker(name = "kisFx")
     public FxRate usdToKrw() {
         KisChartPrice.Quote quote = request().output();

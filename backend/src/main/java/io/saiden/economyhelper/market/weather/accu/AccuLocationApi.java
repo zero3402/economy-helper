@@ -50,7 +50,7 @@ public class AccuLocationApi {
      *                               던져야 {@code WeatherService}가 다음 출처로 넘어간다
      */
     @Cacheable(cacheNames = CacheNames.ACCU_LOCATION,
-            key = "#a0.latitude() + ',' + #a0.longitude()", unless = "#result == null")
+            key = "#a0.latitude() + ',' + #a0.longitude()")
     @CircuitBreaker(name = "weatherAccuWeather")
     public String keyOf(GeoLocation place) {
         if (apiKey.isBlank()) {

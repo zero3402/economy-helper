@@ -93,7 +93,7 @@ public class KeximFxClient implements FxRateClient {
     }
 
     @Override
-    @Cacheable(cacheNames = CacheNames.FX_KEXIM, unless = "#result == null")
+    @Cacheable(cacheNames = CacheNames.FX_KEXIM)
     @CircuitBreaker(name = "fxKexim")
     public FxRate usdToKrw() {
         if (authKey.isBlank()) {

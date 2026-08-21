@@ -489,7 +489,7 @@ this.clients = Failover.order(clients, ORDER, FxRateClient::source);   // suppor
    덮는 부분 단언, 호출되지 않는 오버라이드 — 있으면 커버리지 숫자만 올리고 아무것도 못 막는다.
 
 **출력은 읽어서가 아니라 찍어 봐야 드러난다.** 그래서 그 하네스를 저장소 안으로 들여왔다 —
-`RenderedOutputTest`가 화면 사례 전부(현재 62가지)를 렌더해 `golden/messages.txt`와 대조한다. 손으로 돌리던 방식
+`RenderedOutputTest`가 화면 사례 전부를 렌더해 `golden/messages.txt`와 대조한다. 손으로 돌리던 방식
 (이전 커밋으로 되돌려 찍고 `diff`)은 커밋 사이에 오라클이 사라져 "커밋마다 초록"을 보장하지 못했다.
 
 들여온 값이 즉시 나왔다 — 단위 테스트가 **그때도 전부 초록인 채로** 살아 있던 버그 셋이 골든을

@@ -35,7 +35,8 @@ import tools.jackson.databind.json.JsonMapper;
  *
  * <ul>
  *   <li><b>만료</b>: Spring Redis 캐시의 기본 TTL은 <b>무한</b>이다. {@code feed}가 영구
- *       캐시되면 09시와 21시 발송이 같은 기사로 나간다 — 하루 두 번 보내는 의미가 사라진다.
+ *       캐시되면 발송 창(09~10시, 10분마다 틱) 안에서 같은 기사가 되풀이된다 — 그리고
+ *       다음 날 브리핑까지 어제 기사가 남는다.
  *   <li><b>직렬화</b>: 기본값인 JDK 직렬화는 {@code Serializable}이 아닌 레코드
  *       ({@link Article}, {@link Translation})를 만나면 첫 캐시 쓰기부터 예외다.
  * </ul>

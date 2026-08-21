@@ -14,7 +14,6 @@ import static io.saiden.economyhelper.telegram.MessageLayout.title;
 import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.StockQuote;
 import io.saiden.economyhelper.market.StockSource;
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;

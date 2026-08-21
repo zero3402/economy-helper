@@ -92,8 +92,8 @@ public record EconomyHelperProperties(
     public record Weights(double feedRank, double recency, double keywordMatch, double buzz) {}
 
     /**
-     * @param sentHistoryTtl  발송 완료 표시를 남겨 두는 기간. 다음 슬롯(12시간 뒤)보다 넉넉히 길면
-     *                        되고, 무한정 쌓이지 않게만 하면 된다.
+     * @param sentHistoryTtl  발송 완료 표시를 남겨 두는 기간. 슬롯 키에 날짜가 들어 있으므로
+     *                        길어도 다음 발송을 막지 않는다 — 무한정 쌓이지 않게만 하면 된다.
      * @param usSymbols       브리핑에 넣을 미국 심볼과 화면에 쓸 이름. 지수(^IXIC·^GSPC)와
      *                        종목(NVDA·AAPL)이 같은 엔드포인트라 한 목록으로 둔다
      * @param indices         브리핑에 넣을 지수. 출처마다 조회 키가 달라 이름과 코드를 함께 든다

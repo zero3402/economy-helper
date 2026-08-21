@@ -23,7 +23,6 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.HttpClientErrorException;
 
 /**
  * {@code /crypto {검색어}} — 검색어를 마켓으로 옮기고 현재가를 가져온다.

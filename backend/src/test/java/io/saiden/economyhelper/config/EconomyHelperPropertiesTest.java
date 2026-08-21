@@ -90,15 +90,15 @@ class EconomyHelperPropertiesTest {
     }
 
     @Test
-    @DisplayName("캐시 TTL 스무 개가 전부 붙는다 — 하나라도 null이면 그 캐시가 무기한이 된다")
+    @DisplayName("캐시 TTL이 하나도 빠짐없이 붙는다 — 하나라도 null이면 그 캐시가 무기한이 된다")
     void bindsEveryCacheTtl() {
         // 값을 주지 않으면 Redis 캐시는 만료 없이 저장한다. feed가 영구 캐시되면
-        // 09시와 21시 발송이 같은 기사로 나간다
+        // 발송 창 안에서 같은 기사가 되풀이되고, 다음 날까지 어제 기사가 남는다
         assertThat(properties.cacheTtl().feed()).isEqualTo(Duration.ofMinutes(10));
         assertThat(properties.cacheTtl().geocode()).isEqualTo(Duration.ofDays(30));
         assertThat(properties.cacheTtl().kisQuote()).isEqualTo(Duration.ofMinutes(1));
 
-        // 스무 성분 전부를 훑는다 — 이름을 하나씩 적으면 새 캐시가 늘 때 빠뜨린다
+        // 성분 전부를 훑는다 — 이름을 하나씩 적으면 새 캐시가 늘 때 빠뜨린다
         for (java.lang.reflect.RecordComponent component
                 : EconomyHelperProperties.CacheTtl.class.getRecordComponents()) {
             Object value = org.springframework.util.ReflectionUtils.invokeMethod(

@@ -71,7 +71,7 @@ public class FrankfurterFxClient implements FxRateClient {
     }
 
     @Override
-    @Cacheable(cacheNames = CacheNames.FX, unless = "#result == null")
+    @Cacheable(cacheNames = CacheNames.FX)
     @Retry(name = "fxFrankfurter")
     @CircuitBreaker(name = "fxFrankfurter")
     public FxRate usdToKrw() {
