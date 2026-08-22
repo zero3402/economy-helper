@@ -359,7 +359,7 @@ Financial Modeling Prep
 340.72 USD
 481,155 KRW
 
-실적발표일 (미국 현지)
+실적발표일(미국)
 2026.10.29(목)
 
 Financial Modeling Prep
@@ -377,7 +377,7 @@ Financial Modeling Prep
 목표가
 340.72 USD
 
-실적발표일 (미국 현지)
+실적발표일(미국)
 2026.10.29(목)
 
 Financial Modeling Prep
@@ -393,7 +393,7 @@ Financial Modeling Prep
 232.14 USD
 327,821 KRW
 
-실적발표일 (미국 현지)
+실적발표일(미국)
 2026.10.29(목)
 
 Financial Modeling Prep
