@@ -8,7 +8,7 @@ import static io.saiden.economyhelper.telegram.MessageLayout.oneDecimal;
 import static io.saiden.economyhelper.telegram.MessageLayout.sources;
 import static io.saiden.economyhelper.telegram.MessageLayout.title;
 
-import io.saiden.economyhelper.market.weather.PrecipitationSpell;
+import io.saiden.economyhelper.market.weather.HalfDay;
 import io.saiden.economyhelper.market.weather.SkyCondition;
 import io.saiden.economyhelper.market.weather.Weather;
 import io.saiden.economyhelper.market.weather.WeatherPeriod;
@@ -81,7 +81,7 @@ public final class WeatherFormatter {
             message.append(oneDecimal(day.low())).append("°C / ")
                     .append(oneDecimal(day.high())).append("°C");
             appendPrecipitation(message, day);
-        appendSpells(message, day);
+            appendHalves(message, day);
         }
     }
 
@@ -130,35 +130,50 @@ public final class WeatherFormatter {
     }
 
     /**
-     * 하루 안의 <b>강수 시각</b> — 「비옴」이 언제인지.
+     * 하루를 <b>오전 한 줄, 오후 한 줄</b>로.
      *
-     * <p><b>토막이 없으면 줄이 없다.</b> 마른 날에 「강수 없음」을 매일 찍으면 소잡이 되고,
-     * 여름 오후의 낮은 확률까지 적으면 「오전 9시~밤 11시 비」가 되어 아무것도 말해 주지 않는다
-     * (그 문턱은 {@code PrecipitationSpells}가 정한다).
+     * <p>두 줄이 <b>언제나</b> 나간다. 사람이 하루를 계획하는 단위가 반나절이므로 두 칸이 다
+     * 채워져야 「오전엔 우산, 오후엔 필요 없음」을 한눈에 읽는다. 비 오는 구간만 적으면
+     * 「오전」이 두 줄 나오거나 한 줄도 없는 날이 생겨 나머지 반나절을 짐작하게 된다.
      *
-     * <p><b>그림은 종류마다 다르다.</b> {@code ☔} 하나로 적으면 눈 오는 날에 우산 그림이 붙는다 —
-     * 이 기능을 만든 이유가 「소나기일 수도 눈일 수도 있다」였으므로 거기서 갈려야 한다.
+     * <p>젖은 반나절은 <b>가장 센 토막</b>의 시각과 확률을, 마른 반나절은 <b>그 시간대의
+     * 하늘</b>을 적는다({@code HalfDays}가 정한다). 마른 쪽에 시각이 없는 것은 적을 것이 없어서다 —
+     * 없는 값을 「0시~11시」로 채우지 않는다.
      *
-     * <p>⚠️ {@code SkyCondition}은 <b>하늘 상태에 이모지를 쓰지 않는다</b>고 적어 뒀다(이모지는
-     * 등락률 전용). 그 규칙은 그대로 두고 <b>강수 줄만</b> 제 그림을 든다 — 그래서 그림 표가
+     * <p><b>그림은 그 반나절이 무엇이었나를 가리킨다.</b> {@code ☔} 하나로 적으면 눈 오는 날에
+     * 우산이 붙고, 마른 반나절에도 우산이 붙는다.
+     *
+     * <p>⚠️ {@code SkyCondition}은 <b>제 어휘에 이모지를 쓰지 않는다</b> — 그래서 그림 표가
      * 그 열거형이 아니라 여기 있다. 하늘 상태 어휘는 깨끗하게 남는다.
      */
-    private static void appendSpells(StringBuilder message, Weather.Daily day) {
-        for (PrecipitationSpell spell : day.precipitation()) {
-            message.append("\n").append(iconOf(spell.kind())).append(" ")
-                    .append(range(spell.from(), spell.to()))
-                    .append(" ").append(spell.kind().label());
-            if (spell.chance() != null) {
-                message.append(" (최대 ").append(spell.chance()).append("%)");
-            } else if (spell.amount() != null) {
-                message.append(" (").append(oneDecimal(spell.amount())).append("mm)");
+    private static void appendHalves(StringBuilder message, Weather.Daily day) {
+        for (HalfDay half : day.halves()) {
+            if (!half.kind().known()) {
+                // 하늘을 못 읽은 반나절 — 이름이 없으므로 적을 것이 없다
+                continue;
+            }
+            message.append("\n").append(iconOf(half.kind())).append(" ")
+                    .append(half.half().label());
+            if (half.wet()) {
+                message.append(" ").append(range(half.from(), half.to()));
+            }
+            message.append(" ").append(half.kind().label());
+            if (half.chance() != null) {
+                message.append(" (최대 ").append(half.chance()).append("%)");
+            } else if (half.amount() != null) {
+                message.append(" (").append(oneDecimal(half.amount())).append("mm)");
             }
         }
     }
 
-    /** 종류에 맞는 그림. 눈에 우산을 붙이지 않는 것이 요점이다. */
+    /** 종류에 맞는 그림. 눈에 우산을 붙이지 않고, 마른 하늘에도 우산을 붙이지 않는다. */
     private static String iconOf(SkyCondition kind) {
         return switch (kind) {
+            case CLEAR -> "☀️";
+            case MOSTLY_CLEAR -> "🌤️";
+            case PARTLY_CLOUDY -> "⛅";
+            case CLOUDY -> "☁️";
+            case FOG -> "🌫️";
             case SNOW, SNOW_SHOWERS -> "❄️";
             case SLEET -> "🌨️";
             case THUNDERSTORM, HAIL_THUNDERSTORM -> "⛈️";
@@ -167,38 +182,21 @@ public final class WeatherFormatter {
     }
 
     /**
-     * {@code 오후 1시~7시} — 한 토막의 시간대.
+     * {@code 1시~7시} — 한 토막의 시간대. <b>오전·오후는 붙이지 않는다.</b>
      *
-     * <p><b>접두사를 두 번 적지 않는다.</b> {@code 오후 1시~오후 7시}는 읽는 눈이 한 번 더
-     * 걸리므로 뒤쪽은 숫자만 적는다({@code 오후 1시~7시}).
+     * <p>그 접두사는 줄 앞의 반나절 이름이 이미 들고 있다({@link #appendHalves}). 여기서 또
+     * 붙이면 {@code 오후 오후 1시~7시}가 된다.
      *
-     * <p>⚠️ <b>토막은 정오를 넘지 않는다</b> — {@code PrecipitationSpells.fold}가 거기서 끊는다.
-     * 그래서 앞끝과 뒤끝이 <b>언제나 같은 반나절</b>이고, 뒤쪽 접두사를 생략해도 뜻이 흐려지지
-     * 않는다. 예전에는 넘는 경우를 여기서 다뤄 {@code 오전 11시~오후 2시}처럼 양쪽에 적었는데
-     * 그 분기는 도달할 수 없다 — 그 불변을
-     * {@code PrecipitationSpellsTest.neverLetsASpellCrossNoon}이 지킨다.
+     * <p>⚠️ <b>토막은 정오를 넘지 않는다</b> — {@code HalfDays}가 반나절 안에서만 잇는다.
+     * 그래서 앞끝과 뒤끝이 언제나 같은 반나절이고, 줄 앞의 이름 하나가 둘을 다 가리킨다.
      */
     private static String range(java.time.LocalTime from, java.time.LocalTime to) {
         if (from.equals(to)) {
-            return hour(from);
+            return twelve(from.getHour()) + "시";
         }
-        return hour(from) + "~" + twelve(to.getHour()) + "시";
+        return twelve(from.getHour()) + "시~" + twelve(to.getHour()) + "시";
     }
 
-    /**
-     * {@code 오후 1시} — 12시간제 한국어.
-     *
-     * <p>24시간제({@code 13시})보다 읽기 쉽고, 사용자가 고른 표기가 이것이다.
-     *
-     * <p>⚠️ <b>{@code 정오}·{@code 자정}을 쓰지 않는다.</b> 「오후 12시」·「오전 12시」가
-     * 헷갈릴까 봐 그 두 낱말을 쓴 적이 있는데, 그러면 <b>한 화면에 두 표기가 섞인다</b> —
-     * {@code 오전 10시~11시} 다음 줄이 {@code 정오~오후 3시}였다. 반나절을 가르는 것이 이 줄의
-     * 요점이므로 <b>모든 줄이 오전·오후로 시작해야</b> 눈이 그 둘을 나란히 견줄 수 있다.
-     */
-    private static String hour(java.time.LocalTime at) {
-        int hour = at.getHour();
-        return (hour < 12 ? "오전 " : "오후 ") + twelve(hour) + "시";
-    }
 
     /**
      * 12시간제의 시 숫자 — <b>0시와 12시가 모두 {@code 12}다.</b>

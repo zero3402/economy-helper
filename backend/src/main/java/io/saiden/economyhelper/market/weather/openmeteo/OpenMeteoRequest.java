@@ -2,7 +2,7 @@ package io.saiden.economyhelper.market.weather.openmeteo;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.saiden.economyhelper.market.weather.GeoLocation;
-import io.saiden.economyhelper.market.weather.PrecipitationSpell;
+import io.saiden.economyhelper.market.weather.HalfDay;
 import io.saiden.economyhelper.market.weather.Weather;
 import io.saiden.economyhelper.market.weather.WeatherPeriod;
 import io.saiden.economyhelper.market.weather.WeatherSource;
@@ -60,12 +60,12 @@ final class OpenMeteoRequest {
         }
         // 강수 시각을 날짜별로 얹는다. 시간별 값이 없으면 빈 map이라 하루가 그대로 나간다 —
         // **보충은 답을 죽이지 않는다**는 규칙이 여기서부터 걸린다
-        Map<LocalDate, List<PrecipitationSpell>> spells = response.hourly() == null
+        Map<LocalDate, List<HalfDay>> halves = response.hourly() == null
                 ? Map.of()
-                : response.hourly().spellsByDay();
+                : response.hourly().halvesByDay();
         List<Weather.Daily> days = response.daily().toDays().stream()
-                .map(day -> spells.containsKey(day.date())
-                        ? day.withPrecipitation(spells.get(day.date()))
+                .map(day -> halves.containsKey(day.date())
+                        ? day.withHalves(halves.get(day.date()))
                         : day)
                 .toList();
         return new Weather(place, days, source);
@@ -77,7 +77,7 @@ final class OpenMeteoRequest {
      * <p>일별을 안 받으므로 {@code daily}가 없어도 실패가 아니다. <b>예외를 올리지 않는다</b> —
      * 보충이 답을 죽이면 안 된다({@code OpenMeteoHourlyClient} javadoc 참고).
      */
-    static Map<LocalDate, List<PrecipitationSpell>> hourly(RestClient restClient, String path,
+    static Map<LocalDate, List<HalfDay>> hourly(RestClient restClient, String path,
                                                            String hourlyFields, GeoLocation place,
                                                            WeatherPeriod period) {
         Response response = restClient.get()
@@ -96,7 +96,7 @@ final class OpenMeteoRequest {
 
         return response == null || response.hourly() == null
                 ? Map.of()
-                : response.hourly().spellsByDay();
+                : response.hourly().halvesByDay();
     }
 
     /**

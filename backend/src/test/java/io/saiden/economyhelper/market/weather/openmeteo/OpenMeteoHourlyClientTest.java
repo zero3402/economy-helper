@@ -10,7 +10,7 @@ import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import io.saiden.economyhelper.market.weather.GeoLocation;
-import io.saiden.economyhelper.market.weather.PrecipitationSpell;
+import io.saiden.economyhelper.market.weather.HalfDay;
 import io.saiden.economyhelper.market.weather.SkyCondition;
 import io.saiden.economyhelper.market.weather.WeatherPeriod;
 import java.time.LocalDate;
@@ -63,8 +63,8 @@ class OpenMeteoHourlyClientTest {
                 .withHeader("Content-Type", "application/json").withBody(body)));
     }
 
-    private Map<LocalDate, List<PrecipitationSpell>> spells() {
-        return client.spells(MIGEUM, new WeatherPeriod(DAY, DAY));
+    private Map<LocalDate, List<HalfDay>> halves() {
+        return client.halves(MIGEUM, new WeatherPeriod(DAY, DAY));
     }
 
     @Test
@@ -72,7 +72,7 @@ class OpenMeteoHourlyClientTest {
     void asksOnlyForHourlyInLocalTime() {
         stub(migeum());
 
-        spells();
+        halves();
 
         server.verify(1, getRequestedFor(urlPathEqualTo("/v1/forecast"))
                 .withQueryParam("hourly", WireMock.containing("precipitation_probability"))
@@ -83,33 +83,31 @@ class OpenMeteoHourlyClientTest {
     }
 
     @Test
-    @DisplayName("실측 하루를 세 토막으로 접는다 — 마른 시간이 사이를 끊고, 봉우리 확률이 그대로 따라간다")
-    void foldsTheMeasuredDayIntoThreeSpells() {
+    @DisplayName("실측 하루가 오전·오후 두 줄이 된다 — 오전의 두 토막은 센 쪽 하나로 접힌다")
+    void foldsTheMeasuredDayIntoTwoHalves() {
         // 봉우리 92% → 문턱 max(50, 92×0.8) = 74%.
-        // 03시(73%)·09~11시(69·69·71%)·19시 이후가 그 아래라 거기서 끊긴다
+        // 03시(73%)·09~11시(69·69·71%)·19시 이후가 그 아래라 거기서 끊긴다.
+        // 오전에는 00~02시와 04~08시 둘이 남는데 둘 다 92%이므로 앞선 쪽이 남는다
         stub(migeum());
 
-        Map<LocalDate, List<PrecipitationSpell>> byDay = spells();
+        Map<LocalDate, List<HalfDay>> byDay = halves();
 
         assertThat(byDay).containsOnlyKeys(DAY);
         assertThat(byDay.get(DAY)).satisfiesExactly(
-                first -> {
-                    assertThat(first.from()).isEqualTo(LocalTime.of(0, 0));
-                    assertThat(first.to()).as("03시가 73%라 문턱 아래다").isEqualTo(LocalTime.of(2, 0));
-                    assertThat(first.chance()).isEqualTo(92);
-                    assertThat(first.kind()).as("61·53·53 중 가장 무거운 61").isEqualTo(SkyCondition.RAIN);
+                morning -> {
+                    assertThat(morning.from()).isEqualTo(LocalTime.of(0, 0));
+                    assertThat(morning.to()).as("03시가 73%라 문턱 아래다")
+                            .isEqualTo(LocalTime.of(2, 0));
+                    assertThat(morning.chance()).isEqualTo(92);
+                    assertThat(morning.kind()).as("61·53·53 중 가장 무거운 61")
+                            .isEqualTo(SkyCondition.RAIN);
                 },
-                second -> {
-                    assertThat(second.from()).isEqualTo(LocalTime.of(4, 0));
-                    assertThat(second.to()).isEqualTo(LocalTime.of(8, 0));
-                    assertThat(second.chance()).isEqualTo(92);
-                    assertThat(second.kind()).as("65가 가장 무겁다").isEqualTo(SkyCondition.RAIN);
-                },
-                third -> {
-                    assertThat(third.from()).isEqualTo(LocalTime.of(12, 0));
-                    assertThat(third.to()).isEqualTo(LocalTime.of(18, 0));
-                    assertThat(third.chance()).isEqualTo(90);
-                    assertThat(third.kind()).as("55가 가장 무겁다").isEqualTo(SkyCondition.DRIZZLE);
+                afternoon -> {
+                    assertThat(afternoon.from()).isEqualTo(LocalTime.of(12, 0));
+                    assertThat(afternoon.to()).isEqualTo(LocalTime.of(18, 0));
+                    assertThat(afternoon.chance()).isEqualTo(90);
+                    assertThat(afternoon.kind()).as("55가 가장 무겁다")
+                            .isEqualTo(SkyCondition.DRIZZLE);
                 });
     }
 
@@ -123,7 +121,7 @@ class OpenMeteoHourlyClientTest {
     void aHighChanceDayAlwaysYieldsAtLeastOneSpell() {
         stub(migeum());
 
-        assertThat(spells().get(DAY)).isNotEmpty();
+        assertThat(halves().get(DAY)).isNotEmpty();
     }
 
     @Test
@@ -132,19 +130,23 @@ class OpenMeteoHourlyClientTest {
         stub("""
                 {"latitude":37.35,"longitude":127.125,"timezone":"Asia/Seoul"}""");
 
-        assertThat(spells()).isEmpty();
+        assertThat(halves()).isEmpty();
     }
 
     @Test
-    @DisplayName("마른 날은 빈 map이다 — 여름 오후의 낮은 확률을 비라고 적지 않는다")
-    void returnsEmptyOnADryDay() {
+    @DisplayName("마른 날도 줄은 나온다 — 낮은 확률을 비라고 적지 않되 하늘은 있는 그대로 적는다")
+    void stillReportsTheSkyOnADryDay() {
         stub("""
                 {"hourly":{"time":["2026-08-22T00:00","2026-08-22T01:00","2026-08-22T02:00"],
                  "precipitation_probability":[10,20,15],
                  "precipitation":[0.00,0.00,0.00],
                  "weather_code":[1,2,2]}}""");
 
-        assertThat(spells()).isEmpty();
+        assertThat(halves().get(DAY)).singleElement().satisfies(morning -> {
+            assertThat(morning.wet()).as("10~20%를 비라고 적지 않는다").isFalse();
+            assertThat(morning.kind()).as("코드 2가 가장 흔하다")
+                    .isEqualTo(SkyCondition.PARTLY_CLOUDY);
+        });
     }
 
     /**

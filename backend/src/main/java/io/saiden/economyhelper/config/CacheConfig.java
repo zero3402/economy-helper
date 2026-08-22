@@ -141,7 +141,7 @@ public class CacheConfig {
                 .withCacheConfiguration(CacheNames.PRECIPITATION_HOURS,
                         cache(ttl.precipitationHours(),
                                 new TypeReference<java.util.Map<java.time.LocalDate,
-                                        List<io.saiden.economyhelper.market.weather.PrecipitationSpell>>>() {}))
+                                        List<io.saiden.economyhelper.market.weather.HalfDay>>>() {}))
                 .withCacheConfiguration(CacheNames.ACCU_LOCATION,
                         cache(ttl.accuLocation(), new TypeReference<String>() {}))
                 // LLM 해석. '내일'을 offsetDays로 받으므로 캐시해도 내일이 고정되지 않는다

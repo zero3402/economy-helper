@@ -7,7 +7,7 @@ import java.util.List;
 
 /**
  * 일봉 여러 칸 — <b>차트가 그리는 것.</b> I/O를 모르는 순수 클래스다
- * ({@code PrecipitationSpells}·{@code InvestOpinions}와 같은 자리라 스프링 없이 테스트한다).
+ * ({@code HalfDays}·{@code InvestOpinions}와 같은 자리라 스프링 없이 테스트한다).
  *
  * <p><b>여기가 값을 걸러내는 유일한 자리다.</b> 출처마다 쓰레기의 모양이 다른데
  * ({@code null}·빈 문자열·{@code 0.00}) 그것을 클라이언트 넷이 각자 처리하면 하나가 빠진다.

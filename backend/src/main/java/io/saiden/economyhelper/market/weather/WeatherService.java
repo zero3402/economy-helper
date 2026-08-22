@@ -88,7 +88,7 @@ public class WeatherService {
             log.error("[weather] 모든 출처에서 날씨를 가져오지 못했습니다");
             return found;
         }
-        return found.map(weather -> withPrecipitationHours(weather, place, period, today,
+        return found.map(weather -> withHalvesHours(weather, place, period, today,
                 carriesHours(eligible, weather.source())));
     }
 
@@ -120,7 +120,7 @@ public class WeatherService {
      * 과거를 물으면 빈손이다.
      *
      * <p>⚠️ <b>얹는 것은 시각만이 아니다 — 강수확률도 함께 갈린다</b>
-     * ({@link Weather.Daily#withPrecipitation}). 시각과 확률이 서로 다른 예보에서 오면
+     * ({@link Weather.Daily#withHalves}). 시각과 확률이 서로 다른 예보에서 오면
      * 한 블록에 <b>두 예보의 숫자</b>가 서고, 확률이 높은데 시각 줄이 없는 화면이 성립한다.
      *
      * <p>그래서 <b>보충 출처를 화면까지 들고 간다</b>({@code Weather.precipitationSource}).
@@ -134,35 +134,35 @@ public class WeatherService {
      *                           ({@link WeatherClient#providesPrecipitationHours}).
      *                           참이면 이미 손에 있으므로 묻지 않는다
      */
-    private Weather withPrecipitationHours(Weather weather, GeoLocation place,
+    private Weather withHalvesHours(Weather weather, GeoLocation place,
                                            WeatherPeriod period, LocalDate today,
                                            boolean sourceCarriesHours) {
         if (sourceCarriesHours || period.past(today)) {
             return weather;
         }
-        Map<LocalDate, List<PrecipitationSpell>> spells;
+        Map<LocalDate, List<HalfDay>> halves;
         try {
-            spells = hourly.spells(place, period);
+            halves = hourly.halves(place, period);
         } catch (RuntimeException e) {
             log.warn("[weather] {} 강수 시각 보충 실패 — 일일 예보만 내보냅니다: {}",
                     place.name(), FailureReason.of(e));
             return weather;
         }
-        if (spells.isEmpty()) {
+        if (halves.isEmpty()) {
             log.info("[weather] {} {}~{} 시간별에 강수 토막이 없습니다 — 마른 기간이거나 문턱 아래입니다",
                     place.name(), period.from(), period.to());
             return weather;
         }
 
         List<Weather.Daily> days = weather.days().stream()
-                .map(day -> spells.containsKey(day.date())
-                        ? day.withPrecipitation(spells.get(day.date()))
+                .map(day -> halves.containsKey(day.date())
+                        ? day.withHalves(halves.get(day.date()))
                         : day)
                 .toList();
         log.info("[weather] {} 강수 시각을 {}일에 얹었습니다 ({} 보충)",
-                place.name(), spells.size(), WeatherSource.OPEN_METEO.displayName());
+                place.name(), halves.size(), WeatherSource.OPEN_METEO.displayName());
         // ⚠️ 강수 줄이 이쪽 것이 되었으므로 화면도 그렇게 말해야 한다.
-        //    withPrecipitation이 확률까지 이 시간별로 다시 세므로 일별 출처의 확률은 더 이상
+        //    withHalves이 확률까지 이 시간별로 다시 세므로 일별 출처의 확률은 더 이상
         //    화면에 없다 — 숨기면 「Open-Meteo가 답했는데 AccuWeather라고 적는」 그 거짓말이 된다.
         //    일별도 Open-Meteo였으면 WeatherFormatter의 distinct()가 한 줄로 접는다
         return new Weather(weather.place(), days, weather.source(), WeatherSource.OPEN_METEO);

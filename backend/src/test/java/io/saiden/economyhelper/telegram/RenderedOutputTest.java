@@ -22,7 +22,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
-import io.saiden.economyhelper.market.weather.PrecipitationSpell;
+import io.saiden.economyhelper.market.weather.HalfDay;
 import java.time.LocalTime;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -243,7 +243,7 @@ class RenderedOutputTest {
         // 지나간 날은 확률이 없다 — 실제로 온 양으로 적는다
         cases.put("weather/precipitation-measured", WeatherFormatter.format(List.of(
                 archivedWithSpells())));
-        // ⚠️ 정오를 넘는 비는 **두 줄**로 나와야 한다. PrecipitationSpells.fold가 거기서 끊으므로
+        // ⚠️ 정오를 넘는 비는 **두 줄**로 나와야 한다. HalfDays.fold가 거기서 끊으므로
         //    포매터에 오는 것은 이미 토막 둘이고, 각 줄이 제 반나절의 확률을 든다 —
         //    한 토막을 두 줄로 그리면 두 줄에 같은 숫자가 찍혀 한쪽이 거짓이 된다.
         //    이 케이스가 없던 동안에는 골든 어디에도 정오를 넘는 비가 없어, 쪼개는 동작이
@@ -399,18 +399,35 @@ class RenderedOutputTest {
      *
      * <p><b>출처가 둘인 것이 이 조합의 정상이다.</b> AccuWeather는 하루를 낮/밤 두 칸으로만 주므로
      * 토막을 스스로 만들 수 없다 — 시각이 있다는 것은 곧 Open-Meteo 시간별로 보충했다는 뜻이고,
-     * 그러면 {@code withPrecipitation}이 강수확률까지 그 시간별 봉우리로 다시 센다.
+     * 그러면 {@code withHalves}이 강수확률까지 그 시간별 봉우리로 다시 센다.
      * 그래서 여기 적은 {@code 20}은 화면에 나오지 않는다: 토막의 봉우리가 그 자리를 차지한다.
      *
      * <p>예전에는 이 픽스처가 보충 출처를 안 달아서, 「강수확률 20%인데 최대 80% 비」라는
      * <b>있을 수 없는 화면</b>이 골든에 정상인 것처럼 박혀 있었다.
      */
-    private static Weather withSpells(PrecipitationSpell... spells) {
+    private static Weather withSpells(HalfDay... halves) {
         return new Weather(place("미금역", null),
                 List.of(Weather.Daily.withChance(LocalDate.of(2026, 8, 17), SkyCondition.CLOUDY,
                                 new BigDecimal("18.2"), new BigDecimal("29.6"), 20)
-                        .withPrecipitation(List.of(spells))),
+                        .withHalves(bothHalves(halves))),
                 WeatherSource.ACCU_WEATHER, WeatherSource.OPEN_METEO);
+    }
+
+    /**
+     * 젖은 반나절만 받아 <b>빠진 쪽을 마른 것으로 채운다</b> — 프로덕션이 내는 모양이 그것이다.
+     *
+     * <p>{@code HalfDays}는 시간별 값이 있는 반나절마다 반드시 하나를 내므로, 오전만 젖은 날의
+     * 오후는 <b>없는 것이 아니라 마른 것</b>이다. 채우지 않으면 골든이 한 줄짜리 화면을 담게 되어
+     * 실물과 갈린다.
+     */
+    private static List<HalfDay> bothHalves(HalfDay... wet) {
+        List<HalfDay> halves = new java.util.ArrayList<>();
+        for (HalfDay.Half half : HalfDay.Half.values()) {
+            java.util.Optional<HalfDay> given = java.util.Arrays.stream(wet)
+                    .filter(each -> each.half() == half).findFirst();
+            halves.add(given.orElseGet(() -> HalfDay.dry(half, SkyCondition.CLOUDY)));
+        }
+        return List.copyOf(halves);
     }
 
     /** 지나간 날 + 토막. 확률이 아니라 실제로 온 양이 적힌다. */
@@ -418,14 +435,14 @@ class RenderedOutputTest {
         return new Weather(place("성남시", "대한민국"),
                 List.of(Weather.Daily.withAmount(LocalDate.of(2026, 8, 10), SkyCondition.RAIN,
                                 new BigDecimal("21.0"), new BigDecimal("26.4"), new BigDecimal("3.7"))
-                        .withPrecipitation(List.of(PrecipitationSpell.withAmount(
+                        .withHalves(List.of(HalfDay.withAmount(
                                 LocalTime.of(2, 0), LocalTime.of(4, 0), SkyCondition.RAIN,
                                 new BigDecimal("3.7"))))),
                 WeatherSource.OPEN_METEO_ARCHIVE);
     }
 
-    private static PrecipitationSpell spell(int from, int to, SkyCondition kind, int chance) {
-        return PrecipitationSpell.withChance(
+    private static HalfDay spell(int from, int to, SkyCondition kind, int chance) {
+        return HalfDay.withChance(
                 LocalTime.of(from, 0), LocalTime.of(to, 0), kind, chance);
     }
 

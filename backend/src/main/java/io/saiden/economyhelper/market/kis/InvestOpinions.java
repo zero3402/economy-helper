@@ -9,7 +9,7 @@ import java.util.Optional;
 
 /**
  * 증권사별 발표 여러 줄을 <b>목표가 하나로 접는다</b> — I/O를 모르는 순수 클래스다
- * ({@code PrecipitationSpells}·{@code UpbitMarketIndex}와 같은 자리라 스프링 없이 단위 테스트한다).
+ * ({@code HalfDays}·{@code UpbitMarketIndex}와 같은 자리라 스프링 없이 단위 테스트한다).
  *
  * <p><b>왜 접어야 하나.</b> KIS {@code invest-opinion}은 컨센서스를 주지 않는다. 기간 안의
  * <b>발표 건</b>을 그대로 준다 — 실측(2026-08-20)에서 삼성전자 한 종목이 8개월 치로 90행이었다.

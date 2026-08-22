@@ -7,7 +7,7 @@ import java.util.List;
 /**
  * 한 지점의 날씨 — <b>언제나 일일 단위다.</b>
  *
- * <p>⚠️ <b>다만 하루 <i>안</i>의 강수 시각은 담는다</b>({@code Daily.precipitation}).
+ * <p>⚠️ <b>다만 하루 <i>안</i>의 강수 시각은 담는다</b>({@code Daily.halves}).
  * 일일 단위라는 것은 <b>현재값과 일일값을 한 화면에 섞지 않는다</b>는 뜻이고(현재 기온은
  * 여전히 안 담는다), 「그날 언제 비가 오는가」는 그 하루에 속한 이야기다.
  *
@@ -73,23 +73,23 @@ public record Weather(GeoLocation place, List<Daily> days, WeatherSource source,
      * @param sky        하늘 상태. 해석 못 한 값이면 {@link SkyCondition#UNKNOWN}이고 그 줄이 빠진다
      * @param low        최저 기온(°C)
      * @param high       최고 기온(°C)
-     * <p><b>{@code precipitation}은 그 하루 <i>안</i>의 시각이다.</b> 일 단위 요약이 「비옴」까지만
+     * <p><b>{@code halves}는 그 하루 <i>안</i>의 시각이다.</b> 일 단위 요약이 「비옴」까지만
      * 말하는 것을 메꾼다 — 실측(2026-08-20 성남시)으로 일 단위는 최대 강수확률 80%였는데
      * 시간별로는 13~19시에 몰려 있고 오전은 말라 있었다. <b>비어 있을 수 있다</b>(마른 날,
      * 또는 시간별 값을 못 받은 경우) — 그때는 화면에 그 줄이 없다.
      *
      * @param precipitationChance 강수확률(%). 예보가 아니거나 출처가 주지 않으면 {@code null}
      * @param precipitationAmount 강수량(mm). 확률을 아는 출처에서는 {@code null}
-     * @param precipitation       그 하루 안의 강수 토막들. 없으면 빈 목록
+     * @param halves              그 하루의 반나절 둘 — 오전·오후 순. 시간별을 못 받았으면 빈 목록
      */
     public record Daily(LocalDate date, SkyCondition sky, BigDecimal low, BigDecimal high,
                         Integer precipitationChance, BigDecimal precipitationAmount,
-                        List<PrecipitationSpell> precipitation) {
+                        List<HalfDay> halves) {
 
         public Daily {
             // null을 안쪽에서 흡수한다 — 호출자 스물 남짓이 전부 빈 목록을 손으로 넘기게 하면
             // 한 곳만 빠뜨려도 렌더에서 NPE가 난다(Weather가 days를 그렇게 막아 둔 것과 같다)
-            precipitation = precipitation == null ? List.of() : List.copyOf(precipitation);
+            halves = halves == null ? List.of() : List.copyOf(halves);
         }
 
         /** 확률을 아는 출처(Open-Meteo 예보)가 쓰는 생성자. */
@@ -116,7 +116,7 @@ public record Weather(GeoLocation place, List<Daily> days, WeatherSource source,
          * 시간별 봉우리가 40%면 「강수확률 80%」만 찍히고 <b>시각 줄은 통째로 없다</b>(문턱을
          * 넘는 시간이 하나도 없으므로). 실제로 그 모양이 골든에 정상인 것처럼 박혀 있었다.
          *
-         * <p>토막의 봉우리가 곧 그날 시간별 봉우리다 — {@code PrecipitationSpells}의 문턱이
+         * <p>토막의 봉우리가 곧 그날 시간별 봉우리다 — {@code HalfDays}의 문턱이
          * 봉우리 이하이므로 <b>봉우리 시각은 반드시 어느 토막엔가 들어 있다.</b> 그래서 이
          * 대입은 「확률이 50% 이상인 날에는 반드시 시각 줄이 있다」를 <b>산술적으로</b> 보장한다.
          *
@@ -127,18 +127,18 @@ public record Weather(GeoLocation place, List<Daily> days, WeatherSource source,
          * {@code null}) 봉우리도 없고, 그때는 원래 값이 그대로 남는다 — 「확률과 강수량은
          * 두 칸이고 보통 한쪽만 찬다」는 이 레코드의 규칙 그대로다.
          */
-        public Daily withPrecipitation(List<PrecipitationSpell> spells) {
-            Integer peak = peakChanceOf(spells);
+        public Daily withHalves(List<HalfDay> halves) {
+            Integer peak = peakChanceOf(halves);
             return new Daily(date, sky, low, high,
-                    peak != null ? peak : precipitationChance, precipitationAmount, spells);
+                    peak != null ? peak : precipitationChance, precipitationAmount, halves);
         }
 
         /** 토막들의 최대 확률. 확률을 아는 토막이 하나도 없으면 {@code null}. */
-        private static Integer peakChanceOf(List<PrecipitationSpell> spells) {
-            if (spells == null) {
+        private static Integer peakChanceOf(List<HalfDay> halves) {
+            if (halves == null) {
                 return null;
             }
-            return spells.stream().map(PrecipitationSpell::chance)
+            return halves.stream().map(HalfDay::chance)
                     .filter(java.util.Objects::nonNull)
                     .max(Integer::compareTo).orElse(null);
         }

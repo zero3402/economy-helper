@@ -13,7 +13,7 @@ import java.time.LocalDate;
  * {@code 0}으로 찍으면 「목표가 0원」이라는 <b>값</b>이 되어 모른다는 뜻이 아니게 된다.
  *
  * <p><b>보충이지 폴백이 아니다.</b> 전망 조회가 실패해도 시세는 그대로 나간다 —
- * {@code WeatherService.withPrecipitationHours}가 강수 시각을 다루는 방식과 같은 자리다.
+ * {@code WeatherService.withHalvesHours}가 강수 시각을 다루는 방식과 같은 자리다.
  *
  * <p>⚠️ <b>투자의견은 담지 않는다.</b> 예전에는 「매수 (111곳)」 줄이 있었고 그것을 위해
  * 국내는 증권사가 쓴 글자를 정규화하고 미국은 FMP {@code grades-consensus}를 심볼마다

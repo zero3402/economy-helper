@@ -139,16 +139,16 @@ class CacheConfigTest {
     @DisplayName("precipitation-hours 캐시 — LocalDate 키가 문자열이 되어 돌아오지 않는다")
     void roundTripsPrecipitationHours() {
         JacksonJsonRedisSerializer<java.util.Map<java.time.LocalDate,
-                List<io.saiden.economyhelper.market.weather.PrecipitationSpell>>> serializer =
+                List<io.saiden.economyhelper.market.weather.HalfDay>>> serializer =
                 CacheConfig.serializer(new TypeReference<java.util.Map<java.time.LocalDate,
-                        List<io.saiden.economyhelper.market.weather.PrecipitationSpell>>>() {});
+                        List<io.saiden.economyhelper.market.weather.HalfDay>>>() {});
         java.time.LocalDate day = java.time.LocalDate.of(2026, 8, 22);
         var original = java.util.Map.of(day, List.of(
-                io.saiden.economyhelper.market.weather.PrecipitationSpell.withChance(
+                io.saiden.economyhelper.market.weather.HalfDay.withChance(
                         java.time.LocalTime.of(12, 0), java.time.LocalTime.of(18, 0),
                         io.saiden.economyhelper.market.weather.SkyCondition.DRIZZLE, 90),
                 // 지나간 날의 모양도 함께 본다 — 확률 대신 강수량이 찬 토막이다
-                io.saiden.economyhelper.market.weather.PrecipitationSpell.withAmount(
+                io.saiden.economyhelper.market.weather.HalfDay.withAmount(
                         java.time.LocalTime.of(20, 0), java.time.LocalTime.of(21, 0),
                         io.saiden.economyhelper.market.weather.SkyCondition.RAIN,
                         new BigDecimal("3.7"))));

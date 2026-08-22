@@ -3,7 +3,7 @@ package io.saiden.economyhelper.market.weather;
 import static org.assertj.core.api.Assertions.assertThat;
 import java.util.Map;
 import java.time.LocalTime;
-import io.saiden.economyhelper.market.weather.PrecipitationSpell;
+import io.saiden.economyhelper.market.weather.HalfDay;
 import io.saiden.economyhelper.support.TestWeather;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -154,7 +154,7 @@ class WeatherServiceTest {
         // AccuWeather가 일별을 맡으면 시각이 없다. 그것만 Open-Meteo에 따로 묻는다 —
         // 키도 한도도 없어 공짜이고, 12시간별 엔드포인트는 기간을 못 덮는다
         LocalDate day = LocalDate.ofInstant(NOW, ZoneId.of("Asia/Seoul"));
-        PrecipitationSpell spell = PrecipitationSpell.withChance(
+        HalfDay spell = HalfDay.withChance(
                 LocalTime.of(13, 0), LocalTime.of(19, 0), SkyCondition.RAIN, 80);
         WeatherService service = new WeatherService(List.of(new FakeClient(WeatherSource.ACCU_WEATHER, false)),
                 fixedClock(), TestWeather.hourly(Map.of(day, List.of(spell))));
@@ -164,7 +164,7 @@ class WeatherServiceTest {
         assertThat(weather).get().extracting(Weather::days).asInstanceOf(
                         org.assertj.core.api.InstanceOfAssertFactories.list(Weather.Daily.class))
                 .singleElement()
-                .satisfies(each -> assertThat(each.precipitation()).containsExactly(spell));
+                .satisfies(each -> assertThat(each.halves()).containsExactly(spell));
     }
 
     /**
@@ -180,7 +180,7 @@ class WeatherServiceTest {
     void alsoRewritesTheChanceFromTheSuppliedHours() {
         LocalDate day = LocalDate.ofInstant(NOW, ZoneId.of("Asia/Seoul"));
         // FakeClient(AccuWeather)는 하루 확률을 20%로 준다. 시간별 봉우리는 80%다
-        PrecipitationSpell spell = PrecipitationSpell.withChance(
+        HalfDay spell = HalfDay.withChance(
                 LocalTime.of(13, 0), LocalTime.of(19, 0), SkyCondition.RAIN, 80);
         WeatherService service = new WeatherService(
                 List.of(new FakeClient(WeatherSource.ACCU_WEATHER, false)),
@@ -200,7 +200,7 @@ class WeatherServiceTest {
     @DisplayName("강수 줄이 다른 곳에서 왔으면 그 출처를 들고 간다 — 숨기면 화면이 거짓말을 한다")
     void carriesTheSupplementSourceSoTheScreenCanSayIt() {
         LocalDate day = LocalDate.ofInstant(NOW, ZoneId.of("Asia/Seoul"));
-        PrecipitationSpell spell = PrecipitationSpell.withChance(
+        HalfDay spell = HalfDay.withChance(
                 LocalTime.of(13, 0), LocalTime.of(19, 0), SkyCondition.RAIN, 80);
         WeatherService service = new WeatherService(
                 List.of(new FakeClient(WeatherSource.ACCU_WEATHER, false)),
@@ -279,7 +279,7 @@ class WeatherServiceTest {
 
         assertThat(weather).as("일별은 이미 손에 있다 — 여기서 죽으면 안 된다").isPresent();
         assertThat(weather.get().days()).singleElement()
-                .satisfies(each -> assertThat(each.precipitation())
+                .satisfies(each -> assertThat(each.halves())
                         .as("줄만 빠진다").isEmpty());
     }
 

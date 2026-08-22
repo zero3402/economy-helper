@@ -2,8 +2,8 @@ package io.saiden.economyhelper.market.weather.openmeteo;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.saiden.economyhelper.market.weather.PrecipitationSpell;
-import io.saiden.economyhelper.market.weather.PrecipitationSpells;
+import io.saiden.economyhelper.market.weather.HalfDay;
+import io.saiden.economyhelper.market.weather.HalfDays;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -23,7 +23,7 @@ import java.util.Map;
  * 와서 「오후 1시」가 남의 오후가 된다 — 일 단위에서 이미 세운 규칙이 시간 단위에서 더 눈에 띈다.
  *
  * <p>예보는 확률과 강수량을 함께 주고 재분석은 강수량만 준다. 그래서 확률 배열이 통째로 없을 수
- * 있고, {@link PrecipitationSpells}가 그때 강수량으로만 토막을 만든다.
+ * 있고, {@link HalfDays}가 그때 강수량으로만 토막을 만든다.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 record HourlyBlock(
@@ -42,7 +42,7 @@ record HourlyBlock(
      * <p>못 읽는 시각은 <b>버리고 넘어간다</b> — 시간 하나의 형식이 바뀌었다고 하루치 답을
      * 못 주게 하지 않는다. 강수 시각은 <b>보충</b>이라 없으면 줄만 빠지는 값이다.
      */
-    Map<LocalDate, List<PrecipitationSpell>> spellsByDay() {
+    Map<LocalDate, List<HalfDay>> halvesByDay() {
         if (isEmpty()) {
             return Map.of();
         }
@@ -50,7 +50,7 @@ record HourlyBlock(
         for (String at : time) {
             times.add(parse(at));
         }
-        return PrecipitationSpells.byDay(times, precipitationProbability, precipitation, weatherCode);
+        return HalfDays.byDay(times, precipitationProbability, precipitation, weatherCode);
     }
 
     /** @return 못 읽으면 {@code null} — 그 시간만 빠진다 */

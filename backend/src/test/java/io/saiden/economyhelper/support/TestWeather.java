@@ -1,7 +1,7 @@
 package io.saiden.economyhelper.support;
 
 import io.saiden.economyhelper.market.weather.GeoLocation;
-import io.saiden.economyhelper.market.weather.PrecipitationSpell;
+import io.saiden.economyhelper.market.weather.HalfDay;
 import io.saiden.economyhelper.market.weather.WeatherPeriod;
 import io.saiden.economyhelper.market.weather.openmeteo.OpenMeteoHourlyClient;
 import java.time.LocalDate;
@@ -30,7 +30,7 @@ public final class TestWeather {
     public static OpenMeteoHourlyClient noHourly() {
         return new OpenMeteoHourlyClient(RestClient.builder(), "https://example.invalid") {
             @Override
-            public Map<LocalDate, List<PrecipitationSpell>> spells(GeoLocation place,
+            public Map<LocalDate, List<HalfDay>> halves(GeoLocation place,
                                                                    WeatherPeriod period) {
                 return Map.of();
             }
@@ -38,12 +38,12 @@ public final class TestWeather {
     }
 
     /** 날짜별로 정해진 토막을 주는 시간별 클라이언트 — 보충 경로 자체를 보는 테스트가 쓴다. */
-    public static OpenMeteoHourlyClient hourly(Map<LocalDate, List<PrecipitationSpell>> spells) {
+    public static OpenMeteoHourlyClient hourly(Map<LocalDate, List<HalfDay>> halves) {
         return new OpenMeteoHourlyClient(RestClient.builder(), "https://example.invalid") {
             @Override
-            public Map<LocalDate, List<PrecipitationSpell>> spells(GeoLocation place,
+            public Map<LocalDate, List<HalfDay>> halves(GeoLocation place,
                                                                    WeatherPeriod period) {
-                return spells;
+                return halves;
             }
         };
     }
@@ -58,7 +58,7 @@ public final class TestWeather {
             java.util.concurrent.atomic.AtomicInteger calls) {
         return new OpenMeteoHourlyClient(RestClient.builder(), "https://example.invalid") {
             @Override
-            public Map<LocalDate, List<PrecipitationSpell>> spells(GeoLocation place,
+            public Map<LocalDate, List<HalfDay>> halves(GeoLocation place,
                                                                    WeatherPeriod period) {
                 calls.incrementAndGet();
                 return Map.of();
@@ -70,7 +70,7 @@ public final class TestWeather {
     public static OpenMeteoHourlyClient explodingHourly() {
         return new OpenMeteoHourlyClient(RestClient.builder(), "https://example.invalid") {
             @Override
-            public Map<LocalDate, List<PrecipitationSpell>> spells(GeoLocation place,
+            public Map<LocalDate, List<HalfDay>> halves(GeoLocation place,
                                                                    WeatherPeriod period) {
                 throw new IllegalStateException("보충 실패");
             }

@@ -4,7 +4,7 @@ import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import io.saiden.economyhelper.config.CacheNames;
 import io.saiden.economyhelper.market.weather.GeoLocation;
-import io.saiden.economyhelper.market.weather.PrecipitationSpell;
+import io.saiden.economyhelper.market.weather.HalfDay;
 import io.saiden.economyhelper.market.weather.WeatherPeriod;
 import java.time.LocalDate;
 import java.util.List;
@@ -57,7 +57,7 @@ public class OpenMeteoHourlyClient {
             key = "#a0.latitude() + ',' + #a0.longitude() + ',' + #a1.from() + ',' + #a1.to()")
     @Retry(name = "weatherOpenMeteo")
     @CircuitBreaker(name = "weatherOpenMeteo")
-    public Map<LocalDate, List<PrecipitationSpell>> spells(GeoLocation place, WeatherPeriod period) {
+    public Map<LocalDate, List<HalfDay>> halves(GeoLocation place, WeatherPeriod period) {
         return OpenMeteoRequest.hourly(restClient, "/v1/forecast", HOURLY_FIELDS, place, period);
     }
 }

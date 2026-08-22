@@ -43,7 +43,7 @@ import javax.imageio.ImageIO;
  * (상승 청록·하락 빨강)으로 바꾸면 그림은 그쪽다워지지만 <b>바로 위 본문의 {@code 🔴 +1.00%}와
  * 방향이 뒤집힌다</b>. 한 통 안에서 색이 두 뜻을 갖게 되는 쪽이 더 나쁘다.
  *
- * <p>I/O를 모르는 순수 계산이다({@code PrecipitationSpells}와 같은 자리라 스프링 없이 테스트한다).
+ * <p>I/O를 모르는 순수 계산이다({@code HalfDays}와 같은 자리라 스프링 없이 테스트한다).
  */
 public final class ChartRenderer {
 
