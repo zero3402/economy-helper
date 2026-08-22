@@ -120,9 +120,45 @@ class CacheConfigTest {
                         java.time.LocalDate.of(2026, 8, 17),
                         io.saiden.economyhelper.market.weather.SkyCondition.CLOUDY,
                         new BigDecimal("18.2"), new BigDecimal("29.6"), 20)),
+                io.saiden.economyhelper.market.weather.WeatherSource.ACCU_WEATHER,
+                // 강수 줄만 다른 곳에서 온 날 — 이 칸이 비어 돌아오면 화면이 출처를 한 줄만 적어
+                // 「AccuWeather가 준 적 없는 강수확률을 AccuWeather라고 적는」 상태가 된다
                 io.saiden.economyhelper.market.weather.WeatherSource.OPEN_METEO);
 
         assertThat(serializer.deserialize(serializer.serialize(original))).isEqualTo(original);
+    }
+
+    /**
+     * ⚠️ <b>이 저장소에서 맵 키가 {@code String}이 아닌 유일한 캐시다.</b> 나머지
+     * ({@code hn-buzz}·{@code relevance})는 전부 {@code Map<String, …>}이라 왕복이 공짜인데,
+     * 이쪽만 키가 {@link java.time.LocalDate}다. 키가 문자열로 돌아오면
+     * {@code WeatherService}의 {@code spells.containsKey(day.date())}가 <b>조용히 거짓</b>이 되어
+     * 예외도 로그도 없이 강수 시각 줄만 사라진다 — 「고쳤는데 여전히 안 나온다」의 교과서적 모양이다.
+     */
+    @Test
+    @DisplayName("precipitation-hours 캐시 — LocalDate 키가 문자열이 되어 돌아오지 않는다")
+    void roundTripsPrecipitationHours() {
+        JacksonJsonRedisSerializer<java.util.Map<java.time.LocalDate,
+                List<io.saiden.economyhelper.market.weather.PrecipitationSpell>>> serializer =
+                CacheConfig.serializer(new TypeReference<java.util.Map<java.time.LocalDate,
+                        List<io.saiden.economyhelper.market.weather.PrecipitationSpell>>>() {});
+        java.time.LocalDate day = java.time.LocalDate.of(2026, 8, 22);
+        var original = java.util.Map.of(day, List.of(
+                io.saiden.economyhelper.market.weather.PrecipitationSpell.withChance(
+                        java.time.LocalTime.of(12, 0), java.time.LocalTime.of(18, 0),
+                        io.saiden.economyhelper.market.weather.SkyCondition.DRIZZLE, 90),
+                // 지나간 날의 모양도 함께 본다 — 확률 대신 강수량이 찬 토막이다
+                io.saiden.economyhelper.market.weather.PrecipitationSpell.withAmount(
+                        java.time.LocalTime.of(20, 0), java.time.LocalTime.of(21, 0),
+                        io.saiden.economyhelper.market.weather.SkyCondition.RAIN,
+                        new BigDecimal("3.7"))));
+
+        var restored = serializer.deserialize(serializer.serialize(original));
+
+        assertThat(restored).isEqualTo(original);
+        assertThat(restored.containsKey(day))
+                .as("키가 LocalDate로 돌아와야 한다 — 문자열이면 조회가 조용히 빗나간다")
+                .isTrue();
     }
 
     @Test

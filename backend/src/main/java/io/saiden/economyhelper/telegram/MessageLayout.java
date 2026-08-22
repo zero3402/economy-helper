@@ -27,7 +27,7 @@ import java.util.stream.Stream;
  *
  * <p>텔레그램이 허용하는 태그는 부분집합이다({@code b·i·u·s·a·code·pre·blockquote}).
  * 굵게는 <b>제목과 이름에</b> 쓴다 — 통 제목, 무리 제목, 그리고 그 아래 종목·코인·지역의
- * 이름이다. <b>값과 이름표에는 안 쓴다</b>({@code 239,500 KRW}·{@code 🔵 -1.26%}·{@code 목표}) —
+ * 이름이다. <b>값과 이름표에는 안 쓴다</b>({@code 239,500 KRW}·{@code 🔵 -1.26%}·{@code 목표가}) —
  * 값까지 굵으면 무엇이 계층인지 드러나지 않는다.
  */
 final class MessageLayout {

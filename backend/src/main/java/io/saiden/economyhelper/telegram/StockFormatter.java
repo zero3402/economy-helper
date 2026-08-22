@@ -3,7 +3,6 @@ package io.saiden.economyhelper.telegram;
 import static io.saiden.economyhelper.telegram.MessageLayout.DATE;
 import static io.saiden.economyhelper.telegram.MessageLayout.DATE_TIME;
 import static io.saiden.economyhelper.telegram.MessageLayout.SEOUL;
-import static io.saiden.economyhelper.telegram.MessageLayout.SHORT_DATE;
 import static io.saiden.economyhelper.telegram.MessageLayout.appendChangeLine;
 import static io.saiden.economyhelper.telegram.MessageLayout.empty;
 import static io.saiden.economyhelper.telegram.MessageLayout.head;
@@ -38,7 +37,7 @@ public final class StockFormatter {
      * <pre>
      * 🔵 -0.33%      ← 앞 무리
      *                ← 빈 줄이 블록을 가른다
-     * 목표           ← 이름표
+     * 목표가         ← 이름표
      * 212.40 USD     ← 값은 바로 아랫줄
      * 296,585 KRW
      * </pre>
@@ -46,6 +45,12 @@ public final class StockFormatter {
      * <p>이 통의 규칙이 「빈 줄은 블록 사이, 한 줄은 블록 안」이다. 전망은 <b>이름표와 값이
      * 한 블록</b>이므로 그 안은 한 줄이고, 블록 앞에만 빈 줄이 온다 — 시세 블록이
      * 「이름 / 값 / 환산 / 등락률」로 붙어 있는 것과 같은 모양이다.
+     *
+     * <p><b>값의 성격도 이름표가 든다</b>({@code 실적발표일 (미국 현지)}). 이 통은 <b>값 줄에
+     * 꼬리표를 붙이지 않는다</b>고 {@link #basisLines}에 적어 뒀는데, 그렇다고 성격을 안
+     * 밝힐 수는 없는 값이 있다 — 이름표가 이미 블록의 머리이므로 거기가 그 자리다.
+     * <b>꼬리표는 그 자체로 읽혀야 한다</b>: {@code (현지)}만 적으면 어디 현지인지를 묻게 되어
+     * 밝히려던 것이 다시 모르는 값이 된다.
      */
     private static String labelled(String name) {
         return "\n\n" + name + "\n";
@@ -126,7 +131,7 @@ public final class StockFormatter {
     /**
      * 무리 하나. 비어 있으면 제목도 남기지 않는다.
      *
-     * <p>굵게는 <b>제목과 이름에</b> 쓴다 — 값과 이름표({@code 목표}·{@code 실적발표})는 맨
+     * <p>굵게는 <b>제목과 이름에</b> 쓴다 — 값과 이름표({@code 목표가}·{@code 실적발표})는 맨
      * 글자다. 값까지 굵으면 무엇이 계층인지 드러나지 않는다.
      *
      * <p><b>종목 하나가 블록 하나다</b> — 이름을 제 줄에 올리고 블록끼리는 빈 줄로 가른다.
@@ -207,6 +212,22 @@ public final class StockFormatter {
      * {@code grades-consensus} 호출까지 함께 지웠다 — 화면에서만 빼면 심볼당 하루 한 번을
      * 아무도 안 보는 값에 쓴다.
      *
+     * <p>⚠️ <b>실적발표일은 미국 현지 달력의 날짜다 — 이름표가 {@code (미국 현지)}를 든다.</b>
+     * {@code FmpUsOutlookClient}가 FMP의 미국 거래일을 그대로 싣고 자를 때만
+     * {@code America/New_York} 달력을 쓴다. KST로 환산하지 않는 이유는 <b>발표 시각이 미국 장
+     * 마감 뒤</b>라 환산하면 대개 다음 날 새벽이 되어 「그 시장의 달력」이 깨지기 때문이다.
+     * 그런데 값이 <b>일 단위</b>라 화면만 보면 어느 달력의 그날인지 알 길이 없다 —
+     * 환율의 {@code (고시)}, 증시의 {@code (종가)}, 날씨의 {@code (예보)}와 같은 자리다.
+     *
+     * <p>⚠️ <b>{@code (현지)}로만 적지 않는다.</b> 그렇게 쓴 적이 있는데 <b>어디 현지인지를
+     * 말하지 않는 꼬리표</b>였다. 무리 제목의 「미국」이 위에 있긴 하지만 그 사이에 이름·값·
+     * 환산·등락률·목표가 블록이 끼어 있어, 이 줄에 닿을 때쯤엔 그 머리와 연결이 끊긴다.
+     * 밝히려고 붙인 꼬리표가 <b>또 하나의 모르는 값</b>이 되면 붙인 값이 없다.
+     *
+     * <p>날짜는 <b>이 통의 다른 날짜와 같은 모양</b>이다({@code DATE} — {@code 2026.10.29(목)}).
+     * 한때 이 줄만 {@code 10월 29일(목)}로 갈라 뒀는데, 한 통 안에 두 표기가 섞이는 대가를
+     * 치를 만큼 성격 차이가 크지 않았다. 연도가 있어야 <b>다음 분기인지 내년인지</b>도 읽힌다.
+     *
      * @param fx 목표가의 원화 환산에 쓴다. <b>값 줄이 쓰는 그 환율이어야 한다</b> —
      *           둘이 다른 고시를 쓰면 같은 통에서 「311.30 USD = 434,684 KRW」와
      *           「340.72 USD = 다른 환율의 원화」가 함께 찍혀 어느 쪽도 못 믿게 된다.
@@ -219,9 +240,9 @@ public final class StockFormatter {
         }
         if (outlook.targetPrice() != null) {
             // ⚠️ 값 줄과 같은 모양으로 단위를 붙인다. 바로 위가 「239,500 KRW」인데 여기가
-            //    「목표 466,667」이면 무슨 단위인지 읽는 사람이 짐작해야 한다 — 목표주가의
+            //    「목표가 466,667」이면 무슨 단위인지 읽는 사람이 짐작해야 한다 — 목표주가의
             //    통화는 그 종목의 통화라고 StockOutlook이 적어 뒀으므로 그것을 그대로 쓴다
-            message.append(labelled("목표")).append(unitOf(quote, outlook.targetPrice()));
+            message.append(labelled("목표가")).append(unitOf(quote, outlook.targetPrice()));
             // 값 줄과 같은 규칙으로 환산한다 — 달러 목표가만 붙고, 국내는 이미 원화라 없다.
             // 이 줄이 없던 동안 읽는 사람이 340.72에 환율을 손으로 곱해야 했다
             if (convertible(quote, fx)) {
@@ -229,8 +250,8 @@ public final class StockFormatter {
             }
         }
         if (outlook.earningsDate() != null) {
-            message.append(labelled("실적발표"))
-                    .append(SHORT_DATE.format(outlook.earningsDate()));
+            message.append(labelled("실적발표일 (미국 현지)"))
+                    .append(DATE.format(outlook.earningsDate()));
         }
     }
 

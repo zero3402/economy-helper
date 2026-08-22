@@ -14,7 +14,9 @@ import io.saiden.economyhelper.market.weather.Weather;
 import io.saiden.economyhelper.market.weather.WeatherPeriod;
 import io.saiden.economyhelper.market.weather.WeatherSource;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * 날씨 통 — <b>알람도 {@code /weather} 검색도 이것 하나를 쓴다.</b>
@@ -110,11 +112,20 @@ public final class WeatherFormatter {
      * 세로로 쌓이면 그 순서가 눈에 보인다. {@code WeatherSource}의 선언 순이 곧 이중화
      * 순서({@code WeatherService})라 1순위가 언제나 위다.
      *
+     * <p><b>한 지역에 출처가 둘일 수 있다.</b> 1순위(AccuWeather)는 하루를 낮/밤 두 칸으로만
+     * 주므로 강수 줄(확률과 시각)이 통째로 Open-Meteo 시간별에서 온다 — 그때
+     * {@code Weather.precipitationSource}가 채워지고 여기서 함께 오른다.
+     * <b>숨기면 거짓말이 된다</b>: 화면의 강수확률이 AccuWeather 것이 아닌데 AccuWeather만
+     * 적으면, 그건 「폴백으로 Open-Meteo가 답했는데 AccuWeather라고 적는」 것과 같은 일이다.
+     * 일별까지 Open-Meteo가 맡은 날은 두 값이 같아 {@code distinct()}가 한 줄로 접는다.
+     *
      * <p>이름이 {@code sourcesOf}가 아닌 이유는 제네릭 소거 때문이다 — 증시 쪽과 인자 목록이
      * 같아져 오버로드가 성립하지 않는다.
      */
     private static String sourcesOf(List<Weather> places) {
-        return sources(places.stream().map(Weather::source)
+        return sources(places.stream()
+                .flatMap(place -> Stream.of(place.source(), place.precipitationSource()))
+                .filter(Objects::nonNull)
                 .distinct().sorted().map(WeatherSource::displayName));
     }
 

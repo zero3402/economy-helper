@@ -323,7 +323,7 @@ Financial Modeling Prep
 239,500 KRW
 🔵 -1.26%
 
-목표
+목표가
 466,667 KRW
 
 금융위원회
@@ -339,7 +339,7 @@ Financial Modeling Prep
 239,500 KRW
 🔵 -1.26%
 
-목표
+목표가
 350,000 KRW
 
 금융위원회
@@ -355,12 +355,12 @@ Financial Modeling Prep
 232.14 USD
 327,821 KRW
 
-목표
+목표가
 340.72 USD
 481,155 KRW
 
-실적발표
-10.29(목)
+실적발표일 (미국 현지)
+2026.10.29(목)
 
 Financial Modeling Prep
 
@@ -374,11 +374,11 @@ Financial Modeling Prep
 <b>애플</b>
 232.14 USD
 
-목표
+목표가
 340.72 USD
 
-실적발표
-10.29(목)
+실적발표일 (미국 현지)
+2026.10.29(목)
 
 Financial Modeling Prep
 
@@ -393,8 +393,8 @@ Financial Modeling Prep
 232.14 USD
 327,821 KRW
 
-실적발표
-10.29(목)
+실적발표일 (미국 현지)
+2026.10.29(목)
 
 Financial Modeling Prep
 
@@ -679,10 +679,11 @@ Open-Meteo
 
 흐림
 18.2°C / 29.6°C
-강수확률 20%
+강수확률 80%
 ☔ 오후 1시~7시 비 (최대 80%)
 
 AccuWeather
+Open-Meteo
 
 2026.08.17(월) (예보)
 
@@ -693,10 +694,11 @@ AccuWeather
 
 흐림
 18.2°C / 29.6°C
-강수확률 20%
+강수확률 90%
 ❄️ 오전 7시~10시 눈 (최대 90%)
 
 AccuWeather
+Open-Meteo
 
 2026.08.17(월) (예보)
 
@@ -707,10 +709,11 @@ AccuWeather
 
 흐림
 18.2°C / 29.6°C
-강수확률 20%
+강수확률 70%
 ⛈️ 오후 3시 뇌우 (최대 70%)
 
 AccuWeather
+Open-Meteo
 
 2026.08.17(월) (예보)
 
@@ -721,11 +724,12 @@ AccuWeather
 
 흐림
 18.2°C / 29.6°C
-강수확률 20%
+강수확률 85%
 ☔ 오전 6시~8시 소나기 (최대 65%)
 ❄️ 오후 8시~10시 눈 (최대 85%)
 
 AccuWeather
+Open-Meteo
 
 2026.08.17(월) (예보)
 
@@ -736,11 +740,12 @@ AccuWeather
 
 흐림
 18.2°C / 29.6°C
-강수확률 20%
+강수확률 60%
 🌨️ 오전 12시 진눈깨비 (최대 55%)
 ☔ 오후 12시 이슬비 (최대 60%)
 
 AccuWeather
+Open-Meteo
 
 2026.08.17(월) (예보)
 
@@ -765,11 +770,12 @@ Open-Meteo Archive
 
 흐림
 18.2°C / 29.6°C
-강수확률 20%
+강수확률 90%
 ☔ 오전 10시~11시 비 (최대 80%)
 ☔ 오후 12시~3시 비 (최대 90%)
 
 AccuWeather
+Open-Meteo
 
 2026.08.17(월) (예보)
 

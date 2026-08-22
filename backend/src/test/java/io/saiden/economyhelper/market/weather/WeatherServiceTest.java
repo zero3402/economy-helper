@@ -167,6 +167,69 @@ class WeatherServiceTest {
                 .satisfies(each -> assertThat(each.precipitation()).containsExactly(spell));
     }
 
+    /**
+     * ⚠️ <b>이것이 「강수확률은 높은데 오전/오후 줄이 없다」의 정체다.</b>
+     *
+     * <p>확률은 AccuWeather의 낮 값이고 시각은 Open-Meteo 시간별이라 <b>두 숫자가 서로 다른
+     * 예보</b>였다. AccuWeather가 80%라고 하는 날 Open-Meteo 봉우리가 40%면 문턱을 넘는 시간이
+     * 하나도 없어 <b>「강수확률 80%」만 찍히고 시각 줄은 통째로 사라진다.</b>
+     * 지금은 시간별을 얹는 순간 확률도 그 시간별로 다시 세므로 그 어긋남이 성립할 수 없다.
+     */
+    @Test
+    @DisplayName("보충은 시각만이 아니라 강수확률도 함께 간다 — 한 블록에 두 예보의 숫자가 서면 안 된다")
+    void alsoRewritesTheChanceFromTheSuppliedHours() {
+        LocalDate day = LocalDate.ofInstant(NOW, ZoneId.of("Asia/Seoul"));
+        // FakeClient(AccuWeather)는 하루 확률을 20%로 준다. 시간별 봉우리는 80%다
+        PrecipitationSpell spell = PrecipitationSpell.withChance(
+                LocalTime.of(13, 0), LocalTime.of(19, 0), SkyCondition.RAIN, 80);
+        WeatherService service = new WeatherService(
+                List.of(new FakeClient(WeatherSource.ACCU_WEATHER, false)),
+                fixedClock(), TestWeather.hourly(Map.of(day, List.of(spell))));
+
+        Optional<Weather> weather = service.forecast(SEOUL, WeatherPeriod.of(day, null, null, null));
+
+        assertThat(weather.orElseThrow().days()).singleElement().satisfies(each -> {
+            assertThat(each.precipitationChance())
+                    .as("화면의 확률과 시각이 같은 예보에서 나와야 한다")
+                    .isEqualTo(80);
+            assertThat(each.precipitationAmount()).as("강수량 칸은 건드리지 않는다").isNull();
+        });
+    }
+
+    @Test
+    @DisplayName("강수 줄이 다른 곳에서 왔으면 그 출처를 들고 간다 — 숨기면 화면이 거짓말을 한다")
+    void carriesTheSupplementSourceSoTheScreenCanSayIt() {
+        LocalDate day = LocalDate.ofInstant(NOW, ZoneId.of("Asia/Seoul"));
+        PrecipitationSpell spell = PrecipitationSpell.withChance(
+                LocalTime.of(13, 0), LocalTime.of(19, 0), SkyCondition.RAIN, 80);
+        WeatherService service = new WeatherService(
+                List.of(new FakeClient(WeatherSource.ACCU_WEATHER, false)),
+                fixedClock(), TestWeather.hourly(Map.of(day, List.of(spell))));
+
+        Weather weather = service.forecast(SEOUL, WeatherPeriod.of(day, null, null, null))
+                .orElseThrow();
+
+        assertThat(weather.source()).as("일별은 여전히 1순위 것이다")
+                .isEqualTo(WeatherSource.ACCU_WEATHER);
+        assertThat(weather.precipitationSource())
+                .as("확률까지 이쪽 값이 되었으므로 출처 줄이 이 이름을 함께 적어야 한다")
+                .isEqualTo(WeatherSource.OPEN_METEO);
+    }
+
+    @Test
+    @DisplayName("보충이 빈손이면 출처도 그대로다 — 부르기만 한 것을 「거기서 왔다」고 적지 않는다")
+    void leavesTheSupplementSourceEmptyWhenNothingWasAdded() {
+        LocalDate day = LocalDate.ofInstant(NOW, ZoneId.of("Asia/Seoul"));
+        WeatherService service = new WeatherService(
+                List.of(new FakeClient(WeatherSource.ACCU_WEATHER, false)),
+                fixedClock(), TestWeather.hourly(Map.of()));
+
+        Weather weather = service.forecast(SEOUL, WeatherPeriod.of(day, null, null, null))
+                .orElseThrow();
+
+        assertThat(weather.precipitationSource()).isNull();
+    }
+
     @Test
     @DisplayName("보충이 터져도 일일 예보는 나간다 — 보충은 폴백이 아니라 덧붙임이다")
     void neverLosesTheForecastWhenTheSupplementFails() {

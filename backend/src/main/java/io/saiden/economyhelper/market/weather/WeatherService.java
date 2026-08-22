@@ -103,6 +103,19 @@ public class WeatherService {
      *
      * <p>지나간 날은 부르지 않는다. 재분석이 이미 시간별 강수량을 함께 주고, 예보 엔드포인트에
      * 과거를 물으면 빈손이다.
+     *
+     * <p>⚠️ <b>얹는 것은 시각만이 아니다 — 강수확률도 함께 갈린다</b>
+     * ({@link Weather.Daily#withPrecipitation}). 시각이 이쪽 것인데 확률은 저쪽 것이면
+     * <b>한 블록에 서로 다른 예보의 두 숫자</b>가 서고, 그래서 「강수확률 80%인데 시각 줄이
+     * 없다」가 성립했다. 그 자리가 이번에 고친 버그다.
+     *
+     * <p>그래서 <b>보충 출처를 화면까지 들고 간다</b>({@code Weather.precipitationSource}).
+     * 강수 줄이 통째로 이쪽 것이 되었으므로 출처 줄이 그 사실을 말해야 한다 —
+     * 「폴백으로 Open-Meteo가 답했는데 AccuWeather라고 적으면 거짓말이 된다」는
+     * {@link WeatherSource}의 문장이 강수 줄 하나에도 그대로 걸린다.
+     *
+     * <p><b>세 갈래를 다 로그로 남긴다</b> — 실패·빈손·성공. 예전에는 빈손이 조용해서
+     * 「마른 기간이었다」와 「빈손으로 왔다」가 구분되지 않았고, 신고가 들어와도 짚을 단서가 없었다.
      */
     private Weather withPrecipitationHours(Weather weather, GeoLocation place,
                                            WeatherPeriod period, LocalDate today) {
@@ -111,21 +124,35 @@ public class WeatherService {
         if (alreadyHas || period.past(today)) {
             return weather;
         }
+        Map<LocalDate, List<PrecipitationSpell>> spells;
         try {
-            Map<LocalDate, List<PrecipitationSpell>> spells = hourly.spells(place, period);
-            if (spells.isEmpty()) {
-                return weather;
-            }
-            List<Weather.Daily> days = weather.days().stream()
-                    .map(day -> spells.containsKey(day.date())
-                            ? day.withPrecipitation(spells.get(day.date()))
-                            : day)
-                    .toList();
-            return new Weather(weather.place(), days, weather.source());
+            spells = hourly.spells(place, period);
         } catch (RuntimeException e) {
-            log.warn("[weather] 강수 시각 보충 실패 — 일일 예보만 내보냅니다: {}", FailureReason.of(e));
+            log.warn("[weather] {} 강수 시각 보충 실패 — 일일 예보만 내보냅니다: {}",
+                    place.name(), FailureReason.of(e));
             return weather;
         }
+        if (spells.isEmpty()) {
+            // ⚠️ 이 줄이 없던 동안 「마른 기간이었다」와 「빈손으로 왔다」가 구분되지 않았다 —
+            //    화면도 로그도 아무 말을 안 하니 "고쳤는데 여전히 안 나온다"의 단서가 없었다.
+            //    성공도 아래에서 남긴다. 세 갈래가 다 보여야 다음 신고를 로그 한 줄로 가른다
+            log.info("[weather] {} {}~{} 시간별에 강수 토막이 없습니다 — 마른 기간이거나 문턱 아래입니다",
+                    place.name(), period.from(), period.to());
+            return weather;
+        }
+
+        List<Weather.Daily> days = weather.days().stream()
+                .map(day -> spells.containsKey(day.date())
+                        ? day.withPrecipitation(spells.get(day.date()))
+                        : day)
+                .toList();
+        log.info("[weather] {} 강수 시각을 {}일에 얹었습니다 ({} 보충)",
+                place.name(), spells.size(), WeatherSource.OPEN_METEO.displayName());
+        // ⚠️ 강수 줄이 이쪽 것이 되었으므로 화면도 그렇게 말해야 한다.
+        //    withPrecipitation이 확률까지 이 시간별로 다시 세므로 일별 출처의 확률은 더 이상
+        //    화면에 없다 — 숨기면 「Open-Meteo가 답했는데 AccuWeather라고 적는」 그 거짓말이 된다.
+        //    일별도 Open-Meteo였으면 WeatherFormatter의 distinct()가 한 줄로 접는다
+        return new Weather(weather.place(), days, weather.source(), WeatherSource.OPEN_METEO);
     }
 
     /**

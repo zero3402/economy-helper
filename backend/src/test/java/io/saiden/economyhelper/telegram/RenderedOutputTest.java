@@ -394,13 +394,23 @@ class RenderedOutputTest {
         return oneDay("서현역", null, SkyCondition.CLEAR, "19.0", "30.1", 10);
     }
 
-    /** 강수 토막이 붙은 하루 — 미금역 하루치에 토막만 얹는다. */
+    /**
+     * 강수 토막이 붙은 하루 — 미금역 하루치에 토막을 얹는다.
+     *
+     * <p><b>출처가 둘인 것이 이 조합의 정상이다.</b> AccuWeather는 하루를 낮/밤 두 칸으로만 주므로
+     * 토막을 스스로 만들 수 없다 — 시각이 있다는 것은 곧 Open-Meteo 시간별로 보충했다는 뜻이고,
+     * 그러면 {@code withPrecipitation}이 강수확률까지 그 시간별 봉우리로 다시 센다.
+     * 그래서 여기 적은 {@code 20}은 화면에 나오지 않는다: 토막의 봉우리가 그 자리를 차지한다.
+     *
+     * <p>예전에는 이 픽스처가 보충 출처를 안 달아서, 「강수확률 20%인데 최대 80% 비」라는
+     * <b>있을 수 없는 화면</b>이 골든에 정상인 것처럼 박혀 있었다.
+     */
     private static Weather withSpells(PrecipitationSpell... spells) {
         return new Weather(place("미금역", null),
                 List.of(Weather.Daily.withChance(LocalDate.of(2026, 8, 17), SkyCondition.CLOUDY,
                                 new BigDecimal("18.2"), new BigDecimal("29.6"), 20)
                         .withPrecipitation(List.of(spells))),
-                WeatherSource.ACCU_WEATHER);
+                WeatherSource.ACCU_WEATHER, WeatherSource.OPEN_METEO);
     }
 
     /** 지나간 날 + 토막. 확률이 아니라 실제로 온 양이 적힌다. */
