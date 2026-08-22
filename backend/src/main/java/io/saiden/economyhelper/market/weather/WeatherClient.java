@@ -36,4 +36,25 @@ public interface WeatherClient {
      * 부르면 서킷브레이커에 애먼 실패가 쌓이고 사용자는 그만큼 더 기다린다.
      */
     boolean supports(WeatherPeriod period, LocalDate today);
+
+    /**
+     * 이 출처가 <b>하루 안의 강수 시각까지 함께 주는가</b>.
+     *
+     * <p>{@code true}면 {@code WeatherService}가 보충 호출을 아예 안 한다 — 이미 손에 있는 것을
+     * 다시 묻지 않는다.
+     *
+     * <p>⚠️ <b>결과로 넘겨짚을 수 없는 값이다.</b> 「토막이 하나도 없다」는 <b>마른 날</b>과
+     * <b>아직 안 받은 날</b> 둘 다에 참이라, 받은 것을 보고는 두 경우를 가를 수 없다.
+     * 잘못 가르면 이미 손에 있는 것을 같은 파라미터로 한 번 더 묻게 되고, 화면은 어느 쪽이든
+     * 같아서 드러나지도 않는다.
+     *
+     * <p>그래서 <b>출처가 스스로 밝힌다</b> — 「무엇을 받았나」가 아니라 「무엇을 주는 곳인가」다.
+     * {@link #supports}가 「못 하는 출처는 부르지 않는다」를 정하는 것과 한 짝이다.
+     *
+     * @return 기본은 {@code false} — 밝히지 않은 출처는 못 주는 것으로 본다. 잘못 넘겨짚어
+     *         시각 줄을 잃는 것보다 헛호출 한 번이 낫다
+     */
+    default boolean providesPrecipitationHours() {
+        return false;
+    }
 }

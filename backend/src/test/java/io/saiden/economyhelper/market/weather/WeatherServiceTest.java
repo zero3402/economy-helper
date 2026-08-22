@@ -216,6 +216,44 @@ class WeatherServiceTest {
                 .isEqualTo(WeatherSource.OPEN_METEO);
     }
 
+    /**
+     * <b>부르지 않는 것</b>을 단언한다 — 마른 날에는 보충을 부르든 안 부르든 화면이 같아서
+     * 결과로는 드러나지 않는다. 그래서 세는 자리가 필요하다.
+     *
+     * <p>Open-Meteo 예보는 일별과 시간별을 한 응답으로 주므로 이미 손에 있다. 알람은 지역이
+     * 넷이라 여기서 새면 마른 날마다 헛호출이 넷씩 는다.
+     */
+    @Test
+    @DisplayName("일별 출처가 시간별을 함께 주면 보충을 부르지 않는다 — 마른 날이어도 두 번 묻지 않는다")
+    void doesNotAskTwiceWhenTheDailySourceAlreadyCarriesHours() {
+        LocalDate day = LocalDate.ofInstant(NOW, ZoneId.of("Asia/Seoul"));
+        java.util.concurrent.atomic.AtomicInteger calls =
+                new java.util.concurrent.atomic.AtomicInteger();
+        // FakeClient는 토막 없는 하루를 준다 — 마른 날이다. 출처는 시간별을 함께 주는 Open-Meteo다
+        WeatherService service = new WeatherService(
+                List.of(new FakeClient(WeatherSource.OPEN_METEO, false)),
+                fixedClock(), TestWeather.countingHourly(calls));
+
+        service.forecast(SEOUL, WeatherPeriod.of(day, null, null, null));
+
+        assertThat(calls).as("한 응답에 이미 들어 있던 것을 다시 묻지 않는다").hasValue(0);
+    }
+
+    @Test
+    @DisplayName("일별 출처가 시간별을 못 주면 그때는 보충을 부른다 — AccuWeather가 낮/밤뿐이다")
+    void stillAsksWhenTheDailySourceCannotGiveHours() {
+        LocalDate day = LocalDate.ofInstant(NOW, ZoneId.of("Asia/Seoul"));
+        java.util.concurrent.atomic.AtomicInteger calls =
+                new java.util.concurrent.atomic.AtomicInteger();
+        WeatherService service = new WeatherService(
+                List.of(new FakeClient(WeatherSource.ACCU_WEATHER, false)),
+                fixedClock(), TestWeather.countingHourly(calls));
+
+        service.forecast(SEOUL, WeatherPeriod.of(day, null, null, null));
+
+        assertThat(calls).as("이쪽은 물어야 시각이 생긴다").hasValue(1);
+    }
+
     @Test
     @DisplayName("보충이 빈손이면 출처도 그대로다 — 부르기만 한 것을 「거기서 왔다」고 적지 않는다")
     void leavesTheSupplementSourceEmptyWhenNothingWasAdded() {
@@ -288,6 +326,12 @@ class WeatherServiceTest {
                 return period.past(today);
             }
             return !period.past(today) && !period.to().isAfter(today.plusDays(maxDays - 1L));
+        }
+
+        /** 실물과 같이 가른다 — Open-Meteo 둘은 한 응답에 담아 오고 AccuWeather는 낮/밤뿐이다. */
+        @Override
+        public boolean providesPrecipitationHours() {
+            return source != WeatherSource.ACCU_WEATHER;
         }
 
         @Override

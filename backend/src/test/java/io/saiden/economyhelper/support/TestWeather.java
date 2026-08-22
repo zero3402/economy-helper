@@ -48,6 +48,24 @@ public final class TestWeather {
         };
     }
 
+    /**
+     * <b>불렸는지를 세는</b> 시간별 클라이언트 — 값은 안 주고 호출만 센다.
+     *
+     * <p>「보충을 안 부른다」는 <b>없는 일을 단언하는</b> 것이라 결과만 봐서는 증명할 수 없다.
+     * 마른 날에는 부르든 안 부르든 화면이 똑같기 때문이다 — 그래서 세는 자리가 필요하다.
+     */
+    public static OpenMeteoHourlyClient countingHourly(
+            java.util.concurrent.atomic.AtomicInteger calls) {
+        return new OpenMeteoHourlyClient(RestClient.builder(), "https://example.invalid") {
+            @Override
+            public Map<LocalDate, List<PrecipitationSpell>> spells(GeoLocation place,
+                                                                   WeatherPeriod period) {
+                calls.incrementAndGet();
+                return Map.of();
+            }
+        };
+    }
+
     /** 보충이 터지는 클라이언트 — 그래도 일일 예보는 나가야 한다. */
     public static OpenMeteoHourlyClient explodingHourly() {
         return new OpenMeteoHourlyClient(RestClient.builder(), "https://example.invalid") {

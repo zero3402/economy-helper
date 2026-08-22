@@ -71,6 +71,17 @@ public class OpenMeteoForecastClient implements WeatherClient {
         return !period.past(today);
     }
 
+    /**
+     * 시간별을 <b>일별과 한 응답으로</b> 받는다({@link #HOURLY_FIELDS}) — 보충을 부를 것이 없다.
+     *
+     * <p>⚠️ 마른 날이라 토막이 하나도 없어도 이 값은 {@code true}다 — <b>받았는데 없는 것</b>과
+     * <b>아직 안 받은 것</b>은 다르다.
+     */
+    @Override
+    public boolean providesPrecipitationHours() {
+        return true;
+    }
+
     @Override
     // ⚠️ 접두사가 출처를 가른다. 재분석과 한 캐시(weather)를 쓰는데 키 모양이 같아서,
     //    안 붙이면 자정 경계에서 섞인다 — 23:57에 '오늘 예보'로 담긴 항목이 00:00 이후에는

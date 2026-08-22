@@ -58,6 +58,18 @@ public class OpenMeteoArchiveClient implements WeatherClient {
         return period.past(today);
     }
 
+    /**
+     * 시간별 강수량을 <b>일별과 한 응답으로</b> 받는다({@link #HOURLY_FIELDS}).
+     *
+     * <p>지나간 날은 {@code WeatherService}가 어차피 보충을 안 부르지만(예보 엔드포인트에 과거를
+     * 물으면 빈손이다) <b>그 사실에 기대지 않고 여기서도 밝힌다</b> — 도달 불가에 기대면
+     * 그 가정이 깨지는 날 조용히 헛호출이 산다.
+     */
+    @Override
+    public boolean providesPrecipitationHours() {
+        return true;
+    }
+
     @Override
     // ⚠️ 예보와 한 캐시를 쓰므로 접두사로 가른다 — OpenMeteoForecastClient의 주석 참조
     @Cacheable(cacheNames = CacheNames.WEATHER,

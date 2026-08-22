@@ -88,7 +88,22 @@ public class WeatherService {
             log.error("[weather] 모든 출처에서 날씨를 가져오지 못했습니다");
             return found;
         }
-        return found.map(weather -> withPrecipitationHours(weather, place, period, today));
+        return found.map(weather -> withPrecipitationHours(weather, place, period, today,
+                carriesHours(eligible, weather.source())));
+    }
+
+    /**
+     * 그 출처가 시간별까지 함께 주는가 — <b>답한 클라이언트에게 묻는다.</b>
+     *
+     * <p>{@link Weather}는 출처 이름만 들고 오므로 능력은 클라이언트 쪽에 있다. 후보 목록에서
+     * 그 이름을 가진 것을 찾아 물어본다.
+     *
+     * @return 그 이름의 클라이언트가 없으면 {@code false} — 모르는 출처는 못 주는 것으로 본다
+     */
+    private static boolean carriesHours(List<WeatherClient> candidates, WeatherSource source) {
+        return candidates.stream()
+                .filter(client -> client.source() == source)
+                .anyMatch(WeatherClient::providesPrecipitationHours);
     }
 
     /**
@@ -105,23 +120,24 @@ public class WeatherService {
      * 과거를 물으면 빈손이다.
      *
      * <p>⚠️ <b>얹는 것은 시각만이 아니다 — 강수확률도 함께 갈린다</b>
-     * ({@link Weather.Daily#withPrecipitation}). 시각이 이쪽 것인데 확률은 저쪽 것이면
-     * <b>한 블록에 서로 다른 예보의 두 숫자</b>가 서고, 그래서 「강수확률 80%인데 시각 줄이
-     * 없다」가 성립했다. 그 자리가 이번에 고친 버그다.
+     * ({@link Weather.Daily#withPrecipitation}). 시각과 확률이 서로 다른 예보에서 오면
+     * 한 블록에 <b>두 예보의 숫자</b>가 서고, 확률이 높은데 시각 줄이 없는 화면이 성립한다.
      *
      * <p>그래서 <b>보충 출처를 화면까지 들고 간다</b>({@code Weather.precipitationSource}).
-     * 강수 줄이 통째로 이쪽 것이 되었으므로 출처 줄이 그 사실을 말해야 한다 —
-     * 「폴백으로 Open-Meteo가 답했는데 AccuWeather라고 적으면 거짓말이 된다」는
-     * {@link WeatherSource}의 문장이 강수 줄 하나에도 그대로 걸린다.
+     * 강수 줄이 통째로 이쪽 것이므로 출처 줄이 그 사실을 말해야 한다 — 「Open-Meteo가 답했는데
+     * AccuWeather라고 적으면 거짓말이 된다」는 {@link WeatherSource}의 규칙이 강수 줄에도 걸린다.
      *
-     * <p><b>세 갈래를 다 로그로 남긴다</b> — 실패·빈손·성공. 예전에는 빈손이 조용해서
-     * 「마른 기간이었다」와 「빈손으로 왔다」가 구분되지 않았고, 신고가 들어와도 짚을 단서가 없었다.
+     * <p><b>실패·빈손·성공을 각각 로그로 남긴다.</b> 셋이 화면에서는 같아 보이므로
+     * (셋 다 강수 시각 줄이 없다) 로그로 갈라야 어느 쪽인지 알 수 있다.
+     *
+     * @param sourceCarriesHours 일별을 맡은 출처가 시간별까지 함께 주는가
+     *                           ({@link WeatherClient#providesPrecipitationHours}).
+     *                           참이면 이미 손에 있으므로 묻지 않는다
      */
     private Weather withPrecipitationHours(Weather weather, GeoLocation place,
-                                           WeatherPeriod period, LocalDate today) {
-        boolean alreadyHas = weather.days().stream()
-                .anyMatch(day -> !day.precipitation().isEmpty());
-        if (alreadyHas || period.past(today)) {
+                                           WeatherPeriod period, LocalDate today,
+                                           boolean sourceCarriesHours) {
+        if (sourceCarriesHours || period.past(today)) {
             return weather;
         }
         Map<LocalDate, List<PrecipitationSpell>> spells;
@@ -133,9 +149,6 @@ public class WeatherService {
             return weather;
         }
         if (spells.isEmpty()) {
-            // ⚠️ 이 줄이 없던 동안 「마른 기간이었다」와 「빈손으로 왔다」가 구분되지 않았다 —
-            //    화면도 로그도 아무 말을 안 하니 "고쳤는데 여전히 안 나온다"의 단서가 없었다.
-            //    성공도 아래에서 남긴다. 세 갈래가 다 보여야 다음 신고를 로그 한 줄로 가른다
             log.info("[weather] {} {}~{} 시간별에 강수 토막이 없습니다 — 마른 기간이거나 문턱 아래입니다",
                     place.name(), period.from(), period.to());
             return weather;
