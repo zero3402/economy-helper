@@ -55,8 +55,12 @@ public class OpenMeteoHourlyClient {
      */
     @Cacheable(cacheNames = CacheNames.PRECIPITATION_HOURS,
             key = "#a0.latitude() + ',' + #a0.longitude() + ',' + #a1.from() + ',' + #a1.to()")
-    @Retry(name = "weatherOpenMeteo")
-    @CircuitBreaker(name = "weatherOpenMeteo")
+    // ⚠️ 브레이커·재시도 이름을 예보와 나눈다 — fmpOutlook을 시세와 가른 것과 같은 자리다.
+    //    보충은 AccuWeather가 답할 때마다 불리고 알람은 지역 넷을 겹쳐 물으므로 창을 이쪽이
+    //    거의 다 채운다. 한 이름이면 그 실패가 쌓여 열리는 순간 **2순위 폴백까지 함께 막히고**,
+    //    그때 AccuWeather가 한도를 넘긴 날은 날씨가 통째로 빈손이 된다
+    @Retry(name = "weatherOpenMeteoHourly")
+    @CircuitBreaker(name = "weatherOpenMeteoHourly")
     public Map<LocalDate, List<HalfDay>> halves(GeoLocation place, WeatherPeriod period) {
         return OpenMeteoRequest.hourly(restClient, "/v1/forecast", HOURLY_FIELDS, place, period);
     }

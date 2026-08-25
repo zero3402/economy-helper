@@ -153,7 +153,12 @@ public class WeatherService {
             return weather;
         }
         if (halves.isEmpty()) {
-            log.info("[weather] {} {}~{} 시간별에 강수 토막이 없습니다 — 마른 기간이거나 문턱 아래입니다",
+            // ⚠️ 「마른 기간이라서」가 **아니다.** HalfDay.dry가 생긴 뒤로 HalfDays.byDay는
+            //    시각이 하나라도 있는 날마다 반나절 둘을 담는다 — 마른 반나절도 제 하늘과
+            //    봉우리 확률을 들고 온다. 그래서 여기가 비었다는 것은 **응답에 시간별 시각이
+            //    아예 없었다**는 뜻이고, 미래 기간에서는 정상이 아니다.
+            //    「오전·오후 줄이 안 나온다」를 쫓을 때 처음 보는 줄이라 성격을 정확히 적는다
+            log.warn("[weather] {} {}~{} 시간별 응답에 시각이 없습니다 — 오전·오후 줄이 빠집니다",
                     place.name(), period.from(), period.to());
             return weather;
         }

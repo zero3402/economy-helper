@@ -92,7 +92,8 @@ class ResilienceConfigTest {
         //    이쪽은 **우리 잘못(4xx)까지 세 번 부르는** 쪽으로 망가진다 — 더 나쁘다
         assertThat(retries.getAllRetries().stream().map(io.github.resilience4j.retry.Retry::getName))
                 .as("yml의 retry.instances에 선언된 것만 eager로 만들어진다")
-                .contains("weatherGeocoding", "weatherOpenMeteo", "weatherOpenMeteoArchive",
+                .contains("weatherGeocoding", "weatherOpenMeteo", "weatherOpenMeteoHourly",
+                        "weatherOpenMeteoArchive",
                         "upbit", "binance", "fxFrankfurter", "telegram", "feed");
     }
 
@@ -299,8 +300,8 @@ class ResilienceConfigTest {
         // binance가 실제로 그 상태였고, 목록에 없어서 아무도 몰랐다
         for (String name : new String[] {"translation", "telegram", "fmp", "fmpOutlook",
                 "upbit", "binance", "kisFx", "kisStock",
-                "weatherAccuWeather", "weatherOpenMeteo", "weatherOpenMeteoArchive",
-                "weatherGeocoding"}) {
+                "weatherAccuWeather", "weatherOpenMeteo", "weatherOpenMeteoHourly",
+                "weatherOpenMeteoArchive", "weatherGeocoding"}) {
             CircuitBreaker breaker = registry.circuitBreaker(name);
             long before = breaker.getMetrics().getNumberOfFailedCalls();
 
@@ -351,6 +352,45 @@ class ResilienceConfigTest {
         assertThat(stock.getMetrics().getNumberOfFailedCalls())
                 .as("그 밖의 실패는 여전히 실패다 — 무효 토큰·5xx는 알려야 한다")
                 .isEqualTo(before + 1);
+    }
+
+    @Test
+    @DisplayName("강수 시각 보충은 2순위 폴백의 브레이커를 태우지 않는다 — 보충이 폴백을 죽이면 안 된다")
+    void theHourlySupplementDoesNotBurnTheFallbacksBreaker() throws Exception {
+        // ⚠️ 보충은 AccuWeather가 답할 때마다 불리고, 알람은 지역 넷을 겹쳐 물어 한 번에
+        //    넷이 나간다 — 창 열 칸을 이쪽이 거의 다 채운다. 한 이름이면 그 실패가 쌓여
+        //    열리는 순간 2순위 폴백(OpenMeteoForecastClient)까지 함께 막히고, 그때
+        //    AccuWeather가 하루 50회를 넘긴 날은 날씨가 통째로 빈손이 된다.
+        //    증상이 조용한 것이 이 자리의 특징이다 — 일별은 1순위 것이라 통이 멀쩡해 보이고
+        //    사라지는 것은 오전·오후 두 줄뿐이다. fmpOutlook을 시세와 가른 것과 같은 판단이다
+        // ⚠️ 레지스트리에 두 이름이 있는 것만 봐서는 아무것도 증명하지 못한다 — yml에 둘을
+        //    적어 두고 애너테이션이 옛 이름을 그대로 들고 있어도 초록이다. **애너테이션을 본다.**
+        java.lang.reflect.Method halves = io.saiden.economyhelper.market.weather.openmeteo
+                .OpenMeteoHourlyClient.class.getDeclaredMethod(
+                        "halves", io.saiden.economyhelper.market.weather.GeoLocation.class,
+                        io.saiden.economyhelper.market.weather.WeatherPeriod.class);
+
+        String breaker = halves.getAnnotation(io.github.resilience4j.circuitbreaker
+                .annotation.CircuitBreaker.class).name();
+        String retry = halves.getAnnotation(io.github.resilience4j.retry
+                .annotation.Retry.class).name();
+
+        assertThat(breaker)
+                .as("보충이 2순위 폴백과 같은 브레이커를 쓴다 — 열리면 폴백까지 함께 막힌다")
+                .isNotEqualTo("weatherOpenMeteo");
+        assertThat(retry)
+                .as("보충이 2순위 폴백과 같은 재시도 창을 쓴다")
+                .isNotEqualTo("weatherOpenMeteo");
+
+        // 그리고 그 이름이 실제로 선언돼 있어야 한다 — 없으면 브레이커가 기본값으로 만들어진다
+        assertThat(registry.circuitBreaker(breaker).getCircuitBreakerConfig()
+                .getSlidingWindowSize())
+                .as("%s 브레이커가 yml에 선언되지 않았다", breaker)
+                .isEqualTo(registry.circuitBreaker("weatherOpenMeteo")
+                        .getCircuitBreakerConfig().getSlidingWindowSize());
+        assertThat(retries.retry(retry).getRetryConfig().getMaxAttempts())
+                .as("%s 재시도가 yml에 선언되지 않았다", retry)
+                .isEqualTo(3);
     }
 
     @Test
