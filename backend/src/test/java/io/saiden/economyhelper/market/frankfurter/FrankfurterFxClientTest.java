@@ -113,4 +113,16 @@ class FrankfurterFxClientTest {
 
         assertThatThrownBy(() -> client.usdToKrw()).isInstanceOf(IllegalStateException.class);
     }
+
+    @Test
+    @DisplayName("일봉도 빈 rates를 실패로 다룬다 — 빈 목록이 캐시되면 환율 차트가 6시간 빠진다")
+    void dailyBarsFailWhenTheResponseCarriesNoRates() {
+        // ⚠️ 형제인 usdToKrw()는 isEmpty()까지 보는데 일봉은 null만 보고 있었다. 그러면 빈
+        //    목록이 fx-series 캐시에 6시간 굳어 그 사이 환율 차트가 통째로 빠진다(브리핑도 이
+        //    값을 쓴다). 창이 25일이라 영업일이 하나도 없을 수는 없으므로 이건 이상이다 —
+        //    던져야 브레이커가 보고, 예외는 캐시되지 않아 다음 조회가 스스로 낫는다
+        stub("{\"base\":\"USD\",\"rates\":{}}");
+
+        assertThatThrownBy(() -> client.dailyBars()).isInstanceOf(IllegalStateException.class);
+    }
 }

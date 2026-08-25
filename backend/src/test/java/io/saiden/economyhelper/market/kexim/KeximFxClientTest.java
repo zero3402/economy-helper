@@ -10,9 +10,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import io.github.resilience4j.ratelimiter.RateLimiterConfig;
+import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
+import io.github.resilience4j.ratelimiter.RequestNotPermitted;
 import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.FxSource;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -200,5 +204,31 @@ class KeximFxClientTest {
         stub("20260812", "[{\"result\":1,\"cur_unit\":\"JPY(100)\",\"deal_bas_r\":\"960.5\"}]");
 
         assertThatThrownBy(() -> client.usdToKrw()).hasMessageContaining("USD");
+    }
+
+    @Test
+    @DisplayName("리미터가 퍼밋을 안 주면 HTTP를 아예 안 보낸다 — 반환값을 버리면 스로틀이 장식이 된다")
+    void neverCallsWhenThePermitIsDenied() {
+        // ⚠️ resilience4j 2.4.0의 acquirePermission()은 **던지지 않고 boolean을 준다**
+        //    (javap 확인). 반환값을 버리고 있었으므로 리미터가 가장 필요한 포화 상황에 그대로
+        //    요청이 나갔다 — 이 클래스 javadoc이 「되짚기 루프가 폭주하는 것만 막는다」고 적어
+        //    둔 그 하나가 이 자리인데, 캐시가 빈 조회 한 번이 최대 14회 HTTP이고 하루 한도가
+        //    1,000회다. DataGoRequest에서 이미 고친 결함이 형제인 이쪽에 남아 있었다
+        RateLimiterRegistry oneShot = RateLimiterRegistry.of(RateLimiterConfig.custom()
+                .limitForPeriod(1)
+                .limitRefreshPeriod(Duration.ofHours(1))
+                .timeoutDuration(Duration.ZERO)
+                .build());
+        assertThat(oneShot.rateLimiter("kexim").acquirePermission())
+                .as("그 하나를 테스트가 가져간다").isTrue();
+        KeximFxClient throttled = new KeximFxClient(RestClient.builder(), server.baseUrl(),
+                "test-key", Clock.fixed(NOW, SEOUL), oneShot);
+
+        assertThatThrownBy(throttled::usdToKrw)
+                .as("우리 스로틀이 막은 것이므로 상대 장애가 아니라 RequestNotPermitted다")
+                .isInstanceOf(RequestNotPermitted.class);
+
+        server.verify(0, getRequestedFor(
+                urlPathEqualTo("/site/program/financial/exchangeJSON")));
     }
 }

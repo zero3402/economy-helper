@@ -136,7 +136,14 @@ public class FrankfurterFxClient implements FxRateClient {
                 .retrieve()
                 .body(TimeSeries.class);
 
-        if (response == null || response.rates() == null) {
+        // ⚠️ **빈 map도 빈손이다.** 형제인 usdToKrw()는 isEmpty()까지 보는데 여기는 null만
+        //    보고 있었다. 그러면 빈 목록이 fx-series 캐시에 **6시간** 굳어 그 사이 환율 차트가
+        //    통째로 빠진다(브리핑도 이 값을 쓴다). 창이 25일이라 영업일이 하나도 없을 수는
+        //    없으므로 이것은 「그만큼밖에 없다」가 아니라 **이상**이다 — 그래서 던진다.
+        //    던지면 브레이커가 그것을 보고, 부르는 쪽은 차트만 빼고 값을 내보낸다.
+        //    (업비트 일봉은 반대로 unless로 막는다 — 새로 상장된 코인은 실제로 칸이 없어서
+        //     빈 목록이 정상이고, 그쪽 javadoc이 그렇게 적어 두었다)
+        if (response == null || response.rates() == null || response.rates().isEmpty()) {
             throw new IllegalStateException("Frankfurter 시계열 응답이 비어 있습니다");
         }
         List<DailyBar> bars = new java.util.ArrayList<>();

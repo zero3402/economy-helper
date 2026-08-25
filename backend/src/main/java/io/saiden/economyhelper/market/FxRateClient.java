@@ -3,8 +3,9 @@ package io.saiden.economyhelper.market;
 /**
  * 환율 출처 하나.
  *
- * <p>구현이 <b>둘</b>이라 인터페이스를 둔다 — 이 프로젝트는 "구현체가 2개 이상인 곳에만
- * 인터페이스를 둔다"를 원칙으로 한다.
+ * <p>구현이 <b>셋</b>이라 인터페이스를 둔다({@code KisFxClient}·{@code FrankfurterFxClient}·
+ * {@code KeximFxClient}) — 이 프로젝트는 "구현체가 2개 이상인 곳에만 인터페이스를 둔다"를
+ * 원칙으로 한다. 한동안 「둘」이라 적혀 있었다: KIS가 1순위로 붙으면서 셋이 됐다.
  *
  * <p>환율 이중화가 이 인터페이스와
  * {@link FxService}의 체인으로 구현된다.

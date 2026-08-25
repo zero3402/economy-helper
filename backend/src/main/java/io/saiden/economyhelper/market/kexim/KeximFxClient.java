@@ -189,10 +189,18 @@ public class KeximFxClient implements FxRateClient {
      * 이 API는 authkey가 URL에 실려 있다 — 그대로 로그에 올라가면 키가 유출된다.
      */
     private Rate[] request(LocalDate date) {
-        if (limiter != null) {
-            // 거절은 RequestNotPermitted다 — fxKexim 브레이커가 baseConfig에서 그걸 무시하므로
-            // 우리 스로틀이 상대 장애로 세어지지 않는다
-            limiter.acquirePermission();
+        // ⚠️ **acquirePermission()은 던지지 않는다 — boolean을 준다.** resilience4j 2.4.0의
+        //    시그니처가 `boolean acquirePermission()`이라(javap로 확인) 타임아웃 안에 퍼밋을
+        //    못 얻으면 조용히 false다. 반환값을 버리고 있었으므로 **리미터가 가장 필요한
+        //    포화 상황에 그대로 HTTP가 나갔다** — 위 javadoc이 「되짚기 루프가 폭주하는 것만
+        //    막는다」고 적어 둔 그 하나가 바로 이 자리인데, 스로틀이 아니라 장식이었다.
+        //    캐시가 빈 조회 한 번이 최대 14회 HTTP인데 하루 한도가 1,000회다.
+        //    거절을 RequestNotPermitted로 올려야 fxKexim 브레이커가 그것을 (baseConfig의
+        //    ignoreExceptions로) 상대 장애가 아닌 우리 스로틀로 읽는다.
+        //    ⚠️ DataGoRequest에서 이미 고친 결함인데 **형제인 이쪽에 남아 있었다.**
+        if (limiter != null && !limiter.acquirePermission()) {
+            throw io.github.resilience4j.ratelimiter.RequestNotPermitted
+                    .createRequestNotPermitted(limiter);
         }
         try {
             return restClient.get()
