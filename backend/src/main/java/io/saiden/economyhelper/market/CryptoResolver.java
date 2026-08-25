@@ -94,8 +94,23 @@ public class CryptoResolver {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record ResolvedCoin(String symbol) {
 
+        /**
+         * ⚠️ <b>{@code "null"} 문자열을 걸러낸다.</b> LLM이 {@code null}을 리터럴 문자열로
+         * 주는 일이 <b>실제로 있어</b> {@code ResolvedStock.blank}와
+         * {@code ResolvedPlace.hasPlace}·{@code countryCode}가 이미 막고 있었는데,
+         * <b>셋 중 이것만 빠져 있었다.</b>
+         *
+         * <p>그대로 두면 {@code "NULL"}이 티커로 통과해 {@code KRW-NULL}을 두 거래소에 묻는다.
+         * 답은 어차피 「찾지 못했다」로 같지만(둘 다 미상장) 그 헛호출 하나가
+         * <b>바이낸스로 간다</b> — 한도가 IP 단위이고 Render는 공용 이그레스라
+         * 「우리가 할 수 있는 것은 밴을 늘리지 않는 것뿐」인 자리다. 확실히 쓰레기인 요청을
+         * 그쪽에 보낼 이유가 없다.
+         */
         public String upperSymbol() {
-            return symbol == null ? null : symbol.trim().toUpperCase(Locale.ROOT);
+            if (symbol == null || symbol.isBlank() || "null".equalsIgnoreCase(symbol.trim())) {
+                return null;
+            }
+            return symbol.trim().toUpperCase(Locale.ROOT);
         }
     }
 }

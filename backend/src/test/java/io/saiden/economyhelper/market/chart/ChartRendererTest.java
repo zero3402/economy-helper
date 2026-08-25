@@ -176,4 +176,43 @@ class ChartRendererTest {
         }
         return sum;
     }
+
+    @Test
+    @DisplayName("글자를 한 자도 그리지 않는다 — 배포 이미지에 폰트가 없어 위반이 두부로만 드러난다")
+    void drawsNoText() {
+        // ⚠️ 이 클래스가 스스로 「핵심 결정」이라 부르는 것인데 그물이 없었다. 어기면
+        //    개발 기계에서는 멀쩡하고(폰트가 있다) 골든도 못 본다(그림은 텍스트가 아니다) —
+        //    배포처(eclipse-temurin:21-jre)에서 □□□로만 드러난다. 즉 **테스트가 유일한 방어**다.
+        // 픽셀로는 잴 수 없으니(글자도 결국 선이다) 클래스 파일이 무엇을 참조하는지 본다.
+        byte[] bytecode = bytecodeOfRenderer();
+
+        assertThat(bytecode)
+                .as("클래스 파일을 못 읽었다 — 스캔이 깨지면 이 테스트는 아무것도 안 본다")
+                .hasSizeGreaterThan(1000);
+
+        String pool = new String(bytecode, java.nio.charset.StandardCharsets.ISO_8859_1);
+        for (String forbidden : new String[] {
+                "drawString", "drawChars", "drawBytes", "drawGlyphVector",
+                "java/awt/Font", "java/awt/font/", "TextLayout"}) {
+            assertThat(pool)
+                    .as("ChartRenderer가 %s를 참조한다 — 폰트 없는 런타임에서 두부가 된다. "
+                            + "낱말과 숫자는 caption에 둔다", forbidden)
+                    .doesNotContain(forbidden);
+        }
+
+        // 그리는 것은 참조하고 있어야 한다 — 위 단언이 「아무것도 안 그린다」로 통과하면 안 된다
+        assertThat(pool)
+                .as("기하를 그리는 참조가 사라졌다 — 위 단언이 빈 클래스에도 통과하게 된다")
+                .contains("drawLine");
+    }
+
+    /** 컴파일된 {@code ChartRenderer}의 바이트. 못 찾으면 빈 배열이고 위 단언이 잡는다. */
+    private static byte[] bytecodeOfRenderer() {
+        String resource = ChartRenderer.class.getName().replace('.', '/') + ".class";
+        try (var stream = ChartRenderer.class.getClassLoader().getResourceAsStream(resource)) {
+            return stream == null ? new byte[0] : stream.readAllBytes();
+        } catch (java.io.IOException e) {
+            return new byte[0];
+        }
+    }
 }

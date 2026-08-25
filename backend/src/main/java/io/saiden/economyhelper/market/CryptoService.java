@@ -220,7 +220,6 @@ public class CryptoService {
         }
     }
 
-    /** 마켓 코드를 이미 아는 경우 — 아침 브리핑처럼 설정에 박힌 코인들이 여기로 온다. */
     /**
      * 차트용 일봉 — <b>실패를 삼키지 않는다.</b>
      *
@@ -234,6 +233,7 @@ public class CryptoService {
         return upbitApi.dailyBars(market);
     }
 
+    /** 마켓 코드를 이미 아는 경우 — 아침 브리핑처럼 설정에 박힌 코인들이 여기로 온다. */
     public List<CryptoQuote> quotesOf(List<String> markets) {
         if (markets.isEmpty()) {
             return List.of();
