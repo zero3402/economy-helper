@@ -19,6 +19,18 @@ package io.saiden.economyhelper.market.weather;
  *
  * <p><b>모르는 값은 지어내지 않는다.</b> 새 코드가 생기거나 출처가 어휘를 늘리면
  * {@link #UNKNOWN}으로 떨어지고 화면에는 그 줄만 빠진다 — 아무 날씨나 골라 찍는 것보다 낫다.
+ *
+ * <p>⚠️ <b>선언 순서가 곧 심각도다</b> — {@code WeatherSource}에서 「선언 순서가 곧 이중화
+ * 순서」인 것과 같은 자리이고, 여기는 그것을 적지 않고 있었다. 두 곳이 {@code compareTo}로
+ * 이 순서를 읽는다: {@code Weather.Daily.skyAgreeingWith}가 요약을 반나절 쪽으로 <b>올릴</b> 때
+ * {@code max}를 쓰고, {@code HalfDays.skyOf}가 같은 횟수일 때 뒤쪽을 고른다.
+ *
+ * <p><b>지켜야 하는 것은 하나다 — 강수({@link #precipitating})는 전부 비강수 뒤에 온다.</b>
+ * 안 지키면 조용히 뒤집힌다: 비강수 어휘 하나를 맨 끝에 더하면 반나절이 「비」라고 말하는 날
+ * {@code max}가 그것을 집어 요약이 <b>「맑음인데 종일 비」</b>가 된다 — {@code skyAgreeingWith}가
+ * 막으려고 있는 바로 그 모순이다. {@link #precipitating}은 {@code default}가 없어 새 값이
+ * 컴파일을 멈추지만, <b>순서는 어디에 넣어도 컴파일이 된다.</b>
+ * 그래서 {@code SkyConditionTest.precipitatingSortsAboveDry}가 그 그물이다.
  */
 public enum SkyCondition {
 

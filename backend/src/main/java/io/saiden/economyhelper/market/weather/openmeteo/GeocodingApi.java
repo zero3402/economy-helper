@@ -144,9 +144,29 @@ public class GeocodingApi {
      * 파생된 표기가 캐시에 굳는다 — 담는 것은 상대가 준 것만, 만드는 것은 읽을 때다.
      */
     private static GeoLocation toLocation(Place place) {
-        ZoneId zone = place.timezone() == null ? ZoneId.of("UTC") : ZoneId.of(place.timezone());
         return new GeoLocation(place.name(), place.country(),
-                place.latitude(), place.longitude(), zone);
+                place.latitude(), place.longitude(), zoneOf(place.timezone()));
+    }
+
+    /**
+     * ⚠️ <b>「못 읽으면」에는 「모르는 이름」도 든다.</b> 위 규칙을 적어 두고도 {@code null}만
+     * 막고 있었다 — {@code ZoneId.of}는 형식이 맞아도 <b>JDK의 tzdb에 없는 이름이면 던진다</b>
+     * ({@code ZoneRulesException}). 그러면 그 도시의 {@code /weather}가 통째로 실패하고
+     * (호출자는 「조회 실패」로 답한다) 멀쩡한 지오코딩 브레이커에 실패가 쌓인다.
+     *
+     * <p>드물지만 실재하는 길이다 — 새 시간대가 생기면 출처가 먼저 알고 JDK가 나중에 따라온다
+     * ({@code America/Ciudad_Juarez}가 그런 예다). 지점을 못 쓰게 만들 만한 일이 아니다.
+     */
+    private static ZoneId zoneOf(String timezone) {
+        if (timezone == null || timezone.isBlank()) {
+            return ZoneId.of("UTC");
+        }
+        try {
+            return ZoneId.of(timezone);
+        } catch (java.time.DateTimeException e) {
+            log.warn("[weather] 모르는 시간대 '{}' — UTC로 둡니다", timezone);
+            return ZoneId.of("UTC");
+        }
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

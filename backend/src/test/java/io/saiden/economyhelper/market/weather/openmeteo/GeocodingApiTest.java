@@ -74,6 +74,25 @@ class GeocodingApiTest {
     }
 
     @Test
+    @DisplayName("모르는 시간대는 UTC로 둔다 — 시간대 하나 때문에 그 도시의 /weather가 통째로 죽지 않는다")
+    void unknownTimezoneFallsBackToUtc() {
+        // ⚠️ ZoneId.of는 형식이 맞아도 JDK의 tzdb에 없는 이름이면 던진다. 「못 읽으면 UTC로
+        //    둔다」를 적어 두고 null만 막고 있었는데, 새 시간대가 생기면 출처가 먼저 알고
+        //    JDK가 나중에 따라오므로 실재하는 길이다. 던지면 그 도시의 조회가 통째로 실패하고
+        //    멀쩡한 지오코딩 브레이커에 실패가 쌓인다
+        stub("""
+                {"results":[{"name":"어딘가","latitude":31.7,"longitude":-106.4,
+                 "country":"멕시코","timezone":"Mars/Olympus_Mons","population":1500000}]}""");
+
+        var place = api.find("어딘가", null);
+
+        assertThat(place).isPresent();
+        assertThat(place.get().zone())
+                .as("모르는 시간대에 KST를 채우면 남의 하루를 우리 달력으로 자르게 된다")
+                .isEqualTo(java.time.ZoneId.of("UTC"));
+    }
+
+    @Test
     @DisplayName("한 건만 받으면 안 된다 — 후보를 넉넉히 물어야 큰 도시가 딸려 온다")
     void asksForEnoughCandidates() {
         stub("""

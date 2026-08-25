@@ -2,6 +2,7 @@ package io.saiden.economyhelper.market.weather;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Arrays;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -76,5 +77,45 @@ class SkyConditionTest {
         }
         assertThat(SkyCondition.CLOUDY.label()).isEqualTo("흐림");
         assertThat(SkyCondition.CLEAR.label()).isEqualTo("맑음");
+    }
+
+    @Test
+    @DisplayName("강수는 전부 비강수 뒤에 온다 — 아니면 「맑음인데 종일 비」가 조용히 성립한다")
+    void precipitatingSortsAboveDry() {
+        SkyCondition lastDry = Arrays.stream(SkyCondition.values())
+                .filter(sky -> !sky.precipitating())
+                // UNKNOWN은 「모른다」라 후보에서 빠지므로(skyAgreeingWith가 known()으로 걸러낸다)
+                // 순서 규칙의 대상이 아니다 — 맨 뒤에 있어도 무해하다
+                .filter(SkyCondition::known)
+                .max(SkyCondition::compareTo)
+                .orElseThrow();
+        SkyCondition firstWet = Arrays.stream(SkyCondition.values())
+                .filter(SkyCondition::precipitating)
+                .min(SkyCondition::compareTo)
+                .orElseThrow();
+
+        assertThat(firstWet)
+                .as("강수 %s가 비강수 %s보다 앞에 선언돼 있다 — 반나절이 「비」라고 말하는 날 "
+                        + "skyAgreeingWith의 max가 비강수를 집어 요약이 제 말을 뒤집는다",
+                        firstWet, lastDry)
+                .isGreaterThan(lastDry);
+    }
+
+    @Test
+    @DisplayName("그 순서가 실제로 요약을 올린다 — 규칙만 지켜도 쓰이지 않으면 뜻이 없다")
+    void theOrderActuallyRaisesTheSummary() {
+        // 「맑음」인데 반나절이 비다 — 어긋나므로 반나절 쪽으로 올라가야 한다
+        Weather.Daily clearDay = Weather.Daily.withChance(
+                java.time.LocalDate.of(2026, 8, 25), SkyCondition.CLEAR,
+                new java.math.BigDecimal("20"), new java.math.BigDecimal("30"), 10);
+
+        Weather.Daily agreed = clearDay.withHalves(java.util.List.of(
+                HalfDay.dry(HalfDay.Half.MORNING, SkyCondition.CLOUDY, 20),
+                HalfDay.withChance(java.time.LocalTime.of(13, 0), java.time.LocalTime.of(19, 0),
+                        SkyCondition.RAIN, 80)));
+
+        assertThat(agreed.sky())
+                .as("반나절이 비라고 말하는데 요약이 맑음으로 남았다")
+                .isEqualTo(SkyCondition.RAIN);
     }
 }
