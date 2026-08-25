@@ -8,8 +8,6 @@ import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
 import java.net.URI;
 import java.time.Clock;
 import java.time.LocalDate;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,15 +46,7 @@ public class StockPriceApi {
 
     private static final Logger log = LoggerFactory.getLogger(StockPriceApi.class);
 
-    private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
-    private static final DateTimeFormatter BAS_DT = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final String PATH = "/1160100/service/GetStockSecuritiesInfoService/getStockPriceInfo";
-
-    /** 연휴가 길어도 이 안에서 잡힌다. 한 번에 하루씩 호출을 태우므로 상한을 둔다. */
-    private static final int MAX_LOOKBACK_DAYS = 10;
-
-    /** 한 번에 받아올 최대 건수. {@code 삼성}이 26건이었으니 100이면 넉넉하다. */
-    private static final int PAGE_SIZE = 100;
 
     private final RestClient restClient;
     private final String baseUrl;
@@ -74,7 +64,7 @@ public class StockPriceApi {
         this.baseUrl = baseUrl;
         this.serviceKey = serviceKey;
         this.clock = clock;
-        this.limiter = limiters == null ? null : limiters.rateLimiter("dataGo");
+        this.limiter = DataGoRequest.limiterOf(limiters);
     }
 
     /** 종목명 부분검색. {@code 하이닉스} → SK하이닉스가 걸린다. */
@@ -91,52 +81,17 @@ public class StockPriceApi {
         return searchRecent("likeSrtnCd", code);
     }
 
-    /**
-     * 가장 최근 영업일의 결과를 찾는다.
-     *
-     * <p>오늘은 항상 0건이므로 어제부터 시작한다. 주말·공휴일이면 계속 0건이라 하루씩 물린다.
-     */
+    /** 가장 최근 영업일의 결과 — 되짚기와 URI 조립은 {@link DataGoRequest}가 맡는다. */
     private List<StockPrice> searchRecent(String filterParam, String filterValue) {
-        LocalDate today = LocalDate.ofInstant(clock.instant(), SEOUL);
-
-        for (int back = 1; back <= MAX_LOOKBACK_DAYS; back++) {
-            LocalDate date = today.minusDays(back);
-            List<StockPrice> found = request(date, filterParam, filterValue);
-            if (!found.isEmpty()) {
-                return found;
-            }
-        }
-        log.info("[stock] 최근 {}일 안에 '{}' 시세가 없습니다", MAX_LOOKBACK_DAYS, filterValue);
-        return List.of();
+        return DataGoRequest.lookBack(clock, "stock", filterValue + " 시세",
+                date -> request(date, filterParam, filterValue),
+                found -> !found.isEmpty(), List.of());
     }
 
     private List<StockPrice> request(LocalDate date, String filterParam, String filterValue) {
-        if (limiter != null) {
-            // 거절은 RequestNotPermitted다 — dataGo 브레이커가 baseConfig에서 그걸
-            // 무시하므로 우리 스로틀이 상대 장애로 세어지지 않는다
-            limiter.acquirePermission();
-        }
-        // 서비스키는 이미 인코딩된 형태다 — 여기서 다시 인코딩하면 403이 난다.
-        // 나머지 값만 우리가 인코딩해 붙인다.
-        String uri = baseUrl + PATH
-                + "?serviceKey=" + serviceKey
-                + "&resultType=json"
-                + "&numOfRows=" + PAGE_SIZE
-                + "&pageNo=1"
-                + "&basDt=" + date.format(BAS_DT)
-                + "&" + filterParam + "=" + encode(filterValue);
-        try {
-            Response response = restClient.get().uri(URI.create(uri)).retrieve().body(Response.class);
-            return extract(response);
-        } catch (RuntimeException e) {
-            // 원래 예외 메시지에는 serviceKey가 박힌 URL이 들어간다 — 그대로 흘리면 키가 유출된다
-            log.warn("[stock] {} 조회 실패: {}", date.format(BAS_DT), e.getClass().getSimpleName());
-            throw new IllegalStateException("주식시세 조회 실패 (basDt=" + date.format(BAS_DT) + ")");
-        }
-    }
-
-    private static String encode(String value) {
-        return java.net.URLEncoder.encode(value, java.nio.charset.StandardCharsets.UTF_8);
+        return extract(DataGoRequest.fetch(restClient, limiter,
+                DataGoRequest.uri(baseUrl, PATH, serviceKey, date, filterParam, filterValue),
+                Response.class, date, "stock"));
     }
 
     /** 결과가 1건이면 {@code item}이 배열이 아니라 객체로 오는 API가 흔한데, 여기는 배열로 온다. */

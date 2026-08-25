@@ -132,6 +132,12 @@ public class DailyDigestJob extends TriggerableJob {
         // 스스로 조회하면 환율 통에 찍힌 값과 미국 종목의 원화 환산이 서로 다를 수 있다.
         FxRate fx = fxService.orNull();
 
+        // 통 하나 안에서 글과 차트가 나눠 쓰는 값들. 캐시를 새로 만들지 않는다 —
+        // 브리핑 한 번보다 오래 살 값이 아니고, 통마다 제 것을 들고 있으면 그만이다
+        Once<List<StockService.Answer>> domestic = Once.of(() -> stockService.answersOf(stockCodes));
+        Once<List<StockService.Answer>> american = Once.of(() -> stockService.usAnswersOf(usSymbols));
+        Once<List<CryptoQuote>> coins = Once.of(() -> cryptoService.quotesOf(cryptoMarkets));
+
         // 네 통의 수집을 겹친다. 서로 무관한 외부 호출인데 줄줄이 기다렸고, 그중 뉴스 하나가
         // (피드 5 + Gemini 10) 대부분을 차지했다.
         List<Section> sections = Concurrently.map(List.of(
@@ -139,8 +145,15 @@ public class DailyDigestJob extends TriggerableJob {
                         false, () -> chartOf("환율", "KRW", fxService::dailyBars)),
                 // 증시 통은 실리는 것마다 차트가 한 장씩 붙는다(지수 넷 · 국내 종목 · 미국 종목).
                 // 못 그린 것만 빠지고 통은 그대로 나간다 — 보충이지 폴백이 아니다
-                section("증시", () -> stockMessage(fx), false, this::stockCharts),
-                section("코인", () -> cryptoMessage(fx), false, this::cryptoCharts),
+                // ⚠️ 조회를 **한 번만** 한다. 예전에는 글이 answersOf/usAnswersOf를 부르고
+                //    차트가 같은 둘을 그대로 다시 불렀다 — 시세 캐시가 1분인데 증시 통 하나가
+                //    KIS를 시세 9회 + 일봉 8회 쓰고 호출 사이 1초를 지키므로, 캐시가 그 사이에
+                //    식으면 두 번째 조회가 호출을 통째로 다시 태운다. 게다가 그때는 글에 찍힌
+                //    값과 차트 캡션이 **서로 다른 조회**에서 온 것이 된다
+                section("증시", () -> stockMessage(fx, domestic.get(), american.get()), false,
+                        () -> stockCharts(domestic.get(), american.get())),
+                section("코인", () -> cryptoMessage(fx, coins.get()), false,
+                        () -> cryptoCharts(coins.get())),
                 // 뉴스 통만 미리보기를 켠다 — 링크가 있는 통이 여기뿐이다.
                 // 기사마다 통을 쪼개므로 통마다 그 기사의 카드가 붙는다
                 section("뉴스", this::newsMessages, true)), Supplier::get);
@@ -159,6 +172,46 @@ public class DailyDigestJob extends TriggerableJob {
 
         log.info("[digest] {} 슬롯 발송 완료 — 성공 {} / 실패 {}", claim.id(), delivered, failed);
         return DigestResult.completed(claim.id(), delivered, failed);
+    }
+
+    /**
+     * <b>한 번만 계산하고 그 값을 다시 준다</b> — 통 하나의 글과 차트가 같은 조회를 나눠 쓴다.
+     *
+     * <p><b>캐시가 아니다.</b> 브리핑 한 번보다 오래 살지 않고, 키도 만료도 없다. 캐시로
+     * 만들려면 이름과 타입과 수명을 정해야 하는데(이 저장소는 「캐시 이름 하나에 타입 하나」다)
+     * 여기서 필요한 것은 <b>한 통 안에서 두 번 묻지 않는 것</b>뿐이다.
+     *
+     * <p><b>동기화하지 않는다.</b> {@code section(...)}이 글을 먼저 모으고 그 다음 차트를
+     * 부르므로 둘이 <b>같은 스레드</b>에서 차례로 돈다. 통끼리는 겹쳐 돌지만 통마다 제 것을
+     * 들고 있어 공유되지 않는다.
+     *
+     * <p><b>실패는 기억하지 않는다.</b> 기억할 필요가 없어서다 — {@code message}가 던지면
+     * {@code section}이 거기서 통을 접고 차트를 아예 안 부른다. 그래서 {@code get()}이 두 번째로
+     * 불리는 경우는 <b>첫 번째가 성공했을 때뿐</b>이다.
+     */
+    private static final class Once<T> implements Supplier<T> {
+
+        private final Supplier<T> work;
+        private boolean computed;
+        private T value;
+
+        private Once(Supplier<T> work) {
+            this.work = work;
+        }
+
+        static <T> Once<T> of(Supplier<T> work) {
+            return new Once<>(work);
+        }
+
+        /** {@code null}을 sentinel로 쓰지 않는다 — 값이 {@code null}이면 매번 다시 계산된다. */
+        @Override
+        public T get() {
+            if (!computed) {
+                value = work.get();
+                computed = true;
+            }
+            return value;
+        }
     }
 
     /**
@@ -243,14 +296,16 @@ public class DailyDigestJob extends TriggerableJob {
      * (설정 그대로면 지수 넷 + 국내 종목 + 미국 종목 둘). 발송 창이 두 시간이라 문제가 되지
      * 않고, 12시간 캐시가 그것을 하루 한 번으로 눌러 준다.
      */
-    private List<ChartImage> stockCharts() {
+    private List<ChartImage> stockCharts(List<StockService.Answer> domestic,
+                                        List<StockService.Answer> american) {
         List<ChartImage> charts = new ArrayList<>();
         for (Index index : indexNames) {
             charts.addAll(chartOf(index.name(), null,
                     StockService.Series.domesticIndex(index.name())));
         }
-        charts.addAll(chartsOf(stockService.answersOf(stockCodes)));
-        charts.addAll(chartsOf(stockService.usAnswersOf(usSymbols)));
+        // 글이 쓴 그 답을 그대로 받는다 — 다시 조회하면 캡션이 다른 조회의 값을 말할 수 있다
+        charts.addAll(chartsOf(domestic));
+        charts.addAll(chartsOf(american));
         return charts;
     }
 
@@ -276,9 +331,9 @@ public class DailyDigestJob extends TriggerableJob {
     }
 
     /** 브리핑 코인 통의 차트 — 코인마다 한 장. 업비트는 키가 없고 한 호출로 열나흘을 준다. */
-    private List<ChartImage> cryptoCharts() {
+    private List<ChartImage> cryptoCharts(List<CryptoQuote> quotes) {
         List<ChartImage> charts = new ArrayList<>();
-        for (CryptoQuote quote : cryptoService.quotesOf(cryptoMarkets)) {
+        for (CryptoQuote quote : quotes) {
             if (quote.market() == null) {
                 continue;
             }
@@ -374,13 +429,14 @@ public class DailyDigestJob extends TriggerableJob {
      *
      * @param fx 미국 종목의 원화 환산에 쓸 환율. {@code null}이면 달러로만 나간다
      */
-    private List<String> stockMessage(FxRate fx) {
+    private List<String> stockMessage(FxRate fx, List<StockService.Answer> domestic,
+                                      List<StockService.Answer> american) {
         List<StockQuote> quotes = new ArrayList<>(stockService.indicesOf(indexNames));
         // 종목에만 전망이 붙는다 — 지수에는 목표주가를 낼 주체가 없어 StockService가 걸러낸다.
         // 국내와 미국을 한 지도에 담는다: 화면은 무리로 가르지만 전망은 종목마다 붙는다
         Map<StockQuote, StockOutlook> outlooks = new java.util.HashMap<>();
-        collect(stockService.answersOf(stockCodes), quotes, outlooks);
-        collect(stockService.usAnswersOf(usSymbols), quotes, outlooks);
+        collect(domestic, quotes, outlooks);
+        collect(american, quotes, outlooks);
         return quotes.isEmpty() ? List.of() : List.of(StockFormatter.format(quotes, fx, outlooks));
     }
 
@@ -399,8 +455,7 @@ public class DailyDigestJob extends TriggerableJob {
      * @param fx 바이낸스 값의 원화 환산과 김프에 쓴다. {@code null}이면 둘 다 빠지고
      *           USDT/USD 값만 나간다 — 환산을 못 한다고 시세를 빼는 것은 과하다
      */
-    private List<String> cryptoMessage(FxRate fx) {
-        List<CryptoQuote> quotes = cryptoService.quotesOf(cryptoMarkets);
+    private List<String> cryptoMessage(FxRate fx, List<CryptoQuote> quotes) {
         return quotes.isEmpty() ? List.of() : List.of(CryptoFormatter.format(quotes, fx));
     }
 

@@ -50,6 +50,33 @@ public final class Failover {
     }
 
     /**
+     * <b>어느 목록도 데려가지 않은 클라이언트</b> — 등록해 놓고 순서에 안 적은 것들이다.
+     *
+     * <p>{@link #order}가 목록에 없는 것을 떨어뜨리는 것은 <b>의도한 동작</b>이다(위 참고).
+     * 문제는 그 떨어짐이 <b>소리가 없다는 것</b>이다: 새 출처를 {@code @Component}로 등록하고
+     * 순서에 적는 것을 잊으면 컴파일도 테스트도 통과한 채 <b>영영 안 불린다.</b> 증상이
+     * "이중화가 있는 줄 알았는데 없다"라서 장애가 나기 전에는 아무도 모른다.
+     *
+     * <p><b>목록을 여러 개 받는 이유가 여기 있다.</b> 한 목록만 보면 거짓 경보가 난다 —
+     * {@code StockService}는 국내와 미국 순서를 따로 들고 FMP를 <b>국내에서만</b> 일부러
+     * 뺀다(무료 티어가 한국 종목을 못 준다). 그래서 "어느 목록에도 없는 것"만 문제다.
+     *
+     * <p>여기서 로그를 남기지 않는 것은 {@link #order}와 같은 이유다 — 태그와 문장은
+     * 도메인마다 다르고, 그걸 통일했다가 {@code [stock]}이 {@code /crypto} 실패에 붙은
+     * 사고가 있었다. <b>사실만 돌려주고 말은 호출부가 한다.</b>
+     *
+     * @return 어느 {@code wanted}에도 출처가 없는 클라이언트들. 전부 제자리면 빈 목록
+     */
+    @SafeVarargs
+    public static <C, S> List<C> unordered(List<C> clients, Function<C, S> sourceOf,
+                                           List<S>... wanted) {
+        List<S> covered = java.util.Arrays.stream(wanted).flatMap(List::stream).toList();
+        return clients.stream()
+                .filter(client -> !covered.contains(sourceOf.apply(client)))
+                .toList();
+    }
+
+    /**
      * <b>순서대로 시도하고 처음 성공한 것을 쓴다.</b>
      *
      * <p>성공하면 즉시 돌아가므로 <b>1순위가 살아 있는 한 2순위는 호출조차 되지 않는다.</b>

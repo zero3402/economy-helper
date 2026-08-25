@@ -56,6 +56,12 @@ public class FxService {
      */
     public FxService(List<FxRateClient> clients, FrankfurterFxClient series) {
         this.clients = Failover.order(clients, ORDER, FxRateClient::source);
+        // 등록해 놓고 ORDER에 안 적으면 그 출처는 영영 안 불린다 — 컴파일도 테스트도
+        // 통과하므로 장애가 나기 전에는 아무도 모른다. 기동을 막지는 않는다:
+        // 설정 실수로 서비스가 안 뜨는 것보다 뜨고 나서 로그가 잡는 편이 낫다
+        Failover.unordered(clients, FxRateClient::source, ORDER).forEach(dropped ->
+                log.error("[fx] {} 클라이언트가 ORDER에 없어 영영 안 불립니다 — 이중화에서 빠졌습니다",
+                        dropped.source()));
         this.series = series;
     }
 

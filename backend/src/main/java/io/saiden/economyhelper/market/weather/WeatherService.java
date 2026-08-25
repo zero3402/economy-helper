@@ -59,6 +59,10 @@ public class WeatherService {
                           OpenMeteoHourlyClient hourly) {
         // 주입 순서를 믿지 않는다 — 위에 적은 순서가 곧 이 서비스의 계약이다
         this.clients = Failover.order(clients, ORDER, WeatherClient::source);
+        // FxService와 같은 그물이다 — ORDER에 없는 출처는 조용히 사라진다
+        Failover.unordered(clients, WeatherClient::source, ORDER).forEach(dropped ->
+                log.error("[weather] {} 클라이언트가 ORDER에 없어 영영 안 불립니다 — 이중화에서 빠졌습니다",
+                        dropped.source()));
         this.clock = clock;
         this.hourly = hourly;
     }

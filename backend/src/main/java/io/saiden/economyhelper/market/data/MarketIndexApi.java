@@ -5,11 +5,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.ratelimiter.RateLimiter;
 import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
-import java.net.URI;
 import java.time.Clock;
 import java.time.LocalDate;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,14 +39,7 @@ public class MarketIndexApi {
 
     private static final Logger log = LoggerFactory.getLogger(MarketIndexApi.class);
 
-    private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
-    private static final DateTimeFormatter BAS_DT = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final String PATH = "/1160100/service/GetMarketIndexInfoService/getStockMarketIndex";
-
-    private static final int MAX_LOOKBACK_DAYS = 10;
-
-    /** {@code 코스피}가 32건을 물어 온다. 넉넉히 받아 완전일치를 놓치지 않는다. */
-    private static final int PAGE_SIZE = 100;
 
     private final RestClient restClient;
     private final String baseUrl;
@@ -67,7 +57,7 @@ public class MarketIndexApi {
         this.baseUrl = baseUrl;
         this.serviceKey = serviceKey;
         this.clock = clock;
-        this.limiter = limiters == null ? null : limiters.rateLimiter("dataGo");
+        this.limiter = DataGoRequest.limiterOf(limiters);
     }
 
     /**
@@ -82,21 +72,17 @@ public class MarketIndexApi {
     @Cacheable(cacheNames = CacheNames.MARKET_INDEX, key = "#name", unless = "#result == null")
     @CircuitBreaker(name = "dataGo")
     public MarketIndex searchByName(String name) {
-        LocalDate today = LocalDate.ofInstant(clock.instant(), SEOUL);
-
-        for (int back = 1; back <= MAX_LOOKBACK_DAYS; back++) {
-            List<MarketIndex> found = request(today.minusDays(back), name);
-            // ⚠️ 응답이 비지 않았다고 답이 있는 것은 아니다. pick()은 이름이 전부 비어 온
-            //    날에 null을 준다(그 가드가 그 아래 주석에 적혀 있다). 예전에는 그 null을
-            //    그대로 return해 **남은 되짚기 날들을 버렸다** — 하루치 응답이 망가진 것과
-            //    "그런 지수가 없다"가 화면에서 구분되지 않았다. 골라내지 못하면 어제로 넘어간다
-            MarketIndex picked = found.isEmpty() ? null : pick(found, name);
-            if (picked != null) {
-                return picked;
-            }
-        }
-        log.info("[index] 최근 {}일 안에 '{}' 지수가 없습니다", MAX_LOOKBACK_DAYS, name);
-        return null;
+        // ⚠️ 응답이 비지 않았다고 답이 있는 것은 아니다. pick()은 이름이 전부 비어 온 날에
+        //    null을 준다(그 가드가 그 아래 주석에 적혀 있다). 예전에는 그 null을 그대로
+        //    return해 **남은 되짚기 날들을 버렸다** — 하루치 응답이 망가진 것과 "그런 지수가
+        //    없다"가 화면에서 구분되지 않았다. 그래서 usable을 따로 준다: 골라내지 못하면
+        //    DataGoRequest.lookBack이 어제로 넘어간다
+        return DataGoRequest.lookBack(clock, "index", name + " 지수",
+                date -> {
+                    List<MarketIndex> found = request(date, name);
+                    return found.isEmpty() ? null : pick(found, name);
+                },
+                java.util.Objects::nonNull, null);
     }
 
     /** 완전일치 우선, 없으면 가장 짧은 이름. 정규화는 공백만 지우면 충분하다. */
@@ -121,30 +107,14 @@ public class MarketIndexApi {
     }
 
     private List<MarketIndex> request(LocalDate date, String name) {
-        if (limiter != null) {
-            // 거절은 RequestNotPermitted다 — dataGo 브레이커가 baseConfig에서 그걸
-            // 무시하므로 우리 스로틀이 상대 장애로 세어지지 않는다
-            limiter.acquirePermission();
+        Response response = DataGoRequest.fetch(restClient, limiter,
+                DataGoRequest.uri(baseUrl, PATH, serviceKey, date, "likeIdxNm", name),
+                Response.class, date, "index");
+        if (response == null || response.response() == null || response.response().body() == null) {
+            return List.of();
         }
-        // 서비스키는 이미 인코딩된 형태다 — 다시 인코딩하면 403이 난다 (StockPriceApi와 같다)
-        String uri = baseUrl + PATH
-                + "?serviceKey=" + serviceKey
-                + "&resultType=json"
-                + "&numOfRows=" + PAGE_SIZE
-                + "&pageNo=1"
-                + "&basDt=" + date.format(BAS_DT)
-                + "&likeIdxNm=" + java.net.URLEncoder.encode(name, java.nio.charset.StandardCharsets.UTF_8);
-        try {
-            Response response = restClient.get().uri(URI.create(uri)).retrieve().body(Response.class);
-            if (response == null || response.response() == null || response.response().body() == null) {
-                return List.of();
-            }
-            Body body = response.response().body();
-            return body.items() == null || body.items().item() == null ? List.of() : body.items().item();
-        } catch (RuntimeException e) {
-            log.warn("[index] {} 조회 실패: {}", date.format(BAS_DT), e.getClass().getSimpleName());
-            throw new IllegalStateException("지수 조회 실패 (basDt=" + date.format(BAS_DT) + ")");
-        }
+        Body body = response.response().body();
+        return body.items() == null || body.items().item() == null ? List.of() : body.items().item();
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

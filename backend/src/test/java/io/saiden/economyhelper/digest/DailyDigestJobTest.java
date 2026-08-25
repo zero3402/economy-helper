@@ -305,6 +305,52 @@ class DailyDigestJobTest {
         };
     }
 
+    /** {@code answersOf}가 몇 번 불렸는지 센다 — 글과 차트가 조회를 나눠 쓰는지 보는 자리. */
+    private static final class CountingStock extends StockService {
+        private int answerCalls;
+
+        private CountingStock() {
+            super(List.of(), List.of(), noNames(), null,
+                    code -> java.util.Optional.empty(), symbol -> java.util.Optional.empty(), null);
+        }
+
+        @Override
+        public List<StockQuote> indicesOf(List<EconomyHelperProperties.Index> indices) {
+            return List.of();
+        }
+
+        @Override
+        public List<Answer> answersOf(List<String> codes) {
+            answerCalls++;
+            return List.of(Answer.of(new StockQuote("삼성전자", new BigDecimal("239500"), null,
+                    StockQuote.Money.KRW, StockQuote.Market.DOMESTIC,
+                    io.saiden.economyhelper.market.StockSource.DATA_GO, BASIS, false)));
+        }
+
+        @Override
+        public List<DailyBar> dailyBarsOf(StockService.Series series) {
+            return kospiBars();
+        }
+    }
+
+    @Test
+    @DisplayName("증시 통이 같은 조회를 두 번 하지 않는다 — 글이 쓴 답을 차트가 그대로 받는다")
+    void asksForTheStockAnswersOnlyOnce() {
+        // ⚠️ 예전에는 글이 answersOf를 부르고 차트가 같은 것을 그대로 다시 불렀다. 시세 캐시가
+        //    1분인데 증시 통 하나가 KIS를 시세 9회 + 일봉 8회 쓰고 호출 사이 1초를 지키므로,
+        //    캐시가 그 사이에 식으면 두 번째 조회가 KIS 호출을 통째로 다시 태운다. 게다가
+        //    그때는 글에 찍힌 값과 차트 캡션이 서로 다른 조회에서 온 것이 된다
+        CountingStock stock = new CountingStock();
+
+        DigestResult result = job(new RecordingClient(), new InMemoryHistory(),
+                new CountingFacade(List.of()), fx(false), stock, crypto(false)).run(false);
+
+        assertThat(result.delivered()).containsExactly("증시");
+        assertThat(stock.answerCalls)
+                .as("글과 차트가 한 조회를 나눠 쓴다")
+                .isEqualTo(1);
+    }
+
     private static StockService stock(boolean alive) {
         return stock(alive, alive);
     }

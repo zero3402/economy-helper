@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market.chart;
 
+import io.saiden.economyhelper.market.PercentChange;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -71,18 +72,27 @@ public final class DailySeries {
         return bars != null && bars.size() >= 2;
     }
 
-    /** 첫 칸 대비 마지막 칸의 변화율(%). 창 전체의 움직임을 caption이 한마디로 적는 데 쓴다. */
+    /**
+     * 첫 칸 대비 마지막 칸의 변화율(%). 창 전체의 움직임을 caption이 한마디로 적는 데 쓴다.
+     *
+     * <p>⚠️ <b>본문이 쓰는 그 계산이어야 한다.</b> 여기에 식을 따로 두던 때가 있었는데
+     * ({@code (뒤−앞)×100 ÷ 앞}을 2자리로 한 번에 접었다) {@link PercentChange}는 8자리로 한 번
+     * 접고 다시 2자리로 접는다. 수학적으로 같은 값인데 <b>반올림 횟수가 달라</b> 경계에서
+     * {@code 0.01%p}가 갈린다 — 그러면 한 통 안에서 <b>본문의 등락률과 바로 아래 차트 캡션의
+     * 등락률이 다른 숫자</b>가 된다. 같은 뜻은 한 규칙으로만 계산한다.
+     *
+     * <p>{@code first}가 음수인 경우만 여기서 막는다 — {@code 0}과 {@code null}은
+     * {@link PercentChange#between}이 이미 막는다(분모가 0이면 {@code null}).
+     * 시세에 음수는 없지만, 있다면 그건 값이 아니라 고장이다.
+     */
     public static BigDecimal changePercent(List<DailyBar> bars) {
         if (!drawable(bars)) {
             return null;
         }
         BigDecimal first = bars.get(0).close();
-        BigDecimal last = bars.get(bars.size() - 1).close();
-        if (first.signum() <= 0) {
+        if (first.signum() < 0) {
             return null;
         }
-        return last.subtract(first)
-                .multiply(BigDecimal.valueOf(100))
-                .divide(first, 2, java.math.RoundingMode.HALF_UP);
+        return PercentChange.between(bars.get(bars.size() - 1).close(), first);
     }
 }
