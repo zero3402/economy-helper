@@ -60,6 +60,38 @@ class WeatherDailyTest {
     }
 
     @Test
+    @DisplayName("둘 다 비라고 하면 종류가 달라도 1순위를 그대로 둔다 — 소나기를 이슬비로 낮추지 않는다")
+    void keepsTheSummaryWhenBothSayRain() {
+        // ⚠️ 이것이 규칙을 좁힌 이유다. 한동안 반나절이 있는 모든 날에 요약을 갈아 끼웠는데,
+        //    실측(네 역 × 닷새)으로 스무 날 중 16일이 바뀌고 실제 모순은 4일뿐이었다.
+        //    나머지는 두 출처가 둘 다 비라는데 1순위를 버린 것이고, 소나기 → 이슬비는
+        //    **경고를 깎는다** — AccuWeather는 동 단위 지점 예보라 1순위인 것이다
+        Weather.Daily day = Weather.Daily
+                .withChance(DAY, SkyCondition.SHOWERS, LOW, HIGH, 61)
+                .withHalves(List.of(
+                        HalfDay.withChance(LocalTime.of(13, 0), LocalTime.of(15, 0),
+                                SkyCondition.DRIZZLE, 80),
+                        HalfDay.dry(Half.AFTERNOON, SkyCondition.CLOUDY, 20)));
+
+        assertThat(day.sky()).as("둘 다 비라고 한다 — 어긋나지 않는다").isEqualTo(SkyCondition.SHOWERS);
+        assertThat(day.precipitationChance()).as("확률은 그래도 시간별 봉우리다").isEqualTo(80);
+    }
+
+    @Test
+    @DisplayName("마른 반나절이 강수 어휘를 들고 있으면 그것도 「비라고 말한 것」이다")
+    void countsADryHalfThatStillNamesRain() {
+        // HalfDays.skyOf가 「가장 흔한 코드」라 마른 반나절도 이슬비일 수 있고,
+        // 그때 화면은 「☔ 오전 이슬비」라고 말하고 있다 — 요약 「소나기」와 어긋나지 않는다
+        Weather.Daily day = Weather.Daily
+                .withChance(DAY, SkyCondition.SHOWERS, LOW, HIGH, 61)
+                .withHalves(List.of(
+                        HalfDay.dry(Half.MORNING, SkyCondition.DRIZZLE, 40),
+                        HalfDay.dry(Half.AFTERNOON, SkyCondition.CLOUDY, 20)));
+
+        assertThat(day.sky()).isEqualTo(SkyCondition.SHOWERS);
+    }
+
+    @Test
     @DisplayName("지나간 날의 실측은 고치지 않는다 — 「맑음 / 강수량 0.1mm」가 나왔던 자리다")
     void neverRewritesAMeasuredDay() {
         // ⚠️ codex가 잡은 두 번째 반례다. 시간별 강수량이 전부 0.1mm 문턱 아래면 반나절이

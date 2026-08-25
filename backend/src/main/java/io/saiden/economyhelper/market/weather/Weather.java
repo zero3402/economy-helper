@@ -140,8 +140,16 @@ public record Weather(GeoLocation place, List<Daily> days, WeatherSource source,
          * 다 봤다: <b>「소나기 / 강수확률 61% / ☁️ 오전 흐림 / ⛅ 오후 구름 조금」</b>
          * (2026-08-26 미금역 — 요약은 AccuWeather 낮 칸, 반나절은 Open-Meteo 봉우리 18%)와
          * 그 반대인 <b>「맑음 / 강수확률 100% / ☔ 오전 종일 비 / ☔ 오후 종일 비」</b>다.
-         * 그래서 <b>요약을 반나절이 말한 것 중 가장 무거운 것으로 맞춘다</b> — 낮추기도 하고
+         * 그래서 <b>요약과 반나절이 어긋나면 요약을 반나절 쪽으로 맞춘다</b> — 낮추기도 하고
          * 올리기도 한다.
+         *
+         * <p>⚠️ <b>「어긋난다」는 강수 여부가 갈리는 것이지 종류가 다른 것이 아니다.</b> 한동안
+         * 반나절이 있는 <b>모든</b> 예보 날에 요약을 갈아 끼웠는데, 실측(네 역 × 닷새)으로 재 보니
+         * <b>스무 날 중 16일이 바뀌고 그중 실제 모순은 4일뿐</b>이었다. 나머지 12일은 두 출처가
+         * <b>둘 다 비라고 말하는데</b> 그냥 1순위를 버린 것이고, 그중 {@code 소나기 → 이슬비}는
+         * <b>경고를 깎는다</b> — AccuWeather는 동 단위 지점 예보라 1순위인데 그 판단을 우리가
+         * 낮춰 적을 근거가 없다. 확률은 이미 시간별로 갈리므로, 하늘까지 언제나 갈리면
+         * 1순위가 <b>기온 공급원</b>으로만 남는다.
          *
          * <p>⚠️ <b>한동안 낮추는 쪽만 했다.</b> 「흐림에 한때 비는 모순이 아니라 『대체로 흐리고
          * 한때 비』로 읽힌다」는 이유였는데, 그 해석이 <b>모든 역방향에 통하지 않는다</b> —
@@ -161,6 +169,16 @@ public record Weather(GeoLocation place, List<Daily> days, WeatherSource source,
          */
         private SkyCondition skyAgreeingWith(List<HalfDay> halves, Integer peak) {
             if (halves == null || halves.isEmpty() || peak == null) {
+                return sky;
+            }
+            // ⚠️ **어긋날 때만 손댄다.** 「한쪽은 비라 하고 다른 쪽은 아니라 한다」가 어긋남이고,
+            //    둘 다 비라거나 둘 다 아니면 1순위(AccuWeather)의 말을 그대로 둔다.
+            //    판정을 wet()이 아니라 kind()로 하는 이유: 마른 반나절도 강수 어휘를 가질 수
+            //    있고(HalfDays.skyOf가 「가장 흔한 코드」다) 그때 화면은 「☔ 오전 이슬비」라고
+            //    **말하고 있다** — 요약이 「소나기」인 것과 어긋나지 않는다
+            boolean partsSayRain = halves.stream().map(HalfDay::kind)
+                    .anyMatch(SkyCondition::precipitating);
+            if (sky.precipitating() == partsSayRain) {
                 return sky;
             }
             return halves.stream().map(HalfDay::kind)
