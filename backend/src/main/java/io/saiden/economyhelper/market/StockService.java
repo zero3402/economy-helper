@@ -364,7 +364,8 @@ public class StockService {
         return switch (series.kind()) {
             case DOMESTIC_STOCK -> kisSeries.dailyBars(series.key());
             case DOMESTIC_INDEX -> kisSeries.dailyBarsOfIndex(series.key());
-            // 지수와 종목이 같은 엔드포인트다 — 실측으로 확인했다(KisStockApi.dailyBarsOfUs)
+            // 지수와 종목이 다른 엔드포인트다 — 한 경로로 덮었다가 PATH에서 물렸다
+            // (KisStockApi.usStockSeries에 실측이 적혀 있다). 갈라내는 것은 그쪽이 한다
             case US -> kisSeries.dailyBarsOfUs(series.key());
         };
     }

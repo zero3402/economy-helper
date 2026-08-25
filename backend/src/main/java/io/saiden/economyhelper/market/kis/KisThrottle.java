@@ -74,18 +74,18 @@ public class KisThrottle {
      * 앞 호출과 최소 간격이 벌어질 때까지 기다린다. <b>실제 HTTP 호출 직전에</b> 부른다 —
      * 메서드 단위로 부르면 그 안에서 두 번 나가는 경로가 다시 새어 나간다.
      *
-     * @throws IllegalStateException 대기 한도를 넘겼을 때. 던져야 이중화가 다음 출처로 넘어간다
+     * @throws Congested 대기 한도를 넘겼을 때. 던져야 이중화가 다음 출처로 넘어간다
      */
     void pace() {
         try {
             // 줄 서는 것까지 한도에 넣는다 — 락을 잡은 뒤에 재면 앞에 몇이 서 있는지 못 본다
             if (!gate.tryLock(capNanos, TimeUnit.NANOSECONDS)) {
-                throw new IllegalStateException(
+                throw new Congested(
                         "KIS 호출이 밀려 대기 한도를 넘겼습니다: " + Duration.ofNanos(capNanos));
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new IllegalStateException("KIS 호출을 기다리다 중단됐습니다");
+            throw new Congested("KIS 호출을 기다리다 중단됐습니다");
         }
         try {
             long waitNanos = nextAllowed - System.nanoTime();
@@ -96,9 +96,30 @@ public class KisThrottle {
             nextAllowed = System.nanoTime() + intervalNanos;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new IllegalStateException("KIS 호출 간격을 기다리다 중단됐습니다");
+            throw new Congested("KIS 호출 간격을 기다리다 중단됐습니다");
         } finally {
             gate.unlock();
+        }
+    }
+
+    /**
+     * <b>이 문이 거절한 것</b> — 상대 장애가 아니라 <b>우리가 스스로 건 스로틀</b>이다.
+     *
+     * <p>⚠️ <b>타입을 따로 두는 이유는 브레이커다.</b> {@code configs.default}가
+     * {@code RequestNotPermitted}를 무시 목록에 넣어 둔 이유가 「리미터가 우리 호출을 거절한
+     * 것은 상대 장애가 아니다」인데, KIS는 그 리미터를 <b>걷어내고 이 문으로 바꿨다</b> —
+     * 그 순간 거절이 맨 {@code IllegalStateException}이 되어 <b>그 보호에서 조용히 빠졌다.</b>
+     * 브리핑이 KIS를 9번 연달아 부르는 동안 사용자의 {@code /stock} 하나가 줄에서 밀려
+     * {@code max-wait}를 넘기면, 그것이 {@code kisStock}·{@code kisFx} 브레이커에
+     * <b>상대 장애로 기록된다</b> — 설정 주석이 경고한 「우리 트래픽이 몰릴 때 브레이커가 열려
+     * 멀쩡한 상대를 끊는다」가 그대로 일어난다.
+     *
+     * <p>중단({@code InterruptedException})도 여기 넣는다. 종료 신호이지 KIS의 문제가 아니다.
+     */
+    public static final class Congested extends IllegalStateException {
+
+        public Congested(String message) {
+            super(message);
         }
     }
 }

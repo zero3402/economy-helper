@@ -38,8 +38,8 @@ import org.springframework.web.util.UriBuilder;
  * <p>이 봇에서 유일하게 <b>국내를 실시간으로</b> 주는 출처다. 2순위인 공공데이터포털은 전일
  * 종가뿐이라 오전 9시 브리핑이 장 시작 시각인데 어제 값을 보여 주고 있었다.
  *
- * <p>네 경로 전부 모의 계정으로 실제 호출해 확정했다(2026-08-18). 응답 모양이 서로 달라
- * <b>스키마를 넷으로 나눠 둔다</b> — 하나로 뭉치면 어느 필드가 어느 경로 것인지 사라진다.
+ * <p>경로 전부 모의 계정으로 실제 호출해 확정했다(2026-08-18·08-21). 응답 모양이 서로 달라
+ * <b>스키마를 나눠 둔다</b> — 하나로 뭉치면 어느 필드가 어느 경로 것인지 사라진다.
  *
  * <table>
  *   <tr><th>무엇</th><th>tr_id</th><th>현재가</th><th>등락률</th></tr>
@@ -246,7 +246,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
         Index target = indices.get(name);
         if (target == null || !target.hasCode()) {
             // KIS에는 지수명 검색이 없다 — 코드가 없으면 만들 수 있는 요청이 아예 없다
-            throw new IllegalStateException("KIS 지수 일봉에 업종코드가 없습니다: " + name);
+            throw new Unsupported("KIS 지수 일봉에 업종코드가 없습니다: " + name);
         }
         DailyChart response = request(DailyChart.class, INDEX_TR,
                 "국내 지수 일봉 " + name,
@@ -255,43 +255,18 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
     }
 
     /**
-     * 미국 일봉 — <b>지수와 종목을 한 경로가 덮는다.</b>
+     * 미국 일봉 — <b>지수와 종목이 갈린다.</b>
      *
-     * <p>지수용으로 만들었는데 실측에서 <b>종목 심볼도 그대로 받았다</b>(2026-08-21,
-     * {@code AAPL}·{@code NVDA}·{@code ORCL} 모두 {@code rt_cd=0} · 20행). 그래서 미국 종목
-     * 차트가 이 메서드로 붙었다 — 얻은 것이 셋이다:
-     *
-     * <ul>
-     *   <li><b>거래소를 안 묻는다.</b> {@code price-detail}은 {@code EXCD}를 요구해 NAS→NYS를
-     *       탐색해야 하는데 이쪽은 심볼만 받는다. {@code ORCL}(NYSE)도 200이었다
-     *   <li><b>새 레코드가 없다.</b> {@code output2}가 {@code stck_bsop_date}·
-     *       {@code ovrs_nmix_prpr}로 와서 {@link Bar}가 이미 읽는다. 후보였던
-     *       {@code HHDFS76240000}은 {@code xymd}·{@code clos}라 필드를 새로 선언해야 했다
-     *   <li><b>가볍다.</b> 창을 우리가 정하므로 20행이다({@code HHDFS76240000}은 100행을 준다)
-     * </ul>
+     * <p>지수는 {@link #usIndexSeries}(해외지수 경로 · 표가 유일한 길), 종목은
+     * {@link #usStockSeries}(종목 전용 경로 · 거래소를 안다). <b>한 경로가 둘을 덮던 때가
+     * 있었고, 그것이 버그였다</b> — 그 이야기는 {@link #usStockSeries}에 적혀 있다.
      *
      * <p>⚠️ <b>지수만 표를 탄다.</b> {@code ^IXIC}는 KIS가 모르고 {@code COMP}여야 한다.
-     * 종목은 심볼 그대로 보낸다 — 규칙이 없어 지수는 표가 유일한 길이고, <b>표에 없는 지수는
-     * 차트가 없다.</b>
+     * 규칙이 없어 표가 유일한 길이고, <b>표에 없는 지수는 차트가 없다</b>({@link Unsupported}).
      *
-     * <p>⚠️ <b>「종목 심볼도 받는다」에 예외가 있다 — 그리고 그 예외가 조용하다.</b>
-     * KIS가 모르는 심볼에는 에러가 아니라 <b>{@code rt_cd=0} · {@code output2: []}</b>가 온다.
-     * 실측 2026-08-21(모의, 창 25일):
-     *
-     * <pre>
-     * ORCL  rt_cd=0  output2 19행  최근 142.07     ← NYSE
-     * AAPL  rt_cd=0  output2 19행  최근 311.30
-     * COMP  rt_cd=0  output2 19행  최근 26,067.17  ← 지수
-     * PATH  rt_cd=0  output2  0행  output1도 전부 0.00
-     *       {"output1":{…전부 "0.00"…},"output2":[],
-     *        "rt_cd":"0","msg_cd":"MCA00000","msg1":"정상처리 되었습니다."}
-     * </pre>
-     *
-     * <b>대형주라서 되는 것이 아니다</b> — {@code ORCL}은 NYSE이고 FMP는 그 심볼을 402로 막는다.
-     * KIS의 해외 표에 그 종목이 실려 있느냐일 뿐이고 규칙은 우리가 모른다. 그래서
-     * <b>여기서 미리 막지 않는다</b>: 심볼을 그대로 보내고, 빈손이면 부르는 쪽이 사진만 빼고
-     * 값을 내보낸다({@code DailySeries.drawable}). 그 자리에 로그를 한 줄 남기는 것이
-     * 「모르는 심볼」과 「차트를 안 물었다」를 가르는 유일한 단서다.
+     * <p>어느 쪽이든 <b>못 구하면 던진다</b> — 부르는 쪽이 사진만 빼고 값을 내보낸다
+     * ({@code DailySeries.drawable}). 그 자리에 로그를 한 줄 남기는 것이 「KIS가 그 심볼을
+     * 모른다」와 「차트를 아예 안 물었다」를 가르는 유일한 단서다.
      */
     @Cacheable(cacheNames = CacheNames.STOCK_SERIES, key = "'us:' + #symbol")
     @CircuitBreaker(name = "kisStock")
@@ -303,7 +278,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
     private java.util.List<DailyBar> usIndexSeries(String symbol) {
         String kisSymbol = usIndices.get(symbol);
         if (kisSymbol == null) {
-            throw new IllegalStateException("KIS 심볼을 모르는 미국 지수입니다: " + symbol);
+            throw new Unsupported("KIS 심볼을 모르는 미국 지수입니다: " + symbol);
         }
         return barsOf(request(DailyChart.class, US_INDEX_TR, "미국 지수 일봉 " + symbol,
                 uri -> chartWindow(uri, US_INDEX_PATH, OVERSEAS_INDEX, kisSymbol).build()));
@@ -378,7 +353,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
         if (failure != null) {
             throw failure;
         }
-        throw new IllegalStateException("KIS " + what + " 응답에 칸이 없습니다");
+        throw new Unsupported("KIS " + what + " 응답에 칸이 없습니다");
     }
 
     /** {@code output2}를 일봉으로 — 걸러내기와 정렬은 {@code DailySeries}가 한 곳에서 한다. */
@@ -426,7 +401,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
         Index target = known(index);
         if (!target.hasCode()) {
             // KIS에는 지수명 검색이 없다. 코드가 없으면 만들 수 있는 요청이 아예 없다
-            throw new IllegalStateException("KIS 지수 조회에 업종코드가 없습니다: " + index.name());
+            throw new Unsupported("KIS 지수 조회에 업종코드가 없습니다: " + index.name());
         }
         DomesticIndex.Quote quote = request(DomesticIndex.class, INDEX_TR,
                 "국내 지수 " + target.name(),
@@ -449,7 +424,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
                 // ^DJI를 그대로 물으면 KIS는 모른다(.DJI여야 한다). 지수는 ^IXIC → COMP 같은
                 // 규칙이 없어 표가 유일한 길이고, 표에 없으면 만들 요청이 아예 없다 —
                 // 2순위가 맡는다(FMP 무료 티어는 미국 지수를 다 준다)
-                throw new IllegalStateException("KIS 심볼을 모르는 미국 지수입니다: " + symbol.symbol());
+                throw new Unsupported("KIS 심볼을 모르는 미국 지수입니다: " + symbol.symbol());
             }
             return usIndex(symbol, kisSymbol);
         }
@@ -569,7 +544,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
     }
 
     /**
-     * 호출 한 번. 네 경로가 응답 타입만 다르고 <b>헤더·에러 처리·비밀 취급이 같다.</b>
+     * 호출 한 번. 경로마다 응답 타입만 다르고 <b>헤더·에러 처리·비밀 취급이 같다.</b>
      *
      * <p>예외를 그대로 흘리지 않는다 — 헤더에 접근토큰이 실려 있어 로그·모니터링에 남으면
      * 그대로 유출된다({@code FmpApi}·{@code KeximFxClient}가 URL에 실린 키를 가리는 것과 같다).
@@ -617,10 +592,6 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
     }
 
     /**
-     * @param output {@code output1} — 현재가. 같은 응답의 {@code output2}(일자별 배열)는
-     *               {@link DailyChart}가 따로 읽는다: 수명이 달라 캐시를 나눴다
-     */
-    /**
      * {@code output2}의 한 칸 — <b>세 시장의 종가 필드 이름이 다르다.</b>
      *
      * <p>국내 종목은 {@code stck_clpr}, 국내 지수는 {@code bstp_nmix_prpr}, 해외(환율·미국
@@ -659,7 +630,10 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
         }
     }
 
-    /** 일자별 배열만 필요한 응답 — 현재가는 시세 경로가 이미 제 캐시로 든다. */
+    /**
+     * 일자별 배열만 필요한 응답 — 같은 응답의 {@code output1}(현재가)은 시세 경로가 제 캐시로
+     * 든다. <b>수명이 달라 캐시를 나눴다</b>: 시세는 1분, 일봉은 12시간이다.
+     */
     @JsonIgnoreProperties(ignoreUnknown = true)
     record DailyChart(@JsonProperty("rt_cd") String resultCode,
                       @JsonProperty("msg1") String message,
@@ -715,5 +689,36 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
         @JsonIgnoreProperties(ignoreUnknown = true)
         record Quote(@JsonProperty("last") BigDecimal price,
                      @JsonProperty("base") BigDecimal previousClose) {}
+    }
+
+    /**
+     * <b>애초에 만들 수 없는 요청</b> — KIS의 장애가 아니다.
+     *
+     * <p>둘뿐이다. <b>업종코드가 없는 지수</b>(KIS에 지수명 검색이 없다)와 <b>KIS의 해외 표에
+     * 없는 심볼</b>(지수는 표가 유일한 길이고, 종목 일봉은 거래소를 다 훑어도 {@code output2}가
+     * 빈 배열로 온다). 어느 쪽도 다시 물어서 낫지 않고, <b>같은 입력이면 영원히 같은 실패</b>다.
+     *
+     * <p>⚠️ <b>타입을 따로 두는 이유는 브레이커다.</b> 이 실패가 {@code kisStock}에 쌓이면
+     * 열리는 순간 <b>멀쩡한 KIS 호출 전부</b>가 함께 막힌다 — 국내 시세는 전일 종가로 강등되고,
+     * 미국 시세는 2순위(FMP)가 대부분 402라 <b>통째로 빈손</b>이 된다. 설정이
+     * {@code fmpOutlook}을 시세와 가른 이유와 같은 자리이고, 지오코딩·바이낸스가 「없는 지명」·
+     * 「없는 심볼」의 4xx를 무시 목록에 넣은 것과 같은 판단이다.
+     *
+     * <p><b>여기가 더 나빴던 이유가 둘 있다.</b> 하나는 이 실패가 <b>HTTP 호출 없이</b> 난다는
+     * 것이다(표를 못 찾으면 그 자리에서 던진다) — 상대를 건드리지도 않고 상대의 브레이커를
+     * 태운다. 다른 하나는 캐시가 브레이커보다 <b>바깥</b>이라는 것이다
+     * ({@code ResilienceConfigTest.cacheSitsOutsideTheResilienceAspects}) — 성공한 일봉은
+     * 12시간 캐시에 들어가 브레이커에 다시 안 세어지는데 <b>실패는 캐시되지 않아 매번 세어진다.</b>
+     * 그래서 비율이 실패 쪽으로 기울고, 설정 표에 없는 지수를 다섯 번 물으면
+     * (시세 1 + 차트 1 = 조회당 실패 둘) 창 열 칸이 실패로 차 브레이커가 열린다.
+     *
+     * <p><b>던지는 것은 그대로다.</b> 빈 값을 돌려주면 {@code StockService}가 폴백하지 못하고
+     * 그대로 빈손이 나간다 — 바꾼 것은 <b>세는 방식</b>뿐이다.
+     */
+    public static final class Unsupported extends IllegalStateException {
+
+        public Unsupported(String message) {
+            super(message);
+        }
     }
 }

@@ -568,10 +568,34 @@ resilience4j:
         baseConfig: default
       # KIS는 환율과 국내 주식이 같은 호스트·같은 앱키지만 브레이커를 나눈다 — 하나로 묶으면
       # 주식 장애가 환율 이중화까지 끊는다. 환율·날씨에서 이미 세운 규칙이다.
+      #
+      # ⚠️ **KIS는 「우리 잘못」을 두 가지로 던지고, 둘 다 실패로 세면 안 된다.**
+      #    (1) KisThrottle$Congested — 우리가 스스로 건 간격 문이 거절한 것이다. 위 default
+      #        블록이 RequestNotPermitted를 빼 둔 이유가 바로 이것인데, **KIS는 그 리미터를
+      #        걷어내고 KisThrottle로 바꿨다** — 그 순간 거절이 맨 IllegalStateException이 되어
+      #        보호에서 조용히 빠졌다. 브리핑이 KIS를 9번 연달아 부르는 동안 사용자의 /stock
+      #        하나가 max-wait(20s)를 넘겨 밀리면 그것이 상대 장애로 기록된다.
+      #    (2) KisStockApi$Unsupported — 업종코드가 없는 지수, KIS 해외 표에 없는 심볼이다.
+      #        같은 입력이면 영원히 같은 실패이고, **HTTP 호출조차 없이** 난다 — 상대를
+      #        건드리지도 않고 상대의 브레이커를 태운다. 게다가 캐시가 브레이커보다 바깥이라
+      #        (cacheSitsOutsideTheResilienceAspects) 성공한 일봉은 12시간 캐시에 들어가 다시
+      #        안 세어지는데 **실패는 캐시되지 않아 매번 세어진다** — 비율이 실패로 기운다.
+      #        설정에 없는 지수를 다섯 번 물으면(조회당 시세 1 + 차트 1) 창이 실패로 찬다.
+      #    열리면 국내 시세는 전일 종가로 강등되고 **미국 시세는 2순위(FMP)가 대부분 402라
+      #    통째로 빈손**이 된다 — fmpOutlook을 시세와 가른 것과 같은 자리다.
+      # ⚠️ 아래 목록이 configs.default의 것을 덮어쓴다 — 위 default 블록 주석 참조
       kisFx:
         baseConfig: default
+        ignoreExceptions:
+          - io.github.resilience4j.ratelimiter.RequestNotPermitted
+          # 환율에는 Unsupported가 없다 — 심볼이 FX@KRW 하나로 고정이다
+          - io.saiden.economyhelper.market.kis.KisThrottle$Congested
       kisStock:
         baseConfig: default
+        ignoreExceptions:
+          - io.github.resilience4j.ratelimiter.RequestNotPermitted
+          - io.saiden.economyhelper.market.kis.KisThrottle$Congested
+          - io.saiden.economyhelper.market.kis.KisStockApi$Unsupported
       dataGo:
         baseConfig: default
       fmp:

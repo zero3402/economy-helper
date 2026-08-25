@@ -314,6 +314,46 @@ class ResilienceConfigTest {
     }
 
     @Test
+    @DisplayName("KIS의 「우리 잘못」 둘은 브레이커를 열지 않는다 — 리미터를 걷어낸 자리에 같은 보호가 있어야 한다")
+    void kisOwnFaultsDoNotOpenTheBreaker() {
+        // ⚠️ KIS는 resilience4j 리미터를 **걷어내고** KisThrottle로 바꿨다. 그 순간 거절이
+        //    RequestNotPermitted가 아니게 되어, default 블록이 그것을 빼 둔 보호에서
+        //    조용히 빠졌다 — rateLimiterRejectionDoesNotOpenTheBreaker가 KIS만은 못 보던 자리다.
+        Throwable congested = new io.saiden.economyhelper.market.kis.KisThrottle.Congested(
+                "KIS 호출이 밀려 대기 한도를 넘겼습니다: PT20S");
+        // 애초에 만들 수 없는 요청. HTTP 호출조차 없이 나므로 상대를 건드리지도 않는다
+        Throwable unsupported = new io.saiden.economyhelper.market.kis.KisStockApi.Unsupported(
+                "KIS 지수 일봉에 업종코드가 없습니다: 코스피200");
+
+        for (String name : new String[] {"kisFx", "kisStock"}) {
+            CircuitBreaker breaker = registry.circuitBreaker(name);
+            long before = breaker.getMetrics().getNumberOfFailedCalls();
+
+            breaker.onError(0, java.util.concurrent.TimeUnit.MILLISECONDS, congested);
+
+            assertThat(breaker.getMetrics().getNumberOfFailedCalls())
+                    .as("%s가 우리 간격 문의 거절을 실패로 셌다 — 브리핑이 몰릴 때마다 "
+                            + "브레이커가 열려 멀쩡한 KIS를 끊는다", name)
+                    .isEqualTo(before);
+        }
+
+        CircuitBreaker stock = registry.circuitBreaker("kisStock");
+        long before = stock.getMetrics().getNumberOfFailedCalls();
+        stock.onError(0, java.util.concurrent.TimeUnit.MILLISECONDS, unsupported);
+        assertThat(stock.getMetrics().getNumberOfFailedCalls())
+                .as("설정 표에 없는 지수·심볼은 영원히 같은 실패다 — 세면 그것이 쌓여 "
+                        + "미국 시세까지 막힌다(2순위 FMP는 대부분 402다)")
+                .isEqualTo(before);
+
+        // 무시 목록이 넓어지지 않았는지 함께 본다 — KIS가 진짜로 죽으면 열려야 한다
+        stock.onError(0, java.util.concurrent.TimeUnit.MILLISECONDS,
+                new IllegalStateException("KIS 국내 종목 005930 조회 실패: 유효하지 않은 token 입니다."));
+        assertThat(stock.getMetrics().getNumberOfFailedCalls())
+                .as("그 밖의 실패는 여전히 실패다 — 무효 토큰·5xx는 알려야 한다")
+                .isEqualTo(before + 1);
+    }
+
+    @Test
     @DisplayName("진짜 장애는 그대로 센다 — 무시 목록이 넓어져 브레이커가 무력해지면 안 된다")
     void realFailuresStillCount() {
         CircuitBreaker breaker = registry.circuitBreaker("translation");
