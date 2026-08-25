@@ -1,6 +1,7 @@
 package io.saiden.economyhelper.market.data;
 
 import io.github.resilience4j.ratelimiter.RateLimiter;
+import io.github.resilience4j.ratelimiter.RequestNotPermitted;
 import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
 import java.net.URI;
 import java.net.URLEncoder;
@@ -98,10 +99,14 @@ final class DataGoRequest {
      */
     static <T> T fetch(RestClient restClient, RateLimiter limiter, String uri,
                        Class<T> type, LocalDate date, String tag) {
-        if (limiter != null) {
-            // 거절은 RequestNotPermitted다 — dataGo 브레이커가 baseConfig에서 그걸
-            // 무시하므로 우리 스로틀이 상대 장애로 세어지지 않는다
-            limiter.acquirePermission();
+        // ⚠️ **acquirePermission()은 던지지 않는다 — boolean을 준다.**
+        //    resilience4j 2.4.0의 시그니처가 `boolean acquirePermission()`이라(javap로 확인)
+        //    타임아웃 안에 퍼밋을 못 얻으면 조용히 false다. 반환값을 버리고 있었으므로
+        //    **리미터가 가장 필요한 포화 상황에 그대로 HTTP가 나갔다** — 스로틀이 아니라
+        //    장식이었다. 거절을 RequestNotPermitted로 올려야 dataGo 브레이커가 그것을
+        //    (baseConfig의 ignoreExceptions로) 상대 장애가 아닌 우리 스로틀로 읽는다
+        if (limiter != null && !limiter.acquirePermission()) {
+            throw RequestNotPermitted.createRequestNotPermitted(limiter);
         }
         try {
             return restClient.get().uri(URI.create(uri)).retrieve().body(type);

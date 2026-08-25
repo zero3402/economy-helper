@@ -65,18 +65,28 @@ class PriceAndPercentTest {
     }
 
     @Test
+    @DisplayName("반올림을 두 번 하지 않는다 — 8자리로 접고 다시 2자리로 접으면 0.09%가 0.10%가 된다")
+    void roundsOnlyOnce() {
+        // ⚠️ 이 입력이 이 테스트의 전부다. 정확한 값이 0.094999568%라서
+        //    한 번에 접으면 0.09, 두 번 접으면(8자리 → 0.00095000 → ×100 → 2자리) 0.10이 된다.
+        //    예전에 쓰던 34567 → 34569는 두 방식이 **둘 다 0.01**이라 아무것도 증명하지 못했다
+        assertThat(PercentChange.between(new BigDecimal("11590"), new BigDecimal("11579")))
+                .as("정확한 값은 0.094999568%다 — 올려서 0.10을 만들면 안 된다")
+                .isEqualByComparingTo("0.09");
+    }
+
+    @Test
     @DisplayName("차트 캡션의 등락률이 본문과 같은 계산이다 — 식이 둘이면 같은 통에서 두 숫자가 나온다")
     void chartCaptionUsesTheSameRuleAsTheBody() {
-        // 식을 따로 두던 때 갈리던 자리: (뒤−앞)×100÷앞 을 2자리로 한 번에 접는 것과
-        // 8자리로 접고 다시 2자리로 접는 것이 이 값에서 다른 답을 낸다
-        BigDecimal first = new BigDecimal("34567");
-        BigDecimal last = new BigDecimal("34569");
+        BigDecimal first = new BigDecimal("11579");
+        BigDecimal last = new BigDecimal("11590");
         List<DailyBar> bars = List.of(
                 new DailyBar(LocalDate.of(2026, 8, 24), first),
                 new DailyBar(LocalDate.of(2026, 8, 25), last));
 
         assertThat(DailySeries.changePercent(bars))
-                .isEqualByComparingTo(PercentChange.between(last, first));
+                .isEqualByComparingTo(PercentChange.between(last, first))
+                .as("캡션도 한 번만 접는다").isEqualByComparingTo("0.09");
     }
 
     @Test

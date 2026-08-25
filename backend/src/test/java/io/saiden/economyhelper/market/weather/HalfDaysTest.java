@@ -368,6 +368,39 @@ class HalfDaysTest {
         });
     }
 
+    @Test
+    @DisplayName("강수량 배열이 없으면 코드가 거부권을 못 쥔다 — null은 0이 아니라 모름이다")
+    void neverLetsAMissingAmountVetoRain() {
+        // ⚠️ codex 적대적 리뷰가 잡은 반례다. 「코드와 양이 함께 안 온다고 말해야 한다」고
+        //    적어 두고는 amount == null까지 「양이 안 온다」로 셌다. 그래서 강수량 배열이
+        //    통째로 없거나 짧게 온 응답에서 확률 100%·코드 0(맑음)인 시간이 전부 잘려
+        //    「맑음 / 강수확률 100% / ☀️ 오전 맑음 / ☀️ 오후 맑음」이 나왔다
+        List<Integer> chances = Collections.nCopies(24, 100);
+        List<Integer> codes = Collections.nCopies(24, 0);
+
+        List<HalfDay> halves = HalfDays.byDay(hours(DAY, 24), chances, null, codes).get(DAY);
+
+        assertThat(halves).allSatisfy(half -> assertThat(half.wet())
+                .as("%s — 확률 100%%인데 양을 모른다고 마른 것이 되면 안 된다", half.half())
+                .isTrue());
+    }
+
+    @Test
+    @DisplayName("양이 짧게 와도 마찬가지다 — 배열 길이가 슬롯보다 짧으면 그 시간은 「모름」이다")
+    void treatsAShortAmountArrayAsUnknown() {
+        List<Integer> chances = Collections.nCopies(24, 100);
+        List<Integer> codes = Collections.nCopies(24, 0);
+        // 앞 두 시간만 값이 있다. 나머지 스물두 시간은 at()이 null을 준다
+        List<BigDecimal> amounts = mm(0, 0);
+
+        List<HalfDay> halves = HalfDays.byDay(hours(DAY, 24), chances, amounts, codes).get(DAY);
+
+        assertThat(halves).satisfiesExactly(
+                morning -> assertThat(morning.wet())
+                        .as("00·01시는 0.0mm라 잘려도 02시부터는 모름이라 남는다").isTrue(),
+                afternoon -> assertThat(afternoon.wet()).isTrue());
+    }
+
     private static SkyCondition kindOf(int code) {
         return HalfDays.byDay(hours(DAY, 1), List.of(80), null, List.of(code))
                 .get(DAY).get(0).kind();

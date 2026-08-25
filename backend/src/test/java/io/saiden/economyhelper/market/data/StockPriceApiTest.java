@@ -11,7 +11,11 @@ import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import io.saiden.economyhelper.market.data.StockPriceApi.StockPrice;
+import io.github.resilience4j.ratelimiter.RateLimiterConfig;
+import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
+import io.github.resilience4j.ratelimiter.RequestNotPermitted;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.List;
@@ -171,4 +175,31 @@ class StockPriceApiTest {
 
         assertThat(api.searchByName("삼성전자")).hasSize(1);
     }
+    @Test
+    @DisplayName("리미터가 퍼밋을 안 주면 HTTP를 아예 안 보낸다 — 반환값을 버리면 스로틀이 장식이 된다")
+    void neverCallsWhenThePermitIsDenied() {
+        // ⚠️ codex 적대적 리뷰가 잡았다. resilience4j 2.4.0의 acquirePermission()은
+        //    **던지지 않고 boolean을 준다**(javap 확인). 반환값을 버리고 있었으므로
+        //    리미터가 가장 필요한 포화 상황에 그대로 요청이 나갔다.
+        //    퍼밋이 없는 리미터(limitForPeriod=0)를 물려 그 자리를 못 박는다
+        // limitForPeriod(0)은 설정이 거부한다. 퍼밋 하나를 주고 테스트가 그것을 먼저 써 버려
+        // 조회가 빈손을 맞게 만든다 — 기다림도 없다(timeoutDuration=0)
+        RateLimiterRegistry oneShot = RateLimiterRegistry.of(RateLimiterConfig.custom()
+                .limitForPeriod(1)
+                .limitRefreshPeriod(Duration.ofHours(1))
+                .timeoutDuration(Duration.ZERO)
+                .build());
+        assertThat(oneShot.rateLimiter("dataGo").acquirePermission())
+                .as("그 하나를 테스트가 가져간다").isTrue();
+        StockPriceApi throttled = new StockPriceApi(RestClient.builder(), server.baseUrl(),
+                ENCODED_KEY, Clock.fixed(NOW, ZoneId.of("Asia/Seoul")), oneShot);
+        stub("20260817", body(row("20260817", "005930", "삼성전자", "239500", "1")));
+
+        assertThatThrownBy(() -> throttled.searchByCode("005930"))
+                .as("우리 스로틀이 막은 것이므로 상대 장애가 아니라 RequestNotPermitted다")
+                .isInstanceOf(RequestNotPermitted.class);
+
+        server.verify(0, getRequestedFor(urlPathEqualTo(PATH)));
+    }
+
 }

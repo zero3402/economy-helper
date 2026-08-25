@@ -95,10 +95,17 @@ public class StockService {
         // 순서는 여기서 정한다 — 주입 순서에 딸려 가면 클래스 이름을 바꾸다 뒤집힌다
         this.domestic = Failover.order(domestic, DOMESTIC_ORDER, StockClient::source);
         this.us = Failover.order(us, US_ORDER, StockClient::source);
-        // ⚠️ 두 목록을 **함께** 본다. 하나만 보면 거짓 경보가 난다 — FMP는 국내 순서에서
+        // ⚠️ 순서 목록 **둘을 함께** 본다. 하나만 보면 거짓 경보가 난다 — FMP는 국내 순서에서
         //    일부러 빠져 있다(무료 티어가 한국 종목을 402로 막는다). 어느 목록에도 없는 것만
-        //    구성 실수다. 기동을 막지 않고 로그로 남긴다
-        Failover.unordered(domestic, StockClient::source, DOMESTIC_ORDER, US_ORDER)
+        //    구성 실수다. 기동을 막지 않고 로그로 남긴다.
+        // ⚠️ **클라이언트 목록도 둘을 다 넘긴다.** 한동안 domestic만 넘겼는데, 주입되는 목록이
+        //    타입으로 갈려 있어(DomesticStockClient / UsStockClient) 미국 전용 구현은 감사
+        //    대상에 아예 들어오지 않았다 — 새 UsStockClient를 US_ORDER에 안 적으면 조용히
+        //    떨어지고 그것이 이 장치가 막으려던 바로 그 사고다
+        java.util.stream.Stream.of(
+                        Failover.unordered(domestic, StockClient::source, DOMESTIC_ORDER, US_ORDER),
+                        Failover.unordered(us, StockClient::source, DOMESTIC_ORDER, US_ORDER))
+                .flatMap(java.util.List::stream)
                 .forEach(dropped -> log.error(
                         "[stock] {} 클라이언트가 어느 순서에도 없어 영영 안 불립니다", dropped.source()));
         this.names = names;

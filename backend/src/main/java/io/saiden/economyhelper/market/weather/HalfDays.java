@@ -305,6 +305,10 @@ public final class HalfDays {
      * 화면에 <b>{@code ☁️ 오전 8시~11시 흐림 (최대 100%)}</b>가 찍혔고, 코드가 {@code 0}인 날은
      * <b>「맑음」</b>이 됐다 — 하루 요약이 「뇌우」인 날 바로 아래에서.
      *
+     * <p>⚠️ <b>{@code null}은 {@code 0}이 아니다.</b> 강수량이 <b>안 온 것</b>은 「0mm였다」가
+     * 아니라 「모른다」이므로 거부권을 세워 주지 않는다 — 세웠더니 강수량 배열이 없는 응답에서
+     * 확률 100%가 통째로 잘렸다.
+     *
      * <p>⚠️ <b>코드 혼자서는 못 자른다.</b> 양이 잡힌 시간은 그 양이 이긴다 — 실측
      * (2026-08-20 성남 17시)에 코드 {@code 3}(흐림)인데 {@code 0.2mm}가 함께 온 자리가 있었다.
      * 「안 온다」고 말하려면 <b>코드와 양이 함께</b> 말해야 한다.
@@ -315,8 +319,14 @@ public final class HalfDays {
      * 목표가 {@code 0}과 같은 자리다.
      */
     private static boolean wet(Integer chance, BigDecimal amount, Integer code, Thresholds cut) {
-        boolean measured = amount != null && amount.compareTo(MIN_AMOUNT) >= 0;
-        if ((!measured && saysDry(code)) || (chance != null && chance == 0)) {
+        // ⚠️ **양이 없는 것과 양이 0인 것은 다르다.** 한동안 `amount == null`까지 「양이 안
+        //    온다고 말한다」로 셌는데, null은 0이 아니라 **모름**이다. 강수량 배열이 통째로
+        //    없거나 짧게 온 응답에서 확률 100%·코드 0(맑음)인 시간이 전부 잘려
+        //    「맑음 / 강수확률 100% / ☀️ 오전 맑음 / ☀️ 오후 맑음」이 나왔다 — 바로 위에 적은
+        //    「코드와 양이 함께 말해야 한다」를 스스로 어긴 것이다.
+        //    거부권은 **양이 있고 그 양이 문턱 아래일 때만** 선다
+        boolean amountSaysDry = amount != null && amount.compareTo(MIN_AMOUNT) < 0;
+        if ((amountSaysDry && saysDry(code)) || (chance != null && chance == 0)) {
             return false;
         }
         if (chance != null && chance >= cut.chance()) {

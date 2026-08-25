@@ -129,30 +129,38 @@ public record Weather(GeoLocation place, List<Daily> days, WeatherSource source,
          */
         public Daily withHalves(List<HalfDay> halves) {
             Integer peak = peakChanceOf(halves);
-            return new Daily(date, skyAgreeingWith(halves), low, high,
+            return new Daily(date, skyAgreeingWith(halves, peak), low, high,
                     peak != null ? peak : precipitationChance, precipitationAmount, halves);
         }
 
         /**
-         * 하루 요약의 하늘 — <b>요약이 약속한 비는 반나절 중 하나가 보여야 한다.</b>
+         * 하루 요약의 하늘 — <b>반나절이 말한 것과 같은 무게여야 한다.</b>
          *
-         * <p>요약이 강수를 말하는데(비·소나기·뇌우…) 반나절 <b>둘 다 마르면</b> 그 약속을 지킬
-         * 자리가 없다. 실측(2026-08-26 미금역)에서 <b>「소나기 / 강수확률 61% / ☁️ 오전 흐림 /
-         * ⛅ 오후 구름 조금」</b>이 그렇게 나왔다 — 요약은 AccuWeather 낮 칸이고 반나절은
-         * Open-Meteo 시간별이라, 한 블록에 <b>두 예보</b>가 선 것이다. 그때 요약을 반나절이 말한
-         * 하늘로 낮춘다. <b>한 블록의 값은 한 예보에서 나온다</b>는 것이 {@link #withHalves}가
-         * 확률을 갈아 끼우는 이유이고, 하늘도 같은 이유로 여기서 갈린다.
+         * <p>요약과 반나절이 서로 다른 예보에서 오면 한 블록이 제 말을 뒤집는다. 실측으로 양쪽을
+         * 다 봤다: <b>「소나기 / 강수확률 61% / ☁️ 오전 흐림 / ⛅ 오후 구름 조금」</b>
+         * (2026-08-26 미금역 — 요약은 AccuWeather 낮 칸, 반나절은 Open-Meteo 봉우리 18%)와
+         * 그 반대인 <b>「맑음 / 강수확률 100% / ☔ 오전 종일 비 / ☔ 오후 종일 비」</b>다.
+         * 그래서 <b>요약을 반나절이 말한 것 중 가장 무거운 것으로 맞춘다</b> — 낮추기도 하고
+         * 올리기도 한다.
          *
-         * <p>⚠️ <b>반대 방향은 고치지 않는다.</b> 요약 「흐림」에 반나절 「☔ 오후 1시~7시 비」는
-         * 모순이 아니라 <b>「대체로 흐리고 한때 비」</b>로 읽힌다 — 약속을 어기는 쪽만 고친다.
-         * 그리고 이 비대칭 덕분에 1순위(AccuWeather)의 하늘이 평상시에는 그대로 남는다.
+         * <p>⚠️ <b>한동안 낮추는 쪽만 했다.</b> 「흐림에 한때 비는 모순이 아니라 『대체로 흐리고
+         * 한때 비』로 읽힌다」는 이유였는데, 그 해석이 <b>모든 역방향에 통하지 않는다</b> —
+         * 「맑음 + 종일 비」는 어떻게 읽어도 모순이다. 한쪽만 고치는 규칙은 예외를 정당화해야
+         * 하고, 그 정당화가 한 입력에서 무너졌다. 그래서 양방향 한 규칙으로 바꿨다.
+         * 대가는 1순위(AccuWeather)의 하늘이 반나절에 밀리는 것인데, <b>확률은 이미 그렇게
+         * 하고 있었다</b>({@link #withHalves}) — 같은 블록의 강수 값이 한 예보에서 나온다.
          *
-         * <p>⚠️ <b>모르는 것으로 아는 것을 덮지 않는다.</b> 반나절 둘 다
-         * {@link SkyCondition#UNKNOWN}이면 요약을 그대로 둔다.
+         * <p>⚠️ <b>지나간 날은 건드리지 않는다.</b> {@code peak}가 {@code null}인 날이 그것인데
+         * (재분석은 확률을 안 준다) 거기 담긴 것은 예보가 아니라 <b>실측</b>이다. 손댔더니
+         * 시간별이 전부 {@code 0.1mm} 미만인 날에 <b>「맑음 / 강수량 0.1mm」</b>가 나왔다 —
+         * 비가 왔다고 적으면서 맑았다고 말하는 셈이고, 「지난 날은 실제로 온 양으로 적는다」를
+         * 어긴다. <b>확률을 다시 세는 날에만 하늘도 함께 맞춘다.</b>
+         *
+         * <p><b>모르는 것으로 아는 것을 덮지 않는다.</b> {@link SkyCondition#UNKNOWN}은 후보에서
+         * 빠지고, 반나절이 전부 모르면 요약을 그대로 둔다.
          */
-        private SkyCondition skyAgreeingWith(List<HalfDay> halves) {
-            if (halves == null || halves.isEmpty() || !sky.precipitating()
-                    || halves.stream().anyMatch(HalfDay::wet)) {
+        private SkyCondition skyAgreeingWith(List<HalfDay> halves, Integer peak) {
+            if (halves == null || halves.isEmpty() || peak == null) {
                 return sky;
             }
             return halves.stream().map(HalfDay::kind)

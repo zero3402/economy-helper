@@ -31,10 +31,13 @@ public final class PercentChange {
         if (latest == null || previous == null || previous.signum() == 0) {
             return null;
         }
+        // ⚠️ **반올림은 한 번만 한다.** 예전에는 8자리로 나눠 접고 100을 곱한 뒤 다시 2자리로
+        //    접었는데, 그 두 번째 접기가 첫 번째의 오차를 타고 올라간다 — 실측 반례로
+        //    11579 → 11590이 정확히 0.094999568%인데 옛 방식은 0.10%를 냈다(정답은 0.09%).
+        //    곱하고 **한 번에** 나누면 중간 반올림이 없다
         return latest.subtract(previous)
-                .divide(previous, 8, RoundingMode.HALF_UP)
                 .multiply(HUNDRED)
-                .setScale(2, RoundingMode.HALF_UP);
+                .divide(previous, 2, RoundingMode.HALF_UP);
     }
 
     /**
