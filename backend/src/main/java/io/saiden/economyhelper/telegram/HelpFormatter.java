@@ -60,7 +60,11 @@ public final class HelpFormatter {
      *
      * <p><b>줄임말을 예시 뒤에 붙인다.</b> 줄을 따로 만들지 않는 이유는 목록이 이미
      * 「예시 / 설명」 두 줄 짜임이라, 세 줄이 되면 명령 여섯 개가 화면 한 통을 다 먹는다.
-     * 있는 명령만 붙는다 — {@code /news}에는 줄임말이 없어 그 줄이 그대로다.
+     * <p>⚠️ <b>지금은 여섯 명령이 모두 줄임말을 든다</b>({@code Command}) — 그래서 아래 분기는
+     * 언제나 참이다. 지우지 않는 이유는 <b>줄임말 없는 명령을 더할 여지</b>를 남기기 위해서다.
+     * 예전에 이 자리가 「{@code /news}에는 줄임말이 없어 그 줄이 그대로다」라고 적고 있었는데,
+     * {@code /n}이 붙은 뒤로 <b>글자 그대로 틀린 문장</b>이었다 — 주석이 설계 문서인 저장소에서
+     * 거짓 주석은 다음 사람을 틀린 결론으로 데려간다.
      */
     private static String commandList() {
         StringBuilder list = new StringBuilder();
@@ -78,7 +82,7 @@ public final class HelpFormatter {
      * 목록에 적는 한 줄 설명 — <b>그 명령이 답하는 통의 이름이다.</b>
      *
      * <p>예전에는 여기가 {@code switch}로 여섯 갈래를 따로 들고 있었는데, 그건
-     * {@link Command#head()}과 <b>같은 사실을 담은 두 번째 표</b>였고 이미 어긋나 있었다 —
+     * {@link Command#section()}과 <b>같은 사실을 담은 두 번째 표</b>였고 이미 어긋나 있었다 —
      * 도움말은 {@code /stock}을 「주식」이라 적고 정작 답은 「증시」로 나갔다. {@code Command}가
      * "분기문이 아니라 상수가 직접 들고 있는 이유"로 적어 둔 바로 그 함정이다.
      *
