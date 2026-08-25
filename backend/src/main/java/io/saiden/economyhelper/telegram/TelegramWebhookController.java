@@ -234,12 +234,6 @@ public class TelegramWebhookController {
     }
 
     /**
-     * 한 통을 보낸다 — <b>실패해도 다음 통을 막지 않는다.</b>
-     *
-     * <p>여기서 던지면 남은 통이 통째로 사라지고, 사용자는 왜 답이 중간에 끊겼는지 알 수 없다.
-     * {@code DailyDigestJob}이 통마다 실패를 삼키는 것과 같은 규칙이다.
-     */
-    /**
      * 차트 한 장 — <b>실패해도 답이 이미 나갔다.</b>
      *
      * <p>글이 먼저 나가므로 사진이 실패해도 사용자는 값을 받았다. 그래서 여기서 던지지 않고
@@ -254,6 +248,12 @@ public class TelegramWebhookController {
         }
     }
 
+    /**
+     * 한 통을 보낸다 — <b>실패해도 다음 통을 막지 않는다.</b>
+     *
+     * <p>여기서 던지면 남은 통이 통째로 사라지고, 사용자는 왜 답이 중간에 끊겼는지 알 수 없다.
+     * {@code DailyDigestJob}이 통마다 실패를 삼키는 것과 같은 규칙이다.
+     */
     private void sendQuietly(String chatId, Integer topicId, Integer replyTo,
                              String text, boolean preview) {
         try {
@@ -280,20 +280,6 @@ public class TelegramWebhookController {
         }
     }
 
-
-
-    /**
-     * 환율 일봉 차트 — <b>못 만들면 {@code null}이고 답은 그대로 나간다.</b>
-     *
-     * <p>차트는 보충이지 답이 아니다. 일봉 조회가 실패하거나 점이 하나뿐이면 사진만 빠진다 —
-     * {@code WeatherService}가 강수 시각을 다루는 방식과 같은 자리다.
-     *
-     * <p>⚠️ <b>「현재값과 일일값을 섞지 않는다」는 규칙에 걸리지 않는다.</b> 그 규칙이 막으려는
-     * 것은 <b>모양이 같은 숫자 둘</b>이 서로 다른 축에 있어 모순처럼 읽히는 것이다
-     * (「지금 21°C인데 최고가 29°C」). 차트는 숫자가 아니라 눈에 보이게 다른 표현이고,
-     * 그 오른쪽 끝이 곧 현재값이라 둘이 이어진다. 게다가 caption이 창을 이름으로 밝힌다.
-     * 규칙을 잊은 것이 아니라 해당하지 않는다는 판단이다.
-     */
     /** 코인 일봉 차트 — 상장 직후 코인은 칸이 모자라 그림이 없을 수 있다. */
     private ChartImage cryptoChart(io.saiden.economyhelper.market.CryptoQuote quote) {
         if (quote.market() == null) {
@@ -363,6 +349,17 @@ public class TelegramWebhookController {
                 () -> stockService.dailyBarsOf(answer.series()));
     }
 
+    /**
+     * 이 시세에 환산이 필요한가 — <b>필요할 때만 환율을 묻는다.</b>
+     *
+     * <p>{@code Money.convertible()}이 곧 「원화 줄이 붙는가」다({@code this == USD}).
+     * 국내 종목과 지수는 거짓이라 부르지 않는다 — 안 쓸 값에 KIS 호출과 간격을 쓰지 않는다.
+     */
+    private io.saiden.economyhelper.market.FxRate fxFor(
+            io.saiden.economyhelper.market.StockQuote quote) {
+        return quote.currency().convertible() ? fxService.orNull() : null;
+    }
+
     private ChartImage fxChart() {
         return chartOf("환율", "KRW", fxService::dailyBars);
     }
@@ -396,9 +393,16 @@ public class TelegramWebhookController {
                     .orElseGet(() -> Reply.plain(FxFormatter.unavailable()));
             // 미국 종목이면 원화도 함께 보여준다. 환율 조회가 실패하면 달러만 나간다 —
             // 환산을 못 한다고 시세 자체를 막을 이유가 없다.
+            //
+            // ⚠️ <b>미국 종목일 때만 환율을 묻는다.</b> 국내는 이미 원화라
+            //    StockFormatter.convertible()이 거짓이고 시세도 목표가도 그 값을 안 쓴다.
+            //    그런데 무조건 부르던 동안 값이 실재했다 — fxService의 1순위가 KisFxClient이고
+            //    KisThrottle.pace()를 타므로, 찬 캐시(fx-kis 1분)에서 /stock 삼성전자가 KIS
+            //    호출을 하나 더 태우고 간격이 전역이라 **그 1초가 주가 조회까지 늦췄다.**
+            //    바로 위 case CRYPTO가 같은 규칙을 이미 지킨다
             case STOCK -> stockService.answer(command.argument())
                     .map(answer -> Reply.plain(StockFormatter.format(
-                                    List.of(answer.quote()), fxService.orNull(),
+                                    List.of(answer.quote()), fxFor(answer.quote()),
                                     // 전망이 없으면 빈 맵 — 그러면 그 줄이 아예 안 적힌다
                                     answer.outlook() == null
                                             ? java.util.Map.of()

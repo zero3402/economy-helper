@@ -112,6 +112,44 @@ class TelegramWebhookControllerTest {
     }
 
     @Test
+    @DisplayName("국내 종목에는 환율을 아예 묻지 않는다 — 안 쓸 값에 KIS 호출과 간격을 쓰지 않는다")
+    void neverAsksForFxOnADomesticStock() {
+        // ⚠️ 무조건 부르던 자리다. 국내는 Money.KRW라 StockFormatter.convertible()이 거짓이어서
+        //    시세도 목표가도 그 값을 안 쓰는데, fxService의 1순위가 KisFxClient이고
+        //    KisThrottle.pace()를 타므로 찬 캐시에서 KIS 호출을 하나 더 태우고 간격이 전역이라
+        //    그 1초가 주가 조회까지 늦췄다. 바로 위 case CRYPTO는 같은 규칙을 지키고 있었다
+        CountingFx counting = new CountingFx();
+        StockQuote domestic = new StockQuote("삼성전자", new BigDecimal("239500"), null,
+                StockQuote.Money.KRW, StockQuote.Market.DOMESTIC,
+                io.saiden.economyhelper.market.StockSource.DATA_GO, NOW, false);
+
+        defaultController(facade(Optional.empty()), crypto(Optional.empty()),
+                counting, stock(Optional.of(domestic)), new RecordingClient())
+                .onUpdate(null, update(1, "/stock 삼성"));
+
+        assertThat(counting.calls).as("원화 종목에 환율을 물을 이유가 없다").isZero();
+    }
+
+    @Test
+    @DisplayName("미국 종목에는 한 번 묻는다 — 환산 줄이 그 값을 쓴다")
+    void asksForFxOnceOnAUsStock() {
+        CountingFx counting = new CountingFx();
+        StockQuote american = new StockQuote("애플", new BigDecimal("232.14"), null,
+                StockQuote.Money.USD, StockQuote.Market.US,
+                io.saiden.economyhelper.market.StockSource.KIS, NOW, true);
+
+        RecordingClient client = new RecordingClient();
+        defaultController(facade(Optional.empty()), crypto(Optional.empty()),
+                counting, stock(Optional.of(american)), client)
+                .onUpdate(null, update(1, "/stock 애플"));
+
+        assertThat(counting.calls).isEqualTo(1);
+        assertThat(client.sent.get(0).text())
+                .as("실제로 환산 줄이 나가야 한다 — 안 나가면 이 셈이 공허하다")
+                .contains("KRW");
+    }
+
+    @Test
     @DisplayName("못 찾은 종목에도 어느 통의 답인지는 남는다")
     void tellsUserWhenStockNotFound() {
         RecordingClient client = new RecordingClient();
@@ -634,6 +672,22 @@ class TelegramWebhookControllerTest {
     }
 
     /** 이중화 규칙은 {@code FxServiceTest}가 본다. 여기서는 라우팅만 본다. */
+    /** 환율을 몇 번 물었는지 센다 — 안 쓸 값을 부르지 않는지 보는 자리. */
+    private static final class CountingFx extends FxService {
+        private int calls;
+
+        private CountingFx() {
+            super(List.of(), null);
+        }
+
+        @Override
+        public Optional<FxRate> usdToKrw() {
+            calls++;
+            return Optional.of(new FxRate("USD", "KRW", new BigDecimal("1412.17"),
+                    io.saiden.economyhelper.market.FxSource.KIS, NOW));
+        }
+    }
+
     private static FxService fx(Optional<FxRate> result) {
         return new FxService(List.of(), null) {
             @Override
