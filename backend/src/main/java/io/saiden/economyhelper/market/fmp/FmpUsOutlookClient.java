@@ -111,8 +111,7 @@ public class FmpUsOutlookClient implements UsOutlookClient {
 
         Fetched<Target> target = fetch(TARGET, symbol,
                 new ParameterizedTypeReference<List<Target>>() {});
-        Fetched<List<Earnings>> schedule = fetchAll(EARNINGS, symbol,
-                new ParameterizedTypeReference<List<Earnings>>() {});
+        Fetched<List<Earnings>> schedule = earnings(symbol);
         // ⚠️ **빈 배열과 조회 실패를 구분해야 한다.** 둘을 다 null로 뭉치면 「목표가를 낸 곳이
         //    없다」(값)와 「못 물어봤다」(실패)가 같아지고, 그러면 브레이커가 실패를 못 본다.
         //    처음에 그렇게 써 뒀고 FmpUsOutlookClientTest가 그것을 잡았다
@@ -125,6 +124,28 @@ public class FmpUsOutlookClient implements UsOutlookClient {
                 target.value() == null ? null : positive(target.value().targetConsensus()),
                 StockSource.FMP, clock.instant());
         return outlook.isEmpty() ? Optional.empty() : Optional.of(outlook);
+    }
+
+    /**
+     * 둘째 호출 — <b>이미 받아 둔 목표가를 버리지 않는다.</b>
+     *
+     * <p>⚠️ {@link #fetchAll}은 한도가 소진되면 <b>던진다</b>(HTTP 실패와 달리 try 앞이다).
+     * 그 예외가 여기까지 올라오면 방금 성공한 목표가까지 함께 버려진다 — 「살아 있는 것은
+     * 살린다」를 이 자리만 지키지 않고 있었다. 한도가 <b>두 호출 사이에서</b> 끝나는 경계라
+     * 드물지만, 걸리면 그 심볼의 목표가 줄이 <b>자정(KST)까지</b> 안 나온다(예외는 캐시되지 않아
+     * 다음 조회도 같은 자리에서 막힌다).
+     *
+     * <p>처음부터 한도가 없던 경우는 그대로 던진다 — 첫 호출이 먼저 막히므로 여기까지 오지 않고,
+     * 그때는 「한도를 소진했다」가 정확한 사유다.
+     */
+    private Fetched<List<Earnings>> earnings(String symbol) {
+        try {
+            return fetchAll(EARNINGS, symbol, new ParameterizedTypeReference<List<Earnings>>() {});
+        } catch (RuntimeException e) {
+            log.info("[fmp] '{}' 실적발표일을 못 물었습니다 — 목표가만 내보냅니다: {}",
+                    symbol, e.getMessage());
+            return new Fetched<>(null, true);
+        }
     }
 
     /**

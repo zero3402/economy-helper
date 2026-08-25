@@ -82,7 +82,12 @@ public class UpbitApi {
      *
      * @param market 마켓 코드({@code KRW-BTC})
      */
-    @Cacheable(cacheNames = CacheNames.CRYPTO_SERIES, key = "#market")
+    // ⚠️ **빈 목록은 캐시하지 않는다.** 새로 상장된 코인이나 일시적 빈 배열이 그대로 굳으면
+    //    그 코인 차트가 TTL(1시간) 내내 빠진다 — 브리핑이 09~10시 창에서 10분마다 도는데
+    //    그 창과 길이가 겹치므로, 09시의 빈손 하나가 그날 브리핑 전체에서 차트를 지운다.
+    //    FeedFetcher가 「빈 결과는 캐시하지 않는다」를 세운 것과 같은 자리다. 다시 부르는
+    //    대가는 업비트 호출 하나뿐이다(키도 일 한도도 없고 초당 8회 리미터 안이다)
+    @Cacheable(cacheNames = CacheNames.CRYPTO_SERIES, key = "#market", unless = "#result.isEmpty()")
     @RateLimiter(name = "upbit")
     @Retry(name = "upbit")
     @CircuitBreaker(name = "upbit")

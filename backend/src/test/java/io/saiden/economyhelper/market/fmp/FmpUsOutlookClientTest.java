@@ -230,6 +230,47 @@ class FmpUsOutlookClientTest {
                 .isEqualTo(LocalDate.of(2026, 10, 28));
     }
 
+    @Test
+    @DisplayName("한도가 두 호출 사이에서 끝나도 목표가는 살린다 — 이미 받아 둔 것을 버리지 않는다")
+    void keepsTheTargetWhenQuotaRunsOutMidway() {
+        // ⚠️ fetchAll은 한도 소진에 **던진다**(HTTP 실패와 달리 try 앞이다). 그 예외가 그대로
+        //    올라오면 방금 성공한 목표가까지 버려지고, 예외는 캐시되지 않으므로 다음 조회도
+        //    같은 자리에서 막혀 그 심볼의 목표가 줄이 자정(KST)까지 안 나온다
+        stub(TARGET, 200, """
+                [{"symbol":"AAPL","targetHigh":400,"targetConsensus":340.72}]""");
+        FmpUsOutlookClient client = new FmpUsOutlookClient(RestClient.builder(), server.baseUrl(),
+                API_KEY, new DeniesAfterFirst(),
+                Clock.fixed(Instant.parse("2026-08-21T00:00:00Z"), ZoneOffset.UTC));
+
+        StockOutlook outlook = client.outlook("AAPL").orElseThrow();
+
+        assertThat(outlook.targetPrice())
+                .as("한도가 둘째 호출에서 끝났다고 첫째가 받아 온 값을 버리면 안 된다")
+                .isEqualByComparingTo(new BigDecimal("340.72"));
+        assertThat(outlook.earningsDate())
+                .as("못 물어본 값은 없는 것이다 — 지어내지 않는다")
+                .isNull();
+        server.verify(0, getRequestedFor(urlPathEqualTo(EARNINGS)));
+    }
+
+    /** 첫 호출만 허용한다 — 한도가 두 호출 사이에서 끝나는 경계를 만든다. */
+    private static final class DeniesAfterFirst extends FmpQuotaGuard {
+        private boolean used;
+
+        private DeniesAfterFirst() {
+            super(null, Clock.systemUTC(), 240);
+        }
+
+        @Override
+        public boolean tryAcquire() {
+            if (used) {
+                return false;
+            }
+            used = true;
+            return true;
+        }
+    }
+
     /** 한도를 세지 않는 가드 — 세는 규칙은 {@code FmpQuotaGuard}가 스스로 시험한다. */
     private static final class AlwaysAllow extends FmpQuotaGuard {
         private AlwaysAllow() {
