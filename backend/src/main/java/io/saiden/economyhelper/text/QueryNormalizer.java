@@ -21,9 +21,10 @@ import java.util.regex.Pattern;
  *       하나 뗄 때마다 처음부터 다시 훑는다
  * </ol>
  *
- * <p>조사 제거가 아예 쓸모없는 건 아니다 — {@code /news}는 {@code 금리}·{@code 금리는}·{@code 금리가}가
- * 지금 <b>각각 따로 캐시돼</b> 같은 개념에 Gemini를 세 번 태운다. 그쪽은 종목명처럼 정확히
- * 맞출 필요가 없으므로 {@link #forSearchToken}에서 따로 떼어 준다.
+ * <p>조사 제거가 아예 쓸모없는 건 아니다. {@code /news}는 {@code 금리}·{@code 금리는}·
+ * {@code 금리가}가 <b>각각 따로 캐시되던</b> 자리였다 — 같은 개념에 Gemini를 세 번 태웠다.
+ * 그쪽은 종목명처럼 정확히 맞출 필요가 없으므로 {@link #forSearchToken}이 조사를 뗀다.
+ * {@code QueryExpander.tokenize}가 그것을 태운 뒤 {@code distinct}를 걸어 지금은 한 번만 번역된다.
  */
 public final class QueryNormalizer {
 
