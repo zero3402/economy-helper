@@ -225,12 +225,10 @@ public class DailyDigestJob extends TriggerableJob {
      * @param texts   보낼 본문들. 비어 있으면 {@code failure}에 이유가 있다
      * @param failure 실패 사유. 성공이면 {@code null}
      * @param preview 링크 미리보기를 띄울지. 기사를 담은 통만 참이다
-     */
-    /**
-     * @param charts 통에 딸린 차트들 — <b>종목마다 한 장</b>이고 글 다음에 순차로 나간다.
-     *               텍스트 통은 그대로 둔다: 「무리 하나가 통 하나처럼 끝맺는다」가 출처·기준을
-     *               한 번만 적기 위해 있는 규칙이라, 쪼개면 「국내」·「미국」과 출처 줄이
-     *               종목마다 되풀이된다. 글이 요약을 맡고 사진이 차트를 맡는다
+     * @param charts  통에 딸린 차트들 — <b>종목마다 한 장</b>이고 글 다음에 순차로 나간다.
+     *                텍스트 통은 그대로 둔다: 「무리 하나가 통 하나처럼 끝맺는다」가 출처·기준을
+     *                한 번만 적기 위해 있는 규칙이라, 쪼개면 「국내」·「미국」과 출처 줄이
+     *                종목마다 되풀이된다. 글이 요약을 맡고 사진이 차트를 맡는다
      */
     private record Section(String name, List<String> texts, String failure, boolean preview,
                            List<ChartImage> charts) {

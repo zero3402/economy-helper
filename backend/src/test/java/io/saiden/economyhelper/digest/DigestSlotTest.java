@@ -1,6 +1,7 @@
 package io.saiden.economyhelper.digest;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 import io.saiden.economyhelper.digest.DailyDigestJobTest.InMemoryHistory;
 import java.time.Clock;
@@ -96,5 +97,26 @@ class DigestSlotTest {
         assertThat(claim.proceed()).isFalse();
         assertThat(claim.blockedReason()).contains("Redis");
         assertThat(claim.id()).as("어느 슬롯이 막혔는지는 알려 준다").isEqualTo("2026-08-17");
+    }
+
+    @Test
+    @DisplayName("되돌리다 Redis가 죽어도 결과를 잃지 않는다 — claim은 막는데 release는 안 막고 있었다")
+    void releaseSurvivesRedisFailure() {
+        // ⚠️ 도달 조건이 좁다(잡을 때는 살아 있고 되돌릴 때는 죽어 있다) — 그런데 그 사이가
+        //    브리핑의 외부 호출 전부라 초에서 분 단위로 벌어져 있다. 던지면 execute()가
+        //    통째로 터져 DigestResult가 버려지고 lastResult가 어제 것으로 남는다 —
+        //    「오늘 아침에 왜 안 왔나」를 확인하려고 만든 값이 정확히 그때 거짓을 말한다
+        SendHistory dyingOnRelease = new InMemoryHistory() {
+            @Override
+            public void release(String slot) {
+                throw new IllegalStateException("연결할 수 없습니다");
+            }
+        };
+        DigestSlot slot = slot(dyingOnRelease, "");
+        DigestSlot.Claim claim = slot.claim(false);
+
+        assertThatCode(() -> slot.release(claim))
+                .as("되돌리기 실패가 부르는 쪽의 결과를 통째로 버리게 만들면 안 된다")
+                .doesNotThrowAnyException();
     }
 }

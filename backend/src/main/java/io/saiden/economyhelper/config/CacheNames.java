@@ -1,7 +1,7 @@
 package io.saiden.economyhelper.config;
 
 /**
- * 캐시 이름 스물하나 — <b>그리고 그중 어느 것에 판(version) 번호가 붙는지.</b>
+ * 캐시 이름 스물일곱 — <b>그리고 그중 어느 것에 판(version) 번호가 붙는지.</b>
  *
  * <p><b>왜 상수로 모으는가.</b> 이름이 {@code @Cacheable}과 {@link CacheConfig} 두 곳에
  * 문자열로 적혀 있었다. 어긋나면 그 캐시가 Redis 기본값(JDK 직렬화·무기한)으로 떨어져
@@ -91,7 +91,7 @@ public final class CacheNames {
     public static final String KIS_QUOTE = "kis-quote";
 
     /**
-     * 국내 종목의 목표주가·투자의견. 시세와 <b>수명이 전혀 다르다</b> — 증권사는 분기에 몇 번
+     * 국내 종목의 <b>목표주가</b>. 시세와 <b>수명이 전혀 다르다</b> — 증권사는 분기에 몇 번
      * 낼 뿐이라 하루를 캐시해도 낡지 않는다. 그리고 그 길이가 이 기능의 실질 방어다:
      * 브리핑이 종목마다 조회를 하나 더 하는데 KIS는 <b>호출 사이 1초</b>를 지키므로,
      * 캐시가 없으면 브리핑이 종목 수만큼 더 늦어진다.
@@ -99,9 +99,13 @@ public final class CacheNames {
     public static final String KIS_OUTLOOK = "kis-outlook";
 
     /**
-     * 미국 종목의 목표주가·투자의견. <b>심볼당 FMP 호출이 둘</b>(목표가와 의견이 다른
-     * 엔드포인트이고 무료 티어는 배치가 막혔다)이라 하루 250회에서 심볼 하나가 2회를 쓴다 —
-     * 이 캐시가 그 한도의 실질 방어다.
+     * 미국 종목의 <b>목표주가·실적발표일</b>. <b>심볼당 FMP 호출이 둘</b>
+     * ({@code price-target-consensus}·{@code earnings}가 다른 엔드포인트이고 무료 티어는
+     * 배치가 막혔다)이라 하루 250회에서 심볼 하나가 2회를 쓴다 — 이 캐시가 그 한도의 실질 방어다.
+     *
+     * <p>⚠️ 한동안 「목표주가·<b>투자의견</b>」이었고 둘째 호출도 「의견」이라 적혀 있었다 —
+     * 투자의견을 걷어내면서 {@code grades-consensus}를 지우고 실적발표일이 그 자리에 왔는데
+     * 이름만 남았다. 개수(둘)는 우연히 그대로였다.
      */
     public static final String US_OUTLOOK = "us-outlook";
 

@@ -34,7 +34,11 @@ import org.springframework.http.client.ClientHttpRequestFactory;
  * <p><b>덤으로 커넥션 풀이 줄어든다.</b> {@code RestClient.Builder} 빈은 prototype이고
  * {@code RestClientBuilderConfigurer}가 주입마다 팩터리를 <b>새로</b> 만든다 — 지금 이 앱에
  * {@code java.net.http.HttpClient}가 스물세 개, 풀이 스물세 개 있다. 라우터는
- * (connect, read) 쌍마다 하나만 기억하므로 다섯 + 기본 하나 = <b>여섯</b>이 된다.
+ * (connect, read) 쌍마다 하나만 기억하므로 <b>설정에 적힌 서로 다른 쌍의 수 + 기본 하나</b>가
+ * 된다 — 지금은 호스트 열다섯이 쌍 넷을 나눠 쓰므로 <b>다섯</b>이다.
+ *
+ * <p>⚠️ 이 숫자를 손으로 적지 말 것. 한동안 「다섯 + 기본 하나 = 여섯」이었는데 그 사이
+ * 쌍 하나가 합쳐져 실제로는 넷이었다 — 설정을 고치면 따라 틀리는 종류의 문장이다.
  *
  * <p>KIS 셋이 그래서 풀을 공유한다 — 토큰 발급도 같은 앱키의 호출이므로
  * {@code KisTokenStore.request()}가 간격 문을 함께 탄다({@code KisThrottle} 참고).

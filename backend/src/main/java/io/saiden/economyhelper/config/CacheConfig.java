@@ -135,13 +135,13 @@ public class CacheConfig {
                 // 지명의 좌표는 낡지 않는다. 검색 한 번에 조회가 두 번 나가는 것을 막는다
                 .withCacheConfiguration(CacheNames.GEOCODE,
                         cache(ttl.geocode(), new TypeReference<java.util.Optional<GeoLocation>>() {}))
-                // 좌표에 대응하는 AccuWeather 지점 키도 낡지 않는다. 이게 하루 50회 한도의
-                // 실질 방어다 — 없으면 날씨 조회 한 번마다 호출이 두 번 나간다
                 // 날짜별 강수 토막. weather와 나눠 쓰지 않는다 — 이름 하나에 타입 하나다
                 .withCacheConfiguration(CacheNames.PRECIPITATION_HOURS,
                         cache(ttl.precipitationHours(),
                                 new TypeReference<java.util.Map<java.time.LocalDate,
                                         List<io.saiden.economyhelper.market.weather.HalfDay>>>() {}))
+                // 좌표에 대응하는 AccuWeather 지점 키도 낡지 않는다. 이게 하루 50회 한도의
+                // 실질 방어다 — 없으면 날씨 조회 한 번마다 호출이 두 번 나간다
                 .withCacheConfiguration(CacheNames.ACCU_LOCATION,
                         cache(ttl.accuLocation(), new TypeReference<String>() {}))
                 // LLM 해석. '내일'을 offsetDays로 받으므로 캐시해도 내일이 고정되지 않는다

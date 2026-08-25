@@ -25,6 +25,12 @@ import org.junit.jupiter.api.Test;
  * {@code Command}에는 그런 메서드가 없다(그 사실을 든 것은 {@code section()}이다).
  * 그래서 사람이 훑는 대신 테스트가 본다.
  *
+ * <p><b>고아 javadoc도 여기서 본다.</b> {@code /** … *}{@code /} 바로 뒤에 또 {@code /**}가
+ * 오면 <b>앞엣것은 아무것에도 안 달린다</b> — 컴파일도 통과하고 화면에도 안 보이는데, 읽는
+ * 사람은 <b>아래 메서드의 계약을 틀리게</b> 읽는다. 이 감사에서 <b>다섯 번</b> 나왔다
+ * (telegram의 {@code sendChartQuietly}·{@code cryptoChart}, {@code KisStockApi.Bar},
+ * {@code CryptoService.quotesOf}, {@code DailyDigestJob.Section}) — 손으로 찾을 유형이 아니다.
+ *
  * <p>⚠️ <b>검사 대상이 0개면 실패한다.</b> 이 검사를 손으로 돌렸을 때 경로가 어긋나 파일을
  * 하나도 안 읽고 「0건」을 냈다 — <b>통과와 아무것도 안 한 것이 같아 보이는</b> 그 함정이다.
  * 그래서 파일 수를 먼저 단언한다.
@@ -100,5 +106,40 @@ class JavadocLinksTest {
         while (found.find()) {
             into.add(found.group(1));
         }
+    }
+
+    /** javadoc 블록이 끝난 뒤 공백만 두고 또 {@code /**}가 오는 자리. 앞엣것은 고아다. */
+    private static final Pattern ORPHAN = Pattern.compile("\\*/\\s*\\n\\s*/\\*\\*");
+
+    @Test
+    @DisplayName("아무것에도 안 달린 javadoc이 없다 — 다섯 번 나온 유형이라 사람이 찾을 것이 아니다")
+    void noOrphanedJavadoc() throws IOException {
+        // 테스트 소스까지 본다 — 스텁의 계약을 틀리게 읽으면 테스트가 무엇을 보는지도 어긋난다.
+        // 실제로 이번 감사에서 테스트 쪽에서도 둘 나왔다(HackerNewsBuzzClientTest·
+        // TelegramWebhookControllerTest), 그중 하나는 이 감사가 직접 만든 것이었다
+        List<Path> files = new ArrayList<>();
+        for (Path root : List.of(SOURCES, Path.of("src/test/java"))) {
+            try (Stream<Path> walk = Files.walk(root)) {
+                walk.filter(path -> path.toString().endsWith(".java")).forEach(files::add);
+            }
+        }
+        assertThat(files)
+                .as("소스를 하나도 안 읽었다면 이 검사는 통과가 아니라 공허한 것이다")
+                .hasSizeGreaterThan(150);
+
+        List<String> orphans = new ArrayList<>();
+        for (Path path : files) {
+            Matcher orphan = ORPHAN.matcher(Files.readString(path));
+            while (orphan.find()) {
+                int line = (int) Files.readString(path).chars()
+                        .limit(orphan.start()).filter(ch -> ch == '\n').count() + 1;
+                orphans.add(path.getFileName() + ":" + line);
+            }
+        }
+
+        assertThat(orphans)
+                .as("javadoc 블록 바로 위의 또 다른 javadoc은 아무것도 설명하지 않는다 — "
+                        + "읽는 사람이 아래 메서드의 계약을 틀리게 읽는다")
+                .isEmpty();
     }
 }

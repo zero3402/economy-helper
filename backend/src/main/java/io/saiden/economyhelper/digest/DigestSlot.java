@@ -94,8 +94,21 @@ final class DigestSlot {
      * {@code force}로 들어와 남의 선점을 지나쳤을 수 있으므로 <b>내가 잡은 것만</b> 되돌린다.
      */
     void release(Claim claim) {
-        if (claim.claimed()) {
+        if (!claim.claimed()) {
+            return;
+        }
+        try {
             history.release(claim.id());
+        } catch (RuntimeException e) {
+            // ⚠️ <b>{@link #claim}은 Redis 실패를 값으로 바꾸는데 여기는 안 그러고 있었다.</b>
+            //    같은 클래스가 들어올 때는 막고 나갈 때는 안 막은 셈이다. 던지면 부르는 쪽의
+            //    execute()가 통째로 터져 (1) 공들여 만든 DigestResult가 버려지고
+            //    (2) TriggerableJob.lastResult가 **어제 것으로 남는다** — 「오늘 아침에 왜
+            //    안 왔나」를 확인하려고 만든 값이 정확히 그때 거짓을 말한다.
+            //    되돌리기는 실패해도 할 수 있는 것이 없다(Redis가 죽어 슬롯도 못 푼다).
+            //    그래서 크게 남기고 넘어간다 — 다음 날 슬롯은 TTL이 지워 준다
+            log.error("[{}] {} 슬롯 선점을 되돌리지 못했습니다 — 그날 발송이 복구되지 않습니다: {}",
+                    logTag, claim.id(), e.toString());
         }
     }
 

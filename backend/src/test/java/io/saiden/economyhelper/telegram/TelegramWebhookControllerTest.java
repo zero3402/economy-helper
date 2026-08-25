@@ -671,8 +671,11 @@ class TelegramWebhookControllerTest {
         };
     }
 
-    /** 이중화 규칙은 {@code FxServiceTest}가 본다. 여기서는 라우팅만 본다. */
-    /** 환율을 몇 번 물었는지 센다 — 안 쓸 값을 부르지 않는지 보는 자리. */
+    /**
+     * 환율을 몇 번 물었는지 센다 — 안 쓸 값을 부르지 않는지 보는 자리.
+     *
+     * <p>이중화 규칙은 {@code FxServiceTest}가 본다. 여기서는 라우팅만 본다.
+     */
     private static final class CountingFx extends FxService {
         private int calls;
 

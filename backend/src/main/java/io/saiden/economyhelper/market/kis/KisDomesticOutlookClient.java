@@ -19,7 +19,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 /**
- * 국내 종목의 목표주가·투자의견 — KIS {@code invest-opinion}.
+ * 국내 종목의 <b>목표주가</b> — KIS {@code invest-opinion}.
+ *
+ * <p>엔드포인트 이름이 「투자의견」이라 로그·예외 문구는 그 이름을 그대로 쓰지만,
+ * <b>이 응답에서 읽는 것은 목표가뿐이다</b>(아래 ⚠️ 참고). 머리글이 한동안
+ * 「목표주가·투자의견」이라 <b>같은 파일 안에서 스스로를 반박하고 있었다.</b>
  *
  * <p><b>모의 계정에서도 200이다</b>(실측 2026-08-20). 문서가 「실전 전용 엔드포인트가 막힌다」고
  * 적어 둔 목록에 이것을 넣어 짐작할 뻔했는데, <b>막힌 것과 안 해 본 것은 다르다.</b>

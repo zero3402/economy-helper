@@ -192,7 +192,6 @@ class HackerNewsBuzzClientTest {
         return new Article(NewsSource.CNBC, "제목", null, link, NOW, 0);
     }
 
-    /** 호출 횟수를 세는 스텁 — 도메인당 한 번만 부르는지 확인하려고 둔다. */
     /** 실패를 던지는 API — 강등이 {@link HackerNewsBuzzClient}에 있음을 보인다. */
     private static final class ExplodingApi extends HackerNewsApi {
         private ExplodingApi() {
@@ -225,6 +224,7 @@ class HackerNewsBuzzClientTest {
         }
     }
 
+    /** 호출 횟수를 세는 스텁 — 도메인당 한 번만 부르는지 확인하려고 둔다. */
     private static final class CountingApi extends HackerNewsApi {
         private final Map<String, Integer> canned;
         private int calls;
