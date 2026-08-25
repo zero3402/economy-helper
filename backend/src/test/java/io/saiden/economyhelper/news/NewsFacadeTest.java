@@ -19,6 +19,13 @@ import org.junit.jupiter.api.Test;
  * <b>그 세 겹에 테스트가 하나도 없었다.</b>
  *
  * <p>여기서는 <b>링크로 짝을 확인한다</b> — 인덱스가 우연히 맞은 것과 구분되어야 한다.
+ *
+ * <p>⚠️ <b>「순서가 뒤바뀌면 화면도 뒤바뀐다」는 테스트는 두지 않는다.</b> 한 번 썼다가 지웠다 —
+ * {@code TranslationService.translateAll}이 <b>{@code articles}를 순회하며 링크로 찾아</b> 다시
+ * 세우므로 그 뒤바뀜은 실물 경로에서 <b>일어날 수 없고</b>, 가짜를 뒤집어 만든 시나리오를 고정하면
+ * 나중에 이 층을 더 튼튼하게 고치는 사람을 그 테스트가 막는다. 순서 계약은 그것을 실제로
+ * 지키는 층에 있다({@code TranslationServiceTest}의 「순서와 개수는 지킨다」와
+ * {@code GeminiTranslatorTest}의 개수·순서 케이스들).
  */
 class NewsFacadeTest {
 
@@ -42,30 +49,6 @@ class NewsFacadeTest {
                 org.assertj.core.groups.Tuple.tuple("https://a.example/oil", "번역:oil"),
                 org.assertj.core.groups.Tuple.tuple("https://b.example/gold", "번역:gold"),
                 org.assertj.core.groups.Tuple.tuple("https://c.example/yen", "번역:yen"));
-    }
-
-    @Test
-    @DisplayName("번역이 뒤바뀌어 오면 화면도 뒤바뀐다 — 그래서 개수·순서 계약을 아래층이 지켜야 한다")
-    void showsWhatHappensWhenTheOrderIsBroken() {
-        // ⚠️ 이 테스트는 「올바름」이 아니라 **의존성의 크기**를 못 박는다. NewsFacade는 순서를
-        //    스스로 검증하지 않으므로(링크로 짝지으려면 Translation이 링크를 들어야 한다)
-        //    GeminiTranslator의 개수 검사와 TranslationService의 순서 복원이 곧 이 화면의
-        //    정확성이다. 그 둘을 완화하면 여기서 조용히 틀린 화면이 나온다는 사실을 남긴다
-        List<ScoredArticle> ordered = List.of(
-                scored("Oil holds advance", "https://a.example/oil"),
-                scored("Gold slips", "https://b.example/gold"));
-
-        List<NewsItem> items = facade(ordered, articles -> {
-            List<Translation> reversed = new ArrayList<>(
-                    articles.stream().map(article -> Translation.of("번역:" + article.title(), "")).toList());
-            java.util.Collections.reverse(reversed);
-            return reversed;
-        }).digest();
-
-        assertThat(items.get(0).link()).isEqualTo("https://a.example/oil");
-        assertThat(items.get(0).title())
-                .as("아래층이 순서를 어기면 이렇게 된다 — 그것이 이 계약이 load-bearing인 이유다")
-                .isEqualTo("번역:Gold slips");
     }
 
     @Test
