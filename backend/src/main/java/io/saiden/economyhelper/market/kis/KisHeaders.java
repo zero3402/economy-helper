@@ -40,10 +40,12 @@ public class KisHeaders {
     private final String appKey;
     private final String appSecret;
 
-    public KisHeaders(@Value("${economy-helper.market.kis.app-key:}") String appKey,
-                      @Value("${economy-helper.market.kis.app-secret:}") String appSecret) {
-        this.appKey = appKey;
-        this.appSecret = appSecret;
+    public KisHeaders(@Value("${economy-helper.market.kis.app-key:}") String key,
+                      @Value("${economy-helper.market.kis.app-secret:}") String secret) {
+        // ⚠️ **끝의 줄바꿈을 뗀다** — KisTokenStore와 같은 이유이고, 여기는 한 겹 더 나쁘다:
+        //    이 값이 HTTP **헤더**로 실리므로 개행이 붙으면 헤더가 깨진다
+        this.appKey = key == null ? "" : key.trim();
+        this.appSecret = secret == null ? "" : secret.trim();
     }
 
     /**

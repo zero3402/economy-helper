@@ -60,6 +60,26 @@ class KisTokenStoreTest {
     }
 
     /** Redis 없이(널) 만든다 — 그 경로가 실제로 도는지가 이 클래스의 요점이다. */
+    @Test
+    @DisplayName("발급 본문의 앱시크릿에서 개행을 뗀다 — 안 떼면 403 EGW00105이고 진단이 어긋난다")
+    void trimsCredentialsBeforeIssuing() {
+        // ⚠️ CLAUDE.md가 EGW00105를 「키가 틀린 것이 아닐 수 있다 — 끝의 줄바꿈부터 뗀다」로
+        //    적어 두고 실측 중에 그것을 「모의/실전 도메인이 안 맞는다」로 오진한 기록까지
+        //    남겼는데, 그 remedy가 코드에 없었다. 붙여 넣은 값에 개행이 붙으면
+        //    환율·국내 주식·미국 주식의 1순위가 한꺼번에 죽는다
+        server.stubFor(post(urlPathEqualTo("/oauth2/tokenP")).willReturn(aResponse()
+                .withStatus(200).withHeader("Content-Type", "application/json")
+                .withBody("{\"access_token\":\"" + KisFixtures.TOKEN
+                        + "\",\"access_token_token_expired\":\"2026-08-26 12:00:00\"}")));
+
+        new KisTokenStore(RestClient.builder(), server.baseUrl(), "key\n", "secret  \n",
+                null, Clock.fixed(NOW, ZoneOffset.UTC), KisThrottle.none()).token();
+
+        server.verify(postRequestedFor(urlPathEqualTo("/oauth2/tokenP"))
+                .withRequestBody(WireMock.matchingJsonPath("$.appkey", WireMock.equalTo("key")))
+                .withRequestBody(WireMock.matchingJsonPath("$.appsecret", WireMock.equalTo("secret"))));
+    }
+
     private KisTokenStore store(Instant now) {
         return new KisTokenStore(RestClient.builder(), server.baseUrl(), "key", "secret",
                 null, Clock.fixed(now, ZoneOffset.UTC), KisThrottle.none());

@@ -104,11 +104,22 @@ public class KisTokenStore {
                          Clock clock,
                          KisThrottle throttle) {
         this.restClient = builder.baseUrl(baseUrl).build();
-        this.appKey = appKey;
-        this.appSecret = appSecret;
+        // ⚠️ **끝의 줄바꿈을 뗀다.** 대시보드나 .env에 붙여 넣은 값은 끝에 개행·공백이 붙기 쉽고,
+        //    그대로 실으면 토큰 발급이 403 EGW00105(「유효하지 않은 AppSecret」)로 떨어진다 —
+        //    그건 키가 틀렸다는 뜻이 아니라 **우리가 값을 잘못 실었다**는 뜻이라 진단이 어긋난다
+        //    (실측으로 그렇게 오진해 설정을 실전 도메인으로 바꿨다가 되돌린 적이 있다).
+        //    KIS는 환율·국내 주식·미국 주식의 1순위라 이 한 글자가 셋을 함께 죽인다.
+        //    TelegramWebhookController가 웹훅 secret에 같은 것을 하고 있다
+        this.appKey = trimmed(appKey);
+        this.appSecret = trimmed(appSecret);
         this.redis = redis;
         this.clock = clock;
         this.throttle = throttle;
+    }
+
+    /** 붙여 넣기가 남긴 개행·공백을 뗀다. {@code null}은 빈 문자열로 — 키가 없는 것과 같다. */
+    private static String trimmed(String key) {
+        return key == null ? "" : key.trim();
     }
 
     /**
