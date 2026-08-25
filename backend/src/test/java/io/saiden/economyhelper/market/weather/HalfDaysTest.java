@@ -58,8 +58,12 @@ class HalfDaysTest {
                     assertThat(afternoon.half()).isEqualTo(Half.AFTERNOON);
                     assertThat(afternoon.from()).as("13시(60%)는 봉우리의 가장자리다")
                             .isEqualTo(LocalTime.of(14, 0));
-                    assertThat(afternoon.to()).as("18시(57%)·19시(45%)도 마찬가지다")
-                            .isEqualTo(LocalTime.of(17, 0));
+                    // 17시는 확률로는 68%라 문턱을 넘지만 코드가 3(흐림)이고 강수량이
+                    // 0.0mm다 — 셋 중 둘이 「안 온다」고 말하는 시간이라 꼬리에서 잘린다.
+                    // 예전에는 확률 하나로 통과해 「비」의 끝이 비가 안 오는 시간이었다
+                    assertThat(afternoon.to())
+                            .as("17시는 코드도 양도 마르다 · 18시(57%)·19시(45%)는 확률에서 밀린다")
+                            .isEqualTo(LocalTime.of(16, 0));
                     assertThat(afternoon.chance()).isEqualTo(80);
                     assertThat(afternoon.kind()).isEqualTo(SkyCondition.DRIZZLE);
                 });
@@ -81,7 +85,10 @@ class HalfDaysTest {
         assertThat(halves).allSatisfy(half -> {
             assertThat(half.wet()).isFalse();
             assertThat(half.from()).as("적을 시각이 없다 — 없는 값을 채우지 않는다").isNull();
-            assertThat(half.chance()).isNull();
+            // 확률은 들되 화면에는 안 나간다(WeatherFormatter가 wet()으로 막는다).
+            // 담는 이유는 하루 요약이다 — 양쪽이 다 마르면 갈 값이 없어 일별 출처의
+            // 확률이 남고, 그것이 「소나기 61%인데 오전·오후 둘 다 마름」 화면이었다
+            assertThat(half.chance()).as("마른 반나절도 제 봉우리를 든다").isEqualTo(10);
         });
     }
 
@@ -289,6 +296,77 @@ class HalfDaysTest {
     }
 
     // --- 도우미 ---
+
+    @Test
+    @DisplayName("출처가 「맑음」이라 한 시간은 확률 100%여도 비가 아니다 — 젖은 줄에 「맑음」이 찍혔었다")
+    void neverCallsAFairWeatherHourRain() {
+        // 실측(2026-08-25 미금역). 확률이 봉우리 100%까지 오르는데 그 시간의 코드는
+        // 1(대체로 맑음)이고 강수량은 0.0mm다 — 셋 중 둘이 「안 온다」고 말한다.
+        // 예전에는 확률만 보고 비로 쳤고, 이름 붙일 강수 코드가 없어 맑음·흐림이 그 자리에
+        // 앉았다. 하루 요약이 「뇌우」인 날이면 바로 아래 줄이 「오전 맑음」이 된다
+        List<Integer> chances = Arrays.asList(
+                0, 0, 0, 4, 16, 32, 49, 67, 86, 98, 100, 95,     // 00~11시
+                88, 81, 71, 59, 41, 20, 4, 0, 0, 0, 0, 0);       // 12~23시
+        List<BigDecimal> amounts = mm(
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0.1, 0, 0, 0, 0, 0, 0, 0.1, 0, 0, 0);
+        List<Integer> codes = Arrays.asList(
+                0, 2, 3, 3, 3, 3, 3, 3, 3, 3, 1, 1,
+                1, 51, 1, 1, 1, 2, 3, 3, 51, 3, 1, 1);
+
+        List<HalfDay> halves = HalfDays.byDay(hours(DAY, 24), chances, amounts, codes).get(DAY);
+
+        assertThat(halves).allSatisfy(half -> assertThat(!half.wet() || half.kind().precipitating())
+                .as("%s 줄이 젖었는데 이름이 %s다 — 강수가 아닌 낱말은 젖은 줄에 못 앉는다",
+                        half.half(), half.kind())
+                .isTrue());
+        assertThat(halves).satisfiesExactly(
+                morning -> assertThat(morning.wet())
+                        .as("확률 100%지만 코드도 양도 「안 온다」고 말한다").isFalse(),
+                afternoon -> {
+                    assertThat(afternoon.from()).as("코드 51에 0.1mm인 13시만 남는다")
+                            .isEqualTo(LocalTime.of(13, 0));
+                    assertThat(afternoon.kind()).isEqualTo(SkyCondition.DRIZZLE);
+                });
+    }
+
+    @Test
+    @DisplayName("확률 0%는 「안 온다」는 값이다 — 양만 보고 비로 치면 화면이 「최대 0%」라 적는다")
+    void neverCallsAZeroPercentHourRain() {
+        // 같은 실측의 20시다. 확률 0%인데 0.1mm가 함께 오는 자리가 있다.
+        // 그 시간을 비로 치면 우산 그림 옆에 (최대 0%)가 찍힌다 — 제 말을 제가 뒤집는다
+        List<Integer> chances = Arrays.asList(0, 0, 0);
+        List<BigDecimal> amounts = mm(0, 0.1, 0);
+        List<Integer> codes = Arrays.asList(3, 51, 3);
+
+        List<HalfDay> halves = HalfDays.byDay(hours(DAY, 3), chances, amounts, codes).get(DAY);
+
+        assertThat(halves).singleElement().satisfies(morning -> {
+            assertThat(morning.wet()).isFalse();
+            assertThat(morning.chance()).as("마른 반나절도 제 봉우리는 든다 — 화면에만 안 나간다")
+                    .isZero();
+        });
+    }
+
+    @Test
+    @DisplayName("코드 혼자서는 못 자른다 — 양이 잡힌 시간은 그 양이 이긴다")
+    void letsAMeasuredAmountOverrideAFairWeatherCode() {
+        // 실측(2026-08-20 성남 17시)에 코드 3(흐림)인데 0.2mm가 함께 온 자리가 있었다.
+        // 코드만으로 자르면 이어지던 비의 꼬리가 잘린다
+        List<Integer> chances = Arrays.asList(80, 80, 68);
+        List<BigDecimal> amounts = mm(1.1, 0.4, 0.2);
+        List<Integer> codes = Arrays.asList(55, 51, 3);
+
+        List<HalfDay> halves = HalfDays.byDay(hours(DAY, 3), chances, amounts, codes).get(DAY);
+
+        assertThat(halves).singleElement().satisfies(morning -> {
+            assertThat(morning.to()).as("0.2mm가 온 시간은 흐림 코드에도 남는다")
+                    .isEqualTo(LocalTime.of(2, 0));
+            assertThat(morning.kind())
+                    .as("이름은 강수 코드 중에서만 고른다 — 흐림이 최댓값이 되면 안 된다")
+                    .isEqualTo(SkyCondition.DRIZZLE);
+        });
+    }
 
     private static SkyCondition kindOf(int code) {
         return HalfDays.byDay(hours(DAY, 1), List.of(80), null, List.of(code))

@@ -15,10 +15,12 @@ import io.saiden.economyhelper.market.weather.WeatherService;
 import io.saiden.economyhelper.market.weather.WeatherSource;
 import io.saiden.economyhelper.support.TestProperties;
 import io.saiden.economyhelper.support.TestWeather;
+import io.saiden.economyhelper.telegram.WeatherFormatter;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Set;
@@ -105,6 +107,29 @@ class WeatherDigestJobTest {
         job(telegram, new InMemoryHistory(), alwaysSucceeds()).run(false);
 
         assertThat(telegram.sent.get(0)).startsWith("<b>날씨</b>").doesNotContain("'");
+    }
+
+    @Test
+    @DisplayName("알람은 검색과 글자까지 같은 통이다 — 포매터가 하나이고 알람이 제 것을 덧대지 않는다")
+    void rendersExactlyLikeSearch() {
+        RecordingClient telegram = new RecordingClient();
+
+        job(telegram, new InMemoryHistory(), alwaysSucceeds()).run(false);
+
+        // `/weather`가 부르는 바로 그 함수다(TelegramWebhookController의 case FOUND).
+        // 알람이 제목·머리말·꼬리를 따로 붙이기 시작하면 여기서 갈린다 — 화면이 두 모양이
+        // 되는 것은 언제나 「포매터가 둘」에서 시작한다
+        List<Weather> collected = properties().weather().locations().stream()
+                .map(location -> new GeoLocation(location.name(), null,
+                        location.latitude(), location.longitude(), ZoneId.of("Asia/Seoul")))
+                .map(place -> new Weather(place,
+                        List.of(Weather.Daily.withChance(LocalDate.of(2026, 8, 17),
+                                SkyCondition.CLOUDY,
+                                new BigDecimal("18.2"), new BigDecimal("29.6"), 20)),
+                        WeatherSource.OPEN_METEO))
+                .toList();
+
+        assertThat(telegram.sent.get(0)).isEqualTo(WeatherFormatter.format(collected));
     }
 
     private static WeatherDigestJob job(RecordingClient telegram, InMemoryHistory history,

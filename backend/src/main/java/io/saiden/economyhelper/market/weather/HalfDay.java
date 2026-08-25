@@ -26,7 +26,8 @@ import java.time.LocalTime;
  * @param kind   무엇이 있었나 — 젖으면 비·눈 따위, 마르면 하늘 상태
  * @param from   가장 센 토막의 시작(현지시). <b>마르면 {@code null}</b>
  * @param to     그 토막의 끝. <b>포함</b>이다 — 4시~8시면 8시에도 온다. 마르면 {@code null}
- * @param chance 그 토막의 최대 확률(%). 예보가 아니거나 마르면 {@code null}
+ * @param chance 최대 확률(%). 예보가 아니면 {@code null}. <b>마른 반나절도 제 봉우리를 든다</b>
+ *               — 화면에는 안 나가고 하루 요약이 쓴다({@link #dry})
  * @param amount 그 토막에 온 양(mm). 확률을 아는 출처이거나 마르면 {@code null}
  */
 public record HalfDay(Half half, SkyCondition kind, LocalTime from, LocalTime to,
@@ -79,9 +80,21 @@ public record HalfDay(Half half, SkyCondition kind, LocalTime from, LocalTime to
         return new HalfDay(Half.of(from), kind, from, to, null, amount);
     }
 
-    /** 비도 눈도 없는 반나절 — 그 시간대의 하늘을 있는 그대로 든다. */
-    public static HalfDay dry(Half half, SkyCondition kind) {
-        return new HalfDay(half, kind, null, null, null, null);
+    /**
+     * 비도 눈도 없는 반나절 — 그 시간대의 하늘을 있는 그대로 든다.
+     *
+     * <p>⚠️ <b>확률은 들되 화면에는 안 적는다.</b> 마른 반나절에 「최대 18%」를 적으면 안 오는
+     * 비를 적는 셈이라 {@code WeatherFormatter}가 {@link #wet()}으로 그 괄호를 막는다. 그런데도
+     * 담는 이유는 <b>하루 요약이 이 값을 필요로 하기 때문</b>이다 — {@code Weather.Daily.withHalves}가
+     * 강수확률을 시간별 봉우리로 갈아 끼우는데, 양쪽이 다 마르면 갈 값이 없어 <b>일별 출처의
+     * 확률이 남는다.</b> 실측(2026-08-26 미금역)에서 그 자리가 「소나기 61%(AccuWeather)」인데
+     * 오전·오후 둘 다 마른(Open-Meteo 봉우리 18%) 화면이 됐다 — 한 블록에 <b>두 예보의 숫자</b>가
+     * 선 것이다.
+     *
+     * @param chance 그 반나절의 최대 확률(%). 확률을 안 주는 출처(재분석)면 {@code null}
+     */
+    public static HalfDay dry(Half half, SkyCondition kind, Integer chance) {
+        return new HalfDay(half, kind, null, null, chance, null);
     }
 
     /** 비·눈이 있었나. 시각이 있으면 젖은 것이다. */

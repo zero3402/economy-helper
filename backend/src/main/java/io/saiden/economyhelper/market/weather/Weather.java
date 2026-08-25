@@ -129,11 +129,45 @@ public record Weather(GeoLocation place, List<Daily> days, WeatherSource source,
          */
         public Daily withHalves(List<HalfDay> halves) {
             Integer peak = peakChanceOf(halves);
-            return new Daily(date, sky, low, high,
+            return new Daily(date, skyAgreeingWith(halves), low, high,
                     peak != null ? peak : precipitationChance, precipitationAmount, halves);
         }
 
-        /** 토막들의 최대 확률. 확률을 아는 토막이 하나도 없으면 {@code null}. */
+        /**
+         * 하루 요약의 하늘 — <b>요약이 약속한 비는 반나절 중 하나가 보여야 한다.</b>
+         *
+         * <p>요약이 강수를 말하는데(비·소나기·뇌우…) 반나절 <b>둘 다 마르면</b> 그 약속을 지킬
+         * 자리가 없다. 실측(2026-08-26 미금역)에서 <b>「소나기 / 강수확률 61% / ☁️ 오전 흐림 /
+         * ⛅ 오후 구름 조금」</b>이 그렇게 나왔다 — 요약은 AccuWeather 낮 칸이고 반나절은
+         * Open-Meteo 시간별이라, 한 블록에 <b>두 예보</b>가 선 것이다. 그때 요약을 반나절이 말한
+         * 하늘로 낮춘다. <b>한 블록의 값은 한 예보에서 나온다</b>는 것이 {@link #withHalves}가
+         * 확률을 갈아 끼우는 이유이고, 하늘도 같은 이유로 여기서 갈린다.
+         *
+         * <p>⚠️ <b>반대 방향은 고치지 않는다.</b> 요약 「흐림」에 반나절 「☔ 오후 1시~7시 비」는
+         * 모순이 아니라 <b>「대체로 흐리고 한때 비」</b>로 읽힌다 — 약속을 어기는 쪽만 고친다.
+         * 그리고 이 비대칭 덕분에 1순위(AccuWeather)의 하늘이 평상시에는 그대로 남는다.
+         *
+         * <p>⚠️ <b>모르는 것으로 아는 것을 덮지 않는다.</b> 반나절 둘 다
+         * {@link SkyCondition#UNKNOWN}이면 요약을 그대로 둔다.
+         */
+        private SkyCondition skyAgreeingWith(List<HalfDay> halves) {
+            if (halves == null || halves.isEmpty() || !sky.precipitating()
+                    || halves.stream().anyMatch(HalfDay::wet)) {
+                return sky;
+            }
+            return halves.stream().map(HalfDay::kind)
+                    .filter(SkyCondition::known)
+                    .max(SkyCondition::compareTo)
+                    .orElse(sky);
+        }
+
+        /**
+         * 반나절들의 최대 확률. 확률을 아는 반나절이 하나도 없으면 {@code null}.
+         *
+         * <p><b>마른 반나절도 제 봉우리를 든다</b>({@code HalfDay.dry}) — 그래서 양쪽이 다
+         * 마른 날에도 시간별이 말한 숫자가 나온다. 예전에는 여기서 {@code null}이 돌아와
+         * 일별 출처의 확률이 남았고, 그것이 「61%인데 시각 줄이 없는」 화면이었다.
+         */
         private static Integer peakChanceOf(List<HalfDay> halves) {
             if (halves == null) {
                 return null;

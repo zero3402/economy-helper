@@ -250,6 +250,28 @@ class RenderedOutputTest {
         //    화면에서 무엇이 되는지 아무 오라클도 보지 못했다
         cases.put("weather/precipitation-across-noon", WeatherFormatter.format(List.of(withSpells(
                 spell(10, 11, SkyCondition.RAIN, 80), spell(12, 15, SkyCondition.RAIN, 90)))));
+        // ⚠️ **젖었는데 이름을 못 읽은 반나절** — 시각과 확률은 있고 낱말만 없다.
+        //    Open-Meteo가 우리가 모르는 WMO 코드를 주면 이 모양이 된다. 예전에는 이 줄을
+        //    통째로 건너뛰어 「반나절마다 반드시 한 줄」이 깨졌고, 그러면 읽는 사람이
+        //    나머지 반나절을 짐작하게 된다 — 없는 낱말을 지어내는 것보다는 낫지만
+        //    줄까지 없애면 오전이 마른 것처럼 읽힌다
+        cases.put("weather/precipitation-unnamed", WeatherFormatter.format(List.of(withSpells(
+                spell(13, 19, SkyCondition.UNKNOWN, 80)))));
+        // ⚠️ **요약이 약속한 비는 반나절 중 하나가 보여야 한다.** 실측(2026-08-26 미금역)에서
+        //    요약이 AccuWeather 낮 칸의 「소나기 61%」인데 Open-Meteo 시간별은 봉우리가 18%라
+        //    오전·오후 둘 다 말랐다 — 한 블록에 두 예보의 말이 선 것이다. withHalves가
+        //    확률을 시간별 것으로 갈고 하늘도 반나절이 말한 것으로 낮춘다.
+        //    ⚠️ 반대 방향은 안 고친다: 「흐림」에 「오후 비」는 「대체로 흐리고 한때 비」다
+        cases.put("weather/summary-outruns-halves", WeatherFormatter.format(List.of(
+                new Weather(place("미금역", null),
+                        List.of(Weather.Daily.withChance(LocalDate.of(2026, 8, 17),
+                                        SkyCondition.SHOWERS, new BigDecimal("18.2"),
+                                        new BigDecimal("29.6"), 61)
+                                .withHalves(List.of(
+                                        HalfDay.dry(HalfDay.Half.MORNING, SkyCondition.CLOUDY, 18),
+                                        HalfDay.dry(HalfDay.Half.AFTERNOON,
+                                                SkyCondition.PARTLY_CLOUDY, 12)))),
+                        WeatherSource.ACCU_WEATHER, WeatherSource.OPEN_METEO))));
         cases.put("weather/rain-amount", WeatherFormatter.format(List.of(openMeteoFallback())));
         cases.put("weather/archived", WeatherFormatter.format(List.of(archived())));
         // 0.25는 HALF_EVEN이면 0.2, HALF_UP이면 0.3이다 — oneDecimal만 반올림이 달랐던 자리를
@@ -425,7 +447,7 @@ class RenderedOutputTest {
         for (HalfDay.Half half : HalfDay.Half.values()) {
             java.util.Optional<HalfDay> given = java.util.Arrays.stream(wet)
                     .filter(each -> each.half() == half).findFirst();
-            halves.add(given.orElseGet(() -> HalfDay.dry(half, SkyCondition.CLOUDY)));
+            halves.add(given.orElseGet(() -> HalfDay.dry(half, SkyCondition.CLOUDY, null)));
         }
         return List.copyOf(halves);
     }

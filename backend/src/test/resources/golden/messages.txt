@@ -782,6 +782,38 @@ Open-Meteo
 
 2026.08.17(월) (예보)
 
+=== weather/precipitation-unnamed ===
+<b>날씨</b>
+
+<b>미금역</b>
+
+흐림
+18.2°C / 29.6°C
+강수확률 80%
+☁️ 오전 흐림
+☔ 오후 1시~7시 (최대 80%)
+
+AccuWeather
+Open-Meteo
+
+2026.08.17(월) (예보)
+
+=== weather/summary-outruns-halves ===
+<b>날씨</b>
+
+<b>미금역</b>
+
+흐림
+18.2°C / 29.6°C
+강수확률 18%
+☁️ 오전 흐림
+⛅ 오후 구름 조금
+
+AccuWeather
+Open-Meteo
+
+2026.08.17(월) (예보)
+
 === weather/rain-amount ===
 <b>날씨</b>
 

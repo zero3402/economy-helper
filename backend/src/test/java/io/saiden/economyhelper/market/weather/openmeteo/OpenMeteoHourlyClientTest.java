@@ -87,7 +87,8 @@ class OpenMeteoHourlyClientTest {
     void foldsTheMeasuredDayIntoTwoHalves() {
         // 봉우리 92% → 문턱 max(50, 92×0.8) = 74%.
         // 03시(73%)·09~11시(69·69·71%)·19시 이후가 그 아래라 거기서 끊긴다.
-        // 오전에는 00~02시와 04~08시 둘이 남는데 둘 다 92%이므로 앞선 쪽이 남는다
+        // 오전에는 00~02시와 04~08시 둘이 남는데 둘 다 92%이므로 앞선 쪽이 남는다.
+        // 오후는 12시가 확률로만 통과하고 코드·양이 둘 다 마르다 — 13시부터다
         stub(migeum());
 
         Map<LocalDate, List<HalfDay>> byDay = halves();
@@ -103,7 +104,11 @@ class OpenMeteoHourlyClientTest {
                             .isEqualTo(SkyCondition.RAIN);
                 },
                 afternoon -> {
-                    assertThat(afternoon.from()).isEqualTo(LocalTime.of(12, 0));
+                    // 12시는 확률 75%로 문턱을 넘지만 강수량이 0.00mm이고 코드가 2(구름 조금)다
+                    // — 셋 중 둘이 「안 온다」고 말하므로 비로 치지 않는다. 그러지 않으면
+                    // 그 시간이 젖은 줄에 들어가 이름 후보에 「구름 조금」이 끼어든다
+                    assertThat(afternoon.from()).as("12시는 코드도 양도 마르다")
+                            .isEqualTo(LocalTime.of(13, 0));
                     assertThat(afternoon.to()).isEqualTo(LocalTime.of(18, 0));
                     assertThat(afternoon.chance()).isEqualTo(90);
                     assertThat(afternoon.kind()).as("55가 가장 무겁다")

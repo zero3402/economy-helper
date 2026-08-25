@@ -148,8 +148,10 @@ public final class WeatherFormatter {
      */
     private static void appendHalves(StringBuilder message, Weather.Daily day) {
         for (HalfDay half : day.halves()) {
-            if (!half.kind().known()) {
-                // 하늘을 못 읽은 반나절 — 이름이 없으므로 적을 것이 없다
+            // ⚠️ 마른데 하늘까지 못 읽었으면 적을 것이 없다. 젖었으면 <b>이름이 없어도 줄은
+            //    낸다</b> — 시각과 확률이 이미 할 말을 하고, 여기서 건너뛰면 「반나절마다 반드시
+            //    한 줄」이 깨져 읽는 사람이 나머지 반나절을 짐작하게 된다
+            if (!half.kind().known() && !half.wet()) {
                 continue;
             }
             message.append("\n").append(iconOf(half.kind())).append(" ")
@@ -157,7 +159,14 @@ public final class WeatherFormatter {
             if (half.wet()) {
                 message.append(" ").append(range(half.from(), half.to()));
             }
-            message.append(" ").append(half.kind().label());
+            if (half.kind().known()) {
+                message.append(" ").append(half.kind().label());
+            }
+            // ⚠️ 마른 반나절은 확률을 들고 있어도 안 적는다(HalfDay.dry) — 안 오는 비에
+            //    「최대 18%」를 붙이는 꼴이 된다. 그 값은 하루 요약이 쓰는 것이다
+            if (!half.wet()) {
+                continue;
+            }
             if (half.chance() != null) {
                 message.append(" (최대 ").append(half.chance()).append("%)");
             } else if (half.amount() != null) {

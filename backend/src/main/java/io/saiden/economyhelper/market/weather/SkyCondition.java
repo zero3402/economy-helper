@@ -56,6 +56,31 @@ public enum SkyCondition {
     }
 
     /**
+     * <b>하늘에서 무언가 떨어지는가.</b>
+     *
+     * <p>{@code HalfDays}가 이것으로 「젖은 시간」을 가르고 「젖은 반나절의 이름」을 고른다.
+     * 없던 시절에는 그 둘이 <b>확률과 강수량만</b> 보고 정해졌는데, 그 둘은 무엇이 오는지를
+     * 말해 주지 않는다 — 실측(2026-08-25 미금역)에서 10~12시가 <b>강수확률 88~100%인데
+     * 코드는 {@code 1}(대체로 맑음)이고 강수량은 {@code 0.0mm}</b>였다. 그 시간이 젖은 것으로
+     * 잡혀 화면에 <b>{@code ☁️ 오전 8시~11시 흐림 (최대 100%)}</b>가 찍혔고, 코드가 {@code 0}인
+     * 날이면 그대로 <b>「맑음」</b>이 된다 — 하루 요약이 「뇌우」인 날 바로 아래에서.
+     *
+     * <p><b>{@link #UNKNOWN}은 「아니다」가 아니라 「모른다」</b>라서 여기서 {@code false}지만,
+     * 호출자는 그 둘을 갈라 써야 한다 — 모르는 것을 마른 것으로 취급하면 해석 못 한 코드 하나에
+     * 강수 시각이 통째로 사라진다({@code HalfDays.saysDry} 참고).
+     *
+     * <p>{@code default}를 두지 않는다. 어휘가 늘면 컴파일이 멈춰 <b>새 값이 비인지 아닌지</b>를
+     * 사람이 한 번 정하게 만든다.
+     */
+    public boolean precipitating() {
+        return switch (this) {
+            case DRIZZLE, RAIN, FREEZING_RAIN, SHOWERS, SNOW, SLEET, SNOW_SHOWERS,
+                    THUNDERSTORM, HAIL_THUNDERSTORM -> true;
+            case CLEAR, MOSTLY_CLEAR, PARTLY_CLOUDY, CLOUDY, FOG, UNKNOWN -> false;
+        };
+    }
+
+    /**
      * WMO 4677 날씨 코드 → 하늘 상태 (Open-Meteo).
      *
      * <p>코드 하나하나가 아니라 <b>묶음으로</b> 옮긴다. WMO는 강도를 코드로 가르지만

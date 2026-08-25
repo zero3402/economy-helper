@@ -131,7 +131,7 @@ public final class HalfDays {
         Stretch strongest = null;
         Stretch current = null;
         for (int slot : slots) {
-            if (wet(at(chances, slot), at(amounts, slot), cut)) {
+            if (wet(at(chances, slot), at(amounts, slot), at(codes, slot), cut)) {
                 current = current == null ? new Stretch(slot) : current;
                 current.extend(slot, at(chances, slot), at(amounts, slot), at(codes, slot));
             } else if (current != null) {
@@ -142,7 +142,10 @@ public final class HalfDays {
         strongest = stronger(strongest, current);
 
         if (strongest == null) {
-            return HalfDay.dry(half, skyOf(codes, slots));
+            // 마른 반나절도 제 봉우리 확률을 든다 — 화면에는 안 나가고 하루 요약이 쓴다.
+            // 안 담으면 양쪽이 다 마른 날에 일별 출처의 확률이 그대로 남아, 한 블록에
+            // 「소나기 61%(AccuWeather)」와 「오전·오후 마름(Open-Meteo)」이 함께 선다
+            return HalfDay.dry(half, skyOf(codes, slots), peakChanceOf(chances, slots));
         }
         LocalTime from = times.get(strongest.first).toLocalTime();
         LocalTime to = times.get(strongest.last).toLocalTime();
@@ -171,6 +174,23 @@ public final class HalfDays {
         BigDecimal leftAmount = left.totalAmount == null ? BigDecimal.ZERO : left.totalAmount;
         BigDecimal rightAmount = right.totalAmount == null ? BigDecimal.ZERO : right.totalAmount;
         return rightAmount.compareTo(leftAmount) > 0 ? right : left;
+    }
+
+    /**
+     * 그 반나절의 최대 확률 — <b>문턱과 상관없이</b> 시간별이 말한 봉우리다.
+     *
+     * <p>{@link #thresholdsOf}가 재는 것과 값은 같지만 쓰임이 다르다. 저쪽은 「무엇을 비로 칠까」를
+     * 정하고, 이쪽은 마른 반나절이 <b>하루 요약에 넘겨 줄 숫자</b>를 든다.
+     */
+    private static Integer peakChanceOf(List<Integer> chances, List<Integer> slots) {
+        Integer peak = null;
+        for (int slot : slots) {
+            Integer chance = at(chances, slot);
+            if (chance != null && (peak == null || chance > peak)) {
+                peak = chance;
+            }
+        }
+        return peak;
     }
 
     /**
@@ -212,6 +232,12 @@ public final class HalfDays {
         /**
          * 종류는 그 덩어리에서 <b>가장 무거운 것</b>으로 부른다 — 이슬비로 시작해 뇌우로 끝나는
          * 구간을 「이슬비」라 적으면 사용자가 우산만 들고 나간다.
+         *
+         * <p>⚠️ <b>강수 코드 중에서만 고른다.</b> 덩어리 안에 맑음·흐림 시간이 섞일 수 있는데
+         * ({@link #wet}이 거부하는 것은 그 시간 하나이고, 앞뒤가 젖어 있으면 덩어리는 이어진다)
+         * 그 코드가 최댓값이 되면 <b>비 오는 줄의 이름이 「흐림」·「맑음」</b>이 된다.
+         * <b>젖은 줄의 이름은 강수여야 한다</b> — 하나도 못 고르면 {@code null}로 남고
+         * {@link SkyCondition#UNKNOWN}이 되어 화면이 낱말 없이 시각만 적는다.
          */
         private void extend(int slot, Integer chance, BigDecimal amount, Integer code) {
             last = slot;
@@ -221,7 +247,8 @@ public final class HalfDays {
             if (amount != null) {
                 totalAmount = totalAmount == null ? amount : totalAmount.add(amount);
             }
-            if (code != null && (heaviestCode == null || code > heaviestCode)) {
+            if (code != null && SkyCondition.ofWmoCode(code).precipitating()
+                    && (heaviestCode == null || code > heaviestCode)) {
                 heaviestCode = code;
             }
         }
@@ -268,12 +295,50 @@ public final class HalfDays {
         return new Thresholds(chanceCut, amountCut);
     }
 
-    /** 이 시간에 비가 오는가 — 그날 문턱을 넘길 만큼 확률이 높거나 양이 잡히면. */
-    private static boolean wet(Integer chance, BigDecimal amount, Thresholds cut) {
+    /**
+     * 이 시간에 비가 오는가 — 그날 문턱을 넘길 만큼 확률이 높거나 양이 잡히면.
+     *
+     * <p>⚠️ <b>다만 출처가 「안 온다」고 말한 시간은 아니다.</b> 확률·양·코드 셋 중
+     * <b>코드가 거부권</b>을 쥔다. 실측(2026-08-25 미금역)에서 10~12시가 <b>확률 88~100%인데
+     * 코드 {@code 1}(대체로 맑음)에 강수량 {@code 0.0mm}</b>였다 — 셋 중 둘이 「안 온다」고
+     * 말하는 시간이다. 그것을 비로 쳤더니 {@link #summarize}가 이름을 붙일 강수 코드를 못 찾아
+     * 화면에 <b>{@code ☁️ 오전 8시~11시 흐림 (최대 100%)}</b>가 찍혔고, 코드가 {@code 0}인 날은
+     * <b>「맑음」</b>이 됐다 — 하루 요약이 「뇌우」인 날 바로 아래에서.
+     *
+     * <p>⚠️ <b>코드 혼자서는 못 자른다.</b> 양이 잡힌 시간은 그 양이 이긴다 — 실측
+     * (2026-08-20 성남 17시)에 코드 {@code 3}(흐림)인데 {@code 0.2mm}가 함께 온 자리가 있었다.
+     * 「안 온다」고 말하려면 <b>코드와 양이 함께</b> 말해야 한다.
+     *
+     * <p>⚠️ <b>확률 {@code 0%}도 「안 온다」는 값이다.</b> 같은 실측의 20시가 확률 {@code 0%}에
+     * {@code 0.1mm}였는데, 양만 보고 비로 치면 화면이 <b>{@code (최대 0%)}</b>라고 적는다 —
+     * 우산 그림 옆에 0%를 적는 것은 제 말을 제가 뒤집는 일이다. 시세의 {@code Price.positive}·
+     * 목표가 {@code 0}과 같은 자리다.
+     */
+    private static boolean wet(Integer chance, BigDecimal amount, Integer code, Thresholds cut) {
+        boolean measured = amount != null && amount.compareTo(MIN_AMOUNT) >= 0;
+        if ((!measured && saysDry(code)) || (chance != null && chance == 0)) {
+            return false;
+        }
         if (chance != null && chance >= cut.chance()) {
             return true;
         }
         return amount != null && amount.compareTo(cut.amount()) >= 0;
+    }
+
+    /**
+     * 출처가 이 시간을 <b>강수가 아니라고 말했는가.</b>
+     *
+     * <p>「모른다」와 「아니다」를 가른다 — {@link SkyCondition#precipitating()}은 둘 다
+     * {@code false}지만 여기서는 {@link SkyCondition#UNKNOWN}이 거부권을 갖지 못한다.
+     * 어휘를 못 읽었다고 강수 시각이 통째로 죽으면, 출처가 코드를 하나 늘리는 날 이 줄이
+     * 조용히 사라진다. 재분석(지나간 날)은 코드를 함께 주므로 그쪽도 이 규칙이 그대로 통한다.
+     */
+    private static boolean saysDry(Integer code) {
+        if (code == null) {
+            return false;
+        }
+        SkyCondition sky = SkyCondition.ofWmoCode(code);
+        return sky != SkyCondition.UNKNOWN && !sky.precipitating();
     }
 
     /** 병렬 배열이 짧거나 없을 때 {@code null}. */
