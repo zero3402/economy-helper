@@ -101,9 +101,92 @@ class GeminiTranslatorTest {
                 .withBody(body)));
     }
 
+    /**
+     * 배치 응답 하나를 세운다 — <b>본문 JSON을 손으로 이스케이프하지 않는다.</b>
+     *
+     * <p>Gemini는 결과를 {@code parts[0].text} 안에 <b>문자열로</b> 담아 주므로 따옴표가
+     * 두 겹으로 새어 나간다. 케이스마다 손으로 이스케이프하면 그게 곧 오탈자 자리가 된다.
+     */
+    private void stubBatch(String articlesJson) {
+        stubGemini(200, geminiResponse(articlesJson.replace("\\", "\\\\").replace("\"", "\\\"")
+                .replace("\n", " ")));
+    }
+
     /** Gemini는 번역 결과를 parts[0].text 안에 문자열로 담아 준다. */
     private static String geminiResponse(String escapedText) {
         return "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"" + escapedText + "\"}]}}]}";
+    }
+
+    @Test
+    @DisplayName("배치 응답이 한 건 모자라면 예외 — 개수가 어긋나면 기사에 남의 번역이 붙는다")
+    void rejectsAShortBatch() {
+        // ⚠️ 이 검사가 이 저장소에서 가장 조용히 위험한 자리를 지킨다.
+        //    NewsFacade가 기사와 번역을 **인덱스로** 짝짓고(translations.get(i)),
+        //    TranslationService.putAll도 fresh.get(i)로 zip한다 — 그 zip은 try 밖이다.
+        //    개수가 모자라면 IndexOutOfBounds가 뉴스 통을 통째로 죽이고, 개수는 맞는데
+        //    순서만 어긋나면 **기사 A에 B의 한글**이 붙는다. 화면이 그럴듯해서 아무도 모른다.
+        //    LLM이 항목을 빼먹는 것은 흔한 일이라 이 검사를 완화하면 안 된다
+        stubBatch("""
+                {"articles":[{"title":"기름값 상승","body":"본문"}]}""");
+
+        assertThatThrownBy(() -> translator().translateAll(java.util.List.of(
+                article("Oil holds advance", "Oil kept its gains."),
+                article("Gold slips", "Gold eased."))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("기대 2")
+                .hasMessageContaining("실제 1");
+    }
+
+    @Test
+    @DisplayName("배치 응답이 한 건 남아도 예외 — 많은 쪽도 짝이 어긋난 것이다")
+    void rejectsAnOverlongBatch() {
+        stubBatch("""
+                {"articles":[{"title":"하나","body":"본문"},{"title":"둘","body":"본문"},
+                             {"title":"셋","body":"본문"}]}""");
+
+        assertThatThrownBy(() -> translator().translateAll(java.util.List.of(
+                article("Oil holds advance", "Oil kept its gains."),
+                article("Gold slips", "Gold eased."))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("기대 2");
+    }
+
+    @Test
+    @DisplayName("articles 필드가 없으면 예외 — 빈 번역을 조용히 내보내지 않는다")
+    void rejectsABatchWithoutArticles() {
+        stubBatch("{\"other\":[]}");
+
+        assertThatThrownBy(() -> translator().translateAll(java.util.List.of(
+                article("Oil holds advance", "Oil kept its gains."),
+                article("Gold slips", "Gold eased."))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("없음");
+    }
+
+    @Test
+    @DisplayName("개수는 맞는데 title이 비면 예외 — 빈 제목이 기사 자리를 차지하면 안 된다")
+    void rejectsABatchWithABlankTitle() {
+        stubBatch("""
+                {"articles":[{"title":"기름값 상승","body":"본문"},{"title":"  ","body":"본문"}]}""");
+
+        assertThatThrownBy(() -> translator().translateAll(java.util.List.of(
+                article("Oil holds advance", "Oil kept its gains."),
+                article("Gold slips", "Gold eased."))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("title");
+    }
+
+    @Test
+    @DisplayName("배치가 입력 순서를 그대로 지킨다 — 순서가 뒤바뀌면 기사에 남의 번역이 붙는다")
+    void keepsTheInputOrder() {
+        stubBatch("""
+                {"articles":[{"title":"기름값 상승","body":"첫째"},{"title":"금값 하락","body":"둘째"}]}""");
+
+        assertThat(translator().translateAll(java.util.List.of(
+                article("Oil holds advance", "Oil kept its gains."),
+                article("Gold slips", "Gold eased."))))
+                .extracting(Translation::title)
+                .containsExactly("기름값 상승", "금값 하락");
     }
 
     private GeminiTranslator translator() {

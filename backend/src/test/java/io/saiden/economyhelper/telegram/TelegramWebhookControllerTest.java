@@ -38,6 +38,10 @@ import org.springframework.web.client.RestClient;
  */
 class TelegramWebhookControllerTest {
 
+    /** 업비트가 시각을 안 줄 때 CryptoService가 쓰는 시계 — 얼려 둔다. */
+    private static final java.time.Clock FIXED_CLOCK = java.time.Clock.fixed(
+            java.time.Instant.parse("2026-08-25T00:00:00Z"), java.time.ZoneOffset.UTC);
+
     private static final Instant NOW = Instant.parse("2026-08-11T00:00:00Z");
     /**
      * 답을 같은 스레드에서 만든다.
@@ -705,7 +709,7 @@ class TelegramWebhookControllerTest {
                         new io.saiden.economyhelper.market.binance.BinanceBanGate(
                                 null, java.time.Clock.systemUTC()),
                         "https://example.invalid", ""),
-                new io.saiden.economyhelper.market.CryptoResolver(null, null)) {
+                new io.saiden.economyhelper.market.CryptoResolver(null, null), FIXED_CLOCK) {
             @Override
             public Optional<CryptoQuote> quote(String query) {
                 return Optional.of(quote);
@@ -725,7 +729,7 @@ class TelegramWebhookControllerTest {
                         RestClient.builder(),
                         new io.saiden.economyhelper.market.binance.BinanceBanGate(null, java.time.Clock.systemUTC()),
                         "https://example.invalid", ""),
-                new io.saiden.economyhelper.market.CryptoResolver(null, null)) {
+                new io.saiden.economyhelper.market.CryptoResolver(null, null), FIXED_CLOCK) {
             @Override
             public Optional<CryptoQuote> quote(String query) {
                 return result;

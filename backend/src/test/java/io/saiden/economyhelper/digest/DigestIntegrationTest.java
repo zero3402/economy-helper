@@ -260,7 +260,7 @@ class DigestIntegrationTest {
                         RestClient.builder(),
                         new io.saiden.economyhelper.market.binance.BinanceBanGate(null, java.time.Clock.systemUTC()),
                         "https://example.invalid", ""),
-                new io.saiden.economyhelper.market.CryptoResolver(null, null)) {
+                new io.saiden.economyhelper.market.CryptoResolver(null, null), Clock.fixed(NOW, ZoneOffset.UTC)) {
             @Override
             public List<io.saiden.economyhelper.market.CryptoQuote> quotesOf(List<String> markets) {
                 return List.of();

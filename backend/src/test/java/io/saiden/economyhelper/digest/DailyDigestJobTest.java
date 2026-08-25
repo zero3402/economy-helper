@@ -430,7 +430,7 @@ class DailyDigestJobTest {
                         RestClient.builder(),
                         new io.saiden.economyhelper.market.binance.BinanceBanGate(null, java.time.Clock.systemUTC()),
                         "https://example.invalid", ""),
-                noCryptoResolver()) {
+                noCryptoResolver(), Clock.fixed(NOW, ZoneOffset.UTC)) {
             @Override
             public List<CryptoQuote> quotesOf(List<String> markets) {
                 return List.of(btc(new BigDecimal("63703.69")));
@@ -444,7 +444,7 @@ class DailyDigestJobTest {
                         RestClient.builder(),
                         new io.saiden.economyhelper.market.binance.BinanceBanGate(null, java.time.Clock.systemUTC()),
                         "https://example.invalid", ""),
-                noCryptoResolver()) {
+                noCryptoResolver(), Clock.fixed(NOW, ZoneOffset.UTC)) {
             @Override
             public List<CryptoQuote> quotesOf(List<String> markets) {
                 return alive

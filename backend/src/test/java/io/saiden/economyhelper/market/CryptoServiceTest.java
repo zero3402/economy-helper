@@ -32,6 +32,10 @@ import org.springframework.web.client.RestClient;
  */
 class CryptoServiceTest {
 
+    /** 업비트가 시각을 안 줄 때 CryptoService가 쓰는 시계 — 얼려 둔다. */
+    private static final java.time.Clock FIXED_CLOCK = java.time.Clock.fixed(
+            java.time.Instant.parse("2026-08-25T00:00:00Z"), java.time.ZoneOffset.UTC);
+
     private static final List<UpbitMarket> MARKETS = List.of(
             UpbitMarket.of("KRW-BTC", "비트코인", "Bitcoin"),
             UpbitMarket.of("KRW-BCH", "비트코인캐시", "Bitcoin Cash"),
@@ -229,6 +233,20 @@ class CryptoServiceTest {
     }
 
     @Test
+    @DisplayName("업비트가 시각을 안 주면 주입한 시계를 쓴다 — 벽시계를 직접 읽으면 테스트가 못 얼린다")
+    void fallsBackToTheInjectedClock() {
+        // ⚠️ 이 자리가 Instant.now()였다. 이 저장소는 시각을 읽는 곳마다 Clock을 주입받는데
+        //    (StockPriceApi·KisStockApi·WeatherService·NewsService…) 여기만 예외였고,
+        //    그래서 업비트에 없는 코인의 「읽은 시각」을 어떤 테스트도 고정할 수 없었다
+        CryptoQuote quote = cryptoService(new RecordingApi(), Map.of("BNBUSDT", "612.40"),
+                resolverOf("BNB")).quote("바이낸스코인").orElseThrow();
+
+        assertThat(quote.at())
+                .as("업비트에 없는 코인은 체결 시각이 없다 — 그때 시계가 답한다")
+                .isEqualTo(java.time.Instant.parse("2026-08-25T00:00:00Z"));
+    }
+
+    @Test
     @DisplayName("업비트 체결 시각을 그대로 쓴다 — 조회 시각으로 덮으면 경로마다 값이 달라진다")
     void carriesUpbitTradeTimestamp() {
         CryptoQuote quote = cryptoService(new RecordingApi(), Map.of("BTCUSDT", "63703.69"),
@@ -253,10 +271,10 @@ class CryptoServiceTest {
                 // BinanceApi가 400을 좁은 타입으로 갈라 던진다 — 그게 계약이다
                 explodingBinance(new BinanceApi.UnknownSymbol("없는 심볼",
                         new HttpClientErrorException(HttpStatus.BAD_REQUEST))),
-                resolverOf("BNB"));
+                resolverOf("BNB"), FIXED_CLOCK);
         CryptoService blocked = new CryptoService(new RecordingApi(),
                 explodingBinance(new HttpClientErrorException(HttpStatus.UNAVAILABLE_FOR_LEGAL_REASONS)),
-                resolverOf("BNB"));
+                resolverOf("BNB"), FIXED_CLOCK);
 
         assertThat(invalidSymbol.quote("바이낸스코인"))
                 .as("없는 심볼 — 업비트에도 바이낸스에도 없으니 '찾지 못했다'가 맞다")
@@ -305,13 +323,13 @@ class CryptoServiceTest {
                         .map(symbol -> new BinancePrice(symbol, new BigDecimal(binancePrices.get(symbol)), null))
                         .toList();
             }
-        }, resolver);
+        }, resolver, FIXED_CLOCK);
     }
 
     /** 바이낸스가 죽은 상태 — 지역 차단·타임아웃·브레이커 열림을 모두 대표한다. */
     private static CryptoService cryptoServiceWithDeadBinance(UpbitApi upbit) {
         return new CryptoService(upbit, explodingBinance(new IllegalStateException("451 지역 차단")),
-                noResolver());
+                noResolver(), FIXED_CLOCK);
     }
 
     private static BinanceApi explodingBinance(RuntimeException failure) {

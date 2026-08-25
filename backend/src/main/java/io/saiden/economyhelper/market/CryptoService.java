@@ -12,6 +12,7 @@ import io.saiden.economyhelper.market.upbit.UpbitMarket;
 import io.saiden.economyhelper.market.upbit.UpbitMarketIndex;
 import io.saiden.economyhelper.text.QueryNormalizer;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
@@ -55,10 +56,23 @@ public class CryptoService {
     private final BinanceApi binanceApi;
     private final CryptoResolver resolver;
 
-    public CryptoService(UpbitApi upbitApi, BinanceApi binanceApi, CryptoResolver resolver) {
+    /**
+     * <b>업비트가 시각을 안 줄 때 쓸 시계.</b>
+     *
+     * <p>⚠️ <b>{@code Instant.now()}를 직접 부르지 않는다.</b> 이 저장소는 시각을 읽는 곳마다
+     * {@code Clock}을 주입받는다({@code StockPriceApi}·{@code KisStockApi}·
+     * {@code WeatherService}·{@code NewsService}…) — 여기만 벽시계를 직접 읽고 있었고,
+     * 그러면 <b>테스트가 그 시각을 얼릴 수 없어</b> 골든이 그 줄을 못 덮는다.
+     * 걸리는 자리는 <b>업비트에 없는 코인</b>(바이낸스 전용 {@code BNB} 같은 것)이다.
+     */
+    private final Clock clock;
+
+    public CryptoService(UpbitApi upbitApi, BinanceApi binanceApi, CryptoResolver resolver,
+                         Clock clock) {
         this.upbitApi = upbitApi;
         this.binanceApi = binanceApi;
         this.resolver = resolver;
+        this.clock = clock;
     }
 
     /**
@@ -114,7 +128,7 @@ public class CryptoService {
         return Optional.of(new CryptoQuote(
                 listed == null ? symbol : listed.koreanName(),
                 listed == null ? null : listed.market(),
-                upbit.at() == null ? Instant.now() : upbit.at(),
+                upbit.at() == null ? clock.instant() : upbit.at(),
                 upbit.quote(), binance));
     }
 
@@ -316,11 +330,12 @@ public class CryptoService {
                 .map(ticker -> toQuote(byCode.get(ticker.market()), ticker));
     }
 
-    private static CryptoQuote toQuote(UpbitMarket market, UpbitTicker ticker) {
+    /** {@code static}이 아닌 이유는 {@link #clock}이다 — 벽시계를 직접 읽지 않는다. */
+    private CryptoQuote toQuote(UpbitMarket market, UpbitTicker ticker) {
         Instant at = tradedAt(ticker);
         // 바이낸스 쪽은 withBinance가 나중에 채운다 — 업비트 조회와 별개 호출이다
         return new CryptoQuote(market.koreanName(), market.market(),
-                at == null ? Instant.now() : at,
+                at == null ? clock.instant() : at,
                 Quote.of(ticker.tradePrice(), percentOf(ticker)), Quote.FAILED);
     }
 
