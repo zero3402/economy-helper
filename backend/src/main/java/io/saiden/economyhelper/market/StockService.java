@@ -69,6 +69,16 @@ public class StockService {
     /** 한국 종목코드. 이 형태면 해석할 것이 없으므로 LLM을 건너뛴다. */
     private static final Pattern KR_STOCK_CODE = Pattern.compile("\\d{6}");
 
+    /**
+     * 미국 티커 <b>모양</b>. 영문 1~5자면 사용자가 티커를 직접 쳤을 수 있다.
+     *
+     * <p>⚠️ <b>이것은 「티커다」가 아니라 「티커일 수 있다」다.</b> 실재는 KIS가 확정한다 —
+     * {@link #KR_STOCK_CODE}가 6자리 숫자를 그렇게 쓰는 것과 같은 자리다. 다만 그쪽은 확실해서
+     * 바로 조회하고, 이쪽은 <b>다른 길이 다 막힌 뒤 마지막에</b> 쓴다: {@code KO}·{@code SO}처럼
+     * 국내 종목명일 수도 있는 짧은 영문이 있어서, 앞세우면 이름 검색을 가로챈다.
+     */
+    private static final Pattern US_TICKER = Pattern.compile("[A-Za-z]{1,5}");
+
     private final List<DomesticStockClient> domestic;
     private final List<UsStockClient> us;
     private final DataGoStockClient names;
@@ -149,7 +159,13 @@ public class StockService {
             Optional<ResolvedStock> resolved = resolver.resolve(key);
 
             if (resolved.filter(ResolvedStock::isUs).isPresent()) {
-                return usAnswer(resolved.get());
+                Optional<Answer> found = usAnswer(resolved.get());
+                if (found.isPresent()) {
+                    return found;
+                }
+                // LLM이 US라고는 했는데 티커를 못 냈거나 그 티커가 시세에 없다.
+                // 국내가 코드 → 이름 → 원문으로 세 번 시도하는 것과 같은 자리다
+                return usByTicker(query);
             }
             // 국내 지수는 조회가 통째로 다르다 — 종목코드가 없고 시가총액도 없다
             if (resolved.filter(ResolvedStock::isIndex).isPresent()) {
@@ -160,7 +176,10 @@ public class StockService {
                 return index(new Index(name, null))
                         .map(quote -> new Answer(quote, null, Series.domesticIndex(name)));
             }
-            return search(resolved, key);
+            Optional<Answer> found = search(resolved, key);
+            // ⚠️ 국내 이름 검색까지 다 빈손이다. 원문이 미국 티커 모양이면 한 번 더 —
+            //    LLM이 죽거나 거절해도 사용자가 친 글자로 찾을 수 있어야 한다
+            return found.isPresent() ? found : usByTicker(query);
         } catch (RuntimeException e) {
             // 출처 호출의 실패는 first()가 이미 삼킨다. 여기 그물이 잡는 것은 그 밖,
             // 특히 resolver.resolve()에 걸린 @Cacheable 프록시다 — Redis가 죽으면 캐시 계층이
@@ -318,6 +337,29 @@ public class StockService {
         public static Series us(String symbol) {
             return new Series(Kind.US, symbol);
         }
+    }
+
+    /**
+     * <b>원문을 미국 티커로 한 번 더</b> — LLM 장애·거절에 대한 폴백이다.
+     *
+     * <p>국내는 기회가 셋인데({@code search}: 코드 → 이름 → 원문) <b>미국은 하나뿐이었다.</b>
+     * {@code usQuote}가 {@code code}가 없으면 그 자리에서 포기하므로, LLM이 티커를 안 내놓으면
+     * {@code /stock JEPI}가 통째로 빈손이었다 — 사용자가 <b>티커를 정확히 쳤는데도</b> 그랬다.
+     *
+     * <p>지어내는 것이 아니다. 조회하는 것은 <b>사용자가 친 글자 그대로</b>이고 실재는 KIS가
+     * 확정한다 — 없는 티커는 빈 문자열로 와서 자연히 걸러진다({@code KisStockApi.usStock}).
+     * 이름은 티커를 그대로 쓴다: 티커를 친 사람에게 돌려줄 이름이 그것뿐이다.
+     *
+     * <p>{@code QueryNormalizer}가 검색어를 소문자로 내리므로 <b>여기서 대문자로 올린다.</b>
+     */
+    private Optional<Answer> usByTicker(String query) {
+        String ticker = query == null ? "" : query.strip();
+        if (!US_TICKER.matcher(ticker).matches()) {
+            return Optional.empty();
+        }
+        String symbol = ticker.toUpperCase(java.util.Locale.ROOT);
+        log.info("[stock] '{}'를 미국 티커로 한 번 더 찾습니다", symbol);
+        return usAnswer(new UsSymbol(symbol, symbol));
     }
 
     /** 검색으로 찾은 미국 종목. 브리핑은 {@link #usAnswersOf}로 들어와 같은 자리에서 만난다. */

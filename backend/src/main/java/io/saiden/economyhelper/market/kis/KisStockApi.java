@@ -123,6 +123,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
     /** 거래소 코드({@code price-detail}의 {@code EXCD}). 모르면 이 순서로 찾아본다. */
     private static final String NASDAQ = "NAS";
     private static final String NYSE = "NYS";
+    private static final String AMEX = "AMS";
 
     /** 시장 구분. {@code J}가 국내 주식, {@code U}가 국내 업종, {@code N}이 해외지수다. */
     private static final String KRX_STOCK = "J";
@@ -461,13 +462,32 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
      * <p><b>빗나간 거래소가 에러로 오지 않는다.</b> {@code rt_cd=0}에 41개 필드가 다 오고
      * 값만 빈 문자열이다(실측). 없는 티커도 똑같다 — 그래서 "비었으면 다음 거래소"가 성립한다.
      *
-     * <p><b>{@code AMS}(NYSE American)는 넣지 않는다.</b> 소형주 거래소라 얻는 것보다,
-     * 빗나갈 때마다 초당 1건 한도를 1초씩 더 태우는 대가가 크다. 거기 있는 종목은 2순위가
-     * 맡고, 그래도 없으면 못 찾았다고 답한다.
+     * <p>⚠️ <b>{@code AMS}를 뺐다가 넣었다 — 뺀 이유가 사실이 아니었다.</b> 예전 근거는
+     * 「소형주 거래소라 빗나갈 때마다 1초씩 더 태우는 대가가 크고, <b>거기 있는 종목은 2순위가
+     * 맡는다</b>」였다. 그런데 <b>그 2순위가 비어 있다</b> — FMP 무료 티어는 심볼별 허용목록이라
+     * {@code ORCL}·{@code SNOW} 같은 초대형주도 402다({@code FmpStockClient}). 그리고
+     * 「{@code AMS} = 소형주 거래소」도 절반만 맞다: KIS 분류에서 그 칸은 <b>NYSE Arca 상장
+     * ETF 전체</b>를 함께 삼킨다. 그래서 {@code /stock JEPI}·{@code SCHD}·{@code SOXL}이
+     * 통째로 빈손이었다.
+     *
+     * <p>실측(2026-08-26, 모의계정 12/12 {@code rt_cd=0})이 그것을 그대로 보여 준다 —
+     * <b>ETF 셋은 {@code AMS}에서만 답하고 나머지 둘은 빈 문자열이다.</b>
+     *
+     * <pre>
+     * 심볼    NAS      NYS    AMS      rsym        etyp_nm
+     * AAPL    309.90   (빔)   (빔)     DNASAAPL
+     * SCHD    (빔)     (빔)    35.11   DAMSSCHD    ETF
+     * JEPI    (빔)     (빔)    58.14   DAMSJEPI    ETF
+     * SOXL    (빔)     (빔)   115.67   DAMSSOXL    ETF
+     * </pre>
+     *
+     * <p><b>순서는 NAS → NYS → AMS다.</b> 흔한 것이 앞이라 평상시 비용은 그대로이고, 늘어나는
+     * 것은 <b>없는 심볼을 물었을 때의 2초 → 3초</b>뿐이다({@code min-interval} 1초). 찾은
+     * 거래소는 {@link KisExchangeCache}가 30일 기억하므로 <b>반복 검색 비용은 0</b>이다.
      */
     private StockQuote usStock(UsSymbol symbol) {
         String what = "미국 종목 " + symbol.symbol();
-        String failure = null;
+        RuntimeException failure = null;
         for (String exchange : exchangesToTry(symbol.symbol())) {
             UsStock.Quote quote;
             try {
@@ -485,7 +505,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
                 //    거래소마다 따로 실패하고 전부 실패했을 때만 던진다(StockService.first와 같다)
                 log.warn("[stock] {} — {} 조회 실패, 다음 거래소로 넘어갑니다: {}",
                         what, exchange, FailureReason.of(e));
-                failure = e.getMessage();
+                failure = e;
                 continue;
             }
             if (quote == null || !positive(quote.price())) {
@@ -500,10 +520,16 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
         }
         // ⚠️ 빈손의 원인이 둘인데 문장은 하나였다 — 값이 정말 없는 것과, 물어보지도 못한 것.
         //    거래소가 전부 예외로 죽었으면 "현재가가 없습니다"는 확인한 적 없는 결론이고,
-        //    실제로 그 문장 때문에 무효 토큰이 '상장 폐지된 종목'처럼 읽혔다. 그때는 마지막
-        //    실패 이유를 그대로 올린다 — 이미 what이 앞에 붙어 있어 다시 감쌀 것이 없다
-        throw new IllegalStateException(
-                failure == null ? "KIS " + what + " 응답에 현재가가 없습니다" : failure);
+        //    실제로 그 문장 때문에 무효 토큰이 '상장 폐지된 종목'처럼 읽혔다. 그때는 그 예외를
+        //    **그대로** 올린다 — 메시지만 베끼면 타입이 사라져 브레이커가 다시 못 가른다
+        if (failure != null) {
+            throw failure;
+        }
+        // ⚠️ 거래소를 다 훑어 전부 빈 문자열이었다 — KIS의 장애가 아니라 KIS가 모르는 심볼이다.
+        //    일봉 경로(usStockSeries)가 같은 조건에서 이미 Unsupported를 던지는데 여기만
+        //    빠져 있었다. 그 탓에 없는 심볼을 몇 번 검색하면 kisStock 브레이커가 열려
+        //    **국내 시세가 전일 종가로 강등되고 미국 시세는 통째로 빈손**이 됐다
+        throw new Unsupported("KIS " + what + " 응답에 현재가가 없습니다");
     }
 
     /**
@@ -516,7 +542,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
      */
     private List<String> exchangesToTry(String symbol) {
         String remembered = exchanges.of(symbol);
-        return remembered == null ? List.of(NASDAQ, NYSE) : List.of(remembered);
+        return remembered == null ? List.of(NASDAQ, NYSE, AMEX) : List.of(remembered);
     }
 
     /** 일자별 차트 셋(국내 종목·국내 지수·해외지수)이 쓰는 공통 파라미터. */

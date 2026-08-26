@@ -86,7 +86,6 @@ class KisStockApiTest {
     void startServer() {
         server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
         server.start();
-        WireMock.configureFor(server.port());
         exchanges = new RememberingCache();
         api = apiWith(List.of(KOSPI), List.of(NASDAQ_KIS));
     }
@@ -370,6 +369,53 @@ class KisStockApiTest {
 
         assertThatThrownBy(() -> api.quote(new UsSymbol("PATH", "유아이패스")))
                 .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    @DisplayName("나스닥·뉴욕이 비면 아멕스까지 본다 — Arca 상장 ETF가 거기 있다")
+    void findsArcaEtfsOnAmex() {
+        // 실측(2026-08-26, 모의계정 12/12 rt_cd=0): SCHD·JEPI·SOXL이 NAS·NYS에서는 값이
+        // 전부 빈 문자열이고 AMS에서만 온다(rsym=DAMSSCHD, etyp_nm=ETF). 그 둘만 훑던 동안
+        // /stock JEPI·SCHD·SOXL이 통째로 빈손이었다 — 2순위 FMP는 무료 티어가 402로 막는다
+        for (String empty : new String[] {"NAS", "NYS"}) {
+            server.stubFor(get(urlPathEqualTo(US_STOCK_PATH))
+                    .withQueryParam("EXCD", WireMock.equalTo(empty))
+                    .willReturn(aResponse().withStatus(200)
+                            .withHeader("Content-Type", "application/json")
+                            .withBody("""
+                                    {"rt_cd":"0","msg_cd":"MCA00000","msg1":"정상처리 되었습니다.",
+                                     "output":{"rsym":"","zdiv":"","curr":"","last":"","base":""}}""")));
+        }
+        server.stubFor(get(urlPathEqualTo(US_STOCK_PATH))
+                .withQueryParam("EXCD", WireMock.equalTo("AMS"))
+                .willReturn(aResponse().withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("""
+                                {"rt_cd":"0","msg_cd":"MCA00000","msg1":"정상처리 되었습니다.",
+                                 "output":{"rsym":"DAMSSCHD","curr":"USD","etyp_nm":"ETF",
+                                           "last":"35.1100","base":"35.2100"}}""")));
+
+        StockQuote quote = api.quote(new UsSymbol("SCHD", "SCHD"));
+
+        assertThat(quote.price()).isEqualByComparingTo("35.1100");
+        assertThat(quote.currency()).isEqualTo(StockQuote.Money.USD);
+        assertThat(exchanges.remembered)
+                .as("아멕스도 기억한다 — 그래야 반복 검색이 탐색 비용을 다시 안 낸다")
+                .containsEntry("SCHD", "AMS");
+    }
+
+    @Test
+    @DisplayName("세 거래소가 다 비면 Unsupported다 — 이 실패가 브레이커에 쌓이면 안 된다")
+    void treatsAnUnknownSymbolAsUnsupported() {
+        // ⚠️ 이것이 IllegalStateException이던 동안, 없는 심볼을 몇 번 검색하면 kisStock
+        //    브레이커가 열려 국내 시세가 전일 종가로 강등되고 미국 시세는 통째로 빈손이 됐다.
+        //    일봉 경로는 같은 조건에서 이미 Unsupported를 던지고 있었다 — 시세만 빠져 있었다
+        stub(US_STOCK_PATH, """
+                {"rt_cd":"0","msg_cd":"MCA00000","msg1":"정상처리 되었습니다.",
+                 "output":{"rsym":"","curr":"","last":"","base":""}}""");
+
+        assertThatThrownBy(() -> api.quote(new UsSymbol("ZZZZ", "없는것")))
+                .isInstanceOf(KisStockApi.Unsupported.class);
     }
 
     @Test

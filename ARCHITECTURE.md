@@ -363,7 +363,7 @@ this.clients = Failover.order(clients, ORDER, FxRateClient::source);   // suppor
 
 | 안 거는 곳 | 걸리는 조건 |
 |---|---|
-| KIS(주식·환율·토큰) | **500이 흔히 영구다**(`EGW00121`·`EGW00304`) · 거절에 2.2~3.5초 · `KisThrottle`이 곱해 `max-wait` 천장에 닿는다 · 미국 종목은 이미 호출 둘(NAS→NYS)이다 |
+| KIS(주식·환율·토큰) | **500이 흔히 영구다**(`EGW00121`·`EGW00304`) · 거절에 2.2~3.5초 · `KisThrottle`이 곱해 `max-wait` 천장에 닿는다 · 미국 종목은 이미 호출 **셋**(NAS→NYS→AMS)이다 |
 | FMP · AccuWeather · 수출입은행 · 공공데이터포털 | 일 단위 한도. 특히 AccuWeather의 503은 곧 "한도 소진"이라 **절대 성공하지 않는다** |
 | Gemini | 리미터가 12/60초에 대기 20초 — 재시도가 리미터 **바깥**이라 시도마다 퍼밋을 더 먹는다. 강등 경로가 이미 있다 |
 | Hacker News | 브레이커를 **일부러** 빨리 열고 오래 닫아 뒀다(30%/300초). 재시도는 그 반대다 |

@@ -233,6 +233,37 @@ class StockServiceTest {
     }
 
     @Test
+    @DisplayName("LLM이 빈손이어도 원문이 티커 모양이면 미국으로 한 번 더 묻는다")
+    void fallsBackToTheRawTickerWhenTheLlmIsBlank() {
+        // 국내는 코드 → 이름 → 원문으로 세 번 시도하는데 미국은 하나뿐이었다.
+        // 그래서 Gemini가 죽거나 거절하면 사용자가 티커를 정확히 쳤는데도 빈손이었다
+        FakeUs kis = us(StockSource.KIS, Map.of("SCHD", usQuote("SCHD", StockSource.KIS)));
+        RecordingNames names = new RecordingNames(Map.of());
+
+        StockService service = service(List.of(), List.of(kis), noResolver(), names);
+
+        assertThat(service.quote("schd").orElseThrow().name()).isEqualTo("SCHD");
+        assertThat(kis.askedSymbols)
+                .as("소문자로 쳐도 대문자로 올려 묻는다 — QueryNormalizer가 소문자로 내린다")
+                .containsExactly(new UsSymbol("SCHD", "SCHD"));
+        assertThat(names.asked)
+                .as("국내 이름 검색이 먼저다 — 티커 시도는 그게 다 빈손일 때의 마지막이다")
+                .isNotEmpty();
+    }
+
+    @Test
+    @DisplayName("LLM이 미국이라면서 티커를 안 줘도 원문으로 한 번 더 묻는다")
+    void fallsBackToTheRawTickerWhenTheLlmGaveNoCode() {
+        FakeUs kis = us(StockSource.KIS, Map.of("JEPI", usQuote("JEPI", StockSource.KIS)));
+
+        StockService service = service(List.of(), List.of(kis),
+                resolver(new ResolvedStock("US", "STOCK", null, "제이이피아이")));
+
+        assertThat(service.quote("JEPI").orElseThrow().name()).isEqualTo("JEPI");
+        assertThat(kis.askedSymbols).containsExactly(new UsSymbol("JEPI", "JEPI"));
+    }
+
+    @Test
     @DisplayName("검색은 LLM이 준 한국어 이름을 실어 보낸다 — 미국만 영문이면 화면 표기가 갈린다")
     void carriesTheKoreanNameIntoTheUsLookup() {
         FakeUs fmp = us(StockSource.FMP, Map.of("AAPL", usQuote("애플", StockSource.FMP)));

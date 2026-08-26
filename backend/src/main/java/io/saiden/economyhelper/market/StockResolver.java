@@ -39,15 +39,16 @@ public class StockResolver {
             사용자가 주식 시세를 묻고 있습니다. 아래 입력에서 어떤 종목을 찾는지 판단하세요.
 
             규칙:
-            - **한국거래소(KOSPI·KOSDAQ)와 미국 거래소(NASDAQ·NYSE)만** 다룹니다.
-              그 밖의 시장이면 전부 null을 주세요.
+            - **한국(KOSPI·KOSDAQ)과 미국에 상장된 것만** 다룹니다. 다른 나라면 전부 null을 주세요.
+              · 미국은 **거래소를 가리지 않습니다** — NASDAQ·NYSE만이 아니라 NYSE Arca에 상장된
+                ETF(SCHD·JEPI·SOXL 같은 것)도 그대로 다룹니다.
             - market은 한국이면 "KR", 미국이면 "US"입니다.
             - 지수를 물으면 kind를 "INDEX"로 하세요.
               · KR 지수: name에 정식 지수명(코스피, 코스닥, 코스피 200), code는 null
               · US 지수: code에 심볼(나스닥 → ^IXIC, S&P500 → ^GSPC, 다우 → ^DJI)
-            - 개별 종목이면 kind를 "STOCK"으로 하세요.
+            - 개별 종목이나 ETF면 kind를 "STOCK"으로 하세요.
               · KR: code는 6자리 종목코드 (삼성전자 → 005930)
-              · US: code는 티커 (애플 → AAPL, 엔비디아 → NVDA, 테슬라 → TSLA)
+              · US: code는 티커를 **대문자로** (애플 → AAPL, 엔비디아 → NVDA, 슈드 → SCHD)
             - 약칭·통칭을 정식 종목으로 옮기세요. 예) 삼전 → 삼성전자, 하닉 → SK하이닉스
             - "주가", "얼마", "알려줘", "오늘" 같은 군더더기는 무시하세요.
             - 확실하지 않으면 code만 null로 두고 name은 채우세요(KR 한정 — US는 code가 있어야 찾습니다).
