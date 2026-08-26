@@ -32,6 +32,7 @@ import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import io.saiden.economyhelper.support.TestFixtures;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
 
@@ -234,10 +235,7 @@ class FeedFetcherTest {
                 List.of(new RssFeedClient(), new GoogleNewsFeedClient()));
     }
 
-    private static String fixture(String name) throws IOException {
-        try (InputStream in = FeedFetcherTest.class.getResourceAsStream("/fixtures/" + name)) {
-            assertThat(in).as("픽스처 %s", name).isNotNull();
-            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
-        }
+    private static String fixture(String name) {
+        return TestFixtures.text("fixtures/" + name);
     }
 }

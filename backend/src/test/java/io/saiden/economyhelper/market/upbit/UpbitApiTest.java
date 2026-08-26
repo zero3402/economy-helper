@@ -37,7 +37,6 @@ class UpbitApiTest {
     void startServer() {
         server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
         server.start();
-        WireMock.configureFor(server.port());
         api = new UpbitApi(RestClient.builder(), server.baseUrl());
     }
 

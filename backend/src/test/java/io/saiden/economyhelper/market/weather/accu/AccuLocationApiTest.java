@@ -39,7 +39,6 @@ class AccuLocationApiTest {
     void startServer() {
         server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
         server.start();
-        WireMock.configureFor(server.port());
         api = new AccuLocationApi(RestClient.builder(), server.baseUrl(), API_KEY);
     }
 

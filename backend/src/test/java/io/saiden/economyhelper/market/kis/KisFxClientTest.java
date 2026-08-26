@@ -39,7 +39,6 @@ class KisFxClientTest {
     void startServer() {
         server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
         server.start();
-        WireMock.configureFor(server.port());
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
         client = new KisFxClient(RestClient.builder(), server.baseUrl(),
                 new KisFixtures.FixedToken(clock), new KisHeaders("key", "secret"), clock,

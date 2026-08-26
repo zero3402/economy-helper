@@ -46,7 +46,6 @@ class KisTokenStoreTest {
         server = new WireMockServer(WireMockConfiguration.options().dynamicPort()
                 .http2PlainDisabled(true));
         server.start();
-        WireMock.configureFor(server.port());
     }
 
     @AfterEach

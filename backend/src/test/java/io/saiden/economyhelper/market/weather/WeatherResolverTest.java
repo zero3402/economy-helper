@@ -3,11 +3,10 @@ package io.saiden.economyhelper.market.weather;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.saiden.economyhelper.market.weather.WeatherResolver.ResolvedPlace;
-import io.saiden.economyhelper.llm.GeminiApi;
+import io.saiden.economyhelper.support.TestGemini;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.web.client.RestClient;
 import tools.jackson.databind.ObjectMapper;
 
 /**
@@ -68,7 +67,8 @@ class WeatherResolverTest {
     @Test
     @DisplayName("LLM이 죽으면 빈손이다 — 호출자가 원문으로 지오코딩을 시도한다")
     void returnsEmptyWhenTheModelFails() {
-        WeatherResolver resolver = new WeatherResolver(new FailingApi(), new ObjectMapper());
+        WeatherResolver resolver =
+                new WeatherResolver(TestGemini.failing(), new ObjectMapper());
 
         assertThat(resolver.resolve("서현")).isEmpty();
     }
@@ -76,41 +76,14 @@ class WeatherResolverTest {
     @Test
     @DisplayName("빈 검색어는 LLM을 부르지 않는다 — 물어볼 것이 없다")
     void neverCallsTheModelForABlankQuery() {
-        FailingApi api = new FailingApi();
+        TestGemini.Failing api = TestGemini.failing();
 
         assertThat(new WeatherResolver(api, new ObjectMapper()).resolve("  ")).isEmpty();
-        assertThat(api.called).isFalse();
+        assertThat(api.called()).isFalse();
     }
 
     private static Optional<ResolvedPlace> resolve(String json) {
-        return new WeatherResolver(new FixedApi(json), new ObjectMapper()).resolve("서현");
+        return new WeatherResolver(TestGemini.answering(json), new ObjectMapper()).resolve("서현");
     }
 
-    private static final class FixedApi extends GeminiApi {
-        private final String response;
-
-        private FixedApi(String response) {
-            super(RestClient.builder(), "https://example.invalid", "key", "model");
-            this.response = response;
-        }
-
-        @Override
-        public String generate(String prompt) {
-            return response;
-        }
-    }
-
-    private static final class FailingApi extends GeminiApi {
-        private boolean called;
-
-        private FailingApi() {
-            super(RestClient.builder(), "https://example.invalid", "key", "model");
-        }
-
-        @Override
-        public String generate(String prompt) {
-            called = true;
-            throw new IllegalStateException("Gemini 호출 실패");
-        }
-    }
 }

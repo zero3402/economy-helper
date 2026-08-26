@@ -36,7 +36,6 @@ class FmpApiTest {
     void startServer() {
         server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
         server.start();
-        WireMock.configureFor(server.port());
         guard = new CountingGuard(true);
         api = new FmpApi(RestClient.builder(), server.baseUrl(), API_KEY, guard);
     }

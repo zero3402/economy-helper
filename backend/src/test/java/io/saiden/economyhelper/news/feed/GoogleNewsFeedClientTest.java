@@ -10,6 +10,7 @@ import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
+import io.saiden.economyhelper.support.TestFixtures;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -63,8 +64,6 @@ class GoogleNewsFeedClientTest {
     }
 
     private Reader fixture(String name) {
-        InputStream in = getClass().getResourceAsStream("/fixtures/" + name);
-        assertThat(in).as("픽스처 %s 가 있어야 한다", name).isNotNull();
-        return new InputStreamReader(in, StandardCharsets.UTF_8);
+        return TestFixtures.reader("fixtures/" + name);
     }
 }
