@@ -62,13 +62,15 @@ public final class HalfDays {
      * @param times   정시 목록. 병렬 배열의 축이다
      * @param chances 확률(%). 지나간 날은 {@code null}
      * @param amounts 강수량(mm). 없을 수 있다
-     * @param codes   WMO 코드. 비의 종류도, 마른 반나절의 하늘도 여기서 읽는다
+     * @param skies   하늘. 비의 종류도, 마른 반나절의 하늘도 여기서 읽는다.
+     *                <b>출처의 코드가 아니라 우리 어휘로 받는다</b> — 이 클래스는 WMO도
+     *                기상청 코드도 몰라야 한다. 옮기는 것은 각 출처의 몫이다
      * @return 날짜별 목록. 각 날은 <b>오전·오후 순</b>이고, 시간별 값이 있는 반나절만 담긴다
      */
     public static Map<LocalDate, List<HalfDay>> byDay(List<LocalDateTime> times,
                                                       List<Integer> chances,
                                                       List<BigDecimal> amounts,
-                                                      List<Integer> codes) {
+                                                      List<SkyCondition> skies) {
         Map<LocalDate, List<HalfDay>> byDay = new TreeMap<>();
         if (times == null || times.isEmpty()) {
             return byDay;
@@ -81,7 +83,7 @@ public final class HalfDays {
             }
         }
         slotsByDay.forEach((day, slots) -> {
-            List<HalfDay> halves = fold(times, chances, amounts, codes, slots,
+            List<HalfDay> halves = fold(times, chances, amounts, skies, slots,
                     thresholdsOf(chances, amounts, slots));
             if (!halves.isEmpty()) {
                 byDay.put(day, halves);
@@ -98,7 +100,7 @@ public final class HalfDays {
      * 같은 날 같은 비를 반나절에 따라 다르게 판정하게 된다.
      */
     private static List<HalfDay> fold(List<LocalDateTime> times, List<Integer> chances,
-                                      List<BigDecimal> amounts, List<Integer> codes,
+                                      List<BigDecimal> amounts, List<SkyCondition> skies,
                                       List<Integer> slots, Thresholds cut) {
         Map<Half, List<Integer>> byHalf = new EnumMap<>(Half.class);
         for (int slot : slots) {
@@ -112,7 +114,7 @@ public final class HalfDays {
         for (Half half : Half.values()) {
             List<Integer> inHalf = byHalf.get(half);
             if (inHalf != null && !inHalf.isEmpty()) {
-                halves.add(summarize(half, times, chances, amounts, codes, inHalf, cut));
+                halves.add(summarize(half, times, chances, amounts, skies, inHalf, cut));
             }
         }
         return List.copyOf(halves);
@@ -126,14 +128,14 @@ public final class HalfDays {
      * 우산을 챙길지는 그 하나가 정한다.
      */
     private static HalfDay summarize(Half half, List<LocalDateTime> times, List<Integer> chances,
-                                     List<BigDecimal> amounts, List<Integer> codes,
+                                     List<BigDecimal> amounts, List<SkyCondition> skies,
                                      List<Integer> slots, Thresholds cut) {
         Stretch strongest = null;
         Stretch current = null;
         for (int slot : slots) {
-            if (wet(at(chances, slot), at(amounts, slot), at(codes, slot), cut)) {
+            if (wet(at(chances, slot), at(amounts, slot), at(skies, slot), cut)) {
                 current = current == null ? new Stretch(slot) : current;
-                current.extend(slot, at(chances, slot), at(amounts, slot), at(codes, slot));
+                current.extend(slot, at(chances, slot), at(amounts, slot), at(skies, slot));
             } else if (current != null) {
                 strongest = stronger(strongest, current);
                 current = null;
@@ -145,11 +147,12 @@ public final class HalfDays {
             // 마른 반나절도 제 봉우리 확률을 든다 — 화면에는 안 나가고 하루 요약이 쓴다.
             // 안 담으면 양쪽이 다 마른 날에 일별 출처의 확률이 그대로 남아, 한 블록에
             // 「소나기 61%(AccuWeather)」와 「오전·오후 마름(Open-Meteo)」이 함께 선다
-            return HalfDay.dry(half, skyOf(codes, slots), peakChanceOf(chances, slots));
+            return HalfDay.dry(half, skyOf(skies, slots), peakChanceOf(chances, slots));
         }
         LocalTime from = times.get(strongest.first).toLocalTime();
         LocalTime to = times.get(strongest.last).toLocalTime();
-        SkyCondition kind = SkyCondition.ofWmoCode(strongest.heaviestCode);
+        SkyCondition kind =
+                strongest.heaviest == null ? SkyCondition.UNKNOWN : strongest.heaviest;
         return strongest.maxChance != null
                 ? HalfDay.withChance(from, to, kind, strongest.maxChance)
                 : HalfDay.withAmount(from, to, kind, strongest.totalAmount);
@@ -200,12 +203,35 @@ public final class HalfDays {
      * 그 반나절이 「이슬비」가 되는데, 문턱을 못 넘어 비로 치지 않기로 한 값이 이름만 비가 되는
      * 셈이다. 동률이면 무거운 쪽을 든다 — 덜 알리는 것보다 낫다.
      */
-    private static SkyCondition skyOf(List<Integer> codes, List<Integer> slots) {
+    private static SkyCondition skyOf(List<SkyCondition> skies, List<Integer> slots) {
+        List<SkyCondition> inHalf = new ArrayList<>(slots.size());
+        for (int slot : slots) {
+            inHalf.add(skyAt(skies, slot));
+        }
+        return commonestSky(inHalf);
+    }
+
+    /**
+     * 여럿 중 <b>가장 흔한 하늘</b>. 동률이면 무거운 쪽이다.
+     *
+     * <p>{@link #skyOf}가 반나절에 쓰고 기상청 단기예보가 <b>하루 요약</b>에 쓴다. 규칙이
+     * 하나인데 구현이 둘이면 갈라진다 — 실제로 그렇게 두 곳에 있었고, 씨앗({@code UNKNOWN})과
+     * 동률 처리까지 똑같이 적혀 있었다.
+     *
+     * <p>인자가 이미 우리 어휘이므로 「{@code HalfDays}는 어느 출처의 코드도 모른다」를
+     * 어기지 않는다.
+     *
+     * @return 비었으면 {@link SkyCondition#UNKNOWN}
+     */
+    public static SkyCondition commonestSky(List<SkyCondition> skies) {
         Map<SkyCondition, Integer> counts = new EnumMap<>(SkyCondition.class);
         SkyCondition best = SkyCondition.UNKNOWN;
         int bestCount = 0;
-        for (int slot : slots) {
-            SkyCondition sky = SkyCondition.ofWmoCode(at(codes, slot));
+        if (skies == null) {
+            return best;
+        }
+        for (SkyCondition each : skies) {
+            SkyCondition sky = each == null ? SkyCondition.UNKNOWN : each;
             int count = counts.merge(sky, 1, Integer::sum);
             if (count > bestCount || (count == bestCount && sky.compareTo(best) > 0)) {
                 best = sky;
@@ -222,7 +248,12 @@ public final class HalfDays {
         private int last;
         private Integer maxChance;
         private BigDecimal totalAmount;
-        private Integer heaviestCode;
+        /**
+          * ⚠️ 아직 아무것도 못 고른 상태를 {@code null}로 둔다 —
+          * {@link SkyCondition#UNKNOWN}으로 초기화하면 그것이 enum의 <b>마지막</b>이라
+          * {@code compareTo}가 무엇에도 안 밀려 종류가 영영 안 잡힌다.
+          */
+        private SkyCondition heaviest;
 
         private Stretch(int first) {
             this.first = first;
@@ -236,10 +267,15 @@ public final class HalfDays {
          * <p>⚠️ <b>강수 코드 중에서만 고른다.</b> 덩어리 안에 맑음·흐림 시간이 섞일 수 있는데
          * ({@link #wet}이 거부하는 것은 그 시간 하나이고, 앞뒤가 젖어 있으면 덩어리는 이어진다)
          * 그 코드가 최댓값이 되면 <b>비 오는 줄의 이름이 「흐림」·「맑음」</b>이 된다.
-         * <b>젖은 줄의 이름은 강수여야 한다</b> — 하나도 못 고르면 {@code null}로 남고
-         * {@link SkyCondition#UNKNOWN}이 되어 화면이 낱말 없이 시각만 적는다.
+         * <b>젖은 줄의 이름은 강수여야 한다</b> — 하나도 못 고르면
+         * {@link SkyCondition#UNKNOWN}으로 남아 화면이 낱말 없이 시각만 적는다.
+         *
+         * <p><b>무거움은 {@code SkyCondition}의 선언 순서로 잰다</b> — 출처 코드의 크기가
+         * 아니다. WMO 정수로 견주던 때는 {@code 66}(진눈깨비)이 {@code 65}(비)보다 무겁다고
+         * 셌는데, 그 순서는 WMO가 표를 매긴 사정일 뿐이고 우리 화면의 경고 세기가 아니다.
+         * {@code Weather.Daily.skyAgreeingWith}가 이미 {@code compareTo}로 재고 있었다.
          */
-        private void extend(int slot, Integer chance, BigDecimal amount, Integer code) {
+        private void extend(int slot, Integer chance, BigDecimal amount, SkyCondition sky) {
             last = slot;
             if (chance != null && (maxChance == null || chance > maxChance)) {
                 maxChance = chance;
@@ -247,9 +283,9 @@ public final class HalfDays {
             if (amount != null) {
                 totalAmount = totalAmount == null ? amount : totalAmount.add(amount);
             }
-            if (code != null && SkyCondition.ofWmoCode(code).precipitating()
-                    && (heaviestCode == null || code > heaviestCode)) {
-                heaviestCode = code;
+            if (sky != null && sky.precipitating()
+                    && (heaviest == null || sky.compareTo(heaviest) > 0)) {
+                heaviest = sky;
             }
         }
     }
@@ -318,7 +354,8 @@ public final class HalfDays {
      * 우산 그림 옆에 0%를 적는 것은 제 말을 제가 뒤집는 일이다. 시세의 {@code Price.positive}·
      * 목표가 {@code 0}과 같은 자리다.
      */
-    private static boolean wet(Integer chance, BigDecimal amount, Integer code, Thresholds cut) {
+    private static boolean wet(Integer chance, BigDecimal amount, SkyCondition sky,
+                               Thresholds cut) {
         // ⚠️ **양이 없는 것과 양이 0인 것은 다르다.** 한동안 `amount == null`까지 「양이 안
         //    온다고 말한다」로 셌는데, null은 0이 아니라 **모름**이다. 강수량 배열이 통째로
         //    없거나 짧게 온 응답에서 확률 100%·코드 0(맑음)인 시간이 전부 잘려
@@ -326,7 +363,7 @@ public final class HalfDays {
         //    「코드와 양이 함께 말해야 한다」를 스스로 어긴 것이다.
         //    거부권은 **양이 있고 그 양이 문턱 아래일 때만** 선다
         boolean amountSaysDry = amount != null && amount.compareTo(MIN_AMOUNT) < 0;
-        if ((amountSaysDry && saysDry(code)) || (chance != null && chance == 0)) {
+        if ((amountSaysDry && saysDry(sky)) || (chance != null && chance == 0)) {
             return false;
         }
         if (chance != null && chance >= cut.chance()) {
@@ -343,12 +380,14 @@ public final class HalfDays {
      * 어휘를 못 읽었다고 강수 시각이 통째로 죽으면, 출처가 코드를 하나 늘리는 날 이 줄이
      * 조용히 사라진다. 재분석(지나간 날)은 코드를 함께 주므로 그쪽도 이 규칙이 그대로 통한다.
      */
-    private static boolean saysDry(Integer code) {
-        if (code == null) {
-            return false;
-        }
-        SkyCondition sky = SkyCondition.ofWmoCode(code);
-        return sky != SkyCondition.UNKNOWN && !sky.precipitating();
+    private static boolean saysDry(SkyCondition sky) {
+        return sky != null && sky != SkyCondition.UNKNOWN && !sky.precipitating();
+    }
+
+    /** 하늘은 못 읽은 자리를 {@link SkyCondition#UNKNOWN}으로 메운다 — {@code null}을 흘리지 않는다. */
+    private static SkyCondition skyAt(List<SkyCondition> skies, int slot) {
+        SkyCondition sky = at(skies, slot);
+        return sky == null ? SkyCondition.UNKNOWN : sky;
     }
 
     /** 병렬 배열이 짧거나 없을 때 {@code null}. */

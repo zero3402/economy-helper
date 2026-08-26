@@ -42,17 +42,22 @@ class OpenMeteoCacheKeyTest {
     }
 
     @Test
-    @DisplayName("날씨 출처 셋이 서로 다른 접두사를 쓴다 — AccuWeather까지 포함해 셋이다")
+    @DisplayName("날씨 출처 넷이 서로 다른 접두사를 쓴다 — 기상청까지 포함해 넷이다")
     void everyWeatherSourceHasItsOwnPrefix() {
         String accu = cacheableOf(
                 io.saiden.economyhelper.market.weather.accu.AccuWeatherClient.class).key();
+        // ⚠️ 클래스를 손으로 적는 목록이다. 새 출처를 여기 안 더하면 접두사가 겹쳐도
+        //    이 그물이 아예 안 본다 — 그때는 남의 답이 우리 이름으로 나간다
+        String kma = cacheableOf(
+                io.saiden.economyhelper.market.weather.kma.KmaWeatherClient.class).key();
 
-        assertThat(Arrays.asList(accu,
+        assertThat(Arrays.asList(accu, kma,
                         cacheableOf(OpenMeteoForecastClient.class).key(),
                         cacheableOf(OpenMeteoArchiveClient.class).key()))
-                .as("셋이 한 캐시를 나눠 쓰므로 접두사 셋이 모두 달라야 한다")
+                .as("넷이 한 캐시를 나눠 쓰므로 접두사가 모두 달라야 한다")
                 .doesNotHaveDuplicates();
         assertThat(accu).startsWith("'accu:'");
+        assertThat(kma).startsWith("'kma:'");
     }
 
     /** {@code forecast(GeoLocation, WeatherPeriod)}에 달린 애너테이션. */

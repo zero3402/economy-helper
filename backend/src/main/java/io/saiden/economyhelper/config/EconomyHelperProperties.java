@@ -208,4 +208,5 @@ public record EconomyHelperProperties(
      *
      */
     public record WeatherLocation(String name, double latitude, double longitude) {}
+
 }

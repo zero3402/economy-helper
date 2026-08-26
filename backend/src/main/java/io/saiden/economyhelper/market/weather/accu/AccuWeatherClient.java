@@ -79,7 +79,7 @@ public class AccuWeatherClient implements WeatherClient {
      * 넘긴다. 하루 50회짜리 한도를 헛되이 쓰지 않는 효과도 있다.
      */
     @Override
-    public boolean supports(WeatherPeriod period, LocalDate today) {
+    public boolean supports(GeoLocation place, WeatherPeriod period, LocalDate today) {
         return !period.past(today) && !period.to().isAfter(today.plusDays(MAX_DAYS - 1L));
     }
 

@@ -37,6 +37,16 @@ public enum SkyCondition {
     CLEAR("맑음"),
     MOSTLY_CLEAR("대체로 맑음"),
     PARTLY_CLOUDY("구름 조금"),
+    /**
+     * ⚠️ <b>기상청 때문에 생긴 값이다.</b> 기상청 {@code SKY}는 하늘을 셋으로만 가르는데
+     * (맑음 {@code 1} · 구름많음 {@code 3} · 흐림 {@code 4}) 가운데 것이 우리 어휘에 없었다.
+     * {@code PARTLY_CLOUDY}(「구름 조금」)에 붙이면 <b>「많음」을 「조금」이라 적는</b> 셈이고,
+     * {@code CLOUDY}(「흐림」)에 붙이면 흐린 날과 구분이 사라진다 — 둘 다 사실을 바꾼다.
+     *
+     * <p>WMO에는 대응이 없다({@code 2}가 「구름 조금」, {@code 3}이 「흐림」이다).
+     * 그래서 <b>기상청이 답한 날에만</b> 나온다.
+     */
+    MOSTLY_CLOUDY("구름 많음"),
     CLOUDY("흐림"),
     FOG("안개"),
     DRIZZLE("이슬비"),
@@ -88,7 +98,8 @@ public enum SkyCondition {
         return switch (this) {
             case DRIZZLE, RAIN, FREEZING_RAIN, SHOWERS, SNOW, SLEET, SNOW_SHOWERS,
                     THUNDERSTORM, HAIL_THUNDERSTORM -> true;
-            case CLEAR, MOSTLY_CLEAR, PARTLY_CLOUDY, CLOUDY, FOG, UNKNOWN -> false;
+            case CLEAR, MOSTLY_CLEAR, PARTLY_CLOUDY, MOSTLY_CLOUDY, CLOUDY, FOG,
+                    UNKNOWN -> false;
         };
     }
 

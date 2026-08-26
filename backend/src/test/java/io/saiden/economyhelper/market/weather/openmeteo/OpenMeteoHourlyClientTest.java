@@ -49,7 +49,6 @@ class OpenMeteoHourlyClientTest {
     void startServer() {
         server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
         server.start();
-        WireMock.configureFor(server.port());
         client = new OpenMeteoHourlyClient(RestClient.builder(), server.baseUrl());
     }
 

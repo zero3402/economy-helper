@@ -43,7 +43,8 @@ public class WeatherService {
      * 때문이다 — 지난 날짜에서는 앞의 둘이 {@code supports}에서 빠져 이쪽만 남는다.
      */
     private static final List<WeatherSource> ORDER = List.of(
-            WeatherSource.ACCU_WEATHER, WeatherSource.OPEN_METEO, WeatherSource.OPEN_METEO_ARCHIVE);
+            WeatherSource.KMA, WeatherSource.ACCU_WEATHER,
+            WeatherSource.OPEN_METEO, WeatherSource.OPEN_METEO_ARCHIVE);
 
     private final List<WeatherClient> clients;
     private final Clock clock;
@@ -75,7 +76,7 @@ public class WeatherService {
         // 못 하는 출처는 부르지 않는다 — 먼저 걸러 두면 "시도했는가"를 목록이 말해 준다.
         // 예전에는 루프를 관통하는 가변 플래그(tried)가 그 일을 했다
         List<WeatherClient> eligible = clients.stream()
-                .filter(client -> client.supports(period, today))
+                .filter(client -> client.supports(place, period, today))
                 .toList();
 
         if (eligible.isEmpty()) {

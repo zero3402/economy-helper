@@ -97,6 +97,8 @@ public record HalfDay(Half half, SkyCondition kind, LocalTime from, LocalTime to
         return new HalfDay(half, kind, null, null, chance, null);
     }
 
+
+
     /** 비·눈이 있었나. 시각이 있으면 젖은 것이다. */
     public boolean wet() {
         return from != null;

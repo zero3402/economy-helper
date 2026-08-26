@@ -41,7 +41,6 @@ class OpenMeteoForecastClientTest {
     void startServer() {
         server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
         server.start();
-        WireMock.configureFor(server.port());
         client = new OpenMeteoForecastClient(RestClient.builder(), server.baseUrl());
     }
 

@@ -49,7 +49,6 @@ class AccuWeatherClientTest {
     void startServer() {
         server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
         server.start();
-        WireMock.configureFor(server.port());
         client = new AccuWeatherClient(RestClient.builder(), server.baseUrl(), API_KEY,
                 new AccuLocationApi(RestClient.builder(), server.baseUrl(), API_KEY));
     }
@@ -155,13 +154,17 @@ class AccuWeatherClientTest {
     @Test
     @DisplayName("닷새를 넘는 기간은 맡지 않는다 — 무료 등급이 거기까지다")
     void declinesRangesBeyondFiveDays() {
-        assertThat(client.supports(days(5), TODAY))
+        assertThat(client.supports(MIGEUM, days(5), TODAY))
                 .as("오늘 포함 닷새까지는 맡는다").isTrue();
-        assertThat(client.supports(days(6), TODAY))
+        assertThat(client.supports(MIGEUM, days(6), TODAY))
                 .as("엿새째부터는 뒷부분이 통째로 비는데 그건 실패로도 안 잡힌다").isFalse();
-        assertThat(client.supports(
+        assertThat(client.supports(MIGEUM,
                 WeatherPeriod.of(TODAY, LocalDate.of(2025, 8, 19), null, 1), TODAY))
                 .as("지나간 날도 못 준다").isFalse();
+        assertThat(client.supports(
+                new GeoLocation("파리", "프랑스", 48.8566, 2.3522, ZoneId.of("Europe/Paris")),
+                days(3), TODAY))
+                .as("지점은 안 가린다 — 전 세계를 맡는다. 국내만 맡는 것은 기상청이다").isTrue();
     }
 
     @Test

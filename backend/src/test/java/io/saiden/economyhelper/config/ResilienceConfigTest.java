@@ -300,7 +300,8 @@ class ResilienceConfigTest {
         // binance가 실제로 그 상태였고, 목록에 없어서 아무도 몰랐다
         for (String name : new String[] {"translation", "telegram", "fmp", "fmpOutlook",
                 "upbit", "binance", "kisFx", "kisStock",
-                "weatherAccuWeather", "weatherOpenMeteo", "weatherOpenMeteoHourly",
+                "weatherKma", "weatherAccuWeather",
+                "weatherOpenMeteo", "weatherOpenMeteoHourly",
                 "weatherOpenMeteoArchive", "weatherGeocoding"}) {
             CircuitBreaker breaker = registry.circuitBreaker(name);
             long before = breaker.getMetrics().getNumberOfFailedCalls();

@@ -29,13 +29,22 @@ public interface WeatherClient {
     Weather forecast(GeoLocation place, WeatherPeriod period);
 
     /**
-     * 이 출처가 그 범위를 다룰 수 있는가.
+     * 이 출처가 <b>그 지점의</b> 그 범위를 다룰 수 있는가.
      *
-     * <p><b>지난 날짜와 예보 길이에서 갈린다.</b> 예보 출처는 아카이브가 없어 과거를 물으면
-     * 호출해 봐야 빈손이고, AccuWeather 무료 등급은 5일을 넘기면 그렇다. 못 하는 줄 알면서
-     * 부르면 서킷브레이커에 애먼 실패가 쌓이고 사용자는 그만큼 더 기다린다.
+     * <p><b>지난 날짜와 예보 길이, 그리고 지점에서 갈린다.</b> 예보 출처는 아카이브가 없어
+     * 과거를 물으면 호출해 봐야 빈손이고, AccuWeather 무료 등급은 5일을 넘기면 그렇다.
+     * 못 하는 줄 알면서 부르면 서킷브레이커에 애먼 실패가 쌓이고 사용자는 그만큼 더 기다린다.
+     *
+     * <p><b>지점이 세 번째 축으로 붙었다.</b> 기상청은 <b>국내 격자 전용</b>이라 파리·도쿄를
+     * 물으면 줄 것이 없다 — 그런데 좌표가 이 자리에 없어 「국내만 맡는다」를 말할 방법이 없었다.
+     * 대안은 {@link #forecast}에서 던지는 것이었는데, 그러면 국외 조회마다 기상청 브레이커를
+     * 태운다 — 이 메서드가 존재하는 이유를 정면으로 어긴다.
+     *
+     * <p>⚠️ <b>나라 이름으로 가르지 않는다.</b> 오전 6시 알람은 설정 좌표로
+     * {@code GeoLocation}을 직접 만들어 지오코딩을 안 타므로 나라가 {@code null}이다.
+     * 출처가 <b>제 격자 안인지</b>를 스스로 보는 것이 더 정직하고 그 경로에서도 통한다.
      */
-    boolean supports(WeatherPeriod period, LocalDate today);
+    boolean supports(GeoLocation place, WeatherPeriod period, LocalDate today);
 
     /**
      * 이 출처가 <b>하루 안의 강수 시각까지 함께 주는가</b>.

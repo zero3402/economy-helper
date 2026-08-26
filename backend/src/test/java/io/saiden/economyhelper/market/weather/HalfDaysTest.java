@@ -44,7 +44,7 @@ class HalfDaysTest {
                 3, 51, 55, 51, 51, 3, 53, 51, 1, 2, 2, 2);
 
         Map<LocalDate, List<HalfDay>> byDay =
-                HalfDays.byDay(hours(DAY, 24), chances, amounts, codes);
+                HalfDays.byDay(hours(DAY, 24), chances, amounts, wmo(codes));
 
         assertThat(byDay).containsOnlyKeys(DAY);
         assertThat(byDay.get(DAY)).satisfiesExactly(
@@ -77,7 +77,7 @@ class HalfDaysTest {
         List<Integer> codes = new ArrayList<>(Collections.nCopies(12, 0));
         codes.addAll(Collections.nCopies(12, 3));
 
-        List<HalfDay> halves = HalfDays.byDay(hours(DAY, 24), chances, null, codes).get(DAY);
+        List<HalfDay> halves = HalfDays.byDay(hours(DAY, 24), chances, null, wmo(codes)).get(DAY);
 
         assertThat(halves).satisfiesExactly(
                 morning -> assertThat(morning.kind()).isEqualTo(SkyCondition.CLEAR),
@@ -99,7 +99,7 @@ class HalfDaysTest {
         List<Integer> chances = Collections.nCopies(6, 20);
         List<Integer> codes = Arrays.asList(0, 0, 0, 0, 51, 0);
 
-        assertThat(HalfDays.byDay(hours(DAY, 6), chances, null, codes).get(DAY))
+        assertThat(HalfDays.byDay(hours(DAY, 6), chances, null, wmo(codes)).get(DAY))
                 .singleElement()
                 .satisfies(half -> assertThat(half.kind()).isEqualTo(SkyCondition.CLEAR));
     }
@@ -141,7 +141,7 @@ class HalfDaysTest {
         List<BigDecimal> amounts = mm(0, 0, 0, 4.2, 0, 0);
         List<Integer> codes = Arrays.asList(1, 1, 1, 81, 1, 1);
 
-        assertThat(HalfDays.byDay(hours(DAY, 6), chances, amounts, codes).get(DAY))
+        assertThat(HalfDays.byDay(hours(DAY, 6), chances, amounts, wmo(codes)).get(DAY))
                 .singleElement().satisfies(half -> {
                     assertThat(half.single()).as("한 시간짜리다").isTrue();
                     assertThat(half.from()).isEqualTo(LocalTime.of(3, 0));
@@ -165,7 +165,7 @@ class HalfDaysTest {
         List<Integer> chances = Arrays.asList(60, 70, 80);
         List<Integer> codes = Arrays.asList(51, 61, 95);
 
-        assertThat(HalfDays.byDay(hours(DAY, 3), chances, null, codes).get(DAY))
+        assertThat(HalfDays.byDay(hours(DAY, 3), chances, null, wmo(codes)).get(DAY))
                 .singleElement()
                 .satisfies(half -> assertThat(half.kind()).isEqualTo(SkyCondition.THUNDERSTORM));
     }
@@ -212,7 +212,7 @@ class HalfDaysTest {
         List<BigDecimal> amounts = mm(0, 0, 1.2, 2.0, 0.5, 0);
         List<Integer> codes = Arrays.asList(1, 1, 61, 63, 61, 1);
 
-        assertThat(HalfDays.byDay(hours(DAY, 6), null, amounts, codes).get(DAY))
+        assertThat(HalfDays.byDay(hours(DAY, 6), null, amounts, wmo(codes)).get(DAY))
                 .singleElement().satisfies(half -> {
                     assertThat(half.chance()).as("지나간 날에 '올 확률'은 말이 안 된다").isNull();
                     assertThat(half.amount()).isEqualByComparingTo(new BigDecimal("3.7"));
@@ -314,7 +314,7 @@ class HalfDaysTest {
                 0, 2, 3, 3, 3, 3, 3, 3, 3, 3, 1, 1,
                 1, 51, 1, 1, 1, 2, 3, 3, 51, 3, 1, 1);
 
-        List<HalfDay> halves = HalfDays.byDay(hours(DAY, 24), chances, amounts, codes).get(DAY);
+        List<HalfDay> halves = HalfDays.byDay(hours(DAY, 24), chances, amounts, wmo(codes)).get(DAY);
 
         assertThat(halves).allSatisfy(half -> assertThat(!half.wet() || half.kind().precipitating())
                 .as("%s 줄이 젖었는데 이름이 %s다 — 강수가 아닌 낱말은 젖은 줄에 못 앉는다",
@@ -339,7 +339,7 @@ class HalfDaysTest {
         List<BigDecimal> amounts = mm(0, 0.1, 0);
         List<Integer> codes = Arrays.asList(3, 51, 3);
 
-        List<HalfDay> halves = HalfDays.byDay(hours(DAY, 3), chances, amounts, codes).get(DAY);
+        List<HalfDay> halves = HalfDays.byDay(hours(DAY, 3), chances, amounts, wmo(codes)).get(DAY);
 
         assertThat(halves).singleElement().satisfies(morning -> {
             assertThat(morning.wet()).isFalse();
@@ -357,7 +357,7 @@ class HalfDaysTest {
         List<BigDecimal> amounts = mm(1.1, 0.4, 0.2);
         List<Integer> codes = Arrays.asList(55, 51, 3);
 
-        List<HalfDay> halves = HalfDays.byDay(hours(DAY, 3), chances, amounts, codes).get(DAY);
+        List<HalfDay> halves = HalfDays.byDay(hours(DAY, 3), chances, amounts, wmo(codes)).get(DAY);
 
         assertThat(halves).singleElement().satisfies(morning -> {
             assertThat(morning.to()).as("0.2mm가 온 시간은 흐림 코드에도 남는다")
@@ -378,7 +378,7 @@ class HalfDaysTest {
         List<Integer> chances = Collections.nCopies(24, 100);
         List<Integer> codes = Collections.nCopies(24, 0);
 
-        List<HalfDay> halves = HalfDays.byDay(hours(DAY, 24), chances, null, codes).get(DAY);
+        List<HalfDay> halves = HalfDays.byDay(hours(DAY, 24), chances, null, wmo(codes)).get(DAY);
 
         assertThat(halves).allSatisfy(half -> assertThat(half.wet())
                 .as("%s — 확률 100%%인데 양을 모른다고 마른 것이 되면 안 된다", half.half())
@@ -393,7 +393,7 @@ class HalfDaysTest {
         // 앞 두 시간만 값이 있다. 나머지 스물두 시간은 at()이 null을 준다
         List<BigDecimal> amounts = mm(0, 0);
 
-        List<HalfDay> halves = HalfDays.byDay(hours(DAY, 24), chances, amounts, codes).get(DAY);
+        List<HalfDay> halves = HalfDays.byDay(hours(DAY, 24), chances, amounts, wmo(codes)).get(DAY);
 
         assertThat(halves).satisfiesExactly(
                 morning -> assertThat(morning.wet())
@@ -402,8 +402,16 @@ class HalfDaysTest {
     }
 
     private static SkyCondition kindOf(int code) {
-        return HalfDays.byDay(hours(DAY, 1), List.of(80), null, List.of(code))
+        return HalfDays.byDay(hours(DAY, 1), List.of(80), null, wmo(List.of(code)))
                 .get(DAY).get(0).kind();
+    }
+
+    /**
+     * 테스트는 계속 <b>실측 WMO 코드</b>로 적는다 — 그게 Open-Meteo가 실제로 주는 값이다.
+     * 옮기는 일은 {@code HourlyBlock}이 하던 그대로 여기서 한다.
+     */
+    private static List<SkyCondition> wmo(List<Integer> codes) {
+        return codes == null ? null : codes.stream().map(SkyCondition::ofWmoCode).toList();
     }
 
     private static List<LocalDateTime> hours(LocalDate day, int count) {

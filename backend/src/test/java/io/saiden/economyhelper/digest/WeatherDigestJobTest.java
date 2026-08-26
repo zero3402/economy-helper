@@ -169,7 +169,7 @@ class WeatherDigestJobTest {
         }
 
         @Override
-        public boolean supports(WeatherPeriod period, LocalDate today) {
+        public boolean supports(GeoLocation place, WeatherPeriod period, LocalDate today) {
             return !period.past(today);
         }
 

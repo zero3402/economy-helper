@@ -67,7 +67,7 @@ public class OpenMeteoForecastClient implements WeatherClient {
      * 예보 이력이라 성격이 다르다. 지나간 날은 {@link OpenMeteoArchiveClient}가 실측으로 답한다.
      */
     @Override
-    public boolean supports(WeatherPeriod period, LocalDate today) {
+    public boolean supports(GeoLocation place, WeatherPeriod period, LocalDate today) {
         return !period.past(today);
     }
 

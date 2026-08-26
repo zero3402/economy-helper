@@ -181,6 +181,8 @@ public final class WeatherFormatter {
             case CLEAR -> "☀️";
             case MOSTLY_CLEAR -> "🌤️";
             case PARTLY_CLOUDY -> "⛅";
+            // 기상청의 「구름많음」. ⛅(구름 조금)과 ☁️(흐림) 사이가 이 그림이다
+            case MOSTLY_CLOUDY -> "🌥️";
             case CLOUDY -> "☁️";
             case FOG -> "🌫️";
             case SNOW, SNOW_SHOWERS -> "❄️";

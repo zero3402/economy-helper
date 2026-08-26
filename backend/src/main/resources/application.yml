@@ -352,7 +352,23 @@ economy-helper:
         latitude: 37.512806
         longitude: 127.052612
 
-    # 1순위. 지점 예보가 동 단위까지 짚어 준다(실측 2026-08-18: 미금역 → 구미1동).
+    # 국내 1순위. 기상청 동네예보 5km 격자이고, **일별과 시간별을 한 출처가 함께 준다** —
+    # 그래서 국내에서 「한 블록의 강수 값은 한 예보에서 나온다」가 완전해진다.
+    # ⚠️ 키는 주식 2순위(공공데이터포털)가 쓰는 그 DATA_API_KEY다. data.go.kr 일반 인증키가
+    #    계정당 하나라 새로 받을 것이 없다 — 실측 2026-08-26에 resultCode=00.
+    # ⚠️ **단기예보만 쓴다**(오늘~사흘). 중기예보는 붙였다가 물렸다 — 좌표가 아니라 지역코드를
+    #    받아 대표지점 최근접으로 권역을 골라야 했고, 그 기하가 행정경계를 못 재현했다
+    #    (실측: 완도가 제주 권역으로 갔다). 그 날들은 Open-Meteo가 1km 격자에 시각까지 준다.
+    # ⚠️ 그 키를 **다시 인코딩하면 안 된다**(% 포함, 길이 96). 한 번 더 인코딩하면
+    #    SERVICE_KEY_IS_NOT_REGISTERED_ERROR가 오는데 그게 「활용신청이 안 됐다」로 읽힌다.
+    #    KmaRequest가 URI를 문자열로 조립하는 이유다(DataGoRequest와 같은 함정).
+    # ⚠️ 국내 전용이다. 예보 격자가 한반도뿐이고 「세계기상」은 예보가 아니라 GTS 관측,
+    #    전지구모델은 GRIB2 파일이다. 국외는 아래 둘이 그대로 맡는다.
+    kma:
+      base-url: https://apis.data.go.kr
+      api-key: ${DATA_API_KEY:}
+
+    # 국외 1순위이자 국내 2순위. 지점 예보가 동 단위까지 짚어 준다(실측 2026-08-18: 미금역 → 구미1동).
     # ⚠️ 무료 등급은 하루 50회이고, 좌표로 바로 못 부른다 — 지점 키를 먼저 받아야 해서
     #    조회 한 번이 호출 두 번이다. cache-ttl.accu-location(30d)이 그 절반을 없앤다.
     # ⚠️ 무료는 5일까지다. 그보다 긴 기간은 supports()에서 빠져 Open-Meteo가 맡는다.
@@ -608,6 +624,10 @@ resilience4j:
         baseConfig: default
       # 날씨도 출처별로 따로 연다 — 환율과 같은 이유다. 하나로 묶으면 AccuWeather 장애가
       # Open-Meteo까지 끊어 이중화가 성립하지 않는다.
+      # 국내 1순위. 여기가 열리면 국내는 AccuWeather로 내려앉는다 — 값은 나가고 정밀도만
+      # 낮아진다.
+      weatherKma:
+        baseConfig: default
       # AccuWeather는 지점 조회와 예보가 한 브레이커를 쓴다 — 같은 키·같은 호스트라 하나가
       # 죽으면 다른 하나도 못 쓴다. 하루 50회를 넘겨 503이 이어질 때 이 브레이커가 열려
       # 헛호출을 멈추는 것이, 따로 쿼터 카운터를 두지 않는 대신의 방어다.
@@ -686,6 +706,10 @@ resilience4j:
       weatherGeocoding:
         baseConfig: default
         maxAttempts: 3
+      # ⚠️ **기상청에는 재시도를 걸지 않는다.** 폴백이 둘이라 규칙대로이기도 하고, 걸어 봤자
+      #    발동하지 않는다 — KmaRequest가 키를 지우려고 모든 실패를 IllegalStateException으로
+      #    감싸는데 위 retryExceptions는 HttpServerErrorException·ResourceAccessException만
+      #    센다. 한동안 선언만 있고 아무 일도 안 하는 상태였다.
       # 폴백의 끝자리다 — AccuWeather가 이미 실패했거나 5일을 넘겨 supports()에서 빠진 뒤다
       weatherOpenMeteo:
         baseConfig: default

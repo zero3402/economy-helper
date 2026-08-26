@@ -26,6 +26,7 @@ import io.saiden.economyhelper.translate.TranslationService;
 import io.saiden.economyhelper.market.weather.WeatherResolver;
 import io.saiden.economyhelper.market.weather.accu.AccuLocationApi;
 import io.saiden.economyhelper.market.weather.accu.AccuWeatherClient;
+import io.saiden.economyhelper.market.weather.kma.KmaWeatherClient;
 import io.saiden.economyhelper.market.weather.openmeteo.GeocodingApi;
 import io.saiden.economyhelper.market.weather.openmeteo.OpenMeteoArchiveClient;
 import io.saiden.economyhelper.market.weather.openmeteo.OpenMeteoForecastClient;
@@ -208,7 +209,7 @@ class CacheConfigTest {
                         // 날씨. 여기에 안 적으면 새 캐시를 감시가 아예 안 본다
                         OpenMeteoForecastClient.class, OpenMeteoArchiveClient.class,
                         AccuWeatherClient.class, AccuLocationApi.class,
-                        GeocodingApi.class, WeatherResolver.class)
+                        GeocodingApi.class, WeatherResolver.class, KmaWeatherClient.class)
                 .flatMap(type -> cacheNamesOf(type).stream())
                 .collect(Collectors.toCollection(java.util.HashSet::new));
 

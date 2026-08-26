@@ -54,7 +54,7 @@ public class OpenMeteoArchiveClient implements WeatherClient {
 
     /** 지나간 날만 맡는다 — 오늘을 걸치면 예보 쪽이 답해야 격자가 섞이지 않는다. */
     @Override
-    public boolean supports(WeatherPeriod period, LocalDate today) {
+    public boolean supports(GeoLocation place, WeatherPeriod period, LocalDate today) {
         return period.past(today);
     }
 

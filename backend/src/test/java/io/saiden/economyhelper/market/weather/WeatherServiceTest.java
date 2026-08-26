@@ -34,7 +34,49 @@ class WeatherServiceTest {
     private static final Instant NOW = Instant.parse("2026-08-17T00:00:00Z");
     private static final GeoLocation SEOUL =
             new GeoLocation("성남시", "대한민국", 37.35, 127.10889, ZoneId.of("Asia/Seoul"));
+    private static final GeoLocation PARIS =
+            new GeoLocation("파리", "프랑스", 48.8566, 2.3522, ZoneId.of("Europe/Paris"));
     private static final LocalDate TODAY = LocalDate.of(2026, 8, 17);
+
+    @Test
+    @DisplayName("국내는 기상청이 먼저다 — AccuWeather는 안 불린다")
+    void putsKmaFirstForDomesticPlaces() {
+        FakeClient kma = FakeClient.domesticOnly(WeatherSource.KMA);
+        FakeClient accu = FakeClient.returning(WeatherSource.ACCU_WEATHER);
+
+        Optional<Weather> weather = service(accu, kma).forecast(SEOUL, today());
+
+        assertThat(weather.orElseThrow().source())
+                .as("주입 순서가 아니라 ORDER가 순서를 정한다")
+                .isEqualTo(WeatherSource.KMA);
+        assertThat(accu.calls).hasValue(0);
+    }
+
+    @Test
+    @DisplayName("⚠️ 국외는 기상청을 아예 안 부른다 — 부르면 애먼 실패가 브레이커에 쌓인다")
+    void neverAsksKmaAboutPlacesAbroad() {
+        FakeClient kma = FakeClient.domesticOnly(WeatherSource.KMA);
+        FakeClient accu = FakeClient.returning(WeatherSource.ACCU_WEATHER);
+
+        Optional<Weather> weather = service(kma, accu).forecast(PARIS, today());
+
+        assertThat(weather.orElseThrow().source()).isEqualTo(WeatherSource.ACCU_WEATHER);
+        assertThat(kma.calls)
+                .as("supports가 좌표를 보는 이유가 이것이다 — 못 하는 줄 알면서 부르지 않는다")
+                .hasValue(0);
+    }
+
+    @Test
+    @DisplayName("기상청이 죽으면 AccuWeather로 내려앉고 출처도 그쪽으로 바뀐다")
+    void fallsBackFromKma() {
+        FakeClient kma = FakeClient.failing(WeatherSource.KMA);
+        FakeClient accu = FakeClient.returning(WeatherSource.ACCU_WEATHER);
+
+        Optional<Weather> weather = service(kma, accu).forecast(SEOUL, today());
+
+        assertThat(weather.orElseThrow().source()).isEqualTo(WeatherSource.ACCU_WEATHER);
+        assertThat(kma.calls).hasValue(1);
+    }
 
     @Test
     @DisplayName("1순위가 성공하면 2순위를 부르지 않는다 — 폴백은 장애 때만이다")
@@ -293,7 +335,11 @@ class WeatherServiceTest {
         private final WeatherSource source;
         private final boolean fails;
         private final AtomicInteger calls = new AtomicInteger();
+        /** 국내 판정에 쓰는 시간대 — 술어 안에서 매번 만들지 않는다. */
+        private static final ZoneId KOREA = ZoneId.of("Asia/Seoul");
+
         private int maxDays = Integer.MAX_VALUE;
+        private boolean domesticOnly;
 
         private FakeClient(WeatherSource source, boolean fails) {
             this.source = source;
@@ -306,6 +352,13 @@ class WeatherServiceTest {
 
         static FakeClient failing(WeatherSource source) {
             return new FakeClient(source, true);
+        }
+
+        /** 국내만 맡는다 — 기상청의 성질을 흉내 낸다. 시간대로 가르는 것까지 같다. */
+        static FakeClient domesticOnly(WeatherSource source) {
+            FakeClient client = new FakeClient(source, false);
+            client.domesticOnly = true;
+            return client;
         }
 
         /** 닷새를 넘는 기간을 사양한다 — AccuWeather 무료 등급의 성질을 흉내 낸다. */
@@ -321,9 +374,12 @@ class WeatherServiceTest {
         }
 
         @Override
-        public boolean supports(WeatherPeriod period, LocalDate today) {
+        public boolean supports(GeoLocation place, WeatherPeriod period, LocalDate today) {
             if (source == WeatherSource.OPEN_METEO_ARCHIVE) {
                 return period.past(today);
+            }
+            if (domesticOnly && !KOREA.equals(place.zone())) {
+                return false;
             }
             return !period.past(today) && !period.to().isAfter(today.plusDays(maxDays - 1L));
         }

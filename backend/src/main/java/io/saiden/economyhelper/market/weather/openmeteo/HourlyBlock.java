@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.saiden.economyhelper.market.weather.HalfDay;
 import io.saiden.economyhelper.market.weather.HalfDays;
+import io.saiden.economyhelper.market.weather.SkyCondition;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -50,7 +51,25 @@ record HourlyBlock(
         for (String at : time) {
             times.add(parse(at));
         }
-        return HalfDays.byDay(times, precipitationProbability, precipitation, weatherCode);
+        return HalfDays.byDay(times, precipitationProbability, precipitation, skies());
+    }
+
+    /**
+     * WMO 코드를 <b>여기서</b> 우리 어휘로 옮긴다.
+     *
+     * <p>{@link HalfDays}는 출처의 코드를 몰라야 한다 — 기상청이 같은 자리에 들어오면서
+     * {@code SKY}×{@code PTY}를 WMO 정수로 위장시켜야 할 판이었다. 옮기는 것은 그 코드를
+     * 아는 쪽, 곧 각 출처의 몫이다.
+     */
+    private List<SkyCondition> skies() {
+        if (weatherCode == null) {
+            return List.of();
+        }
+        List<SkyCondition> skies = new ArrayList<>(weatherCode.size());
+        for (Integer code : weatherCode) {
+            skies.add(SkyCondition.ofWmoCode(code));
+        }
+        return skies;
     }
 
     /** @return 못 읽으면 {@code null} — 그 시간만 빠진다 */
