@@ -47,11 +47,14 @@ public final class CacheNames {
     public static final String WEATHER_RESOLVE = "weather-resolve-v2";
 
     /**
-     * 종목 검색어 해석. <b>v3</b> — 프롬프트가 「미국 거래소는 NASDAQ·NYSE만」을 버리고
-     * <b>거래소를 가리지 않게</b> 바뀌었다(NYSE Arca ETF가 그 규칙에 걸려 전부 null이었다).
-     * v2에는 그 전 규칙이 만든 빈손 대신의 답들이 7일 남는다.
+     * 종목 검색어 해석. <b>v4</b> — 프롬프트가 <b>한글로 적은 미국 티커</b>를 읽게 됐다
+     * ({@code 제피 → JEPI}·{@code 속슬 → SOXL}). v3에는 그 규칙이 없던 프롬프트가 만든
+     * 빈손이 7일 남는다.
+     *
+     * <p>v3은 거래소 화이트리스트를 걷어낸 판이었다(「NASDAQ·NYSE만」에 NYSE Arca ETF가 전부
+     * 걸려 null이었다).
      */
-    public static final String STOCK_RESOLVE = "stock-resolve-v3";
+    public static final String STOCK_RESOLVE = "stock-resolve-v4";
 
     /** 코인 검색어 해석. <b>v2</b> — 같다. */
     public static final String CRYPTO_RESOLVE = "crypto-resolve-v2";

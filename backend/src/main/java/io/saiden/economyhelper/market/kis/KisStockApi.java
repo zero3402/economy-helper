@@ -604,13 +604,26 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
     }
 
     /**
-     * {@code rt_cd}가 0인데 값이 비어 오는 경우 — 없는 종목코드가 그렇다.
+     * {@code rt_cd}가 0인데 값이 비어 오는 경우 — <b>없는 종목코드·없는 지수 심볼</b>이 그렇다.
      *
      * <p>판단은 {@link Price}가 한다. 이 가드는 여기서 실측으로 만들어졌지만 같은 함정이
      * 형제 셋에도 있어서 공용으로 뽑았다 — 넷으로 갈려 있으면 하나만 고쳐지는 날이 온다.
+     *
+     * <p>⚠️ <b>{@link Unsupported}로 던진다 — 절반만 고쳤다가 되돌아온 자리다.</b>
+     * {@code rt_cd=0}에 값이 비어 온 것은 KIS의 장애가 아니라 <b>KIS가 모르는 것</b>이고,
+     * 같은 입력이면 영원히 같은 실패다. 평범한 {@code IllegalStateException}이면
+     * {@code kisStock} 브레이커가 그것을 상대 장애로 세는데, 그 목록에는 {@code Unsupported}만
+     * 있다. 그래서 <b>없는 코드를 열 번 검색하면 브레이커가 열려 KIS 전체가 60초 죽었다</b> —
+     * 국내는 전일 종가로 강등되고 미국은 2순위(FMP)가 대부분 402라 통째로 빈손이 된다.
+     *
+     * <p>{@code usStock}에서 그 사고를 한 번 고쳤는데(거래소를 다 훑어 빈손일 때) <b>이쪽을
+     * 놓쳤다.</b> 실제로 닿는 길이 있다: LLM이 {@code market}을 빼면 {@code isUs()}가 거짓이라
+     * <b>미국 티커가 국내 경로로</b> 들어와 여기서 터진다.
      */
     private static void require(BigDecimal price, String what) {
-        Price.require(price, "KIS " + what);
+        if (!positive(price)) {
+            throw new Unsupported("KIS " + what + " 응답에 값이 없습니다: " + price);
+        }
     }
 
     private static boolean positive(BigDecimal price) {

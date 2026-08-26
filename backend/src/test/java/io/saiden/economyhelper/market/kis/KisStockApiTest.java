@@ -405,6 +405,20 @@ class KisStockApiTest {
     }
 
     @Test
+    @DisplayName("국내 종목코드를 KIS가 모르면 Unsupported다 — 미국 티커가 이 길로 들어온다")
+    void treatsAnUnknownDomesticCodeAsUnsupported() {
+        // ⚠️ usStock만 고치고 이쪽을 놓쳤던 자리다. LLM이 market을 빼면 isUs()가 거짓이라
+        //    **미국 티커가 국내 경로로** 들어와 여기서 터진다. 평범한 IllegalStateException이면
+        //    kisStock 브레이커가 상대 장애로 세어 열 번에 열리고, 그러면 KIS 전체가 60초 죽는다
+        stub(STOCK_PATH, """
+                {"rt_cd":"0","msg_cd":"MCA00000","msg1":"정상처리 되었습니다.",
+                 "output":{"stck_prpr":"","prdy_ctrt":"","hts_avls":""}}""");
+
+        assertThatThrownBy(() -> api.stock("JEPI"))
+                .isInstanceOf(KisStockApi.Unsupported.class);
+    }
+
+    @Test
     @DisplayName("세 거래소가 다 비면 Unsupported다 — 이 실패가 브레이커에 쌓이면 안 된다")
     void treatsAnUnknownSymbolAsUnsupported() {
         // ⚠️ 이것이 IllegalStateException이던 동안, 없는 심볼을 몇 번 검색하면 kisStock

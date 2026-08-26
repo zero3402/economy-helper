@@ -252,6 +252,56 @@ class StockServiceTest {
     }
 
     @Test
+    @DisplayName("⚠️ 군더더기가 붙어도 티커 폴백이 산다 — 원문을 그대로 보면 꺼진다")
+    void findsTheTickerThroughNoiseWords() {
+        // 예전에는 query.strip()에 정규식을 걸어 「JEPI 주가」·「JEPI?」에서 폴백이 통째로
+        // 꺼졌다. 같은 클래스의 directCode는 처음부터 forLookup을 쓰고 있었다
+        FakeUs kis = us(StockSource.KIS, Map.of("JEPI", usQuote("JEPI", StockSource.KIS)));
+
+        StockService service = service(List.of(), List.of(kis), noResolver(),
+                new RecordingNames(Map.of()));
+
+        assertThat(service.quote("JEPI 주가").orElseThrow().name()).isEqualTo("JEPI");
+        assertThat(kis.askedSymbols).containsExactly(new UsSymbol("JEPI", "JEPI"));
+    }
+
+    @Test
+    @DisplayName("⚠️ 해석기가 이미 준 티커를 다시 묻지 않는다 — 거래소 셋을 두 번 훑는다")
+    void neverRepeatsTheSameTickerLookup() {
+        // KIS는 심볼당 거래소 셋을 1초 간격으로 훑는다. 같은 심볼을 두 번 물으면 3초가
+        // 6초가 되고, 방금 실패한 조회라 결과도 같다
+        FakeUs kis = us(StockSource.KIS, Map.of());
+
+        StockService service = service(List.of(), List.of(kis),
+                resolver(new ResolvedStock("US", "STOCK", "JEPI", "제피")));
+
+        assertThat(service.quote("JEPI")).isEmpty();
+        assertThat(kis.askedSymbols).as("한 번만 물어야 한다").hasSize(1);
+    }
+
+    @Test
+    @DisplayName("영문 장문 이름은 티커로 적는다 — 국내는 한글인데 미국만 영문이면 표기가 갈린다")
+    void showsTheTickerInsteadOfALongEnglishName() {
+        FakeUs kis = us(StockSource.KIS, Map.of("JEPI", usQuote("무엇이든", StockSource.KIS)));
+
+        service(List.of(), List.of(kis), resolver(new ResolvedStock("US", "STOCK", "JEPI",
+                "JPMorgan Equity Premium Income ETF"))).quote("JEPI");
+
+        assertThat(kis.askedSymbols).containsExactly(new UsSymbol("JEPI", "JEPI"));
+    }
+
+    @Test
+    @DisplayName("한글 이름은 그대로 쓴다 — '애플'을 물었는데 'Apple Inc.'가 오면 안 된다")
+    void keepsAKoreanName() {
+        FakeUs kis = us(StockSource.KIS, Map.of("AAPL", usQuote("애플", StockSource.KIS)));
+
+        service(List.of(), List.of(kis),
+                resolver(new ResolvedStock("US", "STOCK", "AAPL", "애플"))).quote("애플");
+
+        assertThat(kis.askedSymbols).containsExactly(new UsSymbol("AAPL", "애플"));
+    }
+
+    @Test
     @DisplayName("LLM이 미국이라면서 티커를 안 줘도 원문으로 한 번 더 묻는다")
     void fallsBackToTheRawTickerWhenTheLlmGaveNoCode() {
         FakeUs kis = us(StockSource.KIS, Map.of("JEPI", usQuote("JEPI", StockSource.KIS)));

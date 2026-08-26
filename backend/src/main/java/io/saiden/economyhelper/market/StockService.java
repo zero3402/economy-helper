@@ -79,6 +79,9 @@ public class StockService {
      */
     private static final Pattern US_TICKER = Pattern.compile("[A-Za-z]{1,5}");
 
+    /** 한글이 한 자라도 있으면 화면에 그대로 쓴다 — {@link #displayName}. */
+    private static final Pattern HANGUL = Pattern.compile("[가-힣]");
+
     private final List<DomesticStockClient> domestic;
     private final List<UsStockClient> us;
     private final DataGoStockClient names;
@@ -165,7 +168,7 @@ public class StockService {
                 }
                 // LLM이 US라고는 했는데 티커를 못 냈거나 그 티커가 시세에 없다.
                 // 국내가 코드 → 이름 → 원문으로 세 번 시도하는 것과 같은 자리다
-                return usByTicker(query);
+                return usByTicker(query, resolved.get().code());
             }
             // 국내 지수는 조회가 통째로 다르다 — 종목코드가 없고 시가총액도 없다
             if (resolved.filter(ResolvedStock::isIndex).isPresent()) {
@@ -173,13 +176,16 @@ public class StockService {
                 // 없으면 이름으로 찾는 2순위가 맡는다 — LLM에게 지수코드를 지어내게 두지 않는다.
                 // 목표주가는 없다(낼 주체가 없다). 차트는 붙는다 — 열쇠가 그 이름이다
                 String name = resolved.get().name();
-                return index(new Index(name, null))
+                Optional<Answer> byIndex = index(new Index(name, null))
                         .map(quote -> new Answer(quote, null, Series.domesticIndex(name)));
+                // ⚠️ 여기서 무조건 돌려주면 한 방향 문이 된다 — LLM이 ETF를 INDEX로 잘못
+                //    읽으면 국내 지수 조회가 빈손인 채로 끝나고 아래 그물에 닿지 못한다
+                return byIndex.isPresent() ? byIndex : usByTicker(query, null);
             }
             Optional<Answer> found = search(resolved, key);
             // ⚠️ 국내 이름 검색까지 다 빈손이다. 원문이 미국 티커 모양이면 한 번 더 —
             //    LLM이 죽거나 거절해도 사용자가 친 글자로 찾을 수 있어야 한다
-            return found.isPresent() ? found : usByTicker(query);
+            return found.isPresent() ? found : usByTicker(query, null);
         } catch (RuntimeException e) {
             // 출처 호출의 실패는 first()가 이미 삼킨다. 여기 그물이 잡는 것은 그 밖,
             // 특히 resolver.resolve()에 걸린 @Cacheable 프록시다 — Redis가 죽으면 캐시 계층이
@@ -242,9 +248,7 @@ public class StockService {
             log.info("[stock] '{}'의 티커를 특정하지 못했습니다", resolved.name());
             return Optional.empty();
         }
-        // LLM이 준 한국어 이름을 쓴다. 국내 종목·코인은 한글로 나가는데 미국만 영문이면
-        // 같은 화면에서 표기가 갈린다 — '애플'을 물었는데 'Apple Inc.'가 돌아온다
-        return usQuote(new UsSymbol(resolved.code(), resolved.name()));
+        return usQuote(new UsSymbol(resolved.code(), displayName(resolved)));
     }
 
     /** 종목코드를 이미 아는 경우 — 아침 브리핑처럼 설정에 박힌 종목들이 여기로 온다. */
@@ -352,14 +356,58 @@ public class StockService {
      *
      * <p>{@code QueryNormalizer}가 검색어를 소문자로 내리므로 <b>여기서 대문자로 올린다.</b>
      */
-    private Optional<Answer> usByTicker(String query) {
-        String ticker = query == null ? "" : query.strip();
-        if (!US_TICKER.matcher(ticker).matches()) {
+    private Optional<Answer> usByTicker(String query, String already) {
+        Optional<String> ticker = tickerShaped(query);
+        if (ticker.isEmpty()) {
             return Optional.empty();
         }
-        String symbol = ticker.toUpperCase(java.util.Locale.ROOT);
+        String symbol = ticker.get();
+        // ⚠️ 해석기가 이미 이 심볼을 줬으면 그 조회가 방금 실패한 것이다 — 똑같은 것을 다시
+        //    물어도 결과가 같고, 거래소 셋을 한 번 더 훑어 간격 문에서 3초를 더 쓴다
+        if (symbol.equals(already)) {
+            return Optional.empty();
+        }
         log.info("[stock] '{}'를 미국 티커로 한 번 더 찾습니다", symbol);
         return usAnswer(new UsSymbol(symbol, symbol));
+    }
+
+    /**
+     * 검색어에서 <b>미국 티커 모양</b>을 꺼낸다.
+     *
+     * <p>⚠️ <b>{@link QueryNormalizer#forLookup}을 탄다 — 원문을 그대로 보면 안 된다.</b>
+     * 예전에는 {@code query.strip()}에 정규식을 걸었는데, 그러면 {@code /stock JEPI 주가}·
+     * {@code /stock JEPI?}에서 <b>폴백이 통째로 꺼진다.</b> 같은 클래스의 {@link #directCode}는
+     * 처음부터 {@code forLookup}을 쓰고 있었다 — 한 클래스 안에서 두 조회가 다른 규칙을 쓰던 셈이다.
+     *
+     * <p>{@code forLookup}은 소문자로 내리고 군더더기를 뗀 후보를 준다. 티커는 대문자여야
+     * 하므로 여기서 올린다.
+     */
+    private static Optional<String> tickerShaped(String query) {
+        return QueryNormalizer.forLookup(query).stream()
+                .filter(candidate -> US_TICKER.matcher(candidate).matches())
+                .findFirst()
+                .map(candidate -> candidate.toUpperCase(java.util.Locale.ROOT));
+    }
+
+    /**
+     * 화면에 적을 이름 — <b>한글이 아니면 티커로 적는다.</b>
+     *
+     * <p>국내 종목·코인은 한글로 나가는데 미국만 영문 장문이면 같은 통에서 표기가 갈린다 —
+     * {@code 애플}을 물었는데 {@code Apple Inc.}가 돌아오는 그 자리다. LLM이 한국어 이름을
+     * 주면 그것을 쓰고, 영문을 주면 <b>티커</b>가 짧고 일관된다({@link #usByTicker}가 이미
+     * 티커를 이름으로 쓴다).
+     *
+     * <p>⚠️ <b>이 판단을 프롬프트에 맡기지 않는다 — 맡겼다가 회귀를 만들었다.</b>
+     * 「name은 사용자가 부른 이름으로」를 규칙으로 넣었더니 실측에서 <b>{@code 삼전}과
+     * {@code 나스닥}이 빈손</b>이 됐다(문단 하나가 모델의 다른 판단을 흔들었다). 프롬프트는
+     * 이렇게 부서지므로, 코드로 정할 수 있는 것은 코드로 정한다.
+     */
+    private static String displayName(ResolvedStock resolved) {
+        String name = resolved.name();
+        if (name == null || name.isBlank()) {
+            return resolved.code();
+        }
+        return HANGUL.matcher(name).find() ? name : resolved.code();
     }
 
     /** 검색으로 찾은 미국 종목. 브리핑은 {@link #usAnswersOf}로 들어와 같은 자리에서 만난다. */
