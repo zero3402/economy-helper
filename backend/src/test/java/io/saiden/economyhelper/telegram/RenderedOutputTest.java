@@ -457,9 +457,14 @@ class RenderedOutputTest {
         return new Weather(place("성남시", "대한민국"),
                 List.of(Weather.Daily.withAmount(LocalDate.of(2026, 8, 10), SkyCondition.RAIN,
                                 new BigDecimal("21.0"), new BigDecimal("26.4"), new BigDecimal("3.7"))
-                        .withHalves(List.of(HalfDay.withAmount(
-                                LocalTime.of(2, 0), LocalTime.of(4, 0), SkyCondition.RAIN,
-                                new BigDecimal("3.7"))))),
+                        // ⚠️ 반나절 **둘**을 담는다. 한 원소로 두면 HalfDays를 안 타고
+                        //    들어가 「두 줄은 언제나」의 반례가 골든에 굳는다 — 실제 아카이브
+                        //    응답은 24시간을 타므로 마른 오후도 제 하늘을 들고 온다.
+                        //    기상청이 오후 한 줄만 내보내던 버그를 이 케이스가 축복하고 있었다
+                        .withHalves(List.of(
+                                HalfDay.withAmount(LocalTime.of(2, 0), LocalTime.of(4, 0),
+                                        SkyCondition.RAIN, new BigDecimal("3.7")),
+                                HalfDay.dry(HalfDay.Half.AFTERNOON, SkyCondition.CLOUDY, null)))),
                 WeatherSource.OPEN_METEO_ARCHIVE);
     }
 

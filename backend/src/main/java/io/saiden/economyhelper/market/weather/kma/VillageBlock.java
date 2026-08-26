@@ -58,21 +58,26 @@ record VillageBlock(Items items) {
      * @param today 오늘은 예외다. 기상청은 발표시각 이후만 주므로 지나간 반나절이 없다
      * @throws IllegalStateException 행이 하나도 없을 때
      */
-    List<KmaVillageApi.VillageDay> toDays(LocalDate today, Extremes published) {
+    List<KmaVillageApi.VillageDay> toDays(LocalDate today, Extremes published,
+                                         VillageBlock earlier) {
         List<Item> rows = rows();
-        if (rows.isEmpty()) {
+        if (rows.isEmpty() && (earlier == null || earlier.rows().isEmpty())) {
             throw new IllegalStateException("기상청 단기예보 응답에 시각이 없습니다");
         }
-        Axis axis = axisOf(rows).with(published);
+        Axis axis = axisOf(rows).under(earlier).with(published);
         Columns columns = axis.columns();
         Map<LocalDate, List<HalfDay>> halvesByDay = HalfDays.byDay(
                 columns.times(), columns.chances(), columns.amounts(), columns.skies());
 
         List<KmaVillageApi.VillageDay> days = new ArrayList<>();
         halvesByDay.forEach((date, halves) -> {
-            // ⚠️ 반나절 하나뿐인 날은 버린다 — 실측 +4일이 00시 한 칸으로 와서, 담으면
-            //    「오후」가 사라진 하루가 화면에 선다. 오늘은 지나간 시간이 없어 예외다
-            if (halves.size() < 2 && !date.equals(today)) {
+            // ⚠️ **반나절 하나뿐인 날은 버린다 — 오늘도 예외가 아니다.**
+            //    요구는 「두 줄은 언제나 나온다」이고, 반쪽을 내보내면 읽는 사람이 나머지
+            //    반나절을 짐작하게 된다. 여기서 버리면 requireEveryDay가 던져 폴백이
+            //    일어나고, AccuWeather + Open-Meteo 시간별이 두 줄을 온전히 준다.
+            //    한동안 오늘만 예외였고(기상청이 지나간 시간을 안 주므로) 그것이 11:10~23:09
+            //    KST에 오후 한 줄만 나가던 버그였다 — 지금은 이른 발표에서 오전을 메운다
+            if (halves.size() < 2) {
                 log.debug("[weather] 기상청 단기예보 {}는 반나절이 하나뿐이라 뺍니다", date);
                 return;
             }
@@ -176,6 +181,30 @@ record VillageBlock(Items items) {
         return new Extremes(lows, highs);
     }
 
+    /**
+     * <b>그 날의 반나절 둘이 다 채워지는가</b> — 이른 발표를 받아 와야 할지 정하는 값이다.
+     *
+     * <p>⚠️ <b>일 극값이 있는지로 갈라서는 안 된다.</b> 지금은 그 둘이 같은 시각대에 함께
+     * 없어져서 우연히 맞지만, 기상청이 14시 판에 {@code TMN}을 싣기 시작하면 보충이 멈추고
+     * <b>오전이 조용히 다시 사라진다.</b> 물어야 하는 것은 「슬롯이 있나」다.
+     */
+    boolean hasBothHalves(LocalDate date) {
+        boolean morning = false;
+        boolean afternoon = false;
+        for (Item row : rows()) {
+            LocalDateTime at = row.at();
+            if (at == null || !at.toLocalDate().equals(date)) {
+                continue;
+            }
+            if (at.getHour() < 12) {
+                morning = true;
+            } else {
+                afternoon = true;
+            }
+        }
+        return morning && afternoon;
+    }
+
     /** 날짜별 일 최저·최고. <b>둘 다 있어야</b> 그 날을 안다고 본다. */
     record Extremes(Map<LocalDate, BigDecimal> lows, Map<LocalDate, BigDecimal> highs) {
 
@@ -231,6 +260,32 @@ record VillageBlock(Items items) {
                 }
             });
             return skies;
+        }
+
+        /**
+         * <b>이른 발표를 아래에 깐 사본</b> — 같은 시각은 <b>최신이 이긴다.</b>
+         *
+         * <p>기상청은 행을 <b>발표시각 + 1시간부터만</b> 준다. 그래서 11시 발표부터는 오늘
+         * 오전 슬롯이 <b>0개</b>가 되고 오후 한 줄만 나갔다(실측 증상 창 11:10~23:09 KST).
+         * 02시 발표에는 그 오전이 남아 있다 — 실측(2026-08-26): 오늘 21칸 03~23시, 그중
+         * <b>오전 9칸</b>(03~11시).
+         *
+         * <p>⚠️ <b>지나간 시각에 대해 「02시에 낸 예보」를 적는 것이다.</b> 그것이 우리가 가진
+         * 마지막 예보다. 초단기실황(관측)을 쓰면 더 정확하지만 시각마다 호출이 늘고,
+         * 「지난 날은 실측으로 적는다」는 규칙은 지난 <b>날</b>의 것이다.
+         */
+        Axis under(VillageBlock earlier) {
+            if (earlier == null) {
+                return this;
+            }
+            Axis base = axisOf(earlier.rows());
+            Map<LocalDateTime, Map<String, String>> merged = new TreeMap<>(base.byMoment);
+            merged.putAll(byMoment);
+            Map<LocalDate, BigDecimal> mergedLows = new TreeMap<>(base.lows);
+            mergedLows.putAll(lows);
+            Map<LocalDate, BigDecimal> mergedHighs = new TreeMap<>(base.highs);
+            mergedHighs.putAll(highs);
+            return new Axis(merged, mergedLows, mergedHighs);
         }
 
         /** 바깥에서 받은 일 극값을 얹은 사본 — <b>그쪽이 이긴다.</b> */

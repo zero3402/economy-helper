@@ -55,6 +55,8 @@ class KmaWeatherClientTest {
       * 오전 6시 알람이 도는 그 시각이기도 하다.
       */
     private static final Instant NOW = Instant.parse("2026-08-25T21:30:00Z");
+    /** 2026-08-26 <b>14:30 KST</b> — 최신 발표가 14시이고 오늘 오전 슬롯이 0개인 시각. */
+    private static final Instant AFTERNOON = Instant.parse("2026-08-26T05:30:00Z");
     private static final LocalDate TODAY = LocalDate.of(2026, 8, 26);
 
     private static final GeoLocation SEOHYEON = KmaFixtures.seohyeon();
@@ -246,6 +248,63 @@ class KmaWeatherClientTest {
     }
 
     @Test
+    @DisplayName("⚠️ 오후에 물어도 오전·오후 두 줄이 나온다 — 이른 발표에서 오전을 메운다")
+    void keepsBothHalvesInTheAfternoon() {
+        // 신고된 버그다. 기상청은 행을 **발표시각 + 1시간부터만** 주므로 11시 발표부터는
+        // 오늘 오전 슬롯이 0개가 되고 오후 한 줄만 나갔다(실측 증상 창 11:10~23:09 KST).
+        // 실측 14시 발표: 오늘 15~23시 9칸 · 오전 0칸 · TMN·TMX 둘 다 없음.
+        // 실측 02시 발표: 오늘 03~23시 21칸 · 오전 9칸(03~11시) · TMN 24.0 · TMX 32.0.
+        // ⚠️ 이 테스트가 없던 이유는 KMA 테스트가 전부 06:30 시계였기 때문이다 — 그 시각엔
+        //    05시 발표라 오전이 있어서 버그가 보이지 않았다
+        KmaWeatherClient afternoon = clientAt(AFTERNOON);
+        stubAt("1400", "fixtures/kma-vilage-20260826-1400.json");
+        stubAt("0200", "fixtures/kma-vilage-20260826-0200.json");
+
+        Weather.Daily today = afternoon.forecast(SEOHYEON, days(1)).days().get(0);
+
+        assertThat(today.halves())
+                .as("반나절이 하나면 읽는 사람이 나머지 반나절을 짐작하게 된다")
+                .satisfiesExactly(
+                        morning -> assertThat(morning.half()).isEqualTo(HalfDay.Half.MORNING),
+                        afternoonHalf ->
+                                assertThat(afternoonHalf.half()).isEqualTo(HalfDay.Half.AFTERNOON));
+        assertThat(today.low())
+                .as("02시 발표의 TMN — 14시 발표에는 없다").isEqualByComparingTo("24.0");
+        assertThat(today.high())
+                .as("02시 발표의 TMX — 14시 발표에는 없다").isEqualByComparingTo("32.0");
+    }
+
+    @Test
+    @DisplayName("⚠️ 이른 발표가 죽으면 오늘을 버리고 폴백한다 — 반쪽을 내보내지 않는다")
+    void failsOverWhenTheMorningCannotBeFilled() {
+        KmaWeatherClient afternoon = clientAt(AFTERNOON);
+        stubAt("1400", "fixtures/kma-vilage-20260826-1400.json");
+        server.stubFor(get(urlPathEqualTo(VILLAGE_PATH))
+                .withQueryParam("base_time", WireMock.equalTo("0200"))
+                .willReturn(aResponse().withStatus(500)));
+
+        assertThatThrownBy(() -> afternoon.forecast(SEOHYEON, days(1)))
+                .as("던져야 AccuWeather·Open-Meteo가 두 줄을 온전히 준다")
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    @DisplayName("오늘이 온전한 발표에는 이른 발표를 안 부른다 — 헛호출이 된다")
+    void neverAsksTheEarlierPublicationWhenTodayIsComplete() {
+        // 02시 판이 최신인 시각(02:40)에는 그 판이 오전(03~11시)과 TMN·TMX를 다 들고 있다.
+        // ⚠️ 05시 판으로는 이 단언이 못 선다 — 오전은 있는데 **TMN이 없어서** 보충이 여전히
+        //    필요하다. 처음에 그렇게 적었다가 틀렸다: 두 조건은 함께 사라지지 않는다
+        stubAt("0200", "fixtures/kma-vilage-20260826-0200.json");
+
+        Weather.Daily today = clientAt(Instant.parse("2026-08-25T17:40:00Z"))
+                .forecast(SEOHYEON, days(1)).days().get(0);
+
+        assertThat(today.halves()).hasSize(2);
+        assertThat(server.getAllServeEvents())
+                .as("한 판이 오전과 일 극값을 다 들고 있으면 추가 호출이 0이다").hasSize(1);
+    }
+
+    @Test
     @DisplayName("⚠️ 오늘의 일 최저·최고는 02시 발표에서 받아 온다 — 남은 시간으로 근사하지 않는다")
     void takesTodaysDailyExtremesFromTheEarliestPublication() {
         // 실측(2026-08-26): 오늘 것이 이른 발표에만 남는다 — 02시에는 TMN 24.0·TMX 32.0이
@@ -346,12 +405,14 @@ class KmaWeatherClientTest {
 
         Weather weather = client.forecast(SEOHYEON, days(4));
 
-        // 8/30이 그 날이다. 담으면 「오후」가 사라진 하루가 화면에 서는데, 중기예보가
-        // 같은 날을 온전히 주므로 두 번 담기지도 않아야 한다
-        assertThat(weather.days().stream().filter(day -> day.halves().size() < 2))
-                .as("오늘 말고는 반나절이 둘이어야 한다")
-                .allSatisfy(day -> assertThat(day.date()).isEqualTo(TODAY));
-        assertThat(weather.days().stream().map(Weather.Daily::date).toList())
+        // ⚠️ 예전 단언은 공허했다 — 필터 결과가 빈 스트림이라 allSatisfy가 무조건 통과했고,
+        //    「오늘은 반나절 하나여도 된다」를 허용하면서 한 번도 시험하지 않았다
+        assertThat(weather.days())
+                .as("오늘도 예외가 아니다 — 두 줄은 언제나 나온다")
+                .allSatisfy(day -> assertThat(day.halves()).hasSize(2));
+        assertThat(weather.days()).extracting(Weather.Daily::date)
+                .as("+4일(8/30)은 00시 한 칸이라 목록에 없어야 한다")
+                .doesNotContain(TODAY.plusDays(4))
                 .doesNotHaveDuplicates();
     }
 
@@ -396,6 +457,20 @@ class KmaWeatherClientTest {
     private KmaWeatherClient clientWith(String apiKey) {
         return new KmaWeatherClient(new KmaVillageApi(RestClient.builder(), server.baseUrl(),
                 apiKey, Clock.fixed(NOW, SEOUL)), apiKey);
+    }
+
+    /** 시계만 갈아 끼운 클라이언트 — 증상이 시각에 딸려 있다. */
+    private KmaWeatherClient clientAt(java.time.Instant at) {
+        return new KmaWeatherClient(new KmaVillageApi(RestClient.builder(), server.baseUrl(),
+                API_KEY, Clock.fixed(at, SEOUL)), API_KEY);
+    }
+
+    private void stubAt(String baseTime, String fixture) {
+        server.stubFor(get(urlPathEqualTo(VILLAGE_PATH))
+                .withQueryParam("base_time", WireMock.equalTo(baseTime))
+                .willReturn(aResponse().withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(TestFixtures.text(fixture))));
     }
 
     private static WeatherPeriod days(int count) {

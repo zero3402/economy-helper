@@ -761,6 +761,7 @@ Open-Meteo
 21.0°C / 26.4°C
 강수량 3.7mm
 ☔ 오전 2시~4시 비 (3.7mm)
+☁️ 오후 흐림
 
 Open-Meteo Archive
 

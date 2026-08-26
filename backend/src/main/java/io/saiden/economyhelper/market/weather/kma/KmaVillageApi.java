@@ -83,49 +83,58 @@ class KmaVillageApi {
         LocalDateTime now = LocalDateTime.ofInstant(clock.instant(), KmaRequest.SEOUL);
         LocalDate today = now.toLocalDate();
         VillageBlock latest = fetch(grid, latestPublication(now), "단기예보");
-        // ⚠️ 오늘을 안 묻는 조회(`내일 서현`)에는 일 극값 보충을 부르지 않는다 —
-        //    그 값은 오늘 줄에만 쓰이므로 헛호출이 된다
-        VillageBlock.Extremes extremes = from.isAfter(today)
-                ? latest.extremes()
-                : extremesFor(grid, today, latest);
-        return latest.toDays(today, extremes);
+
+        // ⚠️ 오늘을 안 묻는 조회(`내일 서현`)에는 보충을 부르지 않는다 — 이른 발표가 메우는
+        //    것은 오늘의 오전과 오늘의 일 극값뿐이라 그 조회에는 헛호출이 된다
+        VillageBlock earlier = from.isAfter(today) ? null : earlierFor(grid, today, latest);
+        VillageBlock.Extremes extremes = latest.extremes();
+        if (earlier != null) {
+            extremes = extremes.filledFrom(earlier.extremes());
+        }
+        return latest.toDays(today, extremes, earlier);
     }
 
     /**
-     * 오늘의 <b>일 최저·최고</b> — 최신 발표에 없으면 <b>02시 발표</b>에서 받아 온다.
+     * <b>이른 발표</b>(02시) — 최신 발표가 오늘에 대해 못 주는 것을 메운다.
      *
-     * <p>실측(2026-08-26, {@code nx=62 ny=123}): 오늘 것이 이른 발표에만 남는다.
+     * <p>메우는 것이 둘이다. <b>오전 시간별</b>과 <b>일 최저·최고</b>이고, 둘이 같은 시각대에
+     * 함께 사라진다. 기상청은 행을 <b>발표시각 + 1시간부터만</b> 주고 일 극값도 이른 판에만
+     * 남긴다 — 실측(2026-08-26, {@code nx=62 ny=123}):
      *
      * <pre>
-     * 02시 발표   TMN 24.0   TMX 32.0
-     * 05시 발표   없음        32.0
-     * 11시 발표   없음        32.0
-     * 14시 발표   없음        없음
+     *          오늘 시각        오전 슬롯   TMN    TMX
+     * 02시 발표  03~23시 21칸     9칸        24.0   32.0
+     * 05시 발표  06~23시 18칸     6칸        없음   32.0
+     * 11시 발표  12~23시 12칸     0칸        없음   32.0
+     * 14시 발표  15~23시  9칸     0칸        없음   없음
      * </pre>
      *
-     * <p>그 02시 발표는 <b>오후에도 그대로 조회된다</b>(14:29 확인). 그래서 근사하지 않고
-     * 진짜 값을 가져온다 — 예전에는 최고는 온종일의 {@code TMX}, 최저는 <b>남은 시간</b>의
-     * 최저가 되어 한 줄에 두 시간축이 섰다.
+     * <p>그 02시 판은 <b>오후에도 그대로 조회된다</b>(14:29·15:27 확인, 944행).
      *
-     * <p>⚠️ <b>보충이라 실패를 삼킨다.</b> 실패하면 {@code VillageBlock}이 시간별로 낸 값이
-     * 남는데(둘 다 시간별이라 앞뒤는 맞는다) 그건 「남은 하루」의 범위다 — 답이 죽는 것보다 낫다.
+     * <p>⚠️ <b>트리거를 일 극값에서 떼어냈다.</b> 예전에는 {@code !extremes.has(today)}일 때만
+     * 받았는데, 그것이 11시·14시 창을 덮는 것은 <b>우연</b>이었다 — 기상청이 14시 판에
+     * {@code TMN}을 싣기 시작하면 보충이 멈추고 <b>오전이 조용히 다시 사라진다.</b>
+     * 지금은 「반나절 둘이 다 있나」와 「일 극값이 있나」를 함께 묻고 한 호출로 둘을 메운다.
      *
-     * <p><b>호출은 필요할 때만 늘어난다.</b> 최신 발표가 오늘 것을 이미 들고 있으면(02시 판 자체가
-     * 최신인 새벽, 또는 전날 23시 판) 추가 호출이 <b>0</b>이다.
+     * <p>⚠️ <b>보충이라 실패를 삼킨다.</b> 실패하면 오늘이 반나절 하나로 남고
+     * {@code VillageBlock.toDays}가 그 날을 버려 <b>폴백이 일어난다</b> — AccuWeather와
+     * Open-Meteo 시간별이 두 줄을 온전히 주므로 반쪽을 내보내는 것보다 낫다.
+     *
+     * <p><b>호출은 필요할 때만 늘어난다.</b> 최신 발표가 오늘을 온전히 들고 있으면(어제 23시·
+     * 02·05·08시 판) 추가 호출이 <b>0</b>이다.
+     *
+     * @return 이른 발표. 받을 필요가 없거나 못 받았으면 {@code null}
      */
-    private VillageBlock.Extremes extremesFor(KmaGrid grid, LocalDate today, VillageBlock latest) {
-        VillageBlock.Extremes known = latest.extremes();
-        if (known.has(today)) {
-            return known;
+    private VillageBlock earlierFor(KmaGrid grid, LocalDate today, VillageBlock latest) {
+        if (latest.hasBothHalves(today) && latest.extremes().has(today)) {
+            return null;
         }
         try {
-            return known.filledFrom(
-                    fetch(grid, today.atTime(BASE_HOURS[0], 0), "단기예보(일 최저·최고)")
-                            .extremes());
+            return fetch(grid, today.atTime(BASE_HOURS[0], 0), "단기예보(이른 발표)");
         } catch (RuntimeException e) {
-            log.warn("[weather] 기상청 {} 일 최저·최고를 못 받아 남은 시간으로 냅니다: {}",
+            log.warn("[weather] 기상청 {} 이른 발표를 못 받았습니다 — 오늘이 빠져 폴백합니다: {}",
                     today, FailureReason.of(e));
-            return known;
+            return null;
         }
     }
 
