@@ -38,6 +38,11 @@ class NewsServiceTest {
     /** 신선도 창 — 날짜가 아니라 경과 시간이다. 운영 기본값과 같은 24시간으로 둔다. */
     private static final Duration WINDOW = Duration.ofHours(24);
 
+    /** 건수는 운영 기본값과 같이 둔다 — 테스트만 작게 잡으면 상한 근처의 동작을 못 본다. */
+    private static final int SEARCH_RESULTS = 5;
+    private static final int CRYPTO_RESULTS = 5;
+    private static final int ECONOMY_RESULTS = 5;
+
     @Test
     @DisplayName("스쳐 지나간 기사는 답이 아니다 — 관련 없는 걸 주느니 못 찾았다고 한다")
     void searchDropsArticlesTheLlmRejects() {
@@ -66,9 +71,30 @@ class NewsServiceTest {
                 article(NewsSource.CNBC, "Rate hike is off the table", 1),
                 article(NewsSource.CNBC, "Traders price in a rate move", 2),
                 article(NewsSource.CNBC, "Rate outlook shifts again", 3),
-                article(NewsSource.CNBC, "Another rate story", 4))));
+                article(NewsSource.CNBC, "Another rate story", 4),
+                article(NewsSource.CNBC, "One more rate story", 5))));
 
-        assertThat(service.search(groups("rate"), "금리")).hasSize(3);
+        assertThat(service.search(groups("rate"), "금리")).hasSize(SEARCH_RESULTS);
+    }
+
+    @Test
+    @DisplayName("검색은 무리로 가르지 않는다 — 검색어 하나에 대한 답이라 코인·경제를 나눌 이유가 없다")
+    void searchIgnoresCategories() {
+        // 코인 기사 넷과 경제 기사 넷이 같은 검색어에 걸리면, 무리 할당량과 무관하게
+        // 점수 상위 다섯 건이 나간다. digest()만 무리를 안다
+        NewsService service = service(Map.of(
+                NewsSource.COINDESK, List.of(
+                        article(NewsSource.COINDESK, "Bitcoin rate bets grow", 0),
+                        article(NewsSource.COINDESK, "Ethereum rate outlook", 1),
+                        article(NewsSource.COINDESK, "Crypto rate hedges", 2),
+                        article(NewsSource.COINDESK, "Stablecoin rate spread", 3)),
+                NewsSource.CNBC, List.of(
+                        article(NewsSource.CNBC, "Fed rate cut nears", 0),
+                        article(NewsSource.CNBC, "Rate hike off the table", 1),
+                        article(NewsSource.CNBC, "Rate outlook shifts", 2),
+                        article(NewsSource.CNBC, "Rate traders regroup", 3))));
+
+        assertThat(service.search(groups("rate"), "금리")).hasSize(SEARCH_RESULTS);
     }
 
     @Test
@@ -127,22 +153,96 @@ class NewsServiceTest {
     }
 
     @Test
-    @DisplayName("브리핑은 전 매체를 통틀어 최근 창 안의 발행분 중 점수 상위 3건을 준다")
-    void digestTakesTopThreeAcrossSourcesFromWindow() {
+    @DisplayName("브리핑은 코인과 경제를 각자 제 할당량만큼 채운다 — 통틀어 상위 N건이 아니다")
+    void digestFillsEachCategoryQuota() {
         NewsService service = service(Map.of(
+                NewsSource.COINDESK, List.of(
+                        article(NewsSource.COINDESK, "coin a", 0),
+                        article(NewsSource.COINDESK, "coin b", 1),
+                        article(NewsSource.COINDESK, "coin c", 2),
+                        article(NewsSource.COINDESK, "coin d", 3),
+                        article(NewsSource.COINDESK, "coin e", 4),
+                        article(NewsSource.COINDESK, "coin f", 5)),
                 NewsSource.CNBC, List.of(
                         article(NewsSource.CNBC, "cnbc a", 0),
                         article(NewsSource.CNBC, "cnbc b", 1),
-                        aged(NewsSource.CNBC, "cnbc old", 2, Duration.ofHours(25))),
-                NewsSource.YAHOO_FINANCE, List.of(
-                        article(NewsSource.YAHOO_FINANCE, "yahoo a", 0),
-                        article(NewsSource.YAHOO_FINANCE, "yahoo b", 1))));
+                        article(NewsSource.CNBC, "cnbc c", 2),
+                        article(NewsSource.CNBC, "cnbc d", 3),
+                        article(NewsSource.CNBC, "cnbc e", 4),
+                        article(NewsSource.CNBC, "cnbc f", 5),
+                        aged(NewsSource.CNBC, "cnbc old", 6, Duration.ofHours(25)))));
 
         List<ScoredArticle> digest = service.digest();
 
-        assertThat(digest).as("창 안의 후보 4건 중 상위 3건").hasSize(3);
+        assertThat(digest).hasSize(CRYPTO_RESULTS + ECONOMY_RESULTS);
+        assertThat(digest).filteredOn(scored ->
+                        NewsCategory.of(scored.article()) == NewsCategory.CRYPTO)
+                .hasSize(CRYPTO_RESULTS);
+        assertThat(digest).filteredOn(scored ->
+                        NewsCategory.of(scored.article()) == NewsCategory.ECONOMY)
+                .hasSize(ECONOMY_RESULTS);
         assertThat(digest).as("창을 벗어난 기사는 빠진다")
                 .allSatisfy(scored -> assertThat(scored.article().title()).doesNotContain("old"));
+    }
+
+    @Test
+    @DisplayName("모자란 무리는 다른 무리로 메우지 않는다 — 코인이 둘뿐인 날은 일곱 건이 나간다")
+    void digestDoesNotBackfillAShortCategory() {
+        // 메우면 사용자가 요구한 다섯 대 다섯이 조용히 다른 것이 된다
+        NewsService service = service(Map.of(
+                NewsSource.COINDESK, List.of(
+                        article(NewsSource.COINDESK, "coin a", 0),
+                        article(NewsSource.COINDESK, "coin b", 1)),
+                NewsSource.CNBC, List.of(
+                        article(NewsSource.CNBC, "cnbc a", 0),
+                        article(NewsSource.CNBC, "cnbc b", 1),
+                        article(NewsSource.CNBC, "cnbc c", 2),
+                        article(NewsSource.CNBC, "cnbc d", 3),
+                        article(NewsSource.CNBC, "cnbc e", 4),
+                        article(NewsSource.CNBC, "cnbc f", 5),
+                        article(NewsSource.CNBC, "cnbc g", 6),
+                        article(NewsSource.CNBC, "cnbc h", 7))));
+
+        assertThat(service.digest()).hasSize(2 + ECONOMY_RESULTS);
+    }
+
+    @Test
+    @DisplayName("일반 피드의 코인 기사도 코인 자리를 받는다 — 점수로는 꼴찌여도 그렇다")
+    void reservesACryptoSlotForACryptoArticleFromAGeneralFeed() {
+        // 코인 기사가 금융 일반 피드에 드물게 실린다는 것은 '드물다'는 뜻이지 '없다'는
+        // 뜻이 아니다. 통틀어 상위 N건이던 때는 이 기사가 피드 꼴찌라 통째로 밀려났다
+        NewsService service = service(Map.of(NewsSource.CNBC, List.of(
+                article(NewsSource.CNBC, "cnbc a", 0),
+                article(NewsSource.CNBC, "cnbc b", 1),
+                article(NewsSource.CNBC, "cnbc c", 2),
+                article(NewsSource.CNBC, "cnbc d", 3),
+                article(NewsSource.CNBC, "cnbc e", 4),
+                article(NewsSource.CNBC, "cnbc f", 5),
+                article(NewsSource.CNBC, "Bitcoin ETF inflows hit a record", 6))));
+
+        List<ScoredArticle> digest = service.digest();
+
+        assertThat(digest).as("경제 다섯 + 코인 하나").hasSize(ECONOMY_RESULTS + 1);
+        assertThat(digest).anySatisfy(scored ->
+                assertThat(scored.article().title()).isEqualTo("Bitcoin ETF inflows hit a record"));
+    }
+
+    @Test
+    @DisplayName("고른 뒤 다시 점수순으로 섞는다 — 통 제목의 번호가 '점수 몇 위'라는 뜻을 지킨다")
+    void digestIsOrderedByScoreNotByCategory() {
+        NewsService service = service(Map.of(
+                NewsSource.COINDESK, List.of(
+                        article(NewsSource.COINDESK, "coin a", 0),
+                        article(NewsSource.COINDESK, "coin b", 1)),
+                NewsSource.CNBC, List.of(
+                        article(NewsSource.CNBC, "cnbc a", 0),
+                        article(NewsSource.CNBC, "cnbc b", 1))));
+
+        List<ScoredArticle> digest = service.digest();
+
+        assertThat(digest).hasSize(4);
+        assertThat(digest).isSortedAccordingTo(
+                java.util.Comparator.comparingDouble(ScoredArticle::score).reversed());
     }
 
     @Test
@@ -198,8 +298,9 @@ class NewsServiceTest {
                 WINDOW,
                 8,
                 RELEVANCE_THRESHOLD,
-                3,
-                3);
+                SEARCH_RESULTS,
+                CRYPTO_RESULTS,
+                ECONOMY_RESULTS);
     }
 
     /**

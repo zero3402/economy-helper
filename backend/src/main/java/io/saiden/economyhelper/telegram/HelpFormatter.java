@@ -3,6 +3,9 @@ package io.saiden.economyhelper.telegram;
 import static io.saiden.economyhelper.telegram.MessageLayout.head;
 import static io.saiden.economyhelper.telegram.MessageLayout.title;
 
+import java.util.ArrayList;
+import java.util.List;
+
 
 /**
  * 도움말과 사용법 안내.
@@ -19,17 +22,23 @@ public final class HelpFormatter {
     /**
      * 인자가 필요한 명령을 인자 없이 보냈을 때. 명령마다 예시가 다르다.
      *
-     * <p>⚠️ 인자를 안 받는 명령({@code /fx}·{@code /help})에도 문구가 성립해야 한다.
-     * 지금은 {@code missingRequiredArgument()}가 막아 도달하지 않지만, 그 자리에서
+     * <p>⚠️ <b>세 갈래 전부가 도달하지 않아도 참이어야 한다.</b> 인자를 안 받는 명령
+     * ({@code /fx}·{@code /help})과 없어도 되는 명령({@code /news})은
+     * {@code missingRequiredArgument()}가 막아 여기까지 오지 않지만, 그 자리에서
      * "검색어를 함께 입력해 주세요"가 나오던 것은 <b>글자 그대로 틀린 안내</b>였다 —
      * 도달 불가라는 이유로 틀린 문장을 남겨 두면 다음에 누가 막는 걸 잊었을 때 그게 나간다.
+     * 게다가 이 문구는 {@code RenderedOutputTest}가 명령 전부를 훑어 골든에 굳힌다.
+     *
+     * <p>{@code default} 없는 switch 식이라 <b>{@link Command.Argument}에 상태를 더하면
+     * 컴파일이 깨진다</b> — 문구를 빠뜨려 조용히 틀린 안내가 나가는 일을 컴파일러가 막는다.
      */
     public static String usage(Command command) {
-        return head(command)
-                + (command.requiresArgument()
-                        ? "검색어를 함께 입력해 주세요.\n\n"
-                        : "이 명령은 검색어 없이 씁니다.\n\n")
-                + "예) " + Html.escape(command.example());
+        String hint = switch (command.argument()) {
+            case REQUIRED -> "검색어를 함께 입력해 주세요.";
+            case OPTIONAL -> "검색어는 있어도 되고 없어도 됩니다.";
+            case NONE -> "이 명령은 검색어 없이 씁니다.";
+        };
+        return head(command) + hint + "\n\n예) " + Html.escape(command.example());
     }
 
     /**
@@ -70,12 +79,37 @@ public final class HelpFormatter {
         StringBuilder list = new StringBuilder();
         for (Command command : Command.values()) {
             list.append("\n\n").append(Html.escape(command.example()));
-            if (command.shortToken() != null) {
-                list.append(" (또는 ").append(Html.escape(command.shortToken())).append(")");
+            String notes = notesOf(command);
+            if (!notes.isEmpty()) {
+                list.append(" (").append(notes).append(")");
             }
             list.append("\n").append(describe(command));
         }
         return list.toString();
+    }
+
+    /**
+     * 예시 뒤 괄호에 들어가는 것들 — 줄임말, 그리고 <b>검색어를 생략할 수 있다는 사실</b>.
+     *
+     * <p>후자를 적는 이유는 <b>안 적으면 도움말이 새 기능을 모르기 때문</b>이다.
+     * {@code /news}는 검색어 없이도 답하는데, 목록이 {@code /news 금리}만 보여 주면
+     * 사용자가 그걸 알 길이 없다 — "사용자가 모르는 줄임말은 없는 것과 같다"와 같은 이유다.
+     *
+     * <p><b>열거형을 읽어 짚는다.</b> 명령 이름으로 분기하면 이 파일이 또 하나의
+     * 「두 번째 표」가 된다 — 이 클래스 주석이 적어 둔 바로 그 함정이다.
+     *
+     * <p>한 줄에 이어 붙여 목록의 <b>두 줄 짜임</b>을 지킨다. 세 줄이 되면 명령 여섯 개가
+     * 화면 한 통을 다 먹는다.
+     */
+    private static String notesOf(Command command) {
+        List<String> notes = new ArrayList<>(2);
+        if (command.shortToken() != null) {
+            notes.add("또는 " + Html.escape(command.shortToken()));
+        }
+        if (command.argument() == Command.Argument.OPTIONAL) {
+            notes.add("검색어 생략 가능");
+        }
+        return String.join(" · ", notes);
     }
 
     /**

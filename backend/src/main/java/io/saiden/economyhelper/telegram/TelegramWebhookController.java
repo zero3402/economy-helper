@@ -373,10 +373,18 @@ public class TelegramWebhookController {
     private Reply reply(ParsedCommand command) {
         return switch (command.command()) {
             // 기사마다 통을 쪼개므로 통마다 카드가 그 기사 것으로 확정된다 — 브리핑도 같은
-            // 규칙이라 거기서도 미리보기를 켠다
+            // 규칙이라 거기서도 미리보기를 켠다.
+            //
+            // ⚠️ 검색어가 없으면 브리핑과 같은 목록을 준다(코인 5 + 경제 5). 여섯 명령 중
+            //    뉴스만 인자가 선택인 이유는 Command.NEWS 주석에 있다. 빈손 문구도 갈린다 —
+            //    검색은 "'금리'에 해당하는 최근 24시간 뉴스를 찾지 못했습니다"이지만,
+            //    검색어가 없으면 못 찾은 대상이 없으므로 브리핑이 쓰는 그 문구를 쓴다
+            //    (formatAll이 빈 목록에 그것을 준다).
             case NEWS -> {
-                List<NewsItem> found = newsFacade.search(command.argument());
-                yield found.isEmpty()
+                List<NewsItem> found = command.hasArgument()
+                        ? newsFacade.search(command.argument())
+                        : newsFacade.digest();
+                yield command.hasArgument() && found.isEmpty()
                         ? Reply.plain(NewsFormatter.noResults(command.argument(), newsFacade.window()))
                         : new Reply(NewsFormatter.formatAll(found), true, null);
             }

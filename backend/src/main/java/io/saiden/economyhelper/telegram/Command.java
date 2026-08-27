@@ -21,17 +21,24 @@ import java.util.Optional;
  */
 public enum Command {
 
-    /** {@code /news 금리} — 검색어에 해당하는 오늘 기사 중 점수 상위 3건. */
-    NEWS("/news", "/n", "뉴스", true, "/news 금리"),
+    /**
+     * {@code /news 금리} — 검색어에 해당하는 최근 기사 중 점수 상위 5건.
+     *
+     * <p><b>인자가 없어도 된다 — 여섯 중 이 하나만 그렇다.</b> 검색어 없이 부르면 아침
+     * 브리핑과 같은 목록(코인 5 + 경제 5)이 나간다. "무엇을 찾을지 알 수 없다"가 성립하지
+     * 않는 유일한 명령이라서다 — {@code /stock}·{@code /crypto}·{@code /weather}는 대상이
+     * 없으면 답이 없지만, 뉴스에는 <b>검색어 없는 기본 답</b>이 이미 있다.
+     */
+    NEWS("/news", "/n", "뉴스", Argument.OPTIONAL, "/news 금리"),
 
     /** {@code /fx} — 원/달러 환율. 인자가 없다. */
-    FX("/fx", "/f", "환율", false, "/fx"),
+    FX("/fx", "/f", "환율", Argument.NONE, "/fx"),
 
     /** {@code /stock 삼성전자} — 현재 주가. */
-    STOCK("/stock", "/s", "증시", true, "/stock 삼성전자"),
+    STOCK("/stock", "/s", "증시", Argument.REQUIRED, "/stock 삼성전자"),
 
     /** {@code /crypto 비트코인} — 현재 코인 시세. */
-    CRYPTO("/crypto", "/c", "코인", true, "/crypto 비트코인"),
+    CRYPTO("/crypto", "/c", "코인", Argument.REQUIRED, "/crypto 비트코인"),
 
     /**
      * {@code /weather 내일 성남} — 일일 날씨. 전 세계를 다룬다.
@@ -39,22 +46,41 @@ public enum Command {
      * <p>인자에 지역과 기간이 함께 들어온다({@code CommandParser}가 첫 공백 뒤를 통째로 넘긴다).
      * 둘을 가르는 일은 LLM({@code WeatherResolver})이 한다.
      */
-    WEATHER("/weather", "/w", "날씨", true, "/weather 내일 성남"),
+    WEATHER("/weather", "/w", "날씨", Argument.REQUIRED, "/weather 내일 성남"),
 
     /** {@code /help} — 명령 목록. */
-    HELP("/help", "/h", "사용할 수 있는 명령", false, "/help");
+    HELP("/help", "/h", "사용할 수 있는 명령", Argument.NONE, "/help");
+
+    /**
+     * 이 명령이 인자를 어떻게 대하는가 — <b>boolean으로는 못 적는다.</b>
+     *
+     * <p>예전에는 {@code boolean requiresArgument} 하나였다. {@code /news}가 인자를 받되
+     * 없어도 되게 되면서 그 하나로는 <b>거짓말밖에 못 하게</b> 됐다: {@code true}면 검색어
+     * 없는 호출이 사용법에서 막히고, {@code false}면 {@link HelpFormatter#usage}가
+     * 「이 명령은 검색어 없이 씁니다」라고 적는데 그건 글자 그대로 틀린 안내다.
+     * {@code HelpFormatter}가 바로 그 함정을 주석으로 경고해 뒀다 — 도달 불가라는 이유로
+     * 틀린 문장을 남기지 않는다.
+     */
+    public enum Argument {
+        /** 인자가 없으면 답할 수 없다 — 사용법을 띄운다. */
+        REQUIRED,
+        /** 있으면 검색, 없으면 그 명령의 기본 답. 지금은 {@link Command#NEWS}만 이것이다. */
+        OPTIONAL,
+        /** 인자를 아예 안 받는다. */
+        NONE
+    }
 
     private final String token;
     private final String shortToken;
     private final String section;
-    private final boolean requiresArgument;
+    private final Argument argument;
     private final String example;
 
-    Command(String token, String shortToken, String section, boolean requiresArgument, String example) {
+    Command(String token, String shortToken, String section, Argument argument, String example) {
         this.token = token;
         this.shortToken = shortToken;
         this.section = section;
-        this.requiresArgument = requiresArgument;
+        this.argument = argument;
         this.example = example;
     }
 
@@ -71,9 +97,15 @@ public enum Command {
         return section;
     }
 
-    /** 참이면 인자 없이 온 호출에 사용법을 띄워야 한다 — 무엇을 찾을지 알 수 없기 때문이다. */
-    public boolean requiresArgument() {
-        return requiresArgument;
+    /**
+     * 이 명령이 인자를 어떻게 대하는가.
+     *
+     * <p>{@link Argument#REQUIRED}일 때만 인자 없는 호출에 사용법을 띄운다 — 무엇을 찾을지
+     * 알 수 없기 때문이다. {@link Argument#OPTIONAL}은 그대로 통과시켜 호출부가
+     * {@code hasArgument()}로 갈래를 고른다.
+     */
+    public Argument argument() {
+        return argument;
     }
 
     /** 사용법 안내에 쓸 예시. */

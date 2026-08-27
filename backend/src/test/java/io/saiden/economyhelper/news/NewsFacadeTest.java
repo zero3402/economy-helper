@@ -75,7 +75,7 @@ class NewsFacadeTest {
                                      java.util.function.Function<List<Article>, List<Translation>> translate) {
         NewsService news = new NewsService(null, null, null, null,
                 java.time.Clock.fixed(NOW, java.time.ZoneOffset.UTC),
-                java.time.Duration.ofHours(24), 8, 0.4, 3, 3) {
+                java.time.Duration.ofHours(24), 8, 0.4, 5, 5, 5) {
             @Override
             public List<ScoredArticle> digest() {
                 return ordered;

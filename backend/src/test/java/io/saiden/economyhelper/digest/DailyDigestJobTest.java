@@ -257,6 +257,25 @@ class DailyDigestJobTest {
     }
 
     @Test
+    @DisplayName("뉴스 열 건이면 열세 통이다 — 클래스 주석이 말하는 그 상한을 값으로 못 박는다")
+    void sendsThirteenMessagesForTheProductionNewsCount() {
+        // 운영 기본값이 코인 5 + 경제 5이므로 시세 셋 + 뉴스 열이 실제 발송 모양이다.
+        // 통마다 1초를 쉬므로 텍스트만 ~13초인데 발송 창이 두 시간이라 문제가 되지 않는다
+        RecordingClient telegram = new RecordingClient();
+        List<NewsItem> ten = java.util.stream.IntStream.rangeClosed(1, 10)
+                .mapToObj(i -> item("기사 " + i))
+                .toList();
+
+        DigestResult result = job(telegram, new InMemoryHistory(), new CountingFacade(ten),
+                fx(true), stock(true), crypto(true)).run(false);
+
+        assertThat(result.delivered()).containsExactly("환율", "증시", "코인", "뉴스");
+        assertThat(telegram.sent).hasSize(13);
+        assertThat(telegram.sent.get(3)).startsWith("<b>뉴스 1/10</b>").contains("기사 1");
+        assertThat(telegram.sent.get(12)).startsWith("<b>뉴스 10/10</b>").contains("기사 10");
+    }
+
+    @Test
     @DisplayName("같은 날이면 시각이 달라도 같은 슬롯이다 — 09시에 놓쳐 10시에 보내도 한 번뿐")
     void sameDayIsOneSlotRegardlessOfHour() {
         InMemoryHistory history = new InMemoryHistory();

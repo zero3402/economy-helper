@@ -21,6 +21,11 @@ class NewsSourceTest {
         assertThat(NewsSource.CNBC.owns("https://www.cnbc.com/2026/08/14/a.html")).isTrue();
         assertThat(NewsSource.BBC.owns("https://www.bbc.co.uk/news/articles/a")).isTrue();
         assertThat(NewsSource.BBC.owns("https://www.bbc.com/news/articles/a")).isTrue();
+        assertThat(NewsSource.COINDESK.owns(
+                "https://www.coindesk.com/markets/2026/08/26/a")).isTrue();
+        // 실측 링크에 ?utm_source=rss_feed 꼬리가 붙는다 — 호스트만 보므로 통과해야 한다
+        assertThat(NewsSource.COINTELEGRAPH.owns(
+                "https://cointelegraph.com/news/a?utm_source=rss_feed&utm_medium=rss")).isTrue();
     }
 
     @Test
@@ -44,6 +49,23 @@ class NewsSourceTest {
         // endsWith("yahoo.com")만 봤다면 이것들이 전부 통과한다
         assertThat(NewsSource.YAHOO_FINANCE.owns("https://notyahoo.com/a")).isFalse();
         assertThat(NewsSource.CNBC.owns("https://fake-cnbc.com/a")).isFalse();
+        assertThat(NewsSource.COINDESK.owns("https://notcoindesk.com/a")).isFalse();
+        assertThat(NewsSource.COINTELEGRAPH.owns("https://fake-cointelegraph.com/a")).isFalse();
+    }
+
+    @Test
+    @DisplayName("코인만 싣기로 한 자리는 값이 스스로 안다 — 분기문에 두면 매체를 더할 때 빠뜨린다")
+    void knowsWhichFeedsAreCryptoOnly() {
+        assertThat(NewsSource.INVESTING_CRYPTO.cryptoSection()).isTrue();
+        assertThat(NewsSource.COINDESK.cryptoSection()).isTrue();
+        assertThat(NewsSource.COINTELEGRAPH.cryptoSection()).isTrue();
+
+        // 같은 매체의 본 섹션은 아니다 — 섹션이 갈리는 것이 이 값의 요점이다
+        assertThat(NewsSource.INVESTING.cryptoSection()).isFalse();
+        assertThat(NewsSource.YAHOO_FINANCE.cryptoSection()).isFalse();
+        assertThat(NewsSource.CNBC.cryptoSection()).isFalse();
+        assertThat(NewsSource.BBC.cryptoSection()).isFalse();
+        assertThat(NewsSource.AP.cryptoSection()).isFalse();
     }
 
     @Test

@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:wfw="http://wellformedweb.org/CommentAPI/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:sy="http://purl.org/rss/1.0/modules/syndication/" xmlns:slash="http://purl.org/rss/1.0/modules/slash/" xmlns:media="http://search.yahoo.com/mrss/" version="2.0">
+  <channel>
+    <title>CoinDesk: Bitcoin, Ethereum, Crypto News and Price Data</title>
+    <link>https://www.coindesk.com/</link>
+    <atom:link rel="self" type="application/rss+xml" href="https://www.coindesk.com/arc/outboundfeeds/rss"/>
+    <atom:link rel="hub" href="true"/>
+    <description>Leader in cryptocurrency, Bitcoin, Ethereum, XRP, blockchain, DeFi, digital finance and Web 3.0 news with analysis, video and live price updates.</description>
+    <lastBuildDate>Thu, 27 Aug 2026 00:27:55 +0000</lastBuildDate>
+    <language>en-US</language>
+    <copyright>© 2026 CoinDesk, Inc.</copyright>
+    <generator>CoinDesk</generator>
+    <ttl>5</ttl>
+    <sy:updatePeriod>hourly</sy:updatePeriod>
+    <sy:updateFrequency>1</sy:updateFrequency>
+    <image>
+      <url>https://downloads.coindesk.com/arc/failsafe/feeds/coindesk-feed-logo.png</url>
+      <title>CoinDesk: Bitcoin, Ethereum, Crypto News and Price Data</title>
+      <link>https://www.coindesk.com/</link>
+    </image>
+    <item>
+      <title><![CDATA[SEC resurrecting U.S. crypto custody rule the previous administration failed to land]]></title>
+      <link>https://www.coindesk.com/news-analysis/2026/08/26/sec-resurrecting-u-s-crypto-custody-rule-the-previous-administration-failed-to-land</link>
+      <media:content url="https://cdn.sanity.io/images/s3y3vcno/production/82c63d25c774161ab6ecc7ce74e066578a78b0c5-1955x1100.jpg?fm=jpg&amp;w=1920&amp;h=1080&amp;crop=focalpoint&amp;fit=clip" type="image/*" medium="image"/>
+      <guid isPermaLink="false">fa2f0b17-516a-473d-a5be-95ffa11fdf31</guid>
+      <pubDate>Wed, 26 Aug 2026 23:01:44 +0000</pubDate>
+      <description><![CDATA[In 2023, the regulator tried to narrowly restrict the places investment advisers could park clients' crypto assets, but the new approach is still shrouded in secrecy. ]]></description>
+      <dc:creator>Jesse Hamilton</dc:creator>
+      <content:encoded/>
+      <dc:description/>
+      <category domain="https://www.coindesk.com/news-analysis"><![CDATA[News Analysis]]></category>
+      <category domain="tag"><![CDATA[Financial Advisors]]></category>
+      <category domain="tag"><![CDATA[Custody]]></category>
+      <category domain="tag"><![CDATA[Regulation]]></category>
+      <category domain="https://www.coindesk.com/">News</category>
+    </item>
+    <item>
+      <title><![CDATA[Nvidia shares rise after earnings top estimates, guides to $108 billion in revenue next quarter]]></title>
+      <link>https://www.coindesk.com/markets/2026/08/26/nvidia-tops-earnings-estimates-guides-to-usd108-billion-in-revenue-next-quarter</link>
+      <media:content url="https://cdn.sanity.io/images/s3y3vcno/production/693575c5c547ec149e1c707e4ac159476905398f-600x338.png?fm=jpg&amp;w=1920&amp;h=1080&amp;crop=focalpoint&amp;fit=clip" type="image/*" medium="image"/>
+      <guid isPermaLink="false">15d3b370-a61c-467d-b6eb-0efc682ce6b7</guid>
+      <pubDate>Wed, 26 Aug 2026 20:24:31 +0000</pubDate>
+      <description><![CDATA[The tech bellwether reported fiscal second-quarter results after the bell on Wednesday.]]></description>
+      <dc:creator>Stephen Alpher</dc:creator>
+      <dc:creator>Helene Braun</dc:creator>
+      <content:encoded/>
+      <dc:description/>
+      <category domain="https://www.coindesk.com/markets"><![CDATA[Markets]]></category>
+      <category domain="https://www.coindesk.com/">News</category>
+    </item>
+    <item>
+      <title><![CDATA[South Korea’s top financial conglomerate team up with Visa to test stablecoin issuance and B2B settlements]]></title>
+      <link>https://www.coindesk.com/business/2026/08/26/south-korea-s-shinhan-financial-joins-visa-to-build-stablecoin-infrastructure</link>
+      <media:content url="https://cdn.sanity.io/images/s3y3vcno/production/0b33f1bb25f1192885403a37624d1c465d514180-1920x1080.jpg?fm=jpg&amp;w=1920&amp;h=1080&amp;crop=focalpoint&amp;fit=clip" type="image/*" medium="image"/>
+      <guid isPermaLink="false">7ab8f016-52d0-4d74-9455-6e2c46dd98f0</guid>
+      <pubDate>Wed, 26 Aug 2026 15:15:13 +0000</pubDate>
+      <description><![CDATA[Shinhan Financial Group will use Visa’s platform to test stablecoin issuance, remittance, and redemption while building new AI-powered payment models.]]></description>
+      <dc:creator>Olivier Acuna</dc:creator>
+      <content:encoded/>
+      <dc:description/>
+      <category domain="https://www.coindesk.com/business"><![CDATA[Finance]]></category>
+      <category domain="tag"><![CDATA[South Korea]]></category>
+      <category domain="tag"><![CDATA[Mastercard]]></category>
+      <category domain="tag"><![CDATA[Stablecoins]]></category>
+      <category domain="tag"><![CDATA[Solana News]]></category>
+      <category domain="https://www.coindesk.com/">News</category>
+    </item>
+    <item>
+      <title><![CDATA[Crypto Long & Short: Tokenized equities: the model underneath the trade]]></title>
+      <link>https://www.coindesk.com/coindesk-indices/2026/08/26/crypto-long-and-short-tokenized-equities-the-model-underneath-the-trade</link>
+      <media:content url="https://cdn.sanity.io/images/s3y3vcno/production/c65605ff753f90fbd9ead00fe95e6a552cbcdffc-5061x3369.jpg?fm=jpg&amp;w=1920&amp;h=1080&amp;crop=focalpoint&amp;fit=clip" type="image/*" medium="image"/>
+      <guid isPermaLink="false">a488c893-bc13-431d-9c50-149238e3934c</guid>
+      <pubDate>Wed, 26 Aug 2026 15:00:09 +0000</pubDate>
+      <description><![CDATA[In this week's Crypto Long & Short, CoinDesk's Joshua DeVos writes that demand for tokenized equities is accelerating fast, from $16 billion to more than $590 billion in perpetual futures in a single year, but that the headline growth hides the question that matters most. Two tokens can trade under the same ticker while granting entirely different rights, and the structure underneath, whether it conveys real ownership or a synthetic claim, determines the risks and protections a holder actually has.
+]]></description>
+      <dc:creator>Joshua de Vos</dc:creator>
+      <content:encoded/>
+      <dc:description/>
+      <category domain="https://www.coindesk.com/coindesk-indices"><![CDATA[CoinDesk Indices]]></category>
+      <category domain="tag"><![CDATA[Crypto Long & Short]]></category>
+      <category domain="https://www.coindesk.com/">News</category>
+    </item>
+  </channel>
+</rss>

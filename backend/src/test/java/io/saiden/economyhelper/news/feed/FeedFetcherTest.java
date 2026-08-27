@@ -49,6 +49,17 @@ class FeedFetcherTest {
                     java.time.ZoneOffset.UTC);
     private static final Duration MAX_AGE = Duration.ofDays(3);
 
+    /**
+     * 코인 매체 픽스처를 뜬 날 — 나중에 붙은 매체라 픽스처 날짜가 위 {@link #CLOCK}보다 늦다.
+     *
+     * <p>옛 픽스처의 날짜에 맞춰 다시 뜨는 대신 시계를 따로 둔다. 「외부 API는 실호출로
+     * 계약을 확정하고 그 응답을 줄여 스텁 본문으로 쓴다」가 이 저장소의 테스트 규칙이므로
+     * <b>실제로 받은 값의 날짜를 고쳐 쓰지 않는다.</b>
+     */
+    private static final java.time.Clock CRYPTO_CLOCK =
+            java.time.Clock.fixed(java.time.Instant.parse("2026-08-27T01:00:00Z"),
+                    java.time.ZoneOffset.UTC);
+
     private WireMockServer server;
 
     @BeforeEach
@@ -199,6 +210,57 @@ class FeedFetcherTest {
                 .isEqualTo(CircuitBreaker.State.CLOSED);
     }
 
+    @Test
+    @DisplayName("CoinDesk 피드를 읽는다 — 코인 다섯 자리를 채우려고 붙인 매체다")
+    void parsesCoinDeskFeed() {
+        stubFeed("/coindesk", 200, fixture("coindesk.xml"));
+
+        List<Article> articles = fetcherAt(Map.of(
+                NewsSource.COINDESK, feed("/coindesk", FeedType.RSS)), CRYPTO_CLOCK)
+                .fetch(NewsSource.COINDESK);
+
+        assertThat(articles).hasSize(4);
+        assertThat(articles).allSatisfy(article ->
+                assertThat(article.link()).contains("coindesk.com"));
+        // 요약문이 처음부터 평문이다 — 번역 입력으로 그대로 쓸 수 있다
+        assertThat(articles).allSatisfy(article ->
+                assertThat(article.description()).isNotBlank());
+    }
+
+    @Test
+    @DisplayName("Cointelegraph 요약문의 <p><img> 마크업은 걷힌다 — 번역 입력에 태그가 섞이면 안 된다")
+    void stripsMarkupFromCointelegraphDescriptions() {
+        // 실측(2026-08-27): 이 매체의 description은 <p style=…><img src=…> 블록으로 시작한다.
+        // RssFeedClient.clean()이 이미 태그를 걷어내므로 파서를 손볼 것이 없다는 사실을 고정한다
+        stubFeed("/cointelegraph", 200, fixture("cointelegraph.xml"));
+
+        List<Article> articles = fetcherAt(Map.of(
+                NewsSource.COINTELEGRAPH, feed("/cointelegraph", FeedType.RSS)), CRYPTO_CLOCK)
+                .fetch(NewsSource.COINTELEGRAPH);
+
+        assertThat(articles).hasSize(3);
+        assertThat(articles).allSatisfy(article -> {
+            assertThat(article.description()).doesNotContain("<").doesNotContain("img src");
+            assertThat(article.description()).isNotBlank();
+        });
+    }
+
+    @Test
+    @DisplayName("코인 매체는 자기 기자가 쓴다 — 페이월 재게재 필터에 걸리지 않는다")
+    void cryptoOutletsSurviveThePaywallSyndicationFilter() {
+        // Investing.com이 Reuters 기사를 자기 도메인에 얹어 내는 것과 달라서, 이 둘은
+        // author가 자사 기자다. 걸리면 피드가 통째로 비어 코인 자리가 안 찬다
+        stubFeed("/coindesk", 200, fixture("coindesk.xml"));
+        stubFeed("/cointelegraph", 200, fixture("cointelegraph.xml"));
+
+        FeedFetcher fetcher = fetcherAt(Map.of(
+                NewsSource.COINDESK, feed("/coindesk", FeedType.RSS),
+                NewsSource.COINTELEGRAPH, feed("/cointelegraph", FeedType.RSS)), CRYPTO_CLOCK);
+
+        assertThat(fetcher.fetch(NewsSource.COINDESK)).isNotEmpty();
+        assertThat(fetcher.fetch(NewsSource.COINTELEGRAPH)).isNotEmpty();
+    }
+
     private void stubFeed(String path, int status, String body) {
         server.stubFor(get(urlPathEqualTo(path)).willReturn(
                 aResponse().withStatus(status)
@@ -225,12 +287,22 @@ class FeedFetcherTest {
     }
 
     private FeedFetcher fetcher(Map<NewsSource, Feed> feeds, CircuitBreakerRegistry registry) {
+        return fetcher(feeds, registry, CLOCK);
+    }
+
+    /** 픽스처를 뜬 날이 다른 매체용 — 시계만 갈아 끼운다. */
+    private FeedFetcher fetcherAt(Map<NewsSource, Feed> feeds, java.time.Clock clock) {
+        return fetcher(feeds, CircuitBreakerRegistry.ofDefaults(), clock);
+    }
+
+    private FeedFetcher fetcher(Map<NewsSource, Feed> feeds, CircuitBreakerRegistry registry,
+                                java.time.Clock clock) {
         return new FeedFetcher(
                 RestClient.builder(),
                 properties(feeds),
                 registry,
                 TestRetries.registry(),
-                CLOCK,
+                clock,
                 MAX_AGE,
                 List.of(new RssFeedClient(), new GoogleNewsFeedClient()));
     }

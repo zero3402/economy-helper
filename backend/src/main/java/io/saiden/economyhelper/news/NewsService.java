@@ -9,11 +9,13 @@ import io.saiden.economyhelper.support.Concurrently;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -43,7 +45,8 @@ public class NewsService {
     private final int llmCandidates;
     private final double relevanceThreshold;
     private final int searchResults;
-    private final int digestResults;
+    private final int cryptoResults;
+    private final int economyResults;
 
     public NewsService(FeedFetcher fetcher,
                        HackerNewsBuzzClient buzzClient,
@@ -53,8 +56,9 @@ public class NewsService {
                        @Value("${economy-helper.digest.window:24h}") Duration window,
                        @Value("${economy-helper.digest.llm-candidates:8}") int llmCandidates,
                        @Value("${economy-helper.digest.relevance-threshold:0.4}") double relevanceThreshold,
-                       @Value("${economy-helper.digest.search-results:3}") int searchResults,
-                       @Value("${economy-helper.digest.top-results:3}") int digestResults) {
+                       @Value("${economy-helper.digest.search-results:5}") int searchResults,
+                       @Value("${economy-helper.digest.crypto-results:5}") int cryptoResults,
+                       @Value("${economy-helper.digest.economy-results:5}") int economyResults) {
         this.fetcher = fetcher;
         this.buzzClient = buzzClient;
         this.scorer = scorer;
@@ -64,7 +68,8 @@ public class NewsService {
         this.llmCandidates = llmCandidates;
         this.relevanceThreshold = relevanceThreshold;
         this.searchResults = searchResults;
-        this.digestResults = digestResults;
+        this.cryptoResults = cryptoResults;
+        this.economyResults = economyResults;
     }
 
     /** 신선도 창 — 화면이 "최근 몇 시간"이라고 말하려면 같은 값을 봐야 한다. */
@@ -73,10 +78,22 @@ public class NewsService {
     }
 
     /**
-     * 최근 창(기본 24시간) 안에 발행된 것 중 점수 상위 몇 건 — 정기 발송용.
+     * 최근 창(기본 24시간) 안에 발행된 것 중 <b>무리마다 점수 상위 몇 건</b> — 정기 발송용.
      *
-     * <p><b>매체를 가리지 않고 전 매체를 통틀어 점수로 줄 세운다.</b> 예전에는 매체별 1건이었으나
-     * 검색과 같은 규칙("최근 창 안의 발행분 중 점수 상위 3건")으로 통일했다. 매체별 정규화(feedRank)를 거친
+     * <p><b>코인과 경제를 따로 채운다.</b> 예전에는 전 매체를 통틀어 상위 세 건이었는데, 그러면
+     * 코인 기사가 금융 일반 피드에 거의 안 실리는 탓에({@link NewsSource#INVESTING_CRYPTO})
+     * 코인 뉴스가 하루도 안 나가는 날이 생긴다. 지금은 {@link NewsCategory}로 가른 뒤
+     * 무리마다 제 할당량을 준다.
+     *
+     * <p><b>모자란 무리는 채우지 않는다.</b> 코인이 세 건뿐인 날은 여덟 건이 나간다 —
+     * 남은 자리를 경제로 메우면 사용자가 요구한 다섯 대 다섯이 조용히 다른 것이 되고,
+     * 「자리를 채우려고 관련 없는 기사를 끌어오지 않는다」({@link #search})와도 어긋난다.
+     *
+     * <p><b>고르고 나서 다시 점수순으로 섞는다.</b> 화면에 무리 제목이 없고 통 제목이
+     * {@code 뉴스 3/10}이므로, 그 {@code 3}은 지금까지처럼 <b>점수 3위</b>라는 뜻이어야 한다.
+     * 할당량이 정하는 것은 어느 열 건이 들어오는가이지 순서가 아니다.
+     *
+     * <p><b>매체를 가리지 않고 점수로 줄 세운다.</b> 매체별 정규화({@code feedRank})를 거친
      * 0~1 점수라 매체가 달라도 비교가 성립한다.
      *
      * <p><b>재테크 관련도가 임계값 이상인 기사만 후보로 삼는다.</b> 필터 없이 순위만 매기면
@@ -90,12 +107,42 @@ public class NewsService {
     public List<ScoredArticle> digest() {
         // 매체끼리는 서로를 기다릴 이유가 없어 겹쳐 돈다 — 가장 느린 매체 하나 만큼만 걸린다.
         // 매체 안에서는 순차다: 피드가 있어야 후보가 나오고 후보가 있어야 관련도를 잰다
-        return distinctByLink(Concurrently.map(List.of(NewsSource.values()), this::relevantOf).stream()
-                .flatMap(List::stream)
+        List<ScoredArticle> ranked = distinctByLink(
+                Concurrently.map(List.of(NewsSource.values()), this::relevantOf).stream()
+                        .flatMap(List::stream)
+                        .sorted(Comparator.comparingDouble(ScoredArticle::score).reversed())
+                        .toList(),
+                scored -> scored.article().link());
+
+        // 가르기 전에 링크로 한 번 걸렀으므로 한 기사가 두 무리에 앉을 수 없다.
+        // 무리 안의 순서는 위에서 매긴 점수순 그대로다 (groupingBy는 값 목록의 등장 순서를 지킨다)
+        Map<NewsCategory, List<ScoredArticle>> byCategory = ranked.stream()
+                .collect(Collectors.groupingBy(scored -> NewsCategory.of(scored.article())));
+
+        List<ScoredArticle> picked = new ArrayList<>(cryptoResults + economyResults);
+        picked.addAll(quota(byCategory, NewsCategory.CRYPTO, cryptoResults));
+        picked.addAll(quota(byCategory, NewsCategory.ECONOMY, economyResults));
+
+        return picked.stream()
                 .sorted(Comparator.comparingDouble(ScoredArticle::score).reversed())
-                .toList(), scored -> scored.article().link()).stream()
-                .limit(digestResults)
                 .toList();
+    }
+
+    /**
+     * 무리 하나의 할당량만큼 — 모자라면 <b>모자란 채로</b> 돌려준다.
+     *
+     * <p>못 채운 자리를 로그로 남긴다. 조용히 짧게 나가면 「코인 뉴스가 왜 세 건인가」에
+     * 답할 단서가 없다 — 소스가 죽은 것인지, 관련도 문턱에 걸린 것인지, 그 사이 코인 기사가
+     * 없었던 것인지가 구분되지 않는다.
+     */
+    private static List<ScoredArticle> quota(Map<NewsCategory, List<ScoredArticle>> byCategory,
+                                             NewsCategory category, int limit) {
+        List<ScoredArticle> pool = byCategory.getOrDefault(category, List.of());
+        if (pool.size() < limit) {
+            log.info("[{}] 창 안의 기사가 {}건뿐이어서 할당량 {}건을 못 채웁니다 —"
+                    + " 남은 자리를 다른 무리로 메우지 않습니다", category, pool.size(), limit);
+        }
+        return pool.stream().limit(limit).toList();
     }
 
     /**

@@ -285,6 +285,60 @@ class TelegramWebhookControllerTest {
     }
 
     @Test
+    @DisplayName("검색어 없는 /news는 브리핑과 같은 목록을 준다 — 사용법 안내로 막지 않는다")
+    void bareNewsAnswersWithTheDigest() {
+        // 이 배선에 테스트가 아예 없었다: 파서가 사용법 대상으로 표시하지 않는지는
+        // CommandParserTest가 보고 문구는 골든이 보는데, 컨트롤러가 digest()를 부르는지는
+        // 아무도 안 봤다
+        RecordingClient client = new RecordingClient();
+        var controller = defaultController(
+                facade(List.of(item("검색 결과")),
+                        List.of(item("코인 1"), item("코인 2"), item("경제 1"))),
+                crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
+
+        controller.onUpdate(null, update(1, "/news"));
+
+        assertThat(client.sent).hasSize(3);
+        assertThat(client.sent.get(0).text()).startsWith("<b>뉴스 1/3</b>").contains("코인 1");
+        assertThat(client.sent.get(2).text()).contains("경제 1");
+        assertThat(client.sent).allSatisfy(sent -> assertThat(sent.text())
+                .as("검색을 부르면 안 된다")
+                .doesNotContain("검색 결과"));
+        assertThat(client.sent).allSatisfy(sent -> assertThat(sent.preview()).isTrue());
+    }
+
+    @Test
+    @DisplayName("줄임말도 같다 — /n 하나만 쳐도 브리핑 목록이 온다")
+    void bareShortNewsTokenAnswersWithTheDigest() {
+        RecordingClient client = new RecordingClient();
+        var controller = defaultController(
+                facade(List.of(), List.of(item("코인 1"))),
+                crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
+
+        controller.onUpdate(null, update(1, "/n"));
+
+        assertThat(client.sent).singleElement()
+                .satisfies(sent -> assertThat(sent.text()).contains("코인 1"));
+    }
+
+    @Test
+    @DisplayName("검색어 없는 /news가 빈손이면 브리핑과 같은 문구를 쓴다 — 못 찾은 대상이 없다")
+    void bareNewsWithNothingToShowUsesTheDigestWording() {
+        // "''에 해당하는 최근 24시간 뉴스를 찾지 못했습니다"는 검색어가 없는 자리에서
+        // 빈 인용부호만 남는 거짓말이 된다
+        RecordingClient client = new RecordingClient();
+        var controller = defaultController(facade(List.of(), List.of()),
+                crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
+
+        controller.onUpdate(null, update(1, "/news"));
+
+        assertThat(client.sent).singleElement().satisfies(sent -> {
+            assertThat(sent.text()).contains("가져올 수 있는 값이 없습니다");
+            assertThat(sent.text()).doesNotContain("찾지 못했습니다");
+        });
+    }
+
+    @Test
     @DisplayName("답은 물어본 명령에 답글로 단다 — 여럿이 동시에 검색하면 누구 답인지 알 수 없다")
     void repliesToTheAskingCommand() {
         RecordingClient client = new RecordingClient();
@@ -799,10 +853,23 @@ class TelegramWebhookControllerTest {
     }
 
     private static NewsFacade facade(List<NewsItem> results) {
+        return facade(results, List.of());
+    }
+
+    /**
+     * 검색 답과 <b>검색어 없는 답</b>을 따로 준다 — 컨트롤러가 갈래를 고르는지 보려면
+     * 두 경로가 서로 다른 값을 돌려줘야 한다. 같은 목록을 주면 어느 쪽을 불렀는지 알 수 없다.
+     */
+    private static NewsFacade facade(List<NewsItem> searchResults, List<NewsItem> digestResults) {
         return new NewsFacade(null, null, null) {
             @Override
             public List<NewsItem> search(String query) {
-                return results;
+                return searchResults;
+            }
+
+            @Override
+            public List<NewsItem> digest() {
+                return digestResults;
             }
 
             /** 못 찾음 안내가 "최근 몇 시간"을 말하려면 이 값이 필요하다 — 운영 기본값과 같게 둔다. */

@@ -13,8 +13,14 @@ public record ParsedCommand(Command command, String argument) {
         return !argument.isEmpty();
     }
 
-    /** 인자가 필요한 명령인데 인자가 없다 — 사용법을 띄워야 하는 상태. */
+    /**
+     * 인자가 <b>반드시 필요한</b> 명령인데 인자가 없다 — 사용법을 띄워야 하는 상태.
+     *
+     * <p>{@link Command.Argument#OPTIONAL}은 여기서 걸리지 않는다. {@code /news}가 검색어
+     * 없이 와도 그 명령의 기본 답이 있으므로 통과시키고, 갈래는 호출부가
+     * {@link #hasArgument()}로 고른다.
+     */
     public boolean missingRequiredArgument() {
-        return command.requiresArgument() && !hasArgument();
+        return command.argument() == Command.Argument.REQUIRED && !hasArgument();
     }
 }

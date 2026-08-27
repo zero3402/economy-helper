@@ -40,15 +40,39 @@ class EconomyHelperPropertiesTest {
     @Autowired EconomyHelperProperties properties;
 
     @Test
-    @DisplayName("피드 여섯이 매체 열거형 키로 붙는다 — 하나라도 빠지면 그 매체가 조용히 사라진다")
-    void bindsEverySixFeeds() {
+    @DisplayName("매체 열거형의 모든 값에 피드가 붙는다 — 하나라도 빠지면 그 매체가 조용히 사라진다")
+    void bindsAFeedForEveryNewsSource() {
+        // 개수를 여기 적지 않는다 — 매체를 더할 때 고칠 곳이 늘면 반드시 낡는다.
+        // 지키려는 것은 "열거형과 yml이 어긋나지 않는다"이지 그 값이 몇이냐가 아니다
         assertThat(properties.feeds())
-                .as("매체는 다섯이지만 항목은 여섯이다 — Investing.com이 본 섹션과 암호화폐를 함께 단다")
-                .hasSize(6)
+                .as("매체는 일곱이지만 항목은 여덟이다 — Investing.com이 본 섹션과 암호화폐를 함께 단다")
                 .containsOnlyKeys(NewsSource.values());
         assertThat(properties.feeds().get(NewsSource.AP).url())
                 .as("AP는 공식 RSS가 없어 구글 뉴스 검색 피드를 프록시로 쓴다")
                 .contains("news.google.com");
+    }
+
+    @Test
+    @DisplayName("피드 주소 끝에 슬래시가 없다 — 308을 부르고 그 매체가 조용히 0건이 된다")
+    void feedUrlsDoNotEndWithASlash() {
+        // 실측(2026-08-27): CoinDesk를 `.../outboundfeeds/rss/`로 적었더니 308이 왔고,
+        // 우리 RestClient는 리다이렉트를 안 따라가 15바이트 `Redirecting...`을 파싱하다
+        // SAXParseException으로 끝났다 — 그 매체가 통째로 빠졌다. curl에 -L을 붙이면
+        // 200으로 보여서 설정만 읽고는 알 수 없다
+        assertThat(properties.feeds().values())
+                .allSatisfy(feed -> assertThat(feed.url()).doesNotEndWith("/"));
+    }
+
+    @Test
+    @DisplayName("코인 전용 피드가 셋 다 붙는다 — 브리핑의 코인 다섯 자리를 이것들이 채운다")
+    void bindsEveryCryptoOnlyFeed() {
+        // 열거형이 cryptoSection()으로 참이라고 말하는 자리에 실제 주소가 있는지를 본다.
+        // 하나라도 비면 코인 풀이 조용히 좁아져 다섯 건이 안 찬다
+        assertThat(java.util.Arrays.stream(NewsSource.values())
+                        .filter(NewsSource::cryptoSection).toList())
+                .allSatisfy(source -> assertThat(properties.feeds().get(source).url())
+                        .as("%s의 피드 주소", source)
+                        .isNotBlank());
     }
 
     @Test

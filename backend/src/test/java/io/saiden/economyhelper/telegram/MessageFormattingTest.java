@@ -135,6 +135,8 @@ class MessageFormattingTest {
         assertThat(HelpFormatter.usage(Command.NEWS)).contains("/news 금리");
         // 명령마다 예시가 달라야 한다 — 하나로 고정하면 /stock에 /news 예시가 뜬다
         assertThat(HelpFormatter.usage(Command.STOCK)).contains("/stock 삼성전자");
+        // 뉴스는 검색어가 없어도 답하므로 "함께 입력해 주세요"가 거짓말이다
+        assertThat(HelpFormatter.usage(Command.NEWS)).doesNotContain("검색어를 함께 입력해 주세요");
         // 실패·안내 답도 성공 답과 같은 제목을 인다. 그룹 채팅에서 맨몸 문장 하나만
         // 튀어나오면 무엇에 대한 답인지 알 수 없다
         assertThat(HelpFormatter.usage(Command.STOCK)).startsWith("<b>증시</b>\n\n");
@@ -158,14 +160,42 @@ class MessageFormattingTest {
             if (command == Command.HELP) {
                 continue;   // 그 제목은 이 목록 자체의 제목이라 목록 안에서 같은 말을 두 번 하게 된다
             }
-            String line = command.example()
-                    + (command.shortToken() == null ? "" : " (또는 " + command.shortToken() + ")");
-            assertThat(help)
-                    .as("'%s'의 설명", line)
-                    .contains(line + "\n" + command.section());
+            // 예시 줄의 괄호 안에 무엇이 들어가는지를 여기서 다시 조립하지 않는다 —
+            // 그러면 이 테스트가 HelpFormatter와 같은 사실을 담은 두 번째 표가 된다.
+            // 대신 짜임(예시 줄 / 설명 줄)과 줄임말이 있다는 것만 본다
+            int at = help.indexOf(command.example());
+            assertThat(at).as("'%s'가 목록에 없다", command.example()).isNotNegative();
+
+            String rest = help.substring(at + command.example().length());
+            int newline = rest.indexOf('\n');
+            assertThat(rest.substring(0, newline))
+                    .as("'%s'의 예시 줄 꼬리", command)
+                    .contains(command.shortToken());
+            assertThat(rest.substring(newline + 1))
+                    .as("'%s'의 설명 줄", command)
+                    .startsWith(command.section());
         }
         assertThat(help).as("답은 「증시」인데 도움말만 「주식」이면 같은 것을 두 이름으로 부르는 것이다")
                 .doesNotContain("주식");
+    }
+
+    @Test
+    @DisplayName("검색어를 생략할 수 있는 명령은 도움말이 그렇게 말한다 — 안 적으면 도움말이 새 기능을 모른다")
+    void helpAdvertisesTheOptionalArgument() {
+        String help = HelpFormatter.help();
+
+        assertThat(help).contains("/news 금리 (또는 /n · 검색어 생략 가능)");
+        // 인자가 반드시 필요한 명령에는 붙지 않는다 — 붙으면 글자 그대로 틀린 안내다
+        assertThat(help).contains("/stock 삼성전자 (또는 /s)");
+        assertThat(help).contains("/fx (또는 /f)");
+    }
+
+    @Test
+    @DisplayName("사용법 문구가 인자의 세 상태를 각각 참으로 말한다 — 도달 불가라도 틀린 문장을 남기지 않는다")
+    void usageTellsTheTruthForEachArgumentState() {
+        assertThat(HelpFormatter.usage(Command.STOCK)).contains("검색어를 함께 입력해 주세요");
+        assertThat(HelpFormatter.usage(Command.NEWS)).contains("검색어는 있어도 되고 없어도 됩니다");
+        assertThat(HelpFormatter.usage(Command.FX)).contains("이 명령은 검색어 없이 씁니다");
     }
 
     @Test

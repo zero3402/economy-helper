@@ -39,15 +39,36 @@ class CommandParserTest {
     @Test
     @DisplayName("인자가 필요한 명령을 인자 없이 부르면 명령은 알아보되 사용법 대상으로 표시한다")
     void flagsMissingRequiredArgument() {
-        ParsedCommand news = CommandParser.parse("/news").orElseThrow();
-        assertThat(news.hasArgument()).isFalse();
-        assertThat(news.missingRequiredArgument()).isTrue();
+        ParsedCommand stock = CommandParser.parse("/stock").orElseThrow();
+        assertThat(stock.hasArgument()).isFalse();
+        assertThat(stock.missingRequiredArgument()).isTrue();
 
-        assertThat(CommandParser.parse("/news   ").orElseThrow().missingRequiredArgument()).isTrue();
-        assertThat(CommandParser.parse("/stock").orElseThrow().missingRequiredArgument()).isTrue();
+        assertThat(CommandParser.parse("/stock   ").orElseThrow().missingRequiredArgument()).isTrue();
+        assertThat(CommandParser.parse("/crypto").orElseThrow().missingRequiredArgument()).isTrue();
+        assertThat(CommandParser.parse("/weather").orElseThrow().missingRequiredArgument()).isTrue();
 
         // 인자가 필요 없는 명령은 인자가 없어도 정상이다
         assertThat(CommandParser.parse("/fx").orElseThrow().missingRequiredArgument()).isFalse();
+        assertThat(CommandParser.parse("/help").orElseThrow().missingRequiredArgument()).isFalse();
+    }
+
+    @Test
+    @DisplayName("검색어 없는 /news는 사용법 대상이 아니다 — 그 명령에는 검색어 없는 기본 답이 있다")
+    void bareNewsIsNotAUsagePrompt() {
+        // 여섯 중 뉴스만 인자가 선택이다. 사용법에서 막히던 동안 '검색어 없이 /n'이
+        // NewsFacade에 닿지도 못했다 — 이 단언이 그 문을 지킨다
+        for (String text : new String[] {"/news", "/news   ", "/n", "/n  "}) {
+            ParsedCommand parsed = CommandParser.parse(text).orElseThrow();
+            assertThat(parsed.command()).isEqualTo(Command.NEWS);
+            assertThat(parsed.hasArgument()).as("%s에는 검색어가 없다", text).isFalse();
+            assertThat(parsed.missingRequiredArgument())
+                    .as("%s가 사용법으로 막히면 안 된다", text)
+                    .isFalse();
+        }
+
+        // 검색어가 있으면 그대로 검색이다
+        assertThat(CommandParser.parse("/news 금리").orElseThrow())
+                .isEqualTo(new ParsedCommand(Command.NEWS, "금리"));
     }
 
     @Test
@@ -166,7 +187,8 @@ class CommandParserTest {
                     .as("%s에 줄임말이 없다", command)
                     .isNotNull();
             assertThat(CommandParser.parse(command.shortToken()
-                            + (command.requiresArgument() ? " 아무거나" : "")))
+                            + (command.argument() == Command.Argument.REQUIRED
+                                    ? " 아무거나" : "")))
                     .as("%s가 %s로 안 걸린다", command, command.shortToken())
                     .map(ParsedCommand::command)
                     .contains(command);
