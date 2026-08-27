@@ -9,7 +9,8 @@ import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options
 import static org.assertj.core.api.Assertions.assertThatCode;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,17 +22,24 @@ import org.springframework.web.client.RestClient;
  */
 class SelfPingTest {
 
-    private WireMockServer server;
+    /** 클래스당 하나다 — 테스트마다 띄우고 내리면 포트 재활용 창이 열린다(ARCHITECTURE.md §6). */
+    private static WireMockServer server;
 
-    @BeforeEach
-    void startServer() {
+    @BeforeAll
+    static void startServer() {
         server = new WireMockServer(options().dynamicPort().http2PlainDisabled(true));
         server.start();
     }
 
-    @AfterEach
-    void stopServer() {
+    @AfterAll
+    static void stopServer() {
         server.stop();
+    }
+
+    @BeforeEach
+    void resetStubs() {
+        // 스텁·요청기록·시나리오를 함께 비운다 — 서버는 그대로 두고 상태만 되돌린다
+        server.resetAll();
     }
 
     @Test

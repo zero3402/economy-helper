@@ -11,7 +11,8 @@ import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import io.saiden.economyhelper.market.fmp.FmpApi.FmpQuote;
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,21 +29,28 @@ class FmpApiTest {
     private static final String API_KEY = "secret-key-1234";
     private static final String PATH = "/stable/quote";
 
-    private WireMockServer server;
+    /** 클래스당 하나다 — 테스트마다 띄우고 내리면 포트 재활용 창이 열린다(ARCHITECTURE.md §6). */
+    private static WireMockServer server;
     private FmpApi api;
     private CountingGuard guard;
 
-    @BeforeEach
-    void startServer() {
+    @BeforeAll
+    static void startServer() {
         server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
         server.start();
-        guard = new CountingGuard(true);
-        api = new FmpApi(RestClient.builder(), server.baseUrl(), API_KEY, guard);
     }
 
-    @AfterEach
-    void stopServer() {
+    @AfterAll
+    static void stopServer() {
         server.stop();
+    }
+
+    @BeforeEach
+    void resetAndBuild() {
+        // 스텁·요청기록·시나리오를 함께 비운다 — 서버는 그대로 두고 상태만 되돌린다
+        server.resetAll();
+        guard = new CountingGuard(true);
+        api = new FmpApi(RestClient.builder(), server.baseUrl(), API_KEY, guard);
     }
 
     private void stub(String body) {

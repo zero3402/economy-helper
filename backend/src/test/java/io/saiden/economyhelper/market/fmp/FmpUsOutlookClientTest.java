@@ -15,7 +15,8 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,17 +37,41 @@ class FmpUsOutlookClientTest {
     private static final String EARNINGS = "/stable/earnings";
     private static final String API_KEY = "test-key-402";
 
-    private WireMockServer server;
+    /**
+     * <b>서버는 클래스당 하나다 — 테스트마다 띄우고 내리지 않는다.</b>
+     *
+     * <p>예전에는 {@code @BeforeEach}에서 {@code dynamicPort()}로 새로 띄우고
+     * {@code @AfterEach}에서 내렸다. 그 모양에서 <b>전체 실행 때 드물게 떨어졌다</b>
+     * (실측 2026-08-27 10:58 KST, {@code ignoresAZeroTarget}): 제 스텁이 200이라고 한
+     * {@code /stable/price-target-consensus}에서 <b>정상적인 HTTP 500</b>을 받았는데,
+     * 그 경로를 500으로 스텁하는 곳은 <b>이 클래스의 다른 메서드 하나뿐</b>이다
+     * ({@code stub(TARGET, 500, "{}")}). 미매칭이면 404가 왔어야 하므로, 요청이
+     * <b>앞 테스트의 서버 인스턴스</b>에 닿은 것이다 — {@code stop()}이 포트를 놓기 전에
+     * 다음 서버가 같은 포트를 받는 창이 그 모양을 만든다.
+     *
+     * <p>⚠️ <b>연결 계열 실패가 아니었다.</b> {@code ARCHITECTURE.md} §7이 「실패는 언제나
+     * 연결 계열이다」라고 적어 두고 있었는데 그 문장이 이 실측으로 깨졌다.
+     *
+     * <p>그래서 <b>포트를 한 번만 잡고 스텁만 비운다.</b> 이 저장소에 이미 선례가 둘 있다 —
+     * {@code RetryLiveTest}와 {@code HackerNewsApiTest}가 같은 모양이다.
+     * {@code resetAll()}은 스텁과 요청 기록을 함께 비우므로 {@code verify}도 그대로 성립한다.
+     */
+    private static WireMockServer server;
 
-    @BeforeEach
-    void startServer() {
+    @BeforeAll
+    static void startServer() {
         server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
         server.start();
     }
 
-    @AfterEach
-    void stopServer() {
+    @AfterAll
+    static void stopServer() {
         server.stop();
+    }
+
+    @BeforeEach
+    void resetStubs() {
+        server.resetAll();
     }
 
     private FmpUsOutlookClient client() {

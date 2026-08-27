@@ -19,7 +19,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.List;
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -41,20 +42,27 @@ class StockPriceApiTest {
     private static final Instant NOW = Instant.parse("2026-08-12T03:00:00Z");
     private static final String PATH = "/1160100/service/GetStockSecuritiesInfoService/getStockPriceInfo";
 
-    private WireMockServer server;
+    /** 클래스당 하나다 — 테스트마다 띄우고 내리면 포트 재활용 창이 열린다(ARCHITECTURE.md §6). */
+    private static WireMockServer server;
     private StockPriceApi api;
 
-    @BeforeEach
-    void startServer() {
+    @BeforeAll
+    static void startServer() {
         server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
         server.start();
-        api = new StockPriceApi(RestClient.builder(), server.baseUrl(), ENCODED_KEY,
-                Clock.fixed(NOW, ZoneId.of("Asia/Seoul")), null);
     }
 
-    @AfterEach
-    void stopServer() {
+    @AfterAll
+    static void stopServer() {
         server.stop();
+    }
+
+    @BeforeEach
+    void resetAndBuild() {
+        // 스텁·요청기록·시나리오를 함께 비운다 — 서버는 그대로 두고 상태만 되돌린다
+        server.resetAll();
+        api = new StockPriceApi(RestClient.builder(), server.baseUrl(), ENCODED_KEY,
+                Clock.fixed(NOW, ZoneId.of("Asia/Seoul")), null);
     }
 
     private void stub(String basDt, String body) {
