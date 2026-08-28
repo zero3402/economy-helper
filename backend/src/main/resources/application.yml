@@ -536,6 +536,10 @@ economy-helper:
     # 비어 있으면 검증하지 않는다 — 로컬·테스트용이고, 배포 환경에서는 반드시 채운다
     webhook-secret: ${TELEGRAM_WEBHOOK_SECRET:}
     base-url: https://api.telegram.org
+    # 같은 방에 연달아 보낼 때 **발송 시작 사이**의 최소 간격 — 텔레그램 권고가 초당 한 통이다.
+    # ⚠️ 「통 사이에 자는 시간」이 아니다. 앞 통의 HTTP(실측 764ms)를 뺀 나머지만 기다린다.
+    #    통마다 1초를 잤던 때는 브리핑 24통에 18초를 그냥 잠들어 있었다.
+    min-interval: 1s
 
 resilience4j:
   circuitbreaker:

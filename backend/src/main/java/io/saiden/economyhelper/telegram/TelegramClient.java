@@ -7,6 +7,9 @@ import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import java.time.Duration;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -52,38 +55,79 @@ public class TelegramClient {
      */
     private static final int MAX_CAPTION_LENGTH = 1024;
 
-    /**
-     * 같은 방에 연달아 보낼 때 쉬는 간격.
-     *
-     * <p>텔레그램은 같은 채팅방에 <b>초당 한 통</b>을 권고한다. 붙여 쏘면 429와
-     * {@code retry_after}를 맞을 수 있는데, 그냥 쉬어 가는 편이 재시도 로직을 얹는 것보다
-     * 단순하고 확실하다. <b>브리핑과 검색이 같은 값을 쓴다</b> — 둘 다 여러 통을 연달아 보낸다.
-     */
-    private static final Duration BETWEEN_MESSAGES = Duration.ofSeconds(1);
-
-    /** 다음 통을 보내기 전에 쉰다. 인터럽트는 삼키지 않고 플래그를 되살린다. */
-    public static void pause() {
-        try {
-            Thread.sleep(BETWEEN_MESSAGES.toMillis());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-    }
+    /** 닫아 줄 태그 — {@link #closeOpenTags}. 자르기가 되풀이되므로 한 번만 컴파일한다. */
+    private static final Pattern TAG = Pattern.compile("<(/?)(b|i|code|pre|a|blockquote)\\b[^>]*>");
 
     private final RestClient restClient;
     private final String botToken;
     private final String defaultChatId;
     private final Integer noticeTopicId;
 
+    /**
+     * 같은 방에 연달아 보낼 때 <b>발송 시작 사이</b>의 최소 간격.
+     *
+     * <p>텔레그램은 같은 채팅방에 <b>초당 한 통</b>을 권고한다. 붙여 쏘면 429와
+     * {@code retry_after}를 맞을 수 있는데, 간격을 지키는 편이 재시도에 기대는 것보다 단순하고 확실하다.
+     *
+     * <p>⚠️ <b>「통 사이에 1초를 잔다」가 아니다 — 그렇게 했었다.</b> 호출부가 통마다
+     * {@code Thread.sleep(1초)}를 넣었는데, 앞 통의 HTTP(실측 764ms)와 <b>합산</b>돼 통마다 1.8초가 됐다.
+     * 브리핑 24통이면 18초를 그냥 잠들어 있었고 {@code /news} 다섯 통은 4초였다. 지금은 방마다
+     * 「마지막 발송 시작 + 간격」을 기억해 <b>남은 만큼만</b> 기다린다 — 권고는 그대로 지키고 잠은 줄어든다.
+     * 간격을 지키는 자리가 호출부에서 여기로 온 것도 값이다: 부르는 쪽이 「쉬어야 한다」를 기억할 필요가 없다.
+     *
+     * <p>{@code KisThrottle}과 같은 모양(공평한 락 + {@code nextAllowed})이되 <b>방마다 하나</b>다 —
+     * 권고가 방 단위라서다. 다른 방으로 가는 통은 서로 기다리지 않는다.
+     */
+    private final long intervalNanos;
+    private final ConcurrentHashMap<String, ChatGate> gates = new ConcurrentHashMap<>();
+
+    /**
+     * @param minInterval 같은 방에 연달아 보낼 때 발송 시작 사이의 최소 간격. 테스트는 0으로 끈다
+     */
     public TelegramClient(RestClient.Builder builder,
                           @Value("${economy-helper.telegram.base-url}") String baseUrl,
                           @Value("${economy-helper.telegram.bot-token:}") String botToken,
                           @Value("${economy-helper.telegram.chat-id:}") String defaultChatId,
-                          @Value("${economy-helper.telegram.notice-topic-id:}") String noticeTopicId) {
+                          @Value("${economy-helper.telegram.notice-topic-id:}") String noticeTopicId,
+                          @Value("${economy-helper.telegram.min-interval:1s}") Duration minInterval) {
         this.restClient = builder.baseUrl(baseUrl).build();
         this.botToken = botToken;
         this.defaultChatId = defaultChatId;
         this.noticeTopicId = topicId(noticeTopicId);
+        this.intervalNanos = Math.max(0, minInterval.toNanos());
+    }
+
+    /** 그 방의 앞 통과 간격이 벌어질 때까지 기다린다 — 실제 HTTP 호출 직전에 부른다. */
+    private void pace(String chatId) {
+        if (intervalNanos == 0) {
+            return;
+        }
+        gates.computeIfAbsent(chatId == null ? "" : chatId, key -> new ChatGate()).pace(intervalNanos);
+    }
+
+    /**
+     * 방 하나의 문. {@code synchronized}가 아닌 이유는 가상 스레드다 — 그 안에서 자면 캐리어가 핀 된다.
+     * <b>HTTP 호출 동안 잡고 있지 않는다</b> — 간격만 지키면 되고, 같은 방의 다른 답을 줄 세울 이유는 없다.
+     */
+    private static final class ChatGate {
+        private final ReentrantLock lock = new ReentrantLock(true);
+        private long nextAllowed = System.nanoTime();
+
+        void pace(long intervalNanos) {
+            lock.lock();
+            try {
+                long waitNanos = nextAllowed - System.nanoTime();
+                if (waitNanos > 0) {
+                    Thread.sleep(Duration.ofNanos(waitNanos));
+                }
+                nextAllowed = System.nanoTime() + intervalNanos;
+            } catch (InterruptedException e) {
+                // 인터럽트는 삼키지 않고 플래그를 되살린다 — 종료 신호가 무시되면 컨테이너가 강제 종료된다
+                Thread.currentThread().interrupt();
+            } finally {
+                lock.unlock();
+            }
+        }
     }
 
     /**
@@ -143,6 +187,7 @@ public class TelegramClient {
     @Retry(name = "telegram")
     @CircuitBreaker(name = "telegram")
     public void send(String chatId, Integer topicId, Integer replyTo, String text, boolean preview) {
+        pace(chatId);
         call("sendMessage", new SendMessage(chatId, topicId, truncate(text), "HTML", !preview,
                 replyTo, replyTo == null ? null : true), SendAck.class);
     }
@@ -179,8 +224,8 @@ public class TelegramClient {
      *
      * <p>⚠️ <b>{@code send}를 자기 주입으로 부르지 않는다.</b> 이 클래스의 재시도·브레이커는
      * 바깥에서 불린 하나만 걸리는데, 프록시를 타게 만들면 재시도가 겹쳐 <b>한 통이 최대 아홉 번</b>
-     * 나간다(클래스 javadoc의 경고). 사진과 글은 각자 제 호출로 나가고, 사이에
-     * {@link #pause()}를 두는 것은 부르는 쪽의 몫이다 — 같은 방에 초당 한 통이다.
+     * 나간다(클래스 javadoc의 경고). 사진과 글은 각자 제 호출로 나가고, 같은 방에 초당 한 통은
+     * {@link #pace}가 방마다 지킨다 — 부르는 쪽이 사이를 쉴 일은 없다.
      *
      * @param png 그림 바이트. <b>비어 있으면 아무것도 보내지 않는다</b> — 점이 하나뿐인
      *            계열에서 {@code ChartRenderer}가 빈 배열을 준다
@@ -193,6 +238,7 @@ public class TelegramClient {
             // 그릴 것이 없었다는 뜻이다. 빈 사진을 보내는 것보다 안 보내는 것이 맞다
             return;
         }
+        pace(chatId);
         org.springframework.util.MultiValueMap<String, Object> parts =
                 new org.springframework.util.LinkedMultiValueMap<>();
         parts.add("chat_id", chatId);
@@ -407,8 +453,7 @@ public class TelegramClient {
     /** 열린 채 남은 태그를 닫는다. 여는 순서의 역순으로 닫아야 중첩이 맞는다. */
     private static String closeOpenTags(String html) {
         java.util.Deque<String> open = new java.util.ArrayDeque<>();
-        java.util.regex.Matcher m = java.util.regex.Pattern
-                .compile("<(/?)(b|i|code|pre|a|blockquote)\\b[^>]*>").matcher(html);
+        java.util.regex.Matcher m = TAG.matcher(html);
         while (m.find()) {
             if (m.group(1).isEmpty()) {
                 open.push(m.group(2));

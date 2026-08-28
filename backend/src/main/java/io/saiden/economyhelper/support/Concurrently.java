@@ -5,6 +5,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * 외부 호출 여럿을 <b>동시에</b> 돌리고 결과를 순서대로 모은다.
@@ -42,6 +43,23 @@ public final class Concurrently {
             return futures.stream().map(Concurrently::join).toList();
         }
     }
+
+    /**
+     * 종류가 다른 둘을 동시에 — {@code FmpUsOutlookClient}가 목표가와 실적발표일을 겹칠 때 쓴다.
+     *
+     * <p>{@link #map}은 한 타입의 목록이라 모양이 다른 둘을 담으려면 {@code Object}로 뭉쳐야 했다.
+     * 둘째가 던지면 첫째 결과도 함께 버려진다 — 「살아 있는 것은 살린다」가 필요한 자리는
+     * 각자 안에서 실패를 삼키고 값으로 돌려준다({@code Fetched}가 그 모양이다).
+     */
+    public static <A, B> Pair<A, B> both(Supplier<A> first, Supplier<B> second) {
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            Future<A> a = executor.submit(first::get);
+            Future<B> b = executor.submit(second::get);
+            return new Pair<>(join(a), join(b));
+        }
+    }
+
+    public record Pair<A, B>(A first, B second) {}
 
     /**
      * <p>인터럽트를 삼키지 않는다 — 삼키면 종료 신호가 무시돼 배포 때 컨테이너가

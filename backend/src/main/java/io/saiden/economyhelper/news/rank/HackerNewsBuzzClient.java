@@ -1,6 +1,7 @@
 package io.saiden.economyhelper.news.rank;
 
 import io.saiden.economyhelper.news.Article;
+import io.saiden.economyhelper.support.Concurrently;
 import io.saiden.economyhelper.support.FailureReason;
 import java.time.Duration;
 import java.time.Instant;
@@ -39,6 +40,28 @@ public class HackerNewsBuzzClient {
     }
 
     /**
+     * 도메인 하나의 buzz — <b>실패는 빈 맵으로 강등한다.</b>
+     *
+     * <p>⚠️ 강등이 여기 있는 이유가 있다. 예전에는 HackerNewsApi가 스스로 삼켜 빈 맵을
+     * 돌려줬는데, 그러면 그 메서드의 {@code @CircuitBreaker}가 <b>정상 반환을 보고 성공을
+     * 센다</b> — 실패율이 영원히 0이라 브레이커가 절대 열리지 않았다. 한 칸 위인
+     * 여기서 잡으면 브레이커가 실패를 먼저 세고, 열린 뒤에는
+     * CallNotPermittedException이 같은 자리에 걸려 같은 강등이 일어난다.
+     * 즉 사용자에게 보이는 결과는 그대로이고 브레이커만 살아난다.
+     * 도메인마다 잡는 것도 뜻이 있다 — 바깥에서 한 번 잡으면 첫 실패가 뒤의 매체를 통째로 버린다
+     * ({@code Concurrently.map}은 실패를 감추지 않으므로 여기서 잡아야 한다).
+     */
+    private Map<String, Integer> buzzOf(String domain, Instant since) {
+        try {
+            return api.storiesForDomain(domain, since);
+        } catch (RuntimeException e) {
+            log.warn("[{}] HN 조회 실패 — 이 도메인의 buzz를 0으로 강등합니다: {}",
+                    domain, FailureReason.of(e));
+            return Map.of();
+        }
+    }
+
+    /**
      * {@code 기사 링크 -> points + num_comments}. HN에 없는 기사는 아예 담기지 않는다
      * ({@link PopularityScorer}가 0으로 본다).
      */
@@ -62,23 +85,12 @@ public class HackerNewsBuzzClient {
         }
 
         Instant since = now.minus(window);
+        // 도메인마다 한 호출이고 서로를 모른다 — 겹친다. /news 검색은 여덟 피드의 기사를 한 번에
+        // 넘기므로 도메인이 일곱까지 되고, 콜드 응답이 1.6초(117KB)라 순차면 최대 10초를 기다렸다.
+        // hackerNews에는 리미터가 없고 브레이커만 있어 겹쳐도 막을 것이 없다
         Map<String, Integer> byNormalizedUrl = new HashMap<>();
-        for (String domain : domains) {
-            try {
-                byNormalizedUrl.putAll(api.storiesForDomain(domain, since));
-            } catch (RuntimeException e) {
-                // ⚠️ 강등이 여기 있는 이유가 있다. 예전에는 HackerNewsApi가 스스로 삼켜 빈 맵을
-                //    돌려줬는데, 그러면 그 메서드의 @CircuitBreaker가 **정상 반환을 보고 성공을
-                //    센다** — 실패율이 영원히 0이라 브레이커가 절대 열리지 않았다. 한 칸 위인
-                //    여기서 잡으면 브레이커가 실패를 먼저 세고, 열린 뒤에는
-                //    CallNotPermittedException이 같은 자리에 걸려 같은 강등이 일어난다.
-                //    즉 사용자에게 보이는 결과는 그대로이고 브레이커만 살아난다.
-                //    도메인마다 잡는 것도 뜻이 있다 — 루프 밖에서 한 번 잡으면 첫 실패가
-                //    뒤의 매체를 통째로 버린다
-                log.warn("[{}] HN 조회 실패 — 이 도메인의 buzz를 0으로 강등합니다: {}",
-                        domain, FailureReason.of(e));
-            }
-        }
+        Concurrently.map(List.copyOf(domains), domain -> buzzOf(domain, since))
+                .forEach(byNormalizedUrl::putAll);
 
         Map<String, Integer> byLink = new HashMap<>();
         for (Article article : articles) {

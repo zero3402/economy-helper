@@ -8,6 +8,7 @@ import io.saiden.economyhelper.config.CacheNames;
 import io.saiden.economyhelper.market.StockOutlook;
 import io.saiden.economyhelper.market.StockSource;
 import io.saiden.economyhelper.market.UsOutlookClient;
+import io.saiden.economyhelper.support.Concurrently;
 import io.saiden.economyhelper.support.FailureReason;
 import java.math.BigDecimal;
 import java.net.URI;
@@ -109,9 +110,14 @@ public class FmpUsOutlookClient implements UsOutlookClient {
             throw new IllegalStateException("FMP API 키가 없습니다");
         }
 
-        Fetched<Target> target = fetch(TARGET, symbol,
-                new ParameterizedTypeReference<List<Target>>() {});
-        Fetched<List<Earnings>> schedule = earnings(symbol);
+        // 두 호출은 서로를 모른다 — 겹치면 콜드 1.7초 둘이 하나가 된다(실측 p50 1,678ms).
+        // 리미터는 이 메서드에 걸려 있어 퍼밋 수는 그대로고, FmpQuotaGuard는 Redis INCR라 안전하다.
+        // 각자 실패를 값(Fetched.failed)으로 삼키므로 한쪽이 죽어도 다른 쪽이 버려지지 않는다
+        Concurrently.Pair<Fetched<Target>, Fetched<List<Earnings>>> fetched = Concurrently.both(
+                () -> fetch(TARGET, symbol, new ParameterizedTypeReference<List<Target>>() {}),
+                () -> earnings(symbol));
+        Fetched<Target> target = fetched.first();
+        Fetched<List<Earnings>> schedule = fetched.second();
         // ⚠️ **빈 배열과 조회 실패를 구분해야 한다.** 둘을 다 null로 뭉치면 「목표가를 낸 곳이
         //    없다」(값)와 「못 물어봤다」(실패)가 같아지고, 그러면 브레이커가 실패를 못 본다.
         //    처음에 그렇게 써 뒀고 FmpUsOutlookClientTest가 그것을 잡았다

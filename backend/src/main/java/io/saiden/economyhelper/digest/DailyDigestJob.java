@@ -47,8 +47,8 @@ import org.springframework.stereotype.Component;
  * 마지막 기사 것처럼 보인다 — 실제로 그렇게 나갔다.
  *
  * <p>뉴스가 열 건인 것은 코인 다섯 + 경제 다섯이기 때문이다({@code NewsService.digest}).
- * 통마다 1초를 쉬므로 텍스트만 ~13초, 차트까지 20초대인데 <b>발송 창이 두 시간</b>이라
- * 늦어지는 것이 문제가 되지 않는다.
+ * 같은 방에 초당 한 통이라(간격은 {@code TelegramClient}가 지킨다) 스물네 통이 ~25초인데
+ * <b>발송 창이 두 시간</b>이라 늦어지는 것이 문제가 되지 않는다.
  *
  * <p><b>부분 실패를 허용한다.</b> 넷 중 하나가 죽어도 나머지는 나간다 — 환율이 안 된다고
  * 뉴스까지 막을 이유가 없다. <b>전부 실패했을 때만</b> 슬롯을 되돌려 다음 시도를 열어 둔다.
@@ -163,7 +163,7 @@ public class DailyDigestJob extends TriggerableJob {
                 // 기사마다 통을 쪼개므로 통마다 그 기사의 카드가 붙는다
                 section("뉴스", this::newsMessages, true)), Supplier::get);
 
-        // 발송은 순서대로 — 텔레그램이 같은 방에 초당 한 통을 권고한다(BETWEEN_MESSAGES)
+        // 발송은 순서대로 — 텔레그램이 같은 방에 초당 한 통을 권고한다(TelegramClient가 간격을 지킨다)
         for (Section section : sections) {
             send(section, delivered, failed);
         }
@@ -401,11 +401,9 @@ public class DailyDigestJob extends TriggerableJob {
             return;
         }
         try {
-            // 통이 여럿이어도 간격은 하나의 규칙이다 — 앞서 보낸 것이 있으면 쉬고 보낸다
+            // 같은 방에 초당 한 통은 TelegramClient가 방마다 지킨다 — 여기서는 순서만 정한다.
+            // 예전에는 통마다 1초를 잤고 그것이 HTTP 시간과 합산돼 브리핑 24통에 18초를 더 태웠다
             for (String text : section.texts()) {
-                if (!delivered.isEmpty()) {
-                    TelegramClient.pause();
-                }
                 telegram.send(text, section.preview());
                 // 통 단위가 아니라 이름 단위로 센다. 뉴스 세 통이 '뉴스'로 한 번만 남아야
                 // 결과가 "무엇이 나갔나"로 읽힌다
@@ -413,9 +411,8 @@ public class DailyDigestJob extends TriggerableJob {
                     delivered.add(section.name());
                 }
             }
-            // 사진은 글 다음에 종목마다 한 장씩 — 같은 방에 초당 한 통이라 사이를 쉰다
+            // 사진은 글 다음에 종목마다 한 장씩
             for (ChartImage chart : section.charts()) {
-                TelegramClient.pause();
                 telegram.sendPhoto(chart.png(), chart.caption());
             }
         } catch (RuntimeException e) {

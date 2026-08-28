@@ -11,6 +11,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
+import java.time.Duration;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -124,7 +125,7 @@ class TelegramClientTest {
     @DisplayName("토픽 ID가 숫자가 아니면 기동에서 실패한다 — 발송 때 터지면 그날 브리핑을 통째로 잃는다")
     void rejectsNonNumericTopicIdAtStartup() {
         assertThatThrownBy(() -> new TelegramClient(
-                RestClient.builder(), server.baseUrl(), "test-token", "default-chat", "토픽3"))
+                RestClient.builder(), server.baseUrl(), "test-token", "default-chat", "토픽3", Duration.ZERO))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("토픽3");
 
@@ -197,8 +198,54 @@ class TelegramClientTest {
     }
 
     private TelegramClient client() {
+        return client(Duration.ZERO);
+    }
+
+    private TelegramClient client(Duration minInterval) {
         return new TelegramClient(
-                RestClient.builder(), server.baseUrl(), "test-token", "default-chat", "3");
+                RestClient.builder(), server.baseUrl(), "test-token", "default-chat", "3", minInterval);
+    }
+
+    @Test
+    @DisplayName("같은 방의 두 통은 발송 시작이 간격 이상 벌어진다 — 초당 한 통 권고를 클라이언트가 지킨다")
+    void pacesConsecutiveMessagesToTheSameChat() {
+        TelegramClient paced = client(Duration.ofMillis(400));
+
+        long started = System.nanoTime();
+        paced.send("12345", null, null, "첫 통");
+        paced.send("12345", null, null, "둘째 통");
+        paced.sendPhoto("12345", null, null, new byte[] {1}, "사진");
+
+        assertThat(Duration.ofNanos(System.nanoTime() - started))
+                .as("셋째 통의 시작은 첫 통에서 간격 두 배 뒤다")
+                .isGreaterThanOrEqualTo(Duration.ofMillis(800));
+    }
+
+    @Test
+    @DisplayName("다른 방으로 가는 통은 서로 기다리지 않는다 — 권고가 방 단위다")
+    void neverPacesAcrossChats() {
+        TelegramClient paced = client(Duration.ofSeconds(3));
+
+        long started = System.nanoTime();
+        paced.send("12345", null, null, "이 방");
+        paced.send("67890", null, null, "저 방");
+
+        assertThat(Duration.ofNanos(System.nanoTime() - started))
+                .as("두 방이면 간격을 한 번도 기다리지 않는다")
+                .isLessThan(Duration.ofSeconds(3));
+    }
+
+    @Test
+    @DisplayName("빈 사진은 간격도 쓰지 않는다 — 보내지 않는 것에 줄을 세울 이유가 없다")
+    void emptyPhotoNeitherSendsNorPaces() {
+        TelegramClient paced = client(Duration.ofSeconds(3));
+
+        long started = System.nanoTime();
+        paced.sendPhoto("12345", null, null, new byte[0], "없는 사진");
+        paced.send("12345", null, null, "글");
+
+        assertThat(Duration.ofNanos(System.nanoTime() - started)).isLessThan(Duration.ofSeconds(3));
+        assertThat(server.findAll(postRequestedFor(anyUrl()))).hasSize(1);
     }
 
     @Test

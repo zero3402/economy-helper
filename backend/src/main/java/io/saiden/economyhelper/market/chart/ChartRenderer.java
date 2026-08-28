@@ -47,6 +47,12 @@ import javax.imageio.ImageIO;
  */
 public final class ChartRenderer {
 
+    static {
+        // ImageIO는 기본값으로 쓰기마다 java.io.tmpdir에 임시 파일을 만든다(FileCacheImageOutputStream).
+        // 640×240 PNG를 메모리 스트림에 쓰는 데 디스크를 거칠 이유가 없다 — 브리핑 한 번에 열 장이다
+        ImageIO.setUseCache(false);
+    }
+
     /** 텔레그램이 사진을 폭에 맞춰 늘리므로 너무 작으면 흐려진다. */
     private static final int WIDTH = 640;
     private static final int HEIGHT = 240;

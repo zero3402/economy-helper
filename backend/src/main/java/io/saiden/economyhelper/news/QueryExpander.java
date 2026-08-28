@@ -9,6 +9,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import io.saiden.economyhelper.support.Concurrently;
 import io.saiden.economyhelper.support.FailureReason;
 
 /**
@@ -31,11 +32,10 @@ public class QueryExpander {
     }
 
     public List<KeywordGroup> expand(String query) {
-        List<KeywordGroup> groups = new ArrayList<>();
-        for (String token : tokenize(query)) {
-            groups.add(groupFor(token));
-        }
-        return List.copyOf(groups);
+        // 토큰마다 Gemini 한 번이고 서로를 모른다 — 겹친다. 「비트코인 금리」가 순차면 번역 둘이
+        // 줄줄이 2~5초였다. 리미터(12/60초)는 퍼밋 수를 세므로 겹쳐도 소비량은 같고,
+        // groupFor가 실패를 원문 토큰으로 삼키므로 하나가 죽어도 나머지가 산다
+        return Concurrently.map(tokenize(query), this::groupFor);
     }
 
     private KeywordGroup groupFor(String token) {

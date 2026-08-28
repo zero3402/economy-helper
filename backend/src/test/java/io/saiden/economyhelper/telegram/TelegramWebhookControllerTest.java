@@ -899,7 +899,7 @@ class TelegramWebhookControllerTest {
         }
 
         private RecordingClient(String rejectContaining) {
-            super(RestClient.builder(), "https://example.invalid", "token", "default-chat", "");
+            super(RestClient.builder(), "https://example.invalid", "token", "default-chat", "", java.time.Duration.ZERO);
             this.rejectContaining = rejectContaining;
         }
 

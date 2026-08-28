@@ -40,6 +40,42 @@ class ConcurrentlyTest {
     }
 
     @Test
+    @DisplayName("종류가 다른 둘도 겹친다 — 서로를 기다리게 해 두고 둘 다 풀리는지로 본다")
+    void runsTwoDifferentlyTypedTasksConcurrently() {
+        CountDownLatch bothStarted = new CountDownLatch(2);
+
+        Concurrently.Pair<Boolean, String> pair = Concurrently.both(
+                () -> {
+                    bothStarted.countDown();
+                    return await(bothStarted);
+                },
+                () -> {
+                    bothStarted.countDown();
+                    return await(bothStarted) ? "둘째" : "혼자";
+                });
+
+        assertThat(pair.first()).isTrue();
+        assertThat(pair.second()).isEqualTo("둘째");
+    }
+
+    @Test
+    @DisplayName("둘 중 하나가 던지면 그대로 올린다 — 살릴 것은 각자 안에서 값으로 삼켜야 한다")
+    void bothPropagatesFailure() {
+        assertThatThrownBy(() -> Concurrently.both(() -> 1, () -> {
+            throw new IllegalStateException("둘째 죽음");
+        })).isInstanceOf(IllegalStateException.class).hasMessage("둘째 죽음");
+    }
+
+    private static boolean await(CountDownLatch latch) {
+        try {
+            return latch.await(5, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
+    }
+
+    @Test
     @DisplayName("실패를 감추지 않는다 — '하나 죽어도 나머지는' 판단은 호출자마다 다르다")
     void propagatesFailure() {
         assertThatThrownBy(() -> Concurrently.map(List.of(1, 2, 3), n -> {

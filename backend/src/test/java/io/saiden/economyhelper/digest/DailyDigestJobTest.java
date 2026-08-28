@@ -600,7 +600,7 @@ class DailyDigestJobTest {
         final List<String> order = new ArrayList<>();
 
         RecordingClient() {
-            super(RestClient.builder(), "https://example.invalid", "token", "chat", "");
+            super(RestClient.builder(), "https://example.invalid", "token", "chat", "", java.time.Duration.ZERO);
         }
 
         @Override

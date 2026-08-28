@@ -201,21 +201,16 @@ public class TelegramWebhookController {
             sendQuietly(chatId, topicId, replyTo, MessageLayout.unavailable(command.command()), false);
             return;
         }
-        boolean first = true;
+        // 뉴스 검색은 기사마다 한 통이다(브리핑과 같은 규칙). 같은 방에 초당 한 통은
+        // TelegramClient가 방마다 지키므로 여기서 쉴 일은 없다 — 예전에는 통마다 1초를 잤고
+        // 그것이 앞 통의 HTTP 시간과 합산돼 /news 다섯 통에 4초를 더 태웠다
         for (String part : reply.texts()) {
-            // 뉴스 검색은 기사마다 한 통이다(브리핑과 같은 규칙). 텔레그램이 같은 방에
-            // 초당 한 통을 권고하므로 브리핑과 같은 간격으로 쉬어 간다
-            if (!first) {
-                TelegramClient.pause();
-            }
-            first = false;
             // 통마다 따로 실패한다 — 예전에는 2번 통이 던지면 3번은 시도조차 못 해
             // /news 3건 중 1건만 받고 왜 그런지 알 길이 없었다
             sendQuietly(chatId, topicId, replyTo, part, reply.preview());
         }
         if (reply.chart() != null) {
-            // 같은 방에 초당 한 통 — 글 다음에 사진이므로 여기서도 쉬어 간다
-            TelegramClient.pause();
+            // 글 다음에 사진 — 순서만 여기서 정하고 간격은 클라이언트가 지킨다
             sendChartQuietly(chatId, topicId, replyTo, reply.chart());
         }
 
