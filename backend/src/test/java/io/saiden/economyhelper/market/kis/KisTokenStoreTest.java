@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market.kis;
 
+import io.saiden.economyhelper.support.WireMockTest;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
@@ -7,16 +8,11 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
-import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import java.time.Clock;
 import java.lang.reflect.Proxy;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -32,34 +28,12 @@ import org.springframework.web.client.RestClient;
  * <p>{@code redis}에 {@code null}을 넣어 <b>Redis가 죽은 상황</b>을 만든다. 그때도 프로세스
  * 사본으로 돌아야 한다 — 발급이 비싸서 {@code FmpQuotaGuard}와 반대 방향으로 판단한 자리다.
  */
-class KisTokenStoreTest {
+@WireMockTest.WireMockOptions(http2PlainDisabled = true)
+class KisTokenStoreTest extends WireMockTest {
 
     private static final String PATH = "/oauth2/tokenP";
     /** KST 2026-08-18 17:00. */
     private static final Instant NOW = Instant.parse("2026-08-18T08:00:00Z");
-
-    /** 클래스당 하나다 — 테스트마다 띄우고 내리면 포트 재활용 창이 열린다(ARCHITECTURE.md §6). */
-    private static WireMockServer server;
-
-    @BeforeAll
-    static void startServer() {
-        // h2c를 끈다 — JDK HttpClient가 HTTP/2를 먼저 시도하는데 WireMock의 평문 h2 구현과
-        // 맞지 않아 POST 본문이 "no bytes"로 떨어진다. TelegramClientTest가 같은 이유로 끈다
-        server = new WireMockServer(WireMockConfiguration.options().dynamicPort()
-                .http2PlainDisabled(true));
-        server.start();
-    }
-
-    @AfterAll
-    static void stopServer() {
-        server.stop();
-    }
-
-    @BeforeEach
-    void resetStubs() {
-        // 스텁·요청기록·시나리오를 함께 비운다 — 서버는 그대로 두고 상태만 되돌린다
-        server.resetAll();
-    }
 
     private void stub(String body) {
         server.stubFor(post(urlPathEqualTo(PATH)).willReturn(aResponse().withStatus(200)

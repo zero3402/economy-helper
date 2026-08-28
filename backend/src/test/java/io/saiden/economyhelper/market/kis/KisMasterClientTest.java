@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market.kis;
 
+import io.saiden.economyhelper.support.WireMockTest;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
@@ -8,8 +9,6 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.github.tomakehurst.wiremock.WireMockServer;
-import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import io.saiden.economyhelper.market.kis.KisMasterClient.Listing;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -18,8 +17,6 @@ import java.nio.charset.Charset;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -30,28 +27,14 @@ import org.springframework.web.client.RestClient;
  * <b>한 글자</b> 다르다. 여기 픽스처의 행은 실물 행을 같은 자리·같은 길이로 다시 만든 것이다.
  * 코드·이름·그룹·시가총액은 그날 파일의 값 그대로다.
  */
-class KisMasterClientTest {
+class KisMasterClientTest extends WireMockTest {
 
     private static final Charset CP949 = Charset.forName("MS949");
 
-    /** 클래스당 하나다 — 테스트마다 띄우고 내리면 포트 재활용 창이 열린다(ARCHITECTURE.md §6). */
-    private static WireMockServer server;
     private KisMasterClient client;
-
-    @BeforeAll
-    static void startServer() {
-        server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
-        server.start();
-    }
-
-    @AfterAll
-    static void stopServer() {
-        server.stop();
-    }
 
     @BeforeEach
     void resetAndBuild() {
-        server.resetAll();
         client = new KisMasterClient(RestClient.builder(), server.baseUrl());
     }
 

@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market.fmp;
 
+import io.saiden.economyhelper.support.WireMockTest;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
@@ -7,12 +8,8 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
-import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import io.saiden.economyhelper.market.fmp.FmpApi.FmpQuote;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,31 +21,16 @@ import org.springframework.web.client.RestClient;
  * <p>가장 중요한 건 <b>키가 쿼리에 실린다</b>는 점이다 — 예외 메시지로 새면
  * 로그·모니터링을 타고 그대로 유출된다({@code KeximFxClient}·{@code StockPriceApi}와 같은 규칙).
  */
-class FmpApiTest {
+class FmpApiTest extends WireMockTest {
 
     private static final String API_KEY = "secret-key-1234";
     private static final String PATH = "/stable/quote";
 
-    /** 클래스당 하나다 — 테스트마다 띄우고 내리면 포트 재활용 창이 열린다(ARCHITECTURE.md §6). */
-    private static WireMockServer server;
     private FmpApi api;
     private CountingGuard guard;
 
-    @BeforeAll
-    static void startServer() {
-        server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
-        server.start();
-    }
-
-    @AfterAll
-    static void stopServer() {
-        server.stop();
-    }
-
     @BeforeEach
     void resetAndBuild() {
-        // 스텁·요청기록·시나리오를 함께 비운다 — 서버는 그대로 두고 상태만 되돌린다
-        server.resetAll();
         guard = new CountingGuard(true);
         api = new FmpApi(RestClient.builder(), server.baseUrl(), API_KEY, guard);
     }

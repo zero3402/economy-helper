@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.news.rank;
 
+import io.saiden.economyhelper.support.WireMockTest;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
@@ -7,13 +8,8 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.github.tomakehurst.wiremock.WireMockServer;
-import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import java.time.Instant;
 import java.util.Map;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.HttpServerErrorException;
@@ -36,27 +32,9 @@ import org.springframework.web.client.RestClient;
  * {@link HackerNewsBuzzClient}가 한다 — 그래야 브레이커가 실패를 먼저 본다.
  * {@code FeedFetcher}가 같은 함정을 javadoc으로 경고해 뒀는데 옆 파일이 그것에 물렸다.
  */
-class HackerNewsApiTest {
+class HackerNewsApiTest extends WireMockTest {
 
     private static final String PATH = "/api/v1/search";
-
-    private static WireMockServer server;
-
-    @BeforeAll
-    static void startServer() {
-        server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
-        server.start();
-    }
-
-    @AfterAll
-    static void stopServer() {
-        server.stop();
-    }
-
-    @BeforeEach
-    void resetServer() {
-        server.resetAll();
-    }
 
     private HackerNewsApi api() {
         return new HackerNewsApi(RestClient.builder(), server.baseUrl(), 100);

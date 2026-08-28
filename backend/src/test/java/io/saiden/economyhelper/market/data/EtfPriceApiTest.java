@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market.data;
 
+import io.saiden.economyhelper.support.WireMockTest;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
@@ -7,15 +8,11 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
-import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import io.saiden.economyhelper.market.data.StockPriceApi.StockPrice;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -25,7 +22,7 @@ import org.springframework.web.client.RestClient;
  * 증권상품시세정보(ETF)를 실제로 호출해 확인한 것들(2026-08-28, 활용신청 승인 뒤)을 고정한다.
  * 스텁 본문은 그날 받은 응답을 줄인 것이다 — 필드 이름과 값이 그대로다({@code fltRt}가 {@code -.14}).
  */
-class EtfPriceApiTest {
+class EtfPriceApiTest extends WireMockTest {
 
     private static final String ENCODED_KEY = "abc%2Bdef%2Fghi%3D%3D";
     /** 2026-08-28(목) 12:00 KST. 어제(27일)부터 되짚는다. */
@@ -46,23 +43,10 @@ class EtfPriceApiTest {
             {"OpenAPI_ServiceResponse":{"cmmMsgHeader":{"errMsg":"SERVICE_KEY_IS_NOT_REGISTERED_ERROR",
              "returnAuthMsg":"등록되지 않은 서비스키","returnReasonCode":"30"}}}""";
 
-    private static WireMockServer server;
     private EtfPriceApi api;
-
-    @BeforeAll
-    static void startServer() {
-        server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
-        server.start();
-    }
-
-    @AfterAll
-    static void stopServer() {
-        server.stop();
-    }
 
     @BeforeEach
     void resetAndBuild() {
-        server.resetAll();
         api = new EtfPriceApi(RestClient.builder(), server.baseUrl(), ENCODED_KEY,
                 Clock.fixed(NOW, ZoneId.of("Asia/Seoul")), null);
     }

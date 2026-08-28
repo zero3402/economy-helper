@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market.fmp;
 
+import io.saiden.economyhelper.support.WireMockTest;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
@@ -7,16 +8,12 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.github.tomakehurst.wiremock.WireMockServer;
-import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import io.saiden.economyhelper.market.StockOutlook;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -31,7 +28,7 @@ import org.springframework.web.client.RestClient;
  * <p>⚠️ <b>{@code grades-consensus}는 더 이상 부르지 않는다.</b> 투자의견을 화면에서 걷어내면서
  * 그 호출과 등급 정규화 테스트를 함께 지웠다 — 심볼당 호출이 셋에서 둘로 줄었다.
  */
-class FmpUsOutlookClientTest {
+class FmpUsOutlookClientTest extends WireMockTest {
 
     private static final String TARGET = "/stable/price-target-consensus";
     private static final String EARNINGS = "/stable/earnings";
@@ -56,23 +53,6 @@ class FmpUsOutlookClientTest {
      * {@code RetryLiveTest}와 {@code HackerNewsApiTest}가 같은 모양이다.
      * {@code resetAll()}은 스텁과 요청 기록을 함께 비우므로 {@code verify}도 그대로 성립한다.
      */
-    private static WireMockServer server;
-
-    @BeforeAll
-    static void startServer() {
-        server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
-        server.start();
-    }
-
-    @AfterAll
-    static void stopServer() {
-        server.stop();
-    }
-
-    @BeforeEach
-    void resetStubs() {
-        server.resetAll();
-    }
 
     private FmpUsOutlookClient client() {
         return new FmpUsOutlookClient(RestClient.builder(), server.baseUrl(), API_KEY,

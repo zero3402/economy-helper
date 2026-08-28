@@ -6,7 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.config.EconomyHelperProperties.WeatherLocation;
 import io.saiden.economyhelper.digest.DailyDigestJobTest.InMemoryHistory;
-import io.saiden.economyhelper.digest.DailyDigestJobTest.RecordingClient;
+import io.saiden.economyhelper.support.RecordingTelegram;
 import io.saiden.economyhelper.market.weather.GeoLocation;
 import io.saiden.economyhelper.market.weather.SkyCondition;
 import io.saiden.economyhelper.market.weather.Weather;
@@ -45,7 +45,7 @@ class WeatherDigestJobTest {
     @DisplayName("슬롯에 weather- 접두사를 붙인다 — 안 붙이면 9시 브리핑이 조용히 사라진다")
     void neverEatsTheBriefingSlot() {
         InMemoryHistory history = new InMemoryHistory();
-        RecordingClient telegram = new RecordingClient();
+        RecordingTelegram telegram = new RecordingTelegram();
 
         job(telegram, history, alwaysSucceeds()).run(false);
 
@@ -60,7 +60,7 @@ class WeatherDigestJobTest {
     @DisplayName("같은 날 두 번째 틱은 건너뛴다 — 발송 창 안에서 10분마다 돌기 때문이다")
     void sendsOnlyOncePerDay() {
         InMemoryHistory history = new InMemoryHistory();
-        RecordingClient telegram = new RecordingClient();
+        RecordingTelegram telegram = new RecordingTelegram();
         WeatherDigestJob job = job(telegram, history, alwaysSucceeds());
 
         job.run(false);
@@ -74,7 +74,7 @@ class WeatherDigestJobTest {
     @DisplayName("한 곳이 실패해도 나머지는 보낸다 — 한 곳 때문에 아침 알람을 통째로 잃지 않는다")
     void sendsWhatItCouldGather() {
         InMemoryHistory history = new InMemoryHistory();
-        RecordingClient telegram = new RecordingClient();
+        RecordingTelegram telegram = new RecordingTelegram();
 
         // 미금역만 성공하고 나머지 셋은 실패한다
         DigestResult result = job(telegram, history, onlyFor("미금역")).run(false);
@@ -91,7 +91,7 @@ class WeatherDigestJobTest {
     @DisplayName("한 곳도 못 가져오면 슬롯을 되돌린다 — 안 보낸 날을 '보냄'으로 남기면 복구가 안 된다")
     void releasesTheSlotWhenNothingCouldBeSent() {
         InMemoryHistory history = new InMemoryHistory();
-        RecordingClient telegram = new RecordingClient();
+        RecordingTelegram telegram = new RecordingTelegram();
 
         DigestResult result = job(telegram, history, onlyFor("없는곳")).run(false);
 
@@ -103,7 +103,7 @@ class WeatherDigestJobTest {
     @Test
     @DisplayName("알람은 물어본 사람이 없다 — 제목에 검색어를 적지 않는다")
     void alarmTitleCarriesNoQuery() {
-        RecordingClient telegram = new RecordingClient();
+        RecordingTelegram telegram = new RecordingTelegram();
 
         job(telegram, new InMemoryHistory(), alwaysSucceeds()).run(false);
 
@@ -113,7 +113,7 @@ class WeatherDigestJobTest {
     @Test
     @DisplayName("알람은 검색과 글자까지 같은 통이다 — 포매터가 하나이고 알람이 제 것을 덧대지 않는다")
     void rendersExactlyLikeSearch() {
-        RecordingClient telegram = new RecordingClient();
+        RecordingTelegram telegram = new RecordingTelegram();
 
         job(telegram, new InMemoryHistory(), alwaysSucceeds()).run(false);
 
@@ -155,13 +155,13 @@ class WeatherDigestJobTest {
             }
         };
 
-        assertThatThrownBy(() -> job(new RecordingClient(), history, exploding).run(false))
+        assertThatThrownBy(() -> job(new RecordingTelegram(), history, exploding).run(false))
                 .isInstanceOf(AssertionError.class);
 
         assertThat(history.claimed).doesNotContain(SLOT);
     }
 
-    private static WeatherDigestJob job(RecordingClient telegram, InMemoryHistory history,
+    private static WeatherDigestJob job(RecordingTelegram telegram, InMemoryHistory history,
                                         WeatherClient client) {
         WeatherService weather = new WeatherService(List.of(client), clock(), TestWeather.noHourly());
         return new WeatherDigestJob(weather, telegram, history, clock(), properties());

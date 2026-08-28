@@ -1,14 +1,13 @@
 package io.saiden.economyhelper.news.feed;
 
+import io.saiden.economyhelper.support.WireMockTest;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
-import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.github.tomakehurst.wiremock.WireMockServer;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
@@ -29,9 +28,6 @@ import java.time.Instant;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import io.saiden.economyhelper.support.TestFixtures;
 import org.junit.jupiter.api.Test;
@@ -42,7 +38,7 @@ import org.springframework.web.client.RestClient;
  *
  * <p>WireMock으로 매체를 흉내 내므로 외부 네트워크를 타지 않는다.
  */
-class FeedFetcherTest {
+class FeedFetcherTest extends WireMockTest {
 
     /** 픽스처를 뜬 날. 나이 컷오프가 픽스처를 통째로 버리지 않도록 여기에 맞춘다. */
     private static final java.time.Clock CLOCK =
@@ -60,26 +56,6 @@ class FeedFetcherTest {
     private static final java.time.Clock CRYPTO_CLOCK =
             java.time.Clock.fixed(java.time.Instant.parse("2026-08-27T01:00:00Z"),
                     java.time.ZoneOffset.UTC);
-
-    /** 클래스당 하나다 — 테스트마다 띄우고 내리면 포트 재활용 창이 열린다(ARCHITECTURE.md §6). */
-    private static WireMockServer server;
-
-    @BeforeAll
-    static void startServer() {
-        server = new WireMockServer(options().dynamicPort());
-        server.start();
-    }
-
-    @AfterAll
-    static void stopServer() {
-        server.stop();
-    }
-
-    @BeforeEach
-    void resetStubs() {
-        // 스텁·요청기록·시나리오를 함께 비운다 — 서버는 그대로 두고 상태만 되돌린다
-        server.resetAll();
-    }
 
     @Test
     @DisplayName("정상 응답이면 파싱해서 돌려준다")

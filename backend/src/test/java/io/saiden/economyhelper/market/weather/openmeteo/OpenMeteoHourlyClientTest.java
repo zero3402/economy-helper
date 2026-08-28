@@ -1,14 +1,13 @@
 package io.saiden.economyhelper.market.weather.openmeteo;
 
+import io.saiden.economyhelper.support.WireMockTest;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
-import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import io.saiden.economyhelper.market.weather.GeoLocation;
 import io.saiden.economyhelper.market.weather.HalfDay;
 import io.saiden.economyhelper.market.weather.SkyCondition;
@@ -18,8 +17,6 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -37,31 +34,16 @@ import org.springframework.web.client.RestClient;
  * <p>픽스처는 <b>실측이다</b> — 2026-08-22 미금역({@code 37.35,127.10889}), HTTP 200.
  * 24시간 전부를 그대로 붙였다. 줄이면 봉우리와 문턱의 관계가 바뀌어 토막이 달라진다.
  */
-class OpenMeteoHourlyClientTest {
+class OpenMeteoHourlyClientTest extends WireMockTest {
 
     private static final GeoLocation MIGEUM =
             new GeoLocation("미금역", null, 37.35, 127.10889, ZoneId.of("Asia/Seoul"));
     private static final LocalDate DAY = LocalDate.of(2026, 8, 22);
 
-    /** 클래스당 하나다 — 테스트마다 띄우고 내리면 포트 재활용 창이 열린다(ARCHITECTURE.md §6). */
-    private static WireMockServer server;
     private OpenMeteoHourlyClient client;
-
-    @BeforeAll
-    static void startServer() {
-        server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
-        server.start();
-    }
-
-    @AfterAll
-    static void stopServer() {
-        server.stop();
-    }
 
     @BeforeEach
     void resetAndBuild() {
-        // 스텁·요청기록·시나리오를 함께 비운다 — 서버는 그대로 두고 상태만 되돌린다
-        server.resetAll();
         client = new OpenMeteoHourlyClient(RestClient.builder(), server.baseUrl());
     }
 

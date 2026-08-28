@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market.kexim;
 
+import io.saiden.economyhelper.support.WireMockTest;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
@@ -7,9 +8,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
-import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import io.github.resilience4j.ratelimiter.RateLimiterConfig;
 import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
 import io.github.resilience4j.ratelimiter.RequestNotPermitted;
@@ -20,8 +19,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -33,31 +30,16 @@ import org.springframework.web.client.RestClient;
  * <p>이 API는 <b>에러도 HTTP 200으로</b> 준다. 상태코드만 보면 인증 실패도 성공으로 읽힌다 —
  * 실측에서 키 없이 부르니 {@code 200} + {@code [{"result":3,...}]}이 왔다.
  */
-class KeximFxClientTest {
+class KeximFxClientTest extends WireMockTest {
 
     /** 2026-08-12 수요일 12:00 KST. 실측을 뜬 시점과 같게 맞춘다. */
     private static final Instant NOW = Instant.parse("2026-08-12T03:00:00Z");
     private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
 
-    /** 클래스당 하나다 — 테스트마다 띄우고 내리면 포트 재활용 창이 열린다(ARCHITECTURE.md §6). */
-    private static WireMockServer server;
     private KeximFxClient client;
-
-    @BeforeAll
-    static void startServer() {
-        server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
-        server.start();
-    }
-
-    @AfterAll
-    static void stopServer() {
-        server.stop();
-    }
 
     @BeforeEach
     void resetAndBuild() {
-        // 스텁·요청기록·시나리오를 함께 비운다 — 서버는 그대로 두고 상태만 되돌린다
-        server.resetAll();
         // 리미터는 null로 둔다 — 이 테스트가 보는 것은 되짚기·파싱·비밀 취급이고,
         // 퍼밋을 세는 것이 실제로 걸리는지는 ResilienceConfigTest가 컨텍스트에서 본다
         client = new KeximFxClient(RestClient.builder(), server.baseUrl(), "test-key",

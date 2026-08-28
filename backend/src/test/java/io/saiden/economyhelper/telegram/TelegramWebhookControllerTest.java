@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.telegram;
 
+import io.saiden.economyhelper.support.RecordingTelegram;
 import java.util.concurrent.atomic.AtomicBoolean;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -56,18 +57,18 @@ class TelegramWebhookControllerTest {
     @Test
     @DisplayName("못 찾은 코인은 찾지 못했다고 알린다 — 무응답이면 고장으로 보인다")
     void tellsUserWhenCryptoNotFound() {
-        RecordingClient client = new RecordingClient();
+        RecordingTelegram client = new RecordingTelegram();
         var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
 
         controller.onUpdate(null,update(1, "/crypto 없는코인zzz"));
 
-        assertThat(client.sent.get(0).text()).contains("찾지 못했습니다");
+        assertThat(client.messages.get(0).text()).contains("찾지 못했습니다");
     }
 
     @Test
     @DisplayName("/fx는 출처를 함께 알린다 — 폴백이 일어난 걸 숨기면 거짓말이 된다")
     void routesFxCommandWithSource() {
-        RecordingClient client = new RecordingClient();
+        RecordingTelegram client = new RecordingTelegram();
         FxRate kexim = new FxRate("USD", "KRW", new BigDecimal("1415"), FxSource.KEXIM, NOW);
         var controller = defaultController(
                 facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.of(kexim)),
@@ -75,26 +76,26 @@ class TelegramWebhookControllerTest {
 
         controller.onUpdate(null,update(1, "/fx"));
 
-        assertThat(client.sent.get(0).text())
+        assertThat(client.messages.get(0).text())
                 .contains("1,415").contains("수출입은행").contains("고시");
     }
 
     @Test
     @DisplayName("두 출처가 다 죽으면 못 가져왔다고 알린다")
     void tellsUserWhenFxUnavailable() {
-        RecordingClient client = new RecordingClient();
+        RecordingTelegram client = new RecordingTelegram();
         var controller = defaultController(
                 facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
 
         controller.onUpdate(null,update(1, "/fx"));
 
-        assertThat(client.sent.get(0).text()).contains("환율을 가져오지 못했습니다");
+        assertThat(client.messages.get(0).text()).contains("환율을 가져오지 못했습니다");
     }
 
     @Test
     @DisplayName("/stock은 기준일과 함께 답한다 — 전일 종가라 날짜를 숨기면 실시간으로 오해한다")
     void routesStockCommandWithBasisDate() {
-        RecordingClient client = new RecordingClient();
+        RecordingTelegram client = new RecordingTelegram();
         StockQuote match = new StockQuote("삼성전자", new BigDecimal("239500"), null,
                 StockQuote.Money.KRW, StockQuote.Market.DOMESTIC, io.saiden.economyhelper.market.StockSource.DATA_GO,
                 java.time.LocalDate.of(2026, 8, 11)
@@ -105,7 +106,7 @@ class TelegramWebhookControllerTest {
 
         controller.onUpdate(null,update(1, "/stock 삼성"));
 
-        assertThat(client.sent.get(0).text())
+        assertThat(client.messages.get(0).text())
                 .contains("삼성전자").contains("239,500 KRW")
                 .as("전일 종가라는 사실은 값의 성격이라 반드시 남긴다")
                 .contains("2026.08.11(화) (종가)")
@@ -126,7 +127,7 @@ class TelegramWebhookControllerTest {
                 io.saiden.economyhelper.market.StockSource.DATA_GO, NOW, false);
 
         defaultController(facade(Optional.empty()), crypto(Optional.empty()),
-                counting, stock(Optional.of(domestic)), new RecordingClient())
+                counting, stock(Optional.of(domestic)), new RecordingTelegram())
                 .onUpdate(null, update(1, "/stock 삼성"));
 
         assertThat(counting.calls).as("원화 종목에 환율을 물을 이유가 없다").isZero();
@@ -140,13 +141,13 @@ class TelegramWebhookControllerTest {
                 StockQuote.Money.USD, StockQuote.Market.US,
                 io.saiden.economyhelper.market.StockSource.KIS, NOW, true);
 
-        RecordingClient client = new RecordingClient();
+        RecordingTelegram client = new RecordingTelegram();
         defaultController(facade(Optional.empty()), crypto(Optional.empty()),
                 counting, stock(Optional.of(american)), client)
                 .onUpdate(null, update(1, "/stock 애플"));
 
         assertThat(counting.calls).isEqualTo(1);
-        assertThat(client.sent.get(0).text())
+        assertThat(client.messages.get(0).text())
                 .as("실제로 환산 줄이 나가야 한다 — 안 나가면 이 셈이 공허하다")
                 .contains("KRW");
     }
@@ -154,13 +155,13 @@ class TelegramWebhookControllerTest {
     @Test
     @DisplayName("못 찾은 종목에도 어느 통의 답인지는 남는다")
     void tellsUserWhenStockNotFound() {
-        RecordingClient client = new RecordingClient();
+        RecordingTelegram client = new RecordingTelegram();
         var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()),
                 fx(Optional.empty()), stock(Optional.empty()), client);
 
         controller.onUpdate(null,update(1, "/stock AAPL"));
 
-        assertThat(client.sent.get(0).text())
+        assertThat(client.messages.get(0).text())
                 .as("못 찾음 답도 제목에 검색어를 싣는다 — 여럿이 동시에 치면 어느 검색이 실패했는지 알아야 한다")
                 .startsWith("<b>증시</b>")
                 .contains("찾지 못했습니다");
@@ -175,7 +176,7 @@ class TelegramWebhookControllerTest {
     @Test
     @DisplayName("/fx 답에 차트가 따라간다 — 글이 먼저, 사진이 나중")
     void sendsAChartWithTheFxAnswer() {
-        RecordingClient client = new RecordingClient();
+        RecordingTelegram client = new RecordingTelegram();
         FxRate rate = new FxRate("USD", "KRW", new BigDecimal("1412.17"), FxSource.KIS, NOW);
         var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()),
                 fxWithSeries(rate, bars("1398.20", "1412.17")),
@@ -194,7 +195,7 @@ class TelegramWebhookControllerTest {
     @Test
     @DisplayName("/stock 답에 차트가 따라간다 — 일봉 열쇠가 있는 답만")
     void sendsAChartWithTheStockAnswer() {
-        RecordingClient client = new RecordingClient();
+        RecordingTelegram client = new RecordingTelegram();
         StockQuote match = new StockQuote("삼성전자", new BigDecimal("239500"), null,
                 StockQuote.Money.KRW, StockQuote.Market.DOMESTIC,
                 io.saiden.economyhelper.market.StockSource.KIS, NOW, true);
@@ -213,7 +214,7 @@ class TelegramWebhookControllerTest {
     @Test
     @DisplayName("차트는 글이 나간 뒤에 만든다 — 일봉 조회(KIS 간격 1초)가 첫 글을 늦추면 안 된다")
     void fetchesTheChartOnlyAfterTheTextWentOut() {
-        RecordingClient client = new RecordingClient();
+        RecordingTelegram client = new RecordingTelegram();
         AtomicBoolean textAlreadySentWhenAsked = new AtomicBoolean();
         StockQuote match = new StockQuote("삼성전자", new BigDecimal("239500"), null,
                 StockQuote.Money.KRW, StockQuote.Market.DOMESTIC,
@@ -248,7 +249,7 @@ class TelegramWebhookControllerTest {
     void omitsTheChartWhenThereIsNoSeriesKey() {
         // 2순위(공공데이터포털)는 이름으로 찾고 종목코드를 돌려주지 않는다 → Answer.of(quote)라
         // series가 null이다. 전망이 빠지는 것과 같은 이유로 차트도 빠진다
-        RecordingClient client = new RecordingClient();
+        RecordingTelegram client = new RecordingTelegram();
         StockQuote match = new StockQuote("삼성전자", new BigDecimal("239500"), null,
                 StockQuote.Money.KRW, StockQuote.Market.DOMESTIC,
                 io.saiden.economyhelper.market.StockSource.DATA_GO, NOW, false);
@@ -257,14 +258,14 @@ class TelegramWebhookControllerTest {
 
         controller.onUpdate(null, update(1, "/stock 삼성"));
 
-        assertThat(client.sent.get(0).text()).as("값은 그대로 나간다").contains("239,500 KRW");
+        assertThat(client.messages.get(0).text()).as("값은 그대로 나간다").contains("239,500 KRW");
         assertThat(client.captions).as("차트만 빠진다 — 보충이지 폴백이 아니다").isEmpty();
     }
 
     @Test
     @DisplayName("/crypto 답에 차트가 따라간다 — 업비트 마켓이 그 열쇠다")
     void sendsAChartWithTheCryptoAnswer() {
-        RecordingClient client = new RecordingClient();
+        RecordingTelegram client = new RecordingTelegram();
         CryptoQuote btc = new CryptoQuote("비트코인", "KRW-BTC", NOW,
                 io.saiden.economyhelper.market.CryptoQuote.Quote.of(
                         new BigDecimal("89848000"), null),
@@ -283,7 +284,7 @@ class TelegramWebhookControllerTest {
     @Test
     @DisplayName("일봉 조회가 던져도 값은 나간다 — 차트는 보충이지 폴백이 아니다")
     void stillAnswersWhenTheChartFails() {
-        RecordingClient client = new RecordingClient();
+        RecordingTelegram client = new RecordingTelegram();
         FxRate rate = new FxRate("USD", "KRW", new BigDecimal("1412.17"), FxSource.KIS, NOW);
         var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()),
                 // series가 null이면 dailyBars()가 던진다 — 실제로 Frankfurter가 죽었을 때 그렇다.
@@ -292,29 +293,29 @@ class TelegramWebhookControllerTest {
 
         controller.onUpdate(null, update(1, "/fx"));
 
-        assertThat(client.sent).hasSize(1);
-        assertThat(client.sent.get(0).text()).contains("1,412.17");
+        assertThat(client.messages).hasSize(1);
+        assertThat(client.messages.get(0).text()).contains("1,412.17");
         assertThat(client.captions).isEmpty();
     }
 
     @Test
     @DisplayName("/news는 기사마다 통을 쪼갠다 — 브리핑과 같은 규칙이라 검색 답도 카드가 제 기사에 붙는다")
     void repliesWithOneMessagePerArticle() {
-        RecordingClient client = new RecordingClient();
+        RecordingTelegram client = new RecordingTelegram();
         var controller = defaultController(
                 facade(List.of(item("첫 번째"), item("두 번째"), item("세 번째"))),
                 crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
 
         controller.onUpdate(null, update(1, "/news 금리"));
 
-        assertThat(client.sent).hasSize(3);
-        assertThat(client.sent.get(0).text()).startsWith("<b>뉴스 1/3</b>")
+        assertThat(client.messages).hasSize(3);
+        assertThat(client.messages.get(0).text()).startsWith("<b>뉴스 1/3</b>")
                 .contains("첫 번째").doesNotContain("두 번째");
-        assertThat(client.sent.get(2).text()).startsWith("<b>뉴스 3/3</b>").contains("세 번째");
-        assertThat(client.sent).allSatisfy(sent -> assertThat(sent.preview())
+        assertThat(client.messages.get(2).text()).startsWith("<b>뉴스 3/3</b>").contains("세 번째");
+        assertThat(client.messages).allSatisfy(sent -> assertThat(sent.preview())
                 .as("통마다 링크가 하나뿐이라 카드가 그 기사 것으로 확정된다")
                 .isTrue());
-        assertThat(client.sent).allSatisfy(sent -> assertThat(sent.replyTo())
+        assertThat(client.messages).allSatisfy(sent -> assertThat(sent.replyTo())
                 .as("세 통 모두 같은 명령을 인용해야 한다 — 통이 쪼개질수록 답이 섞이기 쉽다")
                 .isEqualTo(MESSAGE_ID));
     }
@@ -325,7 +326,7 @@ class TelegramWebhookControllerTest {
         // 이 배선에 테스트가 아예 없었다: 파서가 사용법 대상으로 표시하지 않는지는
         // CommandParserTest가 보고 문구는 골든이 보는데, 컨트롤러가 digest()를 부르는지는
         // 아무도 안 봤다
-        RecordingClient client = new RecordingClient();
+        RecordingTelegram client = new RecordingTelegram();
         var controller = defaultController(
                 facade(List.of(item("검색 결과")),
                         List.of(item("코인 1"), item("코인 2"), item("경제 1"))),
@@ -333,26 +334,26 @@ class TelegramWebhookControllerTest {
 
         controller.onUpdate(null, update(1, "/news"));
 
-        assertThat(client.sent).hasSize(3);
-        assertThat(client.sent.get(0).text()).startsWith("<b>뉴스 1/3</b>").contains("코인 1");
-        assertThat(client.sent.get(2).text()).contains("경제 1");
-        assertThat(client.sent).allSatisfy(sent -> assertThat(sent.text())
+        assertThat(client.messages).hasSize(3);
+        assertThat(client.messages.get(0).text()).startsWith("<b>뉴스 1/3</b>").contains("코인 1");
+        assertThat(client.messages.get(2).text()).contains("경제 1");
+        assertThat(client.messages).allSatisfy(sent -> assertThat(sent.text())
                 .as("검색을 부르면 안 된다")
                 .doesNotContain("검색 결과"));
-        assertThat(client.sent).allSatisfy(sent -> assertThat(sent.preview()).isTrue());
+        assertThat(client.messages).allSatisfy(sent -> assertThat(sent.preview()).isTrue());
     }
 
     @Test
     @DisplayName("줄임말도 같다 — /n 하나만 쳐도 브리핑 목록이 온다")
     void bareShortNewsTokenAnswersWithTheDigest() {
-        RecordingClient client = new RecordingClient();
+        RecordingTelegram client = new RecordingTelegram();
         var controller = defaultController(
                 facade(List.of(), List.of(item("코인 1"))),
                 crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
 
         controller.onUpdate(null, update(1, "/n"));
 
-        assertThat(client.sent).singleElement()
+        assertThat(client.messages).singleElement()
                 .satisfies(sent -> assertThat(sent.text()).contains("코인 1"));
     }
 
@@ -361,13 +362,13 @@ class TelegramWebhookControllerTest {
     void bareNewsWithNothingToShowUsesTheDigestWording() {
         // "''에 해당하는 최근 24시간 뉴스를 찾지 못했습니다"는 검색어가 없는 자리에서
         // 빈 인용부호만 남는 거짓말이 된다
-        RecordingClient client = new RecordingClient();
+        RecordingTelegram client = new RecordingTelegram();
         var controller = defaultController(facade(List.of(), List.of()),
                 crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
 
         controller.onUpdate(null, update(1, "/news"));
 
-        assertThat(client.sent).singleElement().satisfies(sent -> {
+        assertThat(client.messages).singleElement().satisfies(sent -> {
             assertThat(sent.text()).contains("가져올 수 있는 값이 없습니다");
             assertThat(sent.text()).doesNotContain("찾지 못했습니다");
         });
@@ -376,49 +377,49 @@ class TelegramWebhookControllerTest {
     @Test
     @DisplayName("답은 물어본 명령에 답글로 단다 — 여럿이 동시에 검색하면 누구 답인지 알 수 없다")
     void repliesToTheAskingCommand() {
-        RecordingClient client = new RecordingClient();
+        RecordingTelegram client = new RecordingTelegram();
         var controller = defaultController(facade(List.of()), crypto(Optional.empty()),
                 fx(Optional.empty()), stock(Optional.empty()), client);
 
         controller.onUpdate(null, update(1, "/fx"));
 
-        assertThat(client.sent.get(0).replyTo()).isEqualTo(MESSAGE_ID);
+        assertThat(client.messages.get(0).replyTo()).isEqualTo(MESSAGE_ID);
     }
 
     @Test
     @DisplayName("한 건도 못 찾으면 찾지 못했다고 답한다 — 빈 목록을 통으로 내보내지 않는다")
     void tellsUserWhenNoArticleMatches() {
-        RecordingClient client = new RecordingClient();
+        RecordingTelegram client = new RecordingTelegram();
         var controller = defaultController(facade(List.<NewsItem>of()), crypto(Optional.empty()),
                 fx(Optional.empty()), stock(Optional.empty()), client);
 
         controller.onUpdate(null, update(1, "/news 없는주제zzz"));
 
-        assertThat(client.sent.get(0).text()).contains("찾지 못했습니다");
+        assertThat(client.messages.get(0).text()).contains("찾지 못했습니다");
     }
 
     @Test
     @DisplayName("/help는 명령 목록을 준다")
     void repliesToHelp() {
-        RecordingClient client = new RecordingClient();
+        RecordingTelegram client = new RecordingTelegram();
         var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
 
         controller.onUpdate(null,update(1, "/help"));
 
-        assertThat(client.sent.get(0).text()).contains("/news").contains("/stock").contains("/crypto");
+        assertThat(client.messages.get(0).text()).contains("/news").contains("/stock").contains("/crypto");
     }
 
     @Test
     @DisplayName("인자가 필요한 명령마다 그 명령의 사용법을 준다")
     void repliesWithPerCommandUsage() {
-        RecordingClient client = new RecordingClient();
+        RecordingTelegram client = new RecordingTelegram();
         var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
 
         controller.onUpdate(null,update(1, "/stock"));
         controller.onUpdate(null,update(1, "/crypto"));
 
-        assertThat(client.sent.get(0).text()).contains("/stock 삼성전자");
-        assertThat(client.sent.get(1).text()).contains("/crypto 비트코인");
+        assertThat(client.messages.get(0).text()).contains("/stock 삼성전자");
+        assertThat(client.messages.get(1).text()).contains("/crypto 비트코인");
     }
 
     @Test
@@ -431,7 +432,7 @@ class TelegramWebhookControllerTest {
             }
         };
         var controller =
-                defaultController(exploding, crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), new RecordingClient());
+                defaultController(exploding, crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), new RecordingTelegram());
 
         var response = controller.onUpdate(null,update(1, "/news 금리"));
 
@@ -442,7 +443,7 @@ class TelegramWebhookControllerTest {
     @DisplayName("message가 없는 업데이트(채널 글 등)도 200으로 넘긴다")
     void toleratesUpdatesWithoutMessage() {
         var controller = defaultController(
-                facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), new RecordingClient());
+                facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), new RecordingTelegram());
 
         assertThat(controller.onUpdate(null,new Update(null)).getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(controller.onUpdate(null,null).getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -453,59 +454,59 @@ class TelegramWebhookControllerTest {
     @Test
     @DisplayName("secret이 맞으면 지금까지와 똑같이 동작한다 — 진짜 텔레그램 요청을 막으면 안 된다")
     void servesRequestsCarryingTheRegisteredSecret() {
-        RecordingClient client = new RecordingClient();
+        RecordingTelegram client = new RecordingTelegram();
         var controller = guarded("s3cr3t", "", client);
 
         var response = controller.onUpdate("s3cr3t", update(777, "/news 유가"));
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(client.sent).hasSize(1);
-        assertThat(client.sent.get(0).text()).contains("유가 상승");
+        assertThat(client.messages).hasSize(1);
+        assertThat(client.messages.get(0).text()).contains("유가 상승");
     }
 
     @Test
     @DisplayName("secret이 다르면 403이고 아무것도 하지 않는다 — 200으로 삼키면 사칭이 조용히 성공한다")
     void rejectsRequestsWithWrongSecret() {
-        RecordingClient client = new RecordingClient();
+        RecordingTelegram client = new RecordingTelegram();
         var controller = guarded("s3cr3t", "", client);
 
         var response = controller.onUpdate("틀린값", update(777, "/news 유가"));
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
-        assertThat(client.sent).as("사이드이펙트가 하나도 없어야 한다").isEmpty();
+        assertThat(client.messages).as("사이드이펙트가 하나도 없어야 한다").isEmpty();
     }
 
     @Test
     @DisplayName("헤더가 아예 없으면 거절한다 — 누락이 통과하면 방어가 없는 것과 같다")
     void rejectsRequestsWithoutSecretHeader() {
-        RecordingClient client = new RecordingClient();
+        RecordingTelegram client = new RecordingTelegram();
         var controller = guarded("s3cr3t", "", client);
 
         assertThat(controller.onUpdate(null, update(777, "/news 유가")).getStatusCode())
                 .isEqualTo(HttpStatus.FORBIDDEN);
-        assertThat(client.sent).isEmpty();
+        assertThat(client.messages).isEmpty();
     }
 
     @Test
     @DisplayName("secret을 설정하지 않으면 검증하지 않는다 — 로컬 실행과 CI가 설정 없이 돌아야 한다")
     void skipsVerificationWhenSecretUnset() {
-        RecordingClient client = new RecordingClient();
+        RecordingTelegram client = new RecordingTelegram();
         var controller = guarded("", "", client);
 
         assertThat(controller.onUpdate(null, update(777, "/news 유가")).getStatusCode())
                 .isEqualTo(HttpStatus.OK);
-        assertThat(client.sent).hasSize(1);
+        assertThat(client.messages).hasSize(1);
     }
 
     @Test
     @DisplayName("앞뒤 공백은 다듬는다 — 대시보드에 붙여 넣은 값의 줄바꿈 하나로 전부 403이 되면 안 된다")
     void trimsConfiguredValues() {
-        RecordingClient client = new RecordingClient();
+        RecordingTelegram client = new RecordingTelegram();
         var controller = guarded("  s3cr3t\n", " 777 ", client);
 
         assertThat(controller.onUpdate("s3cr3t", update(777, "/news 유가")).getStatusCode())
                 .isEqualTo(HttpStatus.OK);
-        assertThat(client.sent).hasSize(1);
+        assertThat(client.messages).hasSize(1);
     }
 
     // --- chat_id 허용: 봇을 찾은 제3자를 막는다 (secret은 통과한다) ---
@@ -513,19 +514,19 @@ class TelegramWebhookControllerTest {
     @Test
     @DisplayName("허용된 채팅방의 명령은 처리한다")
     void servesTheAllowedChat() {
-        RecordingClient client = new RecordingClient();
+        RecordingTelegram client = new RecordingTelegram();
         var controller = guarded("", "777", client);
 
         controller.onUpdate(null, update(777, "/news 유가"));
 
-        assertThat(client.sent).hasSize(1);
-        assertThat(client.sent.get(0).chatId()).isEqualTo("777");
+        assertThat(client.messages).hasSize(1);
+        assertThat(client.messages.get(0).chatId()).isEqualTo("777");
     }
 
     @Test
     @DisplayName("다른 채팅방은 무시한다 — 답하면 봇의 존재를 확인해 주고 FMP 한도를 남이 쓴다")
     void ignoresOtherChats() {
-        RecordingClient client = new RecordingClient();
+        RecordingTelegram client = new RecordingTelegram();
         var controller = guarded("", "777", client);
 
         var response = controller.onUpdate(null, update(999, "/news 유가"));
@@ -533,7 +534,7 @@ class TelegramWebhookControllerTest {
         assertThat(response.getStatusCode())
                 .as("무응답이지 오류가 아니다 — 비-200이면 텔레그램이 계속 재전송한다")
                 .isEqualTo(HttpStatus.OK);
-        assertThat(client.sent).isEmpty();
+        assertThat(client.messages).isEmpty();
     }
 
     // --- 포럼 토픽: 명령은 Search 토픽에서만 받고 그 토픽으로 답한다 ---
@@ -541,64 +542,64 @@ class TelegramWebhookControllerTest {
     @Test
     @DisplayName("지정한 토픽의 명령은 처리하고 그 토픽으로 답한다 — 다른 토픽에 답이 뜨면 대화가 어긋난다")
     void servesTheSearchTopicAndRepliesIntoIt() {
-        RecordingClient client = new RecordingClient();
+        RecordingTelegram client = new RecordingTelegram();
         var controller = guarded("", "777", "42", client);
 
         controller.onUpdate(null, update(777, 42, "/news 유가"));
 
-        assertThat(client.sent).hasSize(1);
-        assertThat(client.sent.get(0).topicId()).as("물어본 토픽으로 되돌아가야 한다").isEqualTo(42);
-        assertThat(client.sent.get(0).text()).contains("유가 상승");
+        assertThat(client.messages).hasSize(1);
+        assertThat(client.messages.get(0).topicId()).as("물어본 토픽으로 되돌아가야 한다").isEqualTo(42);
+        assertThat(client.messages.get(0).text()).contains("유가 상승");
     }
 
     @Test
     @DisplayName("다른 토픽의 명령은 무시한다 — Notice 토픽은 브리핑만 받는 곳이다")
     void ignoresCommandsFromOtherTopics() {
-        RecordingClient client = new RecordingClient();
+        RecordingTelegram client = new RecordingTelegram();
         var controller = guarded("", "777", "42", client);
 
         var response = controller.onUpdate(null, update(777, 9, "/news 유가"));
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(client.sent).isEmpty();
+        assertThat(client.messages).isEmpty();
     }
 
     @Test
     @DisplayName("General 토픽은 message_thread_id가 아예 없어 자연히 걸러진다")
     void ignoresCommandsFromTheGeneralTopic() {
-        RecordingClient client = new RecordingClient();
+        RecordingTelegram client = new RecordingTelegram();
         var controller = guarded("", "777", "42", client);
 
         controller.onUpdate(null, update(777, null, "/news 유가"));
 
-        assertThat(client.sent).isEmpty();
+        assertThat(client.messages).isEmpty();
     }
 
     @Test
     @DisplayName("토픽을 지정하지 않으면 검사하지 않는다 — 번호를 잘못 넣어 봇이 막혀도 비우면 되살아난다")
     void acceptsAnyTopicWhenSearchTopicUnset() {
-        RecordingClient client = new RecordingClient();
+        RecordingTelegram client = new RecordingTelegram();
         var controller = guarded("", "777", "", client);
 
         controller.onUpdate(null, update(777, 9, "/news 유가"));
         controller.onUpdate(null, update(777, null, "/news 유가"));
 
-        assertThat(client.sent).hasSize(2);
-        assertThat(client.sent.get(0).topicId()).as("들어온 토픽은 그대로 되돌려준다").isEqualTo(9);
-        assertThat(client.sent.get(1).topicId()).isNull();
+        assertThat(client.messages).hasSize(2);
+        assertThat(client.messages.get(0).topicId()).as("들어온 토픽은 그대로 되돌려준다").isEqualTo(9);
+        assertThat(client.messages.get(1).topicId()).isNull();
     }
 
     @Test
     @DisplayName("사용법·모르는 명령 안내도 물어본 토픽으로 간다")
     void sendsGuidanceIntoTheAskingTopic() {
-        RecordingClient client = new RecordingClient();
+        RecordingTelegram client = new RecordingTelegram();
         var controller = guarded("", "777", "42", client);
 
         controller.onUpdate(null, update(777, 42, "/stock"));
         controller.onUpdate(null, update(777, 42, "/exchange"));
 
-        assertThat(client.sent).hasSize(2);
-        assertThat(client.sent).allSatisfy(s -> assertThat(s.topicId()).isEqualTo(42));
+        assertThat(client.messages).hasSize(2);
+        assertThat(client.messages).allSatisfy(s -> assertThat(s.topicId()).isEqualTo(42));
     }
 
     @Test
@@ -607,14 +608,14 @@ class TelegramWebhookControllerTest {
         // 이 여섯 갈래에 테스트가 하나도 없었다. 그 탓에 weatherNeedsPlace·weatherUnreadableDate·
         // weatherTooFarAhead·weatherUnavailable은 단언 한 줄 없이 살아 있었다
         for (WeatherFacade.Lookup.Reason reason : WeatherFacade.Lookup.Reason.values()) {
-            RecordingClient client = new RecordingClient();
+            RecordingTelegram client = new RecordingTelegram();
             new TelegramWebhookController(facade(Optional.empty()), crypto(Optional.empty()),
                     fx(Optional.empty()), stock(Optional.empty()), weather(reason), client,
                     SAME_THREAD, "", "", "")
                     .onUpdate(null, update(1, "/weather 성남"));
 
-            assertThat(client.sent).as("%s에도 답이 나간다", reason).hasSize(1);
-            assertThat(client.sent.get(0).text())
+            assertThat(client.messages).as("%s에도 답이 나간다", reason).hasSize(1);
+            assertThat(client.messages.get(0).text())
                     .as("%s 답이 통 제목으로 시작한다", reason)
                     .startsWith("<b>날씨</b>")
                     .as("%s 답에 검색어가 제목에 붙지 않는다 — 답글 인용이 이미 보여 준다", reason)
@@ -638,7 +639,7 @@ class TelegramWebhookControllerTest {
     @Test
     @DisplayName("답 만들기가 던져도 사용자에게 안내가 나간다 — 200을 이미 줬으므로 재시도가 없다")
     void answersEvenWhenBuildingTheReplyThrows() {
-        RecordingClient client = new RecordingClient();
+        RecordingTelegram client = new RecordingTelegram();
         NewsFacade exploding = new NewsFacade(null, null, null) {
             @Override
             public List<NewsItem> search(String query) {
@@ -651,8 +652,8 @@ class TelegramWebhookControllerTest {
                 stock(Optional.empty()), weather(), client, SAME_THREAD, "", "", "")
                 .onUpdate(null, update(1, "/news 금리"));
 
-        assertThat(client.sent).as("침묵하면 사용자에게는 봇이 죽은 것과 구분되지 않는다").hasSize(1);
-        assertThat(client.sent.get(0).text())
+        assertThat(client.messages).as("침묵하면 사용자에게는 봇이 죽은 것과 구분되지 않는다").hasSize(1);
+        assertThat(client.messages.get(0).text())
                 .startsWith("<b>뉴스</b>")
                 .contains("잠시 후 다시");
     }
@@ -660,14 +661,14 @@ class TelegramWebhookControllerTest {
     @Test
     @DisplayName("여러 통 중 하나가 실패해도 나머지는 나간다 — 예전에는 2번에서 끊기면 3번이 사라졌다")
     void keepsSendingTheRestWhenOnePartFails() {
-        RecordingClient client = new RecordingClient("2/3");
+        RecordingTelegram client = new RecordingTelegram("2/3");
 
         defaultController(facade(List.of(news("첫째"), news("둘째"), news("셋째"))),
                 crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client)
                 .onUpdate(null, update(1, "/news 금리"));
 
-        assertThat(client.sent).as("1번과 3번은 나가야 한다").hasSize(2);
-        assertThat(client.sent.get(1).text()).contains("3/3");
+        assertThat(client.messages).as("1번과 3번은 나가야 한다").hasSize(2);
+        assertThat(client.messages.get(1).text()).contains("3/3");
     }
 
     private static NewsItem news(String title) {
@@ -915,61 +916,4 @@ class TelegramWebhookControllerTest {
         };
     }
 
-    /** 발송 내용을 기록하는 스텁. HTTP는 {@link TelegramClientTest}에서 따로 본다. */
-    private static class RecordingClient extends TelegramClient {
-        private final List<Sent> sent = new ArrayList<>();
-        /**
-         * 사진의 caption만 담는다 — 그림은 골든이 못 보고 낱말은 전부 caption에 있다
-         * ({@code ChartRenderer}가 글자를 안 그리기 때문이다).
-         */
-        private final List<String> captions = new ArrayList<>();
-        /** 글과 사진을 <b>보낸 순서</b>. 사진이 글보다 먼저 가면 무엇의 그림인지 알 수 없다. */
-        private final List<String> order = new ArrayList<>();
-        /** 이 문구가 담긴 통만 거절한다 — 부분 실패를 심는 데 쓴다. {@code null}이면 다 받는다. */
-        private final String rejectContaining;
-
-        private RecordingClient() {
-            this(null);
-        }
-
-        private RecordingClient(String rejectContaining) {
-            super(RestClient.builder(), "https://example.invalid", "token", "default-chat", "", java.time.Duration.ZERO);
-            this.rejectContaining = rejectContaining;
-        }
-
-        @Override
-        public void send(String chatId, Integer topicId, Integer replyTo, String text) {
-            sent.add(new Sent(chatId, topicId, replyTo, text, false));
-            order.add("글");
-        }
-
-        @Override
-        public void send(String chatId, Integer topicId, Integer replyTo, String text,
-                         boolean preview) {
-            if (rejectContaining != null && text.contains(rejectContaining)) {
-                throw new TelegramException("거절: " + rejectContaining);
-            }
-            sent.add(new Sent(chatId, topicId, replyTo, text, preview));
-            order.add("글");
-        }
-
-        /**
-         * ⚠️ <b>이것을 안 받고 있었다.</b> 검색 답의 차트 배선({@code fxChart}·{@code stockChart}·
-         * {@code cryptoChart})에 테스트가 하나도 없어서, 누가 {@code Reply.plain(text)}로
-         * 한 줄 바꾸면 사진이 조용히 사라져도 아무도 알려 주지 않았다.
-         */
-        @Override
-        public void sendPhoto(String chatId, Integer topicId, Integer replyTo, byte[] png,
-                             String caption) {
-            captions.add(caption);
-            order.add("사진");
-        }
-    }
-
-    /**
-     * @param replyTo 어느 명령에 답글로 달았는지. 검색 답은 반드시 채워져 있어야 한다
-     * @param preview 링크 미리보기를 켜고 보냈는지
-     */
-    private record Sent(String chatId, Integer topicId, Integer replyTo, String text,
-                        boolean preview) {}
 }

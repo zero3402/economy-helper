@@ -1,23 +1,20 @@
 package io.saiden.economyhelper.market.frankfurter;
 
+import io.saiden.economyhelper.support.WireMockTest;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.anyUrl;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
-import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.github.tomakehurst.wiremock.WireMockServer;
 import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.FxSource;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -30,31 +27,16 @@ import org.springframework.web.client.RestClient;
  * 시계열은 한 번에 여러 날을 주므로 호출이 늘지 않는다 — 수출입은행이 전 영업일을
  * 되짚느라 한 번 더 부르는 것과 갈리는 지점이고, 여기가 그 사실을 고정하는 자리다.
  */
-class FrankfurterFxClientTest {
+class FrankfurterFxClientTest extends WireMockTest {
 
     /** 2026-08-14 금요일 12:00 KST. */
     private static final Instant NOW = Instant.parse("2026-08-14T03:00:00Z");
     private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
 
-    /** 클래스당 하나다 — 테스트마다 띄우고 내리면 포트 재활용 창이 열린다(ARCHITECTURE.md §6). */
-    private static WireMockServer server;
     private FrankfurterFxClient client;
-
-    @BeforeAll
-    static void startServer() {
-        server = new WireMockServer(options().dynamicPort());
-        server.start();
-    }
-
-    @AfterAll
-    static void stopServer() {
-        server.stop();
-    }
 
     @BeforeEach
     void resetAndBuild() {
-        // 스텁·요청기록·시나리오를 함께 비운다 — 서버는 그대로 두고 상태만 되돌린다
-        server.resetAll();
         client = new FrankfurterFxClient(RestClient.builder(), server.baseUrl(),
                 Clock.fixed(NOW, SEOUL));
     }

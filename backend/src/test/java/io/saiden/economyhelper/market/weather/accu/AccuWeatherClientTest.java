@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market.weather.accu;
 
+import io.saiden.economyhelper.support.WireMockTest;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
@@ -7,9 +8,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
-import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import io.saiden.economyhelper.market.weather.GeoLocation;
 import io.saiden.economyhelper.market.weather.SkyCondition;
 import io.saiden.economyhelper.market.weather.Weather;
@@ -18,8 +17,6 @@ import io.saiden.economyhelper.market.weather.WeatherSource;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -33,7 +30,7 @@ import org.springframework.web.client.RestClient;
  * <p>가장 중요한 건 <b>키가 쿼리에 실린다</b>는 점이다. 예외 메시지로 새면 로그·모니터링을
  * 타고 그대로 유출된다({@code FmpApi}·{@code KeximFxClient}와 같은 규칙).
  */
-class AccuWeatherClientTest {
+class AccuWeatherClientTest extends WireMockTest {
 
     private static final String API_KEY = "secret-key-1234";
     private static final String LOCATION_PATH = "/locations/v1/cities/geoposition/search";
@@ -43,25 +40,10 @@ class AccuWeatherClientTest {
     private static final GeoLocation MIGEUM =
             new GeoLocation("미금역", null, 37.35, 127.10889, ZoneId.of("Asia/Seoul"));
 
-    /** 클래스당 하나다 — 테스트마다 띄우고 내리면 포트 재활용 창이 열린다(ARCHITECTURE.md §6). */
-    private static WireMockServer server;
     private AccuWeatherClient client;
-
-    @BeforeAll
-    static void startServer() {
-        server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
-        server.start();
-    }
-
-    @AfterAll
-    static void stopServer() {
-        server.stop();
-    }
 
     @BeforeEach
     void resetAndBuild() {
-        // 스텁·요청기록·시나리오를 함께 비운다 — 서버는 그대로 두고 상태만 되돌린다
-        server.resetAll();
         client = new AccuWeatherClient(RestClient.builder(), server.baseUrl(), API_KEY,
                 new AccuLocationApi(RestClient.builder(), server.baseUrl(), API_KEY));
     }

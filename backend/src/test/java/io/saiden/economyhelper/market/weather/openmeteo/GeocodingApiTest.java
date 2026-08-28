@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market.weather.openmeteo;
 
+import io.saiden.economyhelper.support.WireMockTest;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.absent;
 import static com.github.tomakehurst.wiremock.client.WireMock.anyUrl;
@@ -7,15 +8,11 @@ import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
-import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.github.tomakehurst.wiremock.WireMockServer;
 import io.saiden.economyhelper.market.weather.GeoLocation;
 import java.time.ZoneId;
 import java.util.Optional;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,27 +24,12 @@ import org.springframework.web.client.RestClient;
  * <p>여기가 깨지면 증상이 조용하다 — 엉뚱한 지점의 날씨가 그럴듯한 숫자로 나오고,
  * 이름이 영문으로 찍히는 것 말고는 티가 안 난다. 실제로 그 상태로 배포됐다.
  */
-class GeocodingApiTest {
+class GeocodingApiTest extends WireMockTest {
 
-    /** 클래스당 하나다 — 테스트마다 띄우고 내리면 포트 재활용 창이 열린다(ARCHITECTURE.md §6). */
-    private static WireMockServer server;
     private GeocodingApi api;
-
-    @BeforeAll
-    static void startServer() {
-        server = new WireMockServer(options().dynamicPort());
-        server.start();
-    }
-
-    @AfterAll
-    static void stopServer() {
-        server.stop();
-    }
 
     @BeforeEach
     void resetAndBuild() {
-        // 스텁·요청기록·시나리오를 함께 비운다 — 서버는 그대로 두고 상태만 되돌린다
-        server.resetAll();
         api = new GeocodingApi(RestClient.builder(), server.baseUrl());
     }
 

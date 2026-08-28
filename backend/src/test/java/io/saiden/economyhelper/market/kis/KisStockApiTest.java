@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market.kis;
 
+import io.saiden.economyhelper.support.WireMockTest;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
@@ -7,9 +8,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
-import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.config.EconomyHelperProperties.Digest;
 import io.saiden.economyhelper.config.EconomyHelperProperties.Index;
@@ -22,8 +21,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -39,7 +36,7 @@ import org.springframework.web.client.RestClient;
  * 필드 이름이 다르고, 지수 이름은 {@code "종합"}으로 오며, 미국 종목에는 달러 등락률이
  * 아예 없다. 하나라도 놓치면 값이 조용히 사라지거나 틀린 값이 화면에 나간다.
  */
-class KisStockApiTest {
+class KisStockApiTest extends WireMockTest {
 
     private static final String STOCK_PATH =
             "/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice";
@@ -78,27 +75,12 @@ class KisStockApiTest {
     private static final UsSymbol APPLE = new UsSymbol("AAPL", "애플");
     private static final KisIndex NASDAQ_KIS = new KisIndex("^IXIC", "COMP");
 
-    /** 클래스당 하나다 — 테스트마다 띄우고 내리면 포트 재활용 창이 열린다(ARCHITECTURE.md §6). */
-    private static WireMockServer server;
     private KisStockApi api;
     private RememberingCache exchanges;
     private KisFixtures.FixedToken tokens;
 
-    @BeforeAll
-    static void startServer() {
-        server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
-        server.start();
-    }
-
-    @AfterAll
-    static void stopServer() {
-        server.stop();
-    }
-
     @BeforeEach
     void resetAndBuild() {
-        // 스텁·요청기록·시나리오를 함께 비운다 — 서버는 그대로 두고 상태만 되돌린다
-        server.resetAll();
         exchanges = new RememberingCache();
         api = apiWith(List.of(KOSPI), List.of(NASDAQ_KIS));
     }

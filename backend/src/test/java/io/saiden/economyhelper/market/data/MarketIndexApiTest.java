@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market.data;
 
+import io.saiden.economyhelper.support.WireMockTest;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
@@ -7,15 +8,11 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
-import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import io.saiden.economyhelper.market.data.MarketIndexApi.MarketIndex;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -31,7 +28,7 @@ import org.springframework.web.client.RestClient;
  * <p>{@code StockPriceApi}와 같은 함정을 공유한다 — 서비스키를 다시 인코딩하면 403이고,
  * 오늘 데이터가 없으면 영업일을 되짚는다. 다른 것은 조회 키뿐이다({@code likeIdxNm}).
  */
-class MarketIndexApiTest {
+class MarketIndexApiTest extends WireMockTest {
 
     /** 이미 인코딩된 형태의 키. 다시 인코딩하면 403 "등록되지 않은 서비스키"가 난다. */
     private static final String ENCODED_KEY = "abc%2Bdef%2Fghi%3D%3D";
@@ -40,25 +37,10 @@ class MarketIndexApiTest {
     private static final Instant NOW = Instant.parse("2026-08-12T03:00:00Z");
     private static final String PATH = "/1160100/service/GetMarketIndexInfoService/getStockMarketIndex";
 
-    /** 클래스당 하나다 — 테스트마다 띄우고 내리면 포트 재활용 창이 열린다(ARCHITECTURE.md §6). */
-    private static WireMockServer server;
     private MarketIndexApi api;
-
-    @BeforeAll
-    static void startServer() {
-        server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
-        server.start();
-    }
-
-    @AfterAll
-    static void stopServer() {
-        server.stop();
-    }
 
     @BeforeEach
     void resetAndBuild() {
-        // 스텁·요청기록·시나리오를 함께 비운다 — 서버는 그대로 두고 상태만 되돌린다
-        server.resetAll();
         api = new MarketIndexApi(RestClient.builder(), server.baseUrl(), ENCODED_KEY,
                 Clock.fixed(NOW, ZoneId.of("Asia/Seoul")), null);
     }

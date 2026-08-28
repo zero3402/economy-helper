@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.config;
 
+import io.saiden.economyhelper.support.WireMockTest;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
@@ -7,13 +8,9 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.github.tomakehurst.wiremock.WireMockServer;
-import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.saiden.economyhelper.market.weather.openmeteo.GeocodingApi;
 import java.util.Optional;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,22 +33,10 @@ import org.springframework.web.client.HttpClientErrorException;
  * 하는 자리이고, 여기가 안 걸려 있으면 {@code /weather}가 통째로 빈손이 된다.
  */
 @SpringBootTest
-class RetryLiveTest {
+class RetryLiveTest extends WireMockTest {
 
     private static final String PATH = "/v1/search";
 
-    private static WireMockServer server;
-
-    @BeforeAll
-    static void startServer() {
-        server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
-        server.start();
-    }
-
-    @AfterAll
-    static void stopServer() {
-        server.stop();
-    }
 
     @DynamicPropertySource
     static void geocodingPointsAtWireMock(DynamicPropertyRegistry registry) {
@@ -65,7 +50,6 @@ class RetryLiveTest {
 
     @BeforeEach
     void resetAll() {
-        server.resetAll();
         breakers.circuitBreaker("weatherGeocoding").reset();
     }
 

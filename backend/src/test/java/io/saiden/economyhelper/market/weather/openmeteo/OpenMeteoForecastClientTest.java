@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market.weather.openmeteo;
 
+import io.saiden.economyhelper.support.WireMockTest;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
@@ -7,9 +8,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
-import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import io.saiden.economyhelper.market.weather.GeoLocation;
 import io.saiden.economyhelper.market.weather.SkyCondition;
 import io.saiden.economyhelper.market.weather.Weather;
@@ -17,8 +16,6 @@ import io.saiden.economyhelper.market.weather.WeatherPeriod;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,31 +26,16 @@ import org.springframework.web.client.RestClient;
  * 형제 클라이언트에는 다 있는데(AccuWeather·지오코딩·업비트·바이낸스…) 여기만 비어 있었다.
  * 시간별을 붙이면서 그 구멍을 함께 메운다.
  */
-class OpenMeteoForecastClientTest {
+class OpenMeteoForecastClientTest extends WireMockTest {
 
     private static final GeoLocation SEONGNAM =
             new GeoLocation("성남시", "대한민국", 37.43861, 127.13778, ZoneId.of("Asia/Seoul"));
     private static final LocalDate DAY = LocalDate.of(2026, 8, 20);
 
-    /** 클래스당 하나다 — 테스트마다 띄우고 내리면 포트 재활용 창이 열린다(ARCHITECTURE.md §6). */
-    private static WireMockServer server;
     private OpenMeteoForecastClient client;
-
-    @BeforeAll
-    static void startServer() {
-        server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
-        server.start();
-    }
-
-    @AfterAll
-    static void stopServer() {
-        server.stop();
-    }
 
     @BeforeEach
     void resetAndBuild() {
-        // 스텁·요청기록·시나리오를 함께 비운다 — 서버는 그대로 두고 상태만 되돌린다
-        server.resetAll();
         client = new OpenMeteoForecastClient(RestClient.builder(), server.baseUrl());
     }
 

@@ -1,41 +1,24 @@
 package io.saiden.economyhelper.telegram;
 
+import io.saiden.economyhelper.support.WireMockTest;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.anyUrl;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalToJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
-import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.github.tomakehurst.wiremock.WireMockServer;
 import java.time.Duration;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
 
-class TelegramClientTest {
+@WireMockTest.WireMockOptions(http2PlainDisabled = true)
+class TelegramClientTest extends WireMockTest {
 
-    /** 클래스당 하나다 — 테스트마다 띄우고 내리면 포트 재활용 창이 열린다(ARCHITECTURE.md §6). */
-    private static WireMockServer server;
-
-    @BeforeAll
-    static void startServer() {
-        // h2c를 끈다 — JDK HttpClient가 HTTP/2를 먼저 시도하는데 WireMock의 평문 h2 구현과
-        // POST 본문에서 충돌한다. 실제 Bot API 서버에서는 나지 않는 문제다.
-        server = new WireMockServer(options().dynamicPort().http2PlainDisabled(true));
-        server.start();
-    }
-
-    @AfterAll
-    static void stopServer() {
-        server.stop();
-    }
 
     /**
      * ⚠️ <b>순서가 값이다.</b> {@code resetAll()}이 기본 스텁보다 <b>먼저</b> 와야 한다 —
@@ -47,7 +30,6 @@ class TelegramClientTest {
      */
     @BeforeEach
     void resetAndStubOk() {
-        server.resetAll();
         server.stubFor(post(anyUrl()).willReturn(aResponse()
                 .withStatus(200)
                 .withHeader("Content-Type", "application/json")

@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -29,12 +30,16 @@ import org.junit.jupiter.api.Test;
  *
  * <p><b>왜 사람이 아니라 테스트가 보는가.</b> 이 결함은 <b>간헐적</b>이라 리뷰에서 안 보이고,
  * 새 클라이언트 테스트를 쓰는 사람은 옆 파일을 베낀다 — 한 파일만 옛 모양이면 그 클래스가
- * 다시 창을 연다. 22개를 한 번에 고쳤으므로, 다음에 되돌아오는 길은 「새로 쓴 파일」뿐이다.
+ * 다시 창을 연다. 지금은 그 열한 줄이 {@code support.WireMockTest} 한 곳에 있고 스물일곱 클래스가
+ * 그것을 상속한다 — 그래서 규칙이 「상속하라」로 바뀌었다. 되돌아오는 길은 「상속 없이 새로 쓴 파일」뿐이다.
  *
- * <p><b>허용 목록을 두지 않는다.</b> 규칙을 <b>실측한 결함에만</b> 맞췄으므로 예외가 필요 없다 —
- * {@code @Test} 본문에서 서버를 만드는 것은 그대로 통과한다({@code BinanceApiTest}의 미러가
- * 그렇고, 거기서는 「이 테스트만의 서버」가 곧 단언의 일부다). 손으로 적은 예외 목록은
- * 낡는다: {@code CacheConfigTest}가 클래스 목록을 손으로 들고 「여기 안 적으면 새 캐시를
+ * <p>⚠️ <b>상속으로 옮기면서 이 그물의 모양도 함께 바꿨다.</b> 예전 단언은 「{@code new WireMockServer(}가
+ * 스무 파일 넘게 있고 그중 {@code @BeforeEach} 것이 없다」였는데, 서버 생성이 베이스 한 곳으로 가면 그 수가
+ * 1이 되어 <b>문턱만 낮추면 그물이 빈다.</b> 그래서 세는 것을 「상속하는 파일」로 바꿨다.
+ *
+ * <p><b>허용 목록을 두지 않는다.</b> {@code @Test} 본문에서 서버를 만드는 것은 그대로 통과한다
+ * ({@code BinanceApiTest}의 미러가 그렇고, 거기서는 「이 테스트만의 서버」가 곧 단언의 일부다). 손으로 적은
+ * 예외 목록은 낡는다: {@code CacheConfigTest}가 클래스 목록을 손으로 들고 「여기 안 적으면 새 캐시를
  * 감시가 아예 안 본다」고 제 주석에 자백해 둔 자리가 그것이다.
  *
  * <p>⚠️ <b>이 그물이 정말 무는지 확인할 때는 {@code --rerun-tasks}를 붙일 것.</b> 아무 클래스를
@@ -52,48 +57,64 @@ class WireMockLifecycleTest {
     /** 서버를 만드는 자리. {@code (}까지 물어 주석·javadoc의 낱말과 갈린다. */
     private static final Pattern SERVER = Pattern.compile("new WireMockServer\\(");
 
+    /** WireMock을 쓰는 흔적 — 스텁·검증·주소. 이 중 하나라도 있으면 서버가 어디선가 떠야 한다. */
+    private static final Pattern USES_WIREMOCK =
+            Pattern.compile("\\b(stubFor|server\\.verify|server\\.baseUrl|new WireMockServer)\\(");
+
     /** 그 자리를 감싸는 것 — 중괄호를 파싱하지 않고 <b>바로 앞의 애너테이션</b>으로 본다. */
     private static final Pattern LIFECYCLE =
             Pattern.compile("@(BeforeAll|BeforeEach|AfterAll|AfterEach|Test)\\b");
 
+    private static final Pattern EXTENDS_BASE = Pattern.compile("\\bextends WireMockTest\\b");
+
+    /** 규칙을 스스로 담는 두 파일 — 검사 대상이 될 이유가 없다. */
+    private static final Set<String> SELF = Set.of("WireMockLifecycleTest.java", "WireMockTest.java");
+
     @Test
-    @DisplayName("@BeforeEach가 WireMock 서버를 띄우지 않는다 — 그 모양에서 앞 테스트의 서버에 요청이 닿았다")
-    void neverStartsAWireMockServerPerTest() throws IOException {
+    @DisplayName("WireMock을 쓰는 테스트는 WireMockTest를 상속하거나 @Test 안에서만 제 서버를 만든다")
+    void everyWireMockUserInheritsThePerClassServer() throws IOException {
         List<Path> files;
         try (Stream<Path> walk = Files.walk(TESTS)) {
             files = walk.filter(path -> path.toString().endsWith(".java"))
-                    // 자기 자신은 뺀다 — 이 파일의 주석과 패턴이 검사 대상이 될 이유가 없다
-                    .filter(path -> !path.getFileName().toString().equals("WireMockLifecycleTest.java"))
+                    .filter(path -> !SELF.contains(path.getFileName().toString()))
                     .toList();
         }
         assertThat(files)
                 .as("테스트 소스를 하나도 안 읽었다면 이 검사는 통과가 아니라 공허한 것이다")
                 .hasSizeGreaterThan(80);
 
-        List<Path> using = new ArrayList<>();
+        List<String> inheriting = new ArrayList<>();
         List<String> offenders = new ArrayList<>();
         for (Path path : files) {
             String source = Files.readString(path);
+            if (!USES_WIREMOCK.matcher(source).find()) {
+                continue;
+            }
+            boolean inherits = EXTENDS_BASE.matcher(source).find();
+            if (inherits) {
+                inheriting.add(path.getFileName().toString());
+            }
+            // 상속하지 않는 파일은 서버를 전부 @Test 안에서 만들어야 한다 — BinanceApiTest의 미러가 그 모양이고,
+            // 거기서는 「이 테스트만의 서버」가 곧 단언의 일부다. 상속하는 파일도 수명주기 메서드 안에서는 안 만든다
             Matcher server = SERVER.matcher(source);
-            boolean found = false;
             while (server.find()) {
-                found = true;
-                if ("@BeforeEach".equals(ownerOf(source, server.start()))) {
-                    offenders.add(path.getFileName().toString());
+                String owner = ownerOf(source, server.start());
+                if (!"@Test".equals(owner)) {
+                    offenders.add(path.getFileName().toString() + " (" + owner + ")");
                 }
             }
-            if (found) {
-                using.add(path);
+            if (!inherits && !SERVER.matcher(source).find()) {
+                offenders.add(path.getFileName().toString() + " (서버가 어디에도 없다)");
             }
         }
 
-        assertThat(using)
-                .as("WireMock을 쓰는 파일을 하나도 못 찾았다면 패턴이 낡은 것이다")
+        assertThat(inheriting)
+                .as("WireMockTest를 상속하는 파일을 스물 넘게는 찾아야 한다 — 아니면 패턴이 낡은 것이다")
                 .hasSizeGreaterThan(20);
         assertThat(offenders)
-                .as("서버를 @BeforeAll에서 한 번만 띄우고, 테스트 사이에는 @BeforeEach에서 "
-                        + "server.resetAll()로 상태만 되돌릴 것 (선례: RetryLiveTest · "
-                        + "HackerNewsApiTest · FmpUsOutlookClientTest)")
+                .as("서버는 WireMockTest가 @BeforeAll에서 한 번 띄운다. 새 클라이언트 테스트는 그것을 상속할 것 "
+                        + "(선례: RetryLiveTest · HackerNewsApiTest · FmpUsOutlookClientTest). "
+                        + "@Test 본문 안의 서버(BinanceApiTest 미러)만 예외다")
                 .isEmpty();
     }
 

@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market.binance;
 
+import io.saiden.economyhelper.support.WireMockTest;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.anyUrl;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
@@ -13,17 +14,14 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
 
-class BinanceApiTest {
+@WireMockTest.WireMockOptions(http2PlainDisabled = true)
+class BinanceApiTest extends WireMockTest {
 
-    /** 클래스당 하나다 — 테스트마다 띄우고 내리면 포트 재활용 창이 열린다(ARCHITECTURE.md §6). */
-    private static WireMockServer server;
 
     /**
      * 밴 문. Redis 없이 프로세스 사본만 쓴다 — Redis가 죽었을 때와 같은 경로다.
@@ -36,21 +34,8 @@ class BinanceApiTest {
     /** 밴 시각을 눈으로 검산하려고 고정한다 — 「지금부터 몇 초」가 아니라 「몇 시」를 단언한다. */
     private static final Instant NOW = Instant.parse("2026-08-20T05:00:00Z");
 
-    @BeforeAll
-    static void startServer() {
-        server = new WireMockServer(options().dynamicPort().http2PlainDisabled(true));
-        server.start();
-    }
-
-    @AfterAll
-    static void stopServer() {
-        server.stop();
-    }
-
     @BeforeEach
     void resetAndBuild() {
-        // 스텁·요청기록·시나리오를 함께 비운다 — 서버는 그대로 두고 상태만 되돌린다
-        server.resetAll();
         gate = new BinanceBanGate(null, Clock.fixed(NOW, ZoneOffset.UTC));
     }
 

@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market.weather.kma;
 
+import io.saiden.economyhelper.support.WireMockTest;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
@@ -7,9 +8,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
-import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import io.saiden.economyhelper.market.weather.GeoLocation;
 import io.saiden.economyhelper.market.weather.HalfDay;
 import io.saiden.economyhelper.market.weather.SkyCondition;
@@ -23,8 +22,6 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.List;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -41,7 +38,7 @@ import org.springframework.web.client.RestClient;
  * <p>가장 중요한 건 <b>서비스키가 쿼리에 실린다</b>는 점이다. 예외 메시지로 새면 로그를 타고
  * 그대로 유출된다({@code AccuWeatherClient}·{@code KeximFxClient}와 같은 규칙).
  */
-class KmaWeatherClientTest {
+class KmaWeatherClientTest extends WireMockTest {
 
     /** 발급 키는 이미 URL 인코딩된 형태다 — {@code %}가 들어 있는 것이 요점이다. */
     private static final String API_KEY = "raw%2Bkey%2Fwith%3Dpercent";
@@ -62,25 +59,10 @@ class KmaWeatherClientTest {
 
     private static final GeoLocation SEOHYEON = KmaFixtures.seohyeon();
 
-    /** 클래스당 하나다 — 테스트마다 띄우고 내리면 포트 재활용 창이 열린다(ARCHITECTURE.md §6). */
-    private static WireMockServer server;
     private KmaWeatherClient client;
-
-    @BeforeAll
-    static void startServer() {
-        server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
-        server.start();
-    }
-
-    @AfterAll
-    static void stopServer() {
-        server.stop();
-    }
 
     @BeforeEach
     void resetAndBuild() {
-        // 스텁·요청기록·시나리오를 함께 비운다 — 서버는 그대로 두고 상태만 되돌린다
-        server.resetAll();
         client = clientWith(API_KEY);
     }
 

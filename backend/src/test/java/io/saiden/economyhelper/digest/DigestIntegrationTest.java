@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
-import io.saiden.economyhelper.digest.DailyDigestJobTest.RecordingClient;
+import io.saiden.economyhelper.support.RecordingTelegram;
 import io.saiden.economyhelper.news.Article;
 import io.saiden.economyhelper.news.NewsFacade;
 import io.saiden.economyhelper.news.NewsItem;
@@ -97,8 +97,8 @@ class DigestIntegrationTest {
     @Test
     @DisplayName("두 인스턴스가 같은 슬롯을 동시에 처리해도 발송은 한 번뿐이다")
     void twoInstancesSendOnlyOnce() throws Exception {
-        RecordingClient first = new RecordingClient();
-        RecordingClient second = new RecordingClient();
+        RecordingTelegram first = new RecordingTelegram();
+        RecordingTelegram second = new RecordingTelegram();
         CyclicBarrier startTogether = new CyclicBarrier(2);
 
         // 인스턴스마다 자기 Redis 클라이언트를 갖는다 — 서버 하나를 두 파드가 보는 상황과 같다
@@ -218,7 +218,7 @@ class DigestIntegrationTest {
                 .contains("번역된 제목");
     }
 
-    private DigestResult runAfter(CyclicBarrier barrier, RecordingClient telegram) {
+    private DigestResult runAfter(CyclicBarrier barrier, RecordingTelegram telegram) {
         try {
             barrier.await();
         } catch (Exception e) {

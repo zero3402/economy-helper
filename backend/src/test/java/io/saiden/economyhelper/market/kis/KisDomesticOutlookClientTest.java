@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market.kis;
 
+import io.saiden.economyhelper.support.WireMockTest;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
@@ -7,16 +8,12 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.github.tomakehurst.wiremock.WireMockServer;
-import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import io.saiden.economyhelper.market.StockOutlook;
 import io.saiden.economyhelper.market.StockSource;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -33,31 +30,16 @@ import org.springframework.web.client.RestClient;
  * <p>그 실측에서 확인한 것 둘이 이 파일의 중심이다 — <b>같은 응답에 {@code BUY}와 {@code 매수}가
  * 섞여 온다</b>는 것, 그리고 <b>같은 증권사가 여러 번 낸다</b>는 것.
  */
-class KisDomesticOutlookClientTest {
+class KisDomesticOutlookClientTest extends WireMockTest {
 
     private static final String PATH = "/uapi/domestic-stock/v1/quotations/invest-opinion";
     private static final Instant NOW = Instant.parse("2026-08-21T00:00:00Z");
 
-    /** 클래스당 하나다 — 테스트마다 띄우고 내리면 포트 재활용 창이 열린다(ARCHITECTURE.md §6). */
-    private static WireMockServer server;
     private KisDomesticOutlookClient client;
     private KisFixtures.FixedToken tokens;
 
-    @BeforeAll
-    static void startServer() {
-        server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
-        server.start();
-    }
-
-    @AfterAll
-    static void stopServer() {
-        server.stop();
-    }
-
     @BeforeEach
     void resetAndBuild() {
-        // 스텁·요청기록·시나리오를 함께 비운다 — 서버는 그대로 두고 상태만 되돌린다
-        server.resetAll();
         Clock clock = Clock.fixed(NOW, ZoneId.of("Asia/Seoul"));
         tokens = new KisFixtures.FixedToken(clock);
         client = new KisDomesticOutlookClient(RestClient.builder(), server.baseUrl(),
