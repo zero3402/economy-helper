@@ -12,9 +12,12 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 /**
  * 공공데이터포털에 <b>묻는 방법</b> — 시세와 지수 두 클라이언트가 나눠 쓴다.
@@ -45,8 +48,12 @@ final class DataGoRequest {
     /** 한 번에 받아올 최대 건수. {@code 삼성}이 26건·{@code 코스피}가 32건이라 100이면 넉넉하다. */
     private static final int PAGE_SIZE = 100;
 
-    private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
-    private static final DateTimeFormatter BAS_DT = DateTimeFormatter.ofPattern("yyyyMMdd");
+    /** 패키지가 함께 쓴다 — {@code DataGoStockClient}가 종가일을 옮길 때도 이 둘이다. */
+    static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
+    static final DateTimeFormatter BAS_DT = DateTimeFormatter.ofPattern("yyyyMMdd");
+
+    /** 에러 봉투의 사유 칸. 정상 봉투({@code response})와 모양이 달라 레코드로 안 읽고 글자로 찾는다. */
+    private static final Pattern ERROR_MESSAGE = Pattern.compile("\"errMsg\"\\s*:\\s*\"([^\"]*)\"");
 
     private DataGoRequest() {
     }
@@ -110,10 +117,27 @@ final class DataGoRequest {
         }
         try {
             return restClient.get().uri(URI.create(uri)).retrieve().body(type);
+        } catch (RestClientResponseException e) {
+            // ⚠️ 상태 코드만으로는 「활용신청이 안 됐다」(403 SERVICE_KEY_IS_NOT_REGISTERED_ERROR)와
+            //    「키가 틀렸다」를 못 가른다. 본문의 errMsg가 그것을 말하므로 한 줄로 남긴다 —
+            //    기상청 때 이 메시지를 인코딩 문제로 오독한 적이 있다. 본문에 키는 실리지 않는다
+            String reason = e.getStatusCode().value() + " " + errorMessageOf(e.getResponseBodyAsString());
+            log.warn("[{}] {} 조회 실패: {}", tag, date.format(BAS_DT), reason);
+            throw new IllegalStateException(
+                    "공공데이터포털 조회 실패 (basDt=" + date.format(BAS_DT) + ", " + reason + ")");
         } catch (RuntimeException e) {
             log.warn("[{}] {} 조회 실패: {}", tag, date.format(BAS_DT), e.getClass().getSimpleName());
             throw new IllegalStateException("공공데이터포털 조회 실패 (basDt=" + date.format(BAS_DT) + ")");
         }
+    }
+
+    /** 에러 봉투({@code OpenAPI_ServiceResponse.cmmMsgHeader.errMsg})의 사유. 없으면 빈 문자열. */
+    static String errorMessageOf(String body) {
+        if (body == null) {
+            return "";
+        }
+        Matcher matcher = ERROR_MESSAGE.matcher(body);
+        return matcher.find() ? matcher.group(1) : "";
     }
 
     /**

@@ -55,7 +55,7 @@ CI가 구운 것이고, 그쪽이 빌드 시간을 아낀다. 무료 빌더에�
 | `TELEGRAM_NOTICE_TOPIC_ID` · `TELEGRAM_SEARCH_TOPIC_ID` | 토픽 번호 | 포럼(토픽) 그룹일 때만. 아래 참조 |
 | 시크릿 9개 | `.env.example` 참조 | `TELEGRAM_*` · `GEMINI_API_KEY` · `KEXIM_API_KEY` · `DATA_API_KEY` · `FMP_API_KEY` · `ACCU_API_KEY` · `KIS_API_KEY` · `KIS_API_SECRET` |
 | `KIS_API_KEY` · `KIS_API_SECRET` | 발급받은 앱키/앱시크릿 | 환율·국내 시세·미국 시세의 1순위. **실전과 모의의 키가 다르고 도메인도 다르다** — `application.yml`의 `market.kis.base-url`을 함께 맞춘다. ⚠️ **토큰은 1분에 한 번만 발급되고 발급마다 계정주에게 알림톡이 간다.** Redis 캐시(`kis:token`)가 필수이며, Redis가 죽으면 프로세스 사본으로 버틴다. 비워도 앱은 돈다 — 대신 **국내 시세가 전부 전일 종가로 내려앉는다** |
-| `DATA_API_KEY` | 발급받은 키 | **두 곳이 나눠 쓴다** — 주식 국내 2순위(금융위)와 **날씨 국내 1순위(기상청 단기예보)**. data.go.kr 일반 인증키가 계정당 하나라 새로 받을 것이 없다. 비우면 국내 날씨가 AccuWeather로 내려앉는다 |
+| `DATA_API_KEY` | 발급받은 키 | **세 곳이 나눠 쓴다** — 주식 국내 2순위(금융위 주식시세정보), **ETF 국내 2순위(금융위 증권상품시세정보)**, **날씨 국내 1순위(기상청 단기예보)**. data.go.kr 일반 인증키가 계정당 하나라 새로 받을 것이 없지만 **활용신청은 API마다 따로**다 — 안 한 API는 403 `SERVICE_KEY_IS_NOT_REGISTERED_ERROR`를 준다(ETF는 그때 주식과 다른 브레이커가 열려 주식은 그대로 나간다). 비우면 국내 날씨가 AccuWeather로 내려앉는다 |
 | `ACCU_API_KEY` | 발급받은 키 | 국외 날씨 1순위이자 국내 2순위. **비워도 앱은 돈다** — 그 조회가 실패로 잡혀 Open-Meteo가 받는다(키가 없는 쪽이라 한도에 안 걸린다) — 국외에서는 2순위, 국내에서는 기상청 다음의 3순위다. 다만 그 상태면 매 조회가 헛호출 한 번을 태우므로, 안 쓸 거면 키를 넣지 말고 그대로 두는 편이 낫다 |
 
 **깨어 있게 유지하는 일은 앱이 한다.** `SELF_PING_URL`에 공개 주소를 주면 앱이 10분마다

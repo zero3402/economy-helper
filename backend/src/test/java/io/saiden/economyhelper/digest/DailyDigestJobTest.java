@@ -12,6 +12,7 @@ import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.FxService;
 import io.saiden.economyhelper.market.FxSource;
 import io.saiden.economyhelper.market.StockQuote;
+import io.saiden.economyhelper.market.StockListings;
 import io.saiden.economyhelper.market.StockService;
 import io.saiden.economyhelper.market.StockService.Answer;
 import io.saiden.economyhelper.market.chart.DailyBar;
@@ -329,7 +330,7 @@ class DailyDigestJobTest {
         private int answerCalls;
 
         private CountingStock() {
-            super(List.of(), List.of(), noNames(), null,
+            super(List.of(), List.of(), noNames(), new StockListings(List::of), null,
                     code -> java.util.Optional.empty(), symbol -> java.util.Optional.empty(), null);
         }
 
@@ -375,7 +376,7 @@ class DailyDigestJobTest {
     }
 
     private static StockService stock(boolean indicesAlive, boolean stocksAlive) {
-        return new StockService(List.of(), List.of(), noNames(), null, code -> java.util.Optional.empty(), symbol -> java.util.Optional.empty(), null) {
+        return new StockService(List.of(), List.of(), noNames(), new StockListings(List::of), null, code -> java.util.Optional.empty(), symbol -> java.util.Optional.empty(), null) {
             @Override
             public List<StockQuote> indicesOf(List<EconomyHelperProperties.Index> indices) {
                 return indicesAlive
@@ -492,7 +493,7 @@ class DailyDigestJobTest {
 
     /** 이름 검색 스텁 — 브리핑은 코드로만 조회한다. 실수로 나가면 바로 드러나게 한다. */
     private static DataGoStockClient noNames() {
-        return new DataGoStockClient(null, null) {
+        return new DataGoStockClient(null, null, null) {
             @Override
             public java.util.Optional<StockQuote> byName(String name) {
                 throw new AssertionError("브리핑이 이름 검색을 불렀습니다: " + name);

@@ -6,6 +6,7 @@ import io.saiden.economyhelper.config.EconomyHelperProperties.Index;
 import io.saiden.economyhelper.config.EconomyHelperProperties.UsSymbol;
 import io.saiden.economyhelper.market.StockResolver.ResolvedStock;
 import io.saiden.economyhelper.market.data.DataGoStockClient;
+import io.saiden.economyhelper.market.kis.KisMasterClient.Listing;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -365,6 +366,99 @@ class StockServiceTest {
                 .extracting(answer -> answer.quote().name()).containsExactly("애플");
     }
 
+    // --- 색인(KIS 종목 마스터) ---
+
+    private static final Listing TIME_NASDAQ = new Listing("426030", "TIME 미국나스닥100액티브", "EF", 24944);
+    private static final Listing KODEX_NASDAQ = new Listing("379810", "KODEX 미국나스닥100", "EF", 93294);
+    private static final Listing NAVER = new Listing("035420", "NAVER", "ST", 400000);
+    private static final Listing SAMSUNG = new Listing("005930", "삼성전자", "ST", 15551101);
+
+    @Test
+    @DisplayName("LLM이 상장명만 주면 색인이 코드를 찾고 1순위가 실시간을 준다 — 차트 열쇠까지 손에 들어온다")
+    void findsADomesticEtfByListedNameThenQuotesRealtime() {
+        FakeDomestic kis = domestic(StockSource.KIS,
+                Map.of("426030", krStock("TIME 미국나스닥100액티브", "45500", StockSource.KIS)));
+        RecordingNames names = new RecordingNames(Map.of());
+        StockService service = service(List.of(kis), List.of(),
+                resolver(new ResolvedStock("KR", "STOCK", null, "TIME 미국나스닥100액티브")), names,
+                listings(TIME_NASDAQ, KODEX_NASDAQ));
+
+        StockService.Answer answer = service.answer("타임나스닥100").orElseThrow();
+
+        assertThat(answer.quote().name()).isEqualTo("TIME 미국나스닥100액티브");
+        assertThat(answer.quote().realtime()).as("색인이 코드를 주므로 KIS 실시간이다").isTrue();
+        assertThat(answer.series()).as("코드가 있으니 차트가 붙는다").isEqualTo(StockService.Series.domesticStock("426030"));
+        assertThat(kis.asked).containsExactly("426030");
+        assertThat(names.asked).as("색인에서 찾았으면 공공데이터포털은 부르지 않는다").isEmpty();
+    }
+
+    @Test
+    @DisplayName("LLM의 코드와 이름이 다른 종목이면 이름을 믿는다 — 존재하는 틀린 코드는 시세가 걸러 주지 않는다")
+    void trustsTheNameWhenTheLlmCodeNamesAnotherListing() {
+        FakeDomestic kis = domestic(StockSource.KIS, Map.of(
+                "379810", krStock("KODEX 미국나스닥100", "12000", StockSource.KIS),
+                "426030", krStock("TIME 미국나스닥100액티브", "45500", StockSource.KIS)));
+        StockService service = service(List.of(kis), List.of(),
+                resolver(new ResolvedStock("KR", "STOCK", "379810", "TIME 미국나스닥100액티브")),
+                new RecordingNames(Map.of()), listings(TIME_NASDAQ, KODEX_NASDAQ));
+
+        assertThat(service.quote("타임나스닥100").orElseThrow().name()).isEqualTo("TIME 미국나스닥100액티브");
+        assertThat(kis.asked).as("지어낸 코드로는 조회하지 않는다 — KODEX가 답으로 나갈 뻔한 자리다")
+                .containsExactly("426030");
+    }
+
+    @Test
+    @DisplayName("이름이 어긋나도 이름으로 못 찾으면 코드를 쓴다 — 네이버는 상장명이 NAVER라 이름 경로가 전부 빈손이다")
+    void fallsBackToTheCodeWhenTheNameFindsNothing() {
+        FakeDomestic kis = domestic(StockSource.KIS, Map.of("035420", krStock("NAVER", "230000", StockSource.KIS)));
+        RecordingNames names = new RecordingNames(Map.of());
+        StockService service = service(List.of(kis), List.of(),
+                resolver(new ResolvedStock("KR", "STOCK", "035420", "네이버")), names, listings(NAVER, SAMSUNG));
+
+        assertThat(service.quote("네이버").orElseThrow().name()).isEqualTo("NAVER");
+        assertThat(names.asked).as("이름 경로를 먼저 다 태운 뒤에 코드로 갔다").contains("네이버");
+        assertThat(kis.asked).containsExactly("035420");
+    }
+
+    @Test
+    @DisplayName("색인을 못 받아도 검색은 산다 — 공공데이터포털 이름 검색이 다음 수다")
+    void survivesAListingsOutage() {
+        RecordingNames names = new RecordingNames(Map.of("삼성전자", krStock("삼성전자", "268500", StockSource.DATA_GO)));
+        StockListings dead = new StockListings(() -> {
+            throw new IllegalStateException("kisMaster 브레이커 열림");
+        });
+        StockService service = service(List.of(domestic(StockSource.KIS, Map.of())), List.of(),
+                resolver(new ResolvedStock("KR", "STOCK", null, "삼성전자")), names, dead);
+
+        assertThat(service.quote("삼성전자").orElseThrow().source()).isEqualTo(StockSource.DATA_GO);
+    }
+
+    @Test
+    @DisplayName("LLM이 죽어도 원문이 상장명이면 색인이 찾는다 — 전일 종가가 아니라 실시간이 나간다")
+    void findsTheRawQueryInTheListingsWhenTheLlmIsDead() {
+        FakeDomestic kis = domestic(StockSource.KIS, Map.of("005930", krStock("삼성전자", "268500", StockSource.KIS)));
+        RecordingNames names = new RecordingNames(Map.of("삼성전자", krStock("삼성전자", "274500", StockSource.DATA_GO)));
+        StockService service = service(List.of(kis), List.of(), noResolver(), names, listings(SAMSUNG));
+
+        StockQuote quote = service.quote("삼성전자 etf").orElseThrow();
+
+        assertThat(quote.source()).as("군더더기 etf를 뗀 형태가 색인에 걸린다").isEqualTo(StockSource.KIS);
+        assertThat(names.asked).isEmpty();
+    }
+
+    @Test
+    @DisplayName("영숫자 6자 종목코드도 코드다 — 0019K0(TIME 미국나스닥100채권혼합50액티브)을 KIS는 받는다")
+    void acceptsAlphanumericStockCodes() {
+        FakeDomestic kis = domestic(StockSource.KIS,
+                Map.of("0019K0", krStock("TIME 미국나스닥100채권혼합50액티브", "13215", StockSource.KIS)));
+        StockService service = service(List.of(kis), List.of(), explodingResolver());
+
+        for (String query : List.of("0019K0", "0019k0", "0019K0 주가")) {
+            assertThat(service.quote(query)).as("입력 '%s'", query).isPresent();
+        }
+        assertThat(kis.asked).as("소문자로 정규화됐어도 KIS에는 대문자로 간다").containsOnly("0019K0");
+    }
+
     // --- 스텁 ---
 
     private static StockService service(List<DomesticStockClient> domestic, List<UsStockClient> us,
@@ -374,8 +468,19 @@ class StockServiceTest {
 
     private static StockService service(List<DomesticStockClient> domestic, List<UsStockClient> us,
                                         StockResolver resolver, DataGoStockClient names) {
+        return service(domestic, us, resolver, names, new StockListings(List::of));
+    }
+
+    private static StockService service(List<DomesticStockClient> domestic, List<UsStockClient> us,
+                                        StockResolver resolver, DataGoStockClient names,
+                                        StockListings listings) {
         // 전망은 여기서 보지 않는다 — KisDomesticOutlookClientTest가 본다
-        return new StockService(domestic, us, names, resolver, code -> java.util.Optional.empty(), symbol -> java.util.Optional.empty(), null);
+        return new StockService(domestic, us, names, listings, resolver,
+                code -> java.util.Optional.empty(), symbol -> java.util.Optional.empty(), null);
+    }
+
+    private static StockListings listings(Listing... listings) {
+        return new StockListings(() -> List.of(listings));
     }
 
     private static FakeDomestic domestic(StockSource source, Map<String, StockQuote> stocks) {
@@ -468,7 +573,7 @@ class StockServiceTest {
         private final List<String> asked = new ArrayList<>();
 
         private RecordingNames(Map<String, StockQuote> answers) {
-            super(null, null);
+            super(null, null, null);
             this.answers = answers;
         }
 

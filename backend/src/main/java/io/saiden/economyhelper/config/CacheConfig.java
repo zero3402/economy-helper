@@ -70,6 +70,10 @@ public class CacheConfig {
                         cache(ttl.relevance(), new TypeReference<Map<String, Double>>() {}))
                 .withCacheConfiguration(CacheNames.UPBIT_MARKETS,
                         cache(ttl.upbitMarkets(), new TypeReference<List<UpbitMarket>>() {}))
+                // 국내 상장 종목 전부(약 4,400행). 업비트 목록과 같은 성질 — 목록이라 6시간이다
+                .withCacheConfiguration(CacheNames.KR_LISTINGS,
+                        cache(ttl.krListings(), new TypeReference<List<
+                                io.saiden.economyhelper.market.kis.KisMasterClient.Listing>>() {}))
                 .withCacheConfiguration(CacheNames.CRYPTO_PRICE,
                         cache(ttl.cryptoPrice(), new TypeReference<List<UpbitTicker>>() {}))
                 // 업비트와 같은 수명이지만 담기는 타입이 달라 crypto-price에 섞을 수 없다

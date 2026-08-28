@@ -14,6 +14,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
@@ -32,15 +34,25 @@ import org.springframework.stereotype.Component;
 @Component
 public class DataGoStockClient implements DomesticStockClient {
 
-    private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
-    private static final DateTimeFormatter BAS_DT = DateTimeFormatter.ofPattern("yyyyMMdd");
+    private static final Logger log = LoggerFactory.getLogger(DataGoStockClient.class);
+
+    // 기준일을 옮기는 시간대·형식은 패키지 공용({@code DataGoRequest})이다 — 여기 따로 두면
+    // 한쪽만 고쳐지는 날이 온다
+    private static final ZoneId SEOUL = DataGoRequest.SEOUL;
+    private static final DateTimeFormatter BAS_DT = DataGoRequest.BAS_DT;
 
     private final StockPriceApi stocks;
     private final MarketIndexApi indices;
+    private final EtfPriceApi etfs;
 
-    public DataGoStockClient(StockPriceApi stocks, MarketIndexApi indices) {
+    /**
+     * @param etfs ETF는 <b>다른 API</b>다 — 주식시세정보는 ETF를 아예 주지 않는다(실측 {@code KODEX} 0건).
+     *             활용신청도 따로여서 브레이커도 따로다({@code dataGoEtf})
+     */
+    public DataGoStockClient(StockPriceApi stocks, MarketIndexApi indices, EtfPriceApi etfs) {
         this.stocks = stocks;
         this.indices = indices;
+        this.etfs = etfs;
     }
 
     @Override
@@ -48,9 +60,11 @@ public class DataGoStockClient implements DomesticStockClient {
         return StockSource.DATA_GO;
     }
 
+    /** 주식에 없으면 ETF에서 찾는다 — 코드 하나가 두 API 중 한쪽에만 있다. */
     @Override
     public StockQuote stock(String code) {
         return best(stocks.searchByCode(code))
+                .or(() -> best(etfs.searchByCode(code)))
                 .orElseThrow(() -> new IllegalStateException("종목코드 " + code + " 시세가 없습니다"));
     }
 
@@ -82,7 +96,27 @@ public class DataGoStockClient implements DomesticStockClient {
      *         <b>이건 장애가 아니라 "그런 종목이 없다"이므로 던지지 않는다</b>
      */
     public Optional<StockQuote> byName(String name) {
-        return best(stocks.searchByName(name));
+        // 주식과 ETF 후보를 **합쳐** 고른다 — 순서로 두면 「삼성」이 ETF에 절대 안 가는 대신
+        // 규칙이 둘이 된다. 대가는 이름 검색 한 번이 호출 둘인 것인데(하루 1만 회·1시간 캐시)
+        // 여유가 크다
+        List<StockPrice> candidates = new java.util.ArrayList<>(stocks.searchByName(name));
+        candidates.addAll(etfsByName(name));
+        return best(candidates);
+    }
+
+    /**
+     * ETF 이름 검색은 <b>주식 결과를 죽이지 않는다.</b> 활용신청 전이면 여기가 늘 403이다 —
+     * 그때도 주식은 나가야 한다. {@code @CircuitBreaker}는 {@link EtfPriceApi} 쪽에 있어
+     * 여기서 삼켜도 브레이커는 실패를 먼저 센다.
+     */
+    private List<StockPrice> etfsByName(String name) {
+        try {
+            return etfs.searchByName(name);
+        } catch (RuntimeException e) {
+            log.warn("[stock] '{}' ETF 이름 검색 실패 — 주식 후보만 봅니다: {}", name,
+                    io.saiden.economyhelper.support.FailureReason.of(e));
+            return List.of();
+        }
     }
 
     /**

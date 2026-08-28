@@ -114,7 +114,7 @@ flowchart LR
 
     subgraph 밖 [외부 API]
       N[RSS 7매체 8피드<br/>+ Hacker News]
-      M[KIS · 공공데이터포털<br/>FMP · 유럽중앙은행 · 수출입은행<br/>업비트 · 바이낸스]
+      M[KIS · KIS 종목 마스터 · 공공데이터포털<br/>FMP · 유럽중앙은행 · 수출입은행<br/>업비트 · 바이낸스]
       W[기상청<br/>AccuWeather<br/>Open-Meteo]
       G[Gemini]
     end
@@ -278,7 +278,7 @@ this.clients = Failover.order(clients, ORDER, FxRateClient::source);   // suppor
 | 도메인 | 1순위 | 2순위 | 3순위 |
 |---|---|---|---|
 | 환율 | 한국투자증권 *(하루 중 움직임)* | 유럽중앙은행 *(고시)* | 수출입은행 *(고시)* |
-| 국내 시세 | 한국투자증권 *(실시간)* | 공공데이터포털 *(전일 종가)* | — |
+| 국내 시세 | 한국투자증권 *(실시간)* | 공공데이터포털 *(전일 종가 — 주식과 ETF가 **다른 API·다른 활용신청**이다)* | — |
 | 미국 시세 | 한국투자증권 | FMP | — |
 | 날씨 (국내) | **기상청** *(국내 격자·오늘~+3일)* | AccuWeather | Open-Meteo |
 | 날씨 (국외) | AccuWeather | Open-Meteo | — |
@@ -367,8 +367,9 @@ this.clients = Failover.order(clients, ORDER, FxRateClient::source);   // suppor
 한도가 데이터셋이 아니라 계정에 걸리므로 리미터도 계정 단위다. KIS의 환율과 주식이
 리미터 하나(`kis`)를 나눠 쓰는 이유가 그것이다 — 따로 걸면 둘이 합쳐 한도를 넘긴다.
 **공공데이터포털도 같은 모양이다**: 주식시세와 기상청 예보가 `DATA_API_KEY` 하나를 쓰므로
-리미터 `dataGo` 하나를 나눠 쓰고, **브레이커는 출처마다 따로 연다**(`dataGo`/`weatherKma`) —
-한 문장에 두 규칙이 함께 보이는 사례다.
+리미터 `dataGo` 하나를 나눠 쓰고, **브레이커는 출처마다 따로 연다**(`dataGo`/`weatherKma`/`dataGoEtf`) —
+한 문장에 두 규칙이 함께 보이는 사례다. `dataGoEtf`가 따로인 이유가 가장 뚜렷하다: ETF 시세는 **활용신청이
+따로**라 신청 전·만료 뒤에는 매 호출이 403인데, 주식과 한 브레이커면 그 403이 쌓여 주식 2순위까지 끊는다.
 
 **리미터 거절을 브레이커의 실패로 세지 않는다.** 그건 상대 장애가 아니라 우리가 스스로 건
 스로틀이다. 실제로 `/news` 한 번에 Gemini 리미터가 소진되자 번역 브레이커가 열려 브리핑이
@@ -442,7 +443,7 @@ this.clients = Failover.order(clients, ORDER, FxRateClient::source);   // suppor
 
 | 쓰는 곳 | 맡기는 것 | 맡기지 않는 것 |
 |---|---|---|
-| `StockResolver` | 약칭·자연어 → 종목코드 후보 | 그 코드의 실재 — 시세 API가 다시 찾는다 |
+| `StockResolver` | 약칭·자연어 → 종목코드 후보 · 국내 ETF의 **상장명 소리 맞추기**(`타임 → TIME`) | 그 코드의 실재 — 시세 API가 다시 찾는다. **ETF 코드는 색인**(`StockListings`, KIS 종목 마스터)이 이름으로 확정하고, LLM의 코드와 이름이 다른 종목을 가리키면 이름을 믿는다 |
 | `WeatherResolver` | 지명·기간 | 좌표와 실재 — 지오코딩이 확정한다 |
 | `CryptoResolver` | 코인 이름 | 상장 여부 — 업비트가 확정한다 |
 | `RelevanceScorer` | 재테크 관련도 | 순위 — 네 항 중 하나일 뿐이다 |

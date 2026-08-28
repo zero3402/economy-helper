@@ -47,14 +47,14 @@ public final class CacheNames {
     public static final String WEATHER_RESOLVE = "weather-resolve-v2";
 
     /**
-     * 종목 검색어 해석. <b>v4</b> — 프롬프트가 <b>한글로 적은 미국 티커</b>를 읽게 됐다
-     * ({@code 제피 → JEPI}·{@code 속슬 → SOXL}). v3에는 그 규칙이 없던 프롬프트가 만든
-     * 빈손이 7일 남는다.
+     * 종목 검색어 해석. <b>v5</b> — 프롬프트가 <b>국내 ETF</b>를 다루게 됐다({@code 타임나스닥100 →
+     * TIME 미국나스닥100액티브}, 코드는 확실할 때만). v4에는 그 규칙이 없던 프롬프트가 만든
+     * 빈손·지어낸 코드가 7일 남는다.
      *
-     * <p>v3은 거래소 화이트리스트를 걷어낸 판이었다(「NASDAQ·NYSE만」에 NYSE Arca ETF가 전부
-     * 걸려 null이었다).
+     * <p>v4는 한글로 적은 미국 티커({@code 제피 → JEPI}·{@code 속슬 → SOXL})를, v3은 거래소
+     * 화이트리스트를 걷어낸 판이었다(「NASDAQ·NYSE만」에 NYSE Arca ETF가 전부 걸려 null이었다).
      */
-    public static final String STOCK_RESOLVE = "stock-resolve-v4";
+    public static final String STOCK_RESOLVE = "stock-resolve-v5";
 
     /** 코인 검색어 해석. <b>v2</b> — 같다. */
     public static final String CRYPTO_RESOLVE = "crypto-resolve-v2";
@@ -78,6 +78,13 @@ public final class CacheNames {
 
     /** 업비트 원화 마켓 목록. 6시간 — 상장·폐지는 드물다. */
     public static final String UPBIT_MARKETS = "upbit-markets";
+
+    /**
+     * KIS 종목 마스터(국내 상장 종목 전부 — 이름·코드·시가총액). 6시간 — 파일이 하루 한 번(07:40)
+     * 갱신되고 상장·폐지는 드물다. 「이름 → 코드」 색인의 재료라 이것이 없으면 국내 ETF를
+     * 이름으로 못 찾는다. 판을 안 매긴다 — 상대가 준 값 그대로다.
+     */
+    public static final String KR_LISTINGS = "kr-listings";
 
     /** 업비트 시세. 10초 — 시세다. 길게 잡으면 거짓말이 된다. */
     public static final String CRYPTO_PRICE = "crypto-price";

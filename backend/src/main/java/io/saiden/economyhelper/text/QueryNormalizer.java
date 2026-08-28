@@ -39,7 +39,9 @@ public final class QueryNormalizer {
      */
     private static final List<String> SUFFIXES = sortedByLengthDesc(
             "주가", "주식", "가격", "시세", "얼마", "알려줘", "알려", "현재가", "종가", "몇",
-            "stock", "stocks", "price", "prices", "quote", "share", "shares");
+            "stock", "stocks", "price", "prices", "quote", "share", "shares",
+            // 「타임나스닥100 etf」의 etf — 상장명에는 그 낱말이 없어 붙어 있으면 색인이 못 찾는다
+            "etf");
 
     /** {@code 오늘 테슬라 주가}의 {@code 오늘}. 접미사만 떼면 이게 남아 매칭이 통째로 실패한다. */
     private static final List<String> PREFIXES = sortedByLengthDesc(

@@ -142,10 +142,85 @@ class DataGoStockClientTest {
         assertThat(quote.currency()).isEqualTo(StockQuote.Money.NONE);
     }
 
+    // --- ETF는 다른 API다 ---
+
+    private static final List<StockPrice> TIME_NASDAQ =
+            List.of(price("TIME 미국나스닥100액티브", "44930", "2428915800000"));
+    private static final List<StockPrice> TIGER_NASDAQ =
+            List.of(price("TIGER 미국나스닥100", "178630", "11309065300000"));
+
+    @Test
+    @DisplayName("주식 API에 없는 코드는 ETF API에서 찾는다 — 주식시세정보는 ETF를 아예 주지 않는다")
+    void looksUpEtfCodesInTheEtfApi() {
+        StockQuote quote = client(Map.of(), Map.of("426030", TIME_NASDAQ), null).stock("426030");
+
+        assertThat(quote.name()).isEqualTo("TIME 미국나스닥100액티브");
+        assertThat(quote.realtime()).as("ETF도 전일 종가다").isFalse();
+        assertThat(quote.changePercent()).as("fltRt가 -.14 꼴로 와도 읽는다").isNull();
+    }
+
+    @Test
+    @DisplayName("이름 검색은 주식·ETF 후보를 합쳐 시총 1위를 고른다 — 규칙이 하나다")
+    void mergesStockAndEtfCandidatesByName() {
+        assertThat(client(Map.of(), Map.of("나스닥", TIGER_NASDAQ), null).byName("나스닥"))
+                .get().extracting(StockQuote::name).isEqualTo("TIGER 미국나스닥100");
+        assertThat(client(Map.of("삼성", SAMSUNG), Map.of("삼성", TIME_NASDAQ), null).byName("삼성"))
+                .as("주식 후보가 더 크면 주식이다").get().extracting(StockQuote::name).isEqualTo("삼성전자");
+    }
+
+    @Test
+    @DisplayName("ETF API가 죽어도(활용신청 전 403) 주식 이름 검색은 산다")
+    void etfOutageDoesNotKillStockNameSearch() {
+        assertThat(client(Map.of("삼성", SAMSUNG), null, null).byName("삼성"))
+                .get().extracting(StockQuote::name).isEqualTo("삼성전자");
+    }
+
+    @Test
+    @DisplayName("주식에 없고 ETF API도 죽었으면 던진다 — 폴백이 일어나야 한다")
+    void throwsWhenStockIsEmptyAndEtfApiIsDown() {
+        assertThatThrownBy(() -> client(Map.of(), null, null).stock("426030"))
+                .isInstanceOf(RuntimeException.class);
+    }
+
     private static DataGoStockClient client(Map<String, List<StockPrice>> byQuery,
                                             MarketIndexApi indices) {
+        return client(byQuery, Map.of(), indices);
+    }
+
+    /** @param etfByQuery ETF API가 줄 답 — 주식과 <b>다른 API</b>라 따로 준다 */
+    private static DataGoStockClient client(Map<String, List<StockPrice>> byQuery,
+                                            Map<String, List<StockPrice>> etfByQuery,
+                                            MarketIndexApi indices) {
         return new DataGoStockClient(new RecordingPriceApi(byQuery),
-                indices == null ? new RecordingIndexApi(null) : indices);
+                indices == null ? new RecordingIndexApi(null) : indices,
+                new RecordingEtfApi(etfByQuery));
+    }
+
+    /** {@link RecordingPriceApi}의 ETF 판. 던지게 만들 수 있다 — 활용신청 전의 403이 그 모양이다. */
+    private static final class RecordingEtfApi extends EtfPriceApi {
+        private final Map<String, List<StockPrice>> byQuery;
+
+        private RecordingEtfApi(Map<String, List<StockPrice>> byQuery) {
+            super(RestClient.builder(), "https://example.invalid", "key", fixed(), null);
+            this.byQuery = byQuery;
+        }
+
+        @Override
+        public List<StockPrice> searchByName(String name) {
+            return answer(name);
+        }
+
+        @Override
+        public List<StockPrice> searchByCode(String code) {
+            return answer(code);
+        }
+
+        private List<StockPrice> answer(String query) {
+            if (byQuery == null) {
+                throw new IllegalStateException("공공데이터포털 조회 실패 (403 SERVICE_KEY_IS_NOT_REGISTERED_ERROR)");
+            }
+            return byQuery.getOrDefault(query, List.of());
+        }
     }
 
     private static Clock fixed() {

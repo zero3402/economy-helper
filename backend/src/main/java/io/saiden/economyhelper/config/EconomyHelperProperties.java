@@ -186,7 +186,7 @@ public record EconomyHelperProperties(
                            Duration weather, Duration geocode, Duration accuLocation,
                            Duration weatherResolve, Duration precipitationHours,
                            Duration kisOutlook, Duration usOutlook, Duration fxSeries,
-                           Duration cryptoSeries, Duration stockSeries) {}
+                           Duration cryptoSeries, Duration stockSeries, Duration krListings) {}
 
     /**
      * 오전 6시 날씨 알람.

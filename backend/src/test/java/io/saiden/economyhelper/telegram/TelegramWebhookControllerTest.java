@@ -8,6 +8,7 @@ import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.FxService;
 import io.saiden.economyhelper.market.FxSource;
 import io.saiden.economyhelper.market.StockQuote;
+import io.saiden.economyhelper.market.StockListings;
 import io.saiden.economyhelper.market.StockService;
 import io.saiden.economyhelper.market.StockService.Answer;
 import io.saiden.economyhelper.market.chart.DailyBar;
@@ -714,7 +715,7 @@ class TelegramWebhookControllerTest {
 
     /** 해석 규칙은 {@code StockServiceTest}가 본다. 여기서는 라우팅만 본다. */
     private static StockService stock(Optional<StockQuote> result) {
-        return new StockService(List.of(), List.of(), new DataGoStockClient(null, null),
+        return new StockService(List.of(), List.of(), new DataGoStockClient(null, null, null), new StockListings(List::of),
                 new StockResolver(null, null), code -> java.util.Optional.empty(), symbol -> java.util.Optional.empty(), null) {
             // ⚠️ quote가 아니라 answer를 덮는다. 컨트롤러가 전망을 함께 받으려고 answer로
             //    옮겨 갔으므로, quote를 덮어 두면 페이크가 가로채지 못한다
@@ -796,7 +797,7 @@ class TelegramWebhookControllerTest {
 
     /** 일봉까지 주는 종목 페이크 — {@code Series}가 있어야 차트가 붙는다. */
     private static StockService stockWithSeries(StockQuote quote, List<DailyBar> series) {
-        return new StockService(List.of(), List.of(), new DataGoStockClient(null, null),
+        return new StockService(List.of(), List.of(), new DataGoStockClient(null, null, null), new StockListings(List::of),
                 new StockResolver(null, null), code -> Optional.empty(),
                 symbol -> Optional.empty(), null) {
             @Override

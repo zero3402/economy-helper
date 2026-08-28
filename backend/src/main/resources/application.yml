@@ -115,6 +115,10 @@ economy-helper:
     - host: openapi.koreainvestment.com      # 실전
       connect: 5s
       read: 10s
+    # KIS 종목 마스터 파일(zip 120KB·103KB, 키 없음). 6시간에 한 번이라 넉넉히 둔다
+    - host: new.real.download.dws.co.kr
+      connect: 5s
+      read: 10s
     - host: dataservice.accuweather.com      # 525ms
       connect: 5s
       read: 10s
@@ -229,6 +233,7 @@ economy-helper:
     query: 30d             # '비트코인'→bitcoin 대응은 낡지 않는다. 토큰 단위라 적중률도 높다
     relevance: 7d          # 기사는 바뀌지 않는다. 배치 단위로 캐시해 재트리거 때 Gemini를 또 부르지 않는다
     upbit-markets: 6h      # 신규 상장·상장폐지는 드물다. 이게 없으면 /crypto 한 번에 조회가 두 번 나간다
+    kr-listings: 6h        # KIS 종목 마스터(국내 상장 전부). 파일이 하루 한 번 07:40 갱신된다 — 목록은 6h
     crypto-price: 10s      # 시세다. 길게 잡으면 거짓말이 된다. 연타와 초당 10회 제한을 막는 정도만
     binance-price: 10s     # 업비트와 같은 급. 두 거래소 값의 시각이 어긋나면 비교가 무의미해진다
     stock-resolve: 7d      # LLM 해석 결과. 같은 검색어에 Gemini를 두 번 태우지 않는다
@@ -482,6 +487,11 @@ economy-helper:
       base-url: https://openapivts.koreainvestment.com:29443
       app-key: ${KIS_API_KEY:}
       app-secret: ${KIS_API_SECRET:}
+      # 종목 마스터 파일(kospi_code.mst.zip·kosdaq_code.mst.zip)이 있는 곳. 키가 없고 모의·실전
+      # 구분도 없다. 「이름 → 종목코드」 색인의 재료다 — KIS에 종목명 검색이 없고 공공데이터포털
+      # 주식시세는 ETF를 안 주므로(실측 KODEX 0건) 이것 없이는 /stock 타임나스닥100이 빈손이다.
+      # ⚠️ 끝에 슬래시를 두지 않는다 — 우리 RestClient는 리다이렉트를 안 따라간다(CoinDesk 308 사고).
+      master-base-url: https://new.real.download.dws.co.kr/common/master
       # 호출 사이 최소 간격. 모의 계정이 초당 1건이다(실전은 20건 — 도메인·앱키와 함께 바꾼다).
       # ⚠️ 이 자리가 resilience4j 리미터가 아닌 이유는 제약이 "1초에 몇 건"이 아니라
       #    "호출 사이 얼마"이기 때문이다. 고정 윈도로는 경계에서 두 호출이 120ms 간격으로
@@ -634,6 +644,16 @@ resilience4j:
           - io.saiden.economyhelper.market.kis.KisThrottle$Congested
           - io.saiden.economyhelper.market.kis.KisStockApi$Unsupported
       dataGo:
+        baseConfig: default
+      # ⚠️ ETF 시세(증권상품시세정보)는 주식시세정보와 **활용신청이 따로**다. 신청 전·만료 뒤에는
+      #    매 호출이 403(SERVICE_KEY_IS_NOT_REGISTERED_ERROR)인데, 주식과 한 브레이커면 그 403이
+      #    쌓여 주식 2순위까지 끊는다 — dataGo/weatherKma를 가른 그 규칙이다. 리미터는 키가
+      #    하나라 dataGo를 함께 쓴다.
+      dataGoEtf:
+        baseConfig: default
+      # KIS 종목 마스터 파일 — 키·한도 없음, 6시간 캐시. 열리면 국내 이름 검색이 공공데이터포털만
+      # 남는다(ETF는 그쪽 ETF API가, 주식은 주식 API가 맡는다 — 전일 종가로 강등될 뿐 빈손은 아니다).
+      kisMaster:
         baseConfig: default
       fmp:
         baseConfig: default

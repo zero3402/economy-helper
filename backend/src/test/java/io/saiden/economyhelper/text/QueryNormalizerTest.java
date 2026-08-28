@@ -38,6 +38,13 @@ class QueryNormalizerTest {
         }
 
         @Test
+        @DisplayName("etf도 군더더기다 — 상장명에 그 낱말이 없어 붙어 있으면 색인이 못 찾는다")
+        void stripsEtf() {
+            assertThat(QueryNormalizer.forLookup("타임나스닥100 etf")).contains("타임나스닥100");
+            assertThat(QueryNormalizer.forLookup("KODEX 200 ETF 주가")).contains("kodex200");
+        }
+
+        @Test
         @DisplayName("긴 접미사를 먼저 본다 — '가'가 먼저 걸리면 '현재가'를 못 뗀다")
         void prefersLongerAffixes() {
             assertThat(QueryNormalizer.forLookup("엔비디아 현재가")).contains("엔비디아");

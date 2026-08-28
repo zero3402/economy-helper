@@ -4,10 +4,12 @@ import io.saiden.economyhelper.config.EconomyHelperProperties.Index;
 import io.saiden.economyhelper.config.EconomyHelperProperties.UsSymbol;
 import io.saiden.economyhelper.market.StockResolver.ResolvedStock;
 import io.saiden.economyhelper.market.data.DataGoStockClient;
+import io.saiden.economyhelper.market.kis.KisMasterClient;
 import io.saiden.economyhelper.text.QueryNormalizer;
 import io.saiden.economyhelper.support.Failover;
 import io.saiden.economyhelper.support.FailureReason;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.regex.Pattern;
@@ -66,8 +68,15 @@ public class StockService {
     private static final List<StockSource> US_ORDER =
             List.of(StockSource.KIS, StockSource.FMP);
 
-    /** 한국 종목코드. 이 형태면 해석할 것이 없으므로 LLM을 건너뛴다. */
-    private static final Pattern KR_STOCK_CODE = Pattern.compile("\\d{6}");
+    /**
+     * 한국 종목코드. 이 형태면 해석할 것이 없으므로 LLM을 건너뛴다.
+     *
+     * <p>숫자 여섯이 아니라 <b>「첫 자가 숫자인 영숫자 여섯」</b>이다 — 2025년부터 KRX 단축코드에
+     * 영숫자가 있다(마스터 실측 {@code 0019K0 TIME 미국나스닥100채권혼합50액티브}, KIS 시세도
+     * 받는다). 정규화가 소문자로 내리므로 소문자를 받고 보낼 때 올린다. 첫 자가 숫자라
+     * 미국 티커(영문 1~5자)와 겹치지 않는다.
+     */
+    private static final Pattern KR_STOCK_CODE = Pattern.compile("[0-9][0-9a-z]{5}");
 
     /**
      * 미국 티커 <b>모양</b>. 영문 1~5자면 사용자가 티커를 직접 쳤을 수 있다.
@@ -85,6 +94,7 @@ public class StockService {
     private final List<DomesticStockClient> domestic;
     private final List<UsStockClient> us;
     private final DataGoStockClient names;
+    private final StockListings listings;
     private final StockResolver resolver;
     private final DomesticOutlookClient outlooks;
     private final UsOutlookClient usOutlooks;
@@ -97,12 +107,13 @@ public class StockService {
     private final io.saiden.economyhelper.market.kis.KisStockApi kisSeries;
 
     /**
-     * @param names <b>이름으로 찾는 경로는 이중화되지 않는다</b> — 한국투자증권에 종목명 검색이
-     *              없어서다(조회가 언제나 코드 → 이름 방향이다). 그래서 SPI 목록이 아니라
-     *              공공데이터포털을 직접 든다
+     * @param names    이름으로 찾는 <b>둘째</b> 길 — 공공데이터포털(주식·ETF, 전일 종가). 한국투자증권에
+     *                 종목명 검색이 없어서(조회가 언제나 코드 → 이름 방향이다) SPI가 아니라 직접 든다
+     * @param listings 이름으로 찾는 <b>첫째</b> 길 — KIS 종목 마스터의 「이름 → 코드」 색인. 코드를
+     *                 주므로 1순위 시세(실시간)·전망·차트가 전부 붙는다. 이것도 이중화 상대가 없다
      */
     public StockService(List<DomesticStockClient> domestic, List<UsStockClient> us,
-                        DataGoStockClient names, StockResolver resolver,
+                        DataGoStockClient names, StockListings listings, StockResolver resolver,
                         DomesticOutlookClient outlooks, UsOutlookClient usOutlooks,
                         io.saiden.economyhelper.market.kis.KisStockApi kisSeries) {
         // 순서는 여기서 정한다 — 주입 순서에 딸려 가면 클래스 이름을 바꾸다 뒤집힌다
@@ -122,6 +133,7 @@ public class StockService {
                 .forEach(dropped -> log.error(
                         "[stock] {} 클라이언트가 어느 순서에도 없어 영영 안 불립니다", dropped.source()));
         this.names = names;
+        this.listings = listings;
         this.resolver = resolver;
         this.outlooks = outlooks;
         this.usOutlooks = usOutlooks;
@@ -182,7 +194,7 @@ public class StockService {
                 //    읽으면 국내 지수 조회가 빈손인 채로 끝나고 아래 그물에 닿지 못한다
                 return byIndex.isPresent() ? byIndex : usByTicker(query, null);
             }
-            Optional<Answer> found = search(resolved, key);
+            Optional<Answer> found = search(resolved, query, key);
             // ⚠️ 국내 이름 검색까지 다 빈손이다. 원문이 미국 티커 모양이면 한 번 더 —
             //    LLM이 죽거나 거절해도 사용자가 친 글자로 찾을 수 있어야 한다
             return found.isPresent() ? found : usByTicker(query, null);
@@ -205,6 +217,7 @@ public class StockService {
     private static Optional<String> directCode(String query) {
         return QueryNormalizer.forLookup(query).stream()
                 .filter(form -> KR_STOCK_CODE.matcher(form).matches())
+                .map(form -> form.toUpperCase(Locale.ROOT))
                 .findFirst();
     }
 
@@ -214,14 +227,26 @@ public class StockService {
      * <p><b>LLM의 답을 그대로 믿지 않는다.</b> 코드도 이름도 실제 시세에서 다시 찾고,
      * 걸리지 않으면 버린다 — 지어낸 종목코드는 조회 결과가 비어 자연히 걸러진다.
      *
+     * <p>⚠️ <b>존재하는 틀린 코드</b>는 그 그물에 안 걸린다. ETF는 이름이 비슷한 코드가 수십 개라
+     * LLM이 {@code KODEX 미국나스닥100}의 코드에 {@code TIME 미국나스닥100액티브}라는 이름을 붙여
+     * 올 수 있고, 그러면 KIS가 멀쩡히 답해 <b>다른 ETF가 나간다</b>. 그래서 코드와 이름이 색인에서
+     * <b>서로 다른 종목을 가리키면 이름을 먼저 믿는다.</b> 다만 이름으로도 못 찾으면 그때 코드를
+     * 쓴다 — {@code 네이버}는 상장명이 {@code NAVER}라 이름 경로가 전부 빈손이고, 그 자리를 메우는
+     * 것이 LLM의 코드다.
+     *
+     * <p>이름 경로는 둘이다. 색인({@link StockListings})이 먼저 — 코드를 주므로 1순위 시세와 전망·
+     * 차트가 붙는다. 없으면 공공데이터포털(전일 종가, 코드 없음).
+     *
      * <p>마지막에 원문으로 한 번 더 시도하는 것이 <b>LLM 장애에 대한 폴백</b>이다.
      * {@code 삼성전자}·{@code 하이닉스}처럼 이름을 그대로 친 경우는 LLM 없이도 걸린다 —
-     * Gemini가 죽었다고 {@code /stock} 전체가 멈추면 안 된다.
+     * Gemini가 죽었다고 {@code /stock} 전체가 멈추면 안 된다. {@code 타임나스닥100}은 LLM 없이는
+     * 빈손이다({@code 타임} ≠ {@code TIME}) — 그 소리를 맞추는 것이 LLM의 몫이다.
      */
-    private Optional<Answer> search(Optional<ResolvedStock> resolved, String cacheKey) {
+    private Optional<Answer> search(Optional<ResolvedStock> resolved, String query, String cacheKey) {
         if (resolved.isPresent()) {
             ResolvedStock found = resolved.get();
-            if (found.hasCode()) {
+            boolean codeFirst = codeAgreesWithName(found);
+            if (codeFirst && found.hasCode()) {
                 Optional<Answer> byCode = stockAnswer(found.code());
                 if (byCode.isPresent()) {
                     return byCode;
@@ -229,15 +254,64 @@ public class StockService {
                 log.info("[stock] LLM이 준 코드 {}가 시세에 없습니다 — 이름으로 다시 찾습니다", found.code());
             }
             if (found.hasName()) {
-                // 이름 검색은 공공데이터포털이고 코드를 돌려주지 않는다 — 전망을 붙일 열쇠가 없다
-                Optional<Answer> byName = byName(found.name()).map(Answer::of);
+                Optional<Answer> byName = byListing(found.name())
+                        .or(() -> byName(found.name()).map(Answer::of));
                 if (byName.isPresent()) {
                     return byName;
                 }
             }
+            if (!codeFirst) {
+                // 이름으로는 못 찾았다 — 상장명이 영문인 종목(NAVER)이 여기다. 코드를 믿는다
+                Optional<Answer> byCode = stockAnswer(found.code());
+                if (byCode.isPresent()) {
+                    return byCode;
+                }
+            }
         }
-        // LLM이 죽었거나 특정하지 못했다. 원문이 그대로 종목명일 수 있다
+        // LLM이 죽었거나 특정하지 못했다. 원문이 그대로 종목명일 수 있다 — 군더더기를 뗀 형태까지
+        // 색인에 대 본다(「타임나스닥100 etf」의 etf)
+        for (String form : QueryNormalizer.forLookup(query)) {
+            Optional<Answer> byListing = byListing(form);
+            if (byListing.isPresent()) {
+                return byListing;
+            }
+        }
         return byName(cacheKey).map(Answer::of);
+    }
+
+    /**
+     * LLM이 준 코드와 이름이 <b>같은 종목</b>인가. 둘 중 하나가 없거나, 색인이 그 코드를 모르거나,
+     * 색인을 못 받았으면 참 — 그때는 지금까지처럼 코드가 먼저다(실재는 KIS가 확정한다).
+     */
+    private boolean codeAgreesWithName(ResolvedStock found) {
+        if (!found.hasCode() || !found.hasName()) {
+            return true;
+        }
+        try {
+            Optional<KisMasterClient.Listing> listed = listings.byCode(found.code());
+            if (listed.isEmpty() || StockListings.agrees(listed.get(), found.name())) {
+                return true;
+            }
+            log.info("[stock] LLM이 준 코드 {}({})와 이름 '{}'이 다른 종목을 가리켜 이름을 먼저 믿습니다",
+                    found.code(), listed.get().name(), found.name());
+            return false;
+        } catch (RuntimeException e) {
+            log.warn("[stock] 종목 색인을 못 읽어 코드·이름 대조를 건너뜁니다: {}", FailureReason.of(e));
+            return true;
+        }
+    }
+
+    /**
+     * 색인에서 이름으로 코드를 찾아 <b>1순위 경로</b>로 조회한다 — 실시간 시세에 전망·차트까지 붙는다.
+     * 색인 실패는 {@link #byName}과 같은 이유로 삼킨다: 다음 수(공공데이터포털)가 있다.
+     */
+    private Optional<Answer> byListing(String name) {
+        try {
+            return listings.find(name).flatMap(listing -> stockAnswer(listing.code()));
+        } catch (RuntimeException e) {
+            log.warn("[stock] '{}' 색인 검색 실패 — 공공데이터포털로 넘어갑니다: {}", name, FailureReason.of(e));
+            return Optional.empty();
+        }
     }
 
     /** 미국 종목·지수 하나. <b>지수</b>는 설정에 KIS 심볼이 있으면 1순위가 맡고 없으면 FMP로 간다.

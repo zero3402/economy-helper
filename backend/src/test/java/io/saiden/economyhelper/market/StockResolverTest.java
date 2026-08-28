@@ -51,6 +51,23 @@ class StockResolverTest {
     }
 
     @Test
+    @DisplayName("프롬프트가 국내 ETF를 다룬다 — 브랜드는 영문 그대로, 코드는 확실할 때만")
+    void handlesDomesticEtfsByListedName() {
+        // 이 규칙이 없던 동안 「타임나스닥100」은 LLM이 소리를 맞출 이유가 없었고, 맞췄더라도 코드를
+        // 지어내면 이름이 비슷한 다른 ETF가 KIS에서 멀쩡히 답해 나갈 수 있었다
+        TestGemini.Recording api =
+                TestGemini.recording("{\"market\":null,\"kind\":null,\"code\":null,\"name\":null}");
+        new StockResolver(api, new ObjectMapper()).resolve("타임나스닥100");
+
+        assertThat(api.prompt())
+                .contains("국내 ETF")
+                .contains("확실할 때만")
+                .as("브랜드를 소리에서 영문 표기로 옮기는 규칙이 예시와 함께 있어야 한다")
+                .contains("타임 → TIME")
+                .contains("TIME 미국나스닥100액티브");
+    }
+
+    @Test
     @DisplayName("전부 null인 파싱은 버린다 — '성공'으로 캐시되면 7일 동안 빈손이 굳는다")
     void discardsAParseThatCarriesNothing() {
         assertThat(resolve("{\"market\":null,\"kind\":null,\"code\":null,\"name\":null}")).isEmpty();
