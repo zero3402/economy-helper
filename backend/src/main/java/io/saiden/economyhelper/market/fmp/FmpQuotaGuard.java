@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market.fmp;
 
+import org.springframework.beans.factory.annotation.Value;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
@@ -43,7 +44,7 @@ public class FmpQuotaGuard {
     private final int dailyLimit;
 
     public FmpQuotaGuard(StringRedisTemplate redis, Clock clock,
-                         @org.springframework.beans.factory.annotation.Value(
+                         @Value(
                                  "${economy-helper.market.fmp.daily-limit:240}") int dailyLimit) {
         this.redis = redis;
         this.clock = clock;

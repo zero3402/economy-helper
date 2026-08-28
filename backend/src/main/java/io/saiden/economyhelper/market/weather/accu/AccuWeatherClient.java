@@ -149,9 +149,7 @@ public class AccuWeatherClient implements WeatherClient {
                     .body(Forecast.class);
         } catch (RuntimeException e) {
             // 예외 메시지에 apikey가 박힌 URL이 들어 있다 — 그대로 흘리면 키가 유출된다
-            log.warn("[accu] {} 예보 조회 실패: {}", place.name(), AccuFailure.reasonOf(e));
-            throw new IllegalStateException(
-                    "AccuWeather 조회 실패 (" + place.name() + "): " + AccuFailure.reasonOf(e));
+            throw AccuFailure.failed("조회", place.name(), e);
         }
     }
 

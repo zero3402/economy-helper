@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.digest;
 
+import java.util.HashMap;
 import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.config.EconomyHelperProperties.Index;
 import io.saiden.economyhelper.config.EconomyHelperProperties.UsSymbol;
@@ -430,7 +431,7 @@ public class DailyDigestJob extends TriggerableJob {
         List<StockQuote> quotes = new ArrayList<>(stockService.indicesOf(indexNames));
         // 종목에만 전망이 붙는다 — 지수에는 목표주가를 낼 주체가 없어 StockService가 걸러낸다.
         // 국내와 미국을 한 지도에 담는다: 화면은 무리로 가르지만 전망은 종목마다 붙는다
-        Map<StockQuote, StockOutlook> outlooks = new java.util.HashMap<>();
+        Map<StockQuote, StockOutlook> outlooks = new HashMap<>();
         collect(domestic, quotes, outlooks);
         collect(american, quotes, outlooks);
         return quotes.isEmpty() ? List.of() : List.of(StockFormatter.format(quotes, fx, outlooks));

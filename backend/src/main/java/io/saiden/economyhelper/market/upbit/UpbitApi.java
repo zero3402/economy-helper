@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market.upbit;
 
+import java.util.ArrayList;
 import io.saiden.economyhelper.config.CacheNames;
 import io.saiden.economyhelper.market.chart.DailySeries;
 import io.saiden.economyhelper.market.chart.DailyBar;
@@ -104,7 +105,7 @@ public class UpbitApi {
         if (response == null) {
             throw new IllegalStateException("업비트 일봉 응답이 비어 있습니다: " + market);
         }
-        List<DailyBar> bars = new java.util.ArrayList<>();
+        List<DailyBar> bars = new ArrayList<>();
         for (Candle candle : response) {
             if (candle != null && candle.date() != null && candle.close() != null) {
                 bars.add(new DailyBar(java.time.LocalDate.parse(candle.date()), candle.close()));

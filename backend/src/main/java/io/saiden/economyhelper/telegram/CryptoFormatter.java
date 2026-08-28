@@ -214,9 +214,8 @@ public final class CryptoFormatter {
     }
 
     public static String notFound(String query) {
-        return head(Command.CRYPTO)
-                + "'" + Html.escape(query) + "'에 해당하는 코인을 찾지 못했습니다.\n\n"
-                + "업비트 또는 바이낸스에 상장된 이름이나 심볼로 입력해 주세요.\n\n"
-                + "예) /crypto 비트코인 · /crypto BTC";
+        return MessageLayout.notFound(Command.CRYPTO, query, "코인",
+                "업비트 또는 바이낸스에 상장된 이름이나 심볼로 입력해 주세요.",
+                "예) /crypto 비트코인 · /crypto BTC");
     }
 }

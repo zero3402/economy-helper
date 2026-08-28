@@ -166,6 +166,18 @@ config/     캐시·회복탄력성·스케줄·동시성
 support/    Concurrently (가상 스레드 팬아웃) · Failover (이중화 기계)
 ```
 
+**접미사가 역할을 말한다** — 이름을 바꾸지 않고 관례를 적어 둔다(2026-08-28 구조 점검에서 확인한 실제 분포다).
+
+| 접미사 | 뜻 | 예 |
+|---|---|---|
+| `*Api` | 한 벤더의 엔드포인트 묶음 — 날 HTTP, SPI를 구현하지 않는다 | `GeminiApi`·`UpbitApi`·`StockPriceApi`·`KisStockApi` |
+| `*Client` | SPI 자체이거나 그 구현 | `FxRateClient`·`KeximFxClient`·`KmaWeatherClient` |
+| `*Service` | SPI 목록 위의 이중화 조율자 | `StockService`·`FxService`·`WeatherService` |
+| `*Facade` | 서비스 위의 단일 진입점 — REST 컨트롤러가 붙는 날 텔레그램과 갈리지 않게 | `NewsFacade`·`WeatherFacade` |
+
+예외 셋(`KisStockApi`가 SPI 둘을 구현, `TelegramClient`·`KisMasterClient`·`HackerNewsBuzzClient`가 SPI 없이 `Client`)은
+이름을 바꾸면 테스트 8파일과 javadoc 참조가 함께 움직여 그대로 둔다.
+
 **벤더 이름이 패키지 이름에만 산다**(`market/kis`, `market/fmp`, `market/weather/accu`).
 위층은 SPI(`FxRateClient`, `DomesticStockClient`, `UsStockClient`, `WeatherClient`)만 안다.
 벤더를 갈아 끼울 때 고칠 곳이 그 패키지와 순서 목록 한 줄로 끝난다 — 실제로 met.no를
@@ -698,5 +710,10 @@ KIS ~20회는 겹쳐도 20초가 바닥이고, `/crypto`의 업비트∥바이�
   ⚠️ **다음에 나면 지우지 말고 붙잡는다** — `build/reports/tests/test`의 `Caused by:` 사슬과
   그때의 시각. 사슬이 원인을 가른다: `ConnectException`(포트/커널) ·
   `Too many open files`(FD 고갈) · `Connection reset`(TIME_WAIT).
+- **미룬 구조 정리 넷(2026-08-28 점검).** ① `KisStockApi`를 시세/일봉으로 가르기 — 이음새는 진짜다(캐시 이름을 따라
+  갈리고, `StockService`의 구체 의존이 일봉 절반으로 좁아진다) 그러나 테스트 8파일·yml의 `KisStockApi$Unsupported`·
+  javadoc 11곳이 함께 움직인다. ② 벤더 요청 골격(DataGo·KMA·Open-Meteo) 합치기 — 파라미터가 안 겹친다고 각 파일이
+  이미 판단했다. ③ `*Source` 열거형 통합 — 둘째 접근자의 뜻이 열거마다 다르다. ④ `@Value` → 레코드 — 한 번 되돌린
+  자리다(`EconomyHelperProperties` 주석). 공통 규칙은 「값이 없거나 뒤집을 근거가 이미 문서에 있다」다.
 - **광고(AdSense)도 k8s도 아직이다.** `CLAUDE.md`가 적어 둔 최종 구성 중 이 저장소가
   실제로 세운 것은 봇과 이중화·캐시·락까지다.

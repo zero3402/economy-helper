@@ -1,5 +1,11 @@
 package io.saiden.economyhelper.telegram;
 
+import java.util.regex.Matcher;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.function.UnaryOperator;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -242,8 +248,8 @@ public class TelegramClient {
             return;
         }
         pace(chatId);
-        org.springframework.util.MultiValueMap<String, Object> parts =
-                new org.springframework.util.LinkedMultiValueMap<>();
+        MultiValueMap<String, Object> parts =
+                new LinkedMultiValueMap<>();
         parts.add("chat_id", chatId);
         // ⚠️ 토픽이 없을 때는 필드 자체가 없어야 한다 — "for forum supergroups only"라서
         //    null을 실으면 거절된다(SendMessage가 @JsonInclude(NON_NULL)인 것과 같은 이유)
@@ -306,7 +312,7 @@ public class TelegramClient {
      * 이 저장소가 「같은 사실을 담은 두 번째 표」로 여러 번 물린 그 모양이다.
      */
     private <T extends Ack> T exchange(String method, Class<T> responseType,
-                                       java.util.function.UnaryOperator<
+                                       UnaryOperator<
                                                RestClient.RequestBodySpec> body) {
         T response;
         try {
@@ -455,8 +461,8 @@ public class TelegramClient {
 
     /** 열린 채 남은 태그를 닫는다. 여는 순서의 역순으로 닫아야 중첩이 맞는다. */
     private static String closeOpenTags(String html) {
-        java.util.Deque<String> open = new java.util.ArrayDeque<>();
-        java.util.regex.Matcher m = TAG.matcher(html);
+        Deque<String> open = new ArrayDeque<>();
+        Matcher m = TAG.matcher(html);
         while (m.find()) {
             if (m.group(1).isEmpty()) {
                 open.push(m.group(2));

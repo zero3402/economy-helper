@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market;
 
+import io.saiden.economyhelper.market.chart.DailyBar;
 import io.saiden.economyhelper.market.CryptoQuote.Quote;
 import io.saiden.economyhelper.market.CryptoResolver.ResolvedCoin;
 import io.saiden.economyhelper.market.binance.BinanceApi;
@@ -229,7 +230,7 @@ public class CryptoService {
      * @param market 업비트 마켓 코드. 바이낸스 쪽은 쓰지 않는다 — 원화 시세는 업비트가 주고
      *               그쪽은 밴 게이트 옆이라 호출을 늘리는 값이 다르다
      */
-    public List<io.saiden.economyhelper.market.chart.DailyBar> dailyBars(String market) {
+    public List<DailyBar> dailyBars(String market) {
         return upbitApi.dailyBars(market);
     }
 

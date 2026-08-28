@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.telegram;
 
+import java.math.BigDecimal;
 import static io.saiden.economyhelper.telegram.MessageLayout.DATE;
 import static io.saiden.economyhelper.telegram.MessageLayout.DATE_TIME;
 import static io.saiden.economyhelper.telegram.MessageLayout.SEOUL;
@@ -60,8 +61,7 @@ public final class StockFormatter {
     }
 
     public static String notFound(String query) {
-        return head(Command.STOCK)
-                + "'" + Html.escape(query) + "'에 해당하는 종목을 찾지 못했습니다.";
+        return MessageLayout.notFound(Command.STOCK, query, "종목");
     }
 
     /**
@@ -306,7 +306,7 @@ public final class StockFormatter {
      * <p>둘이 갈리면 한 블록 안에서 「239,500 KRW」 아래에 「466,667」이 서고, 읽는 사람이
      * 단위를 짐작하게 된다.
      */
-    private static String unitOf(StockQuote quote, java.math.BigDecimal amount) {
+    private static String unitOf(StockQuote quote, BigDecimal amount) {
         return switch (quote.currency()) {
             case NONE -> money(amount);
             case KRW -> money(amount) + " KRW";

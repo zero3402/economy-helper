@@ -152,29 +152,14 @@ public class TelegramWebhookController {
     }
 
     private void handle(Update update) {
-        if (update == null || update.message() == null || update.message().chat() == null) {
+        Optional<Inbound> accepted = accepted(update);
+        if (accepted.isEmpty()) {
             return;
         }
-        Message message = update.message();
-        String chatId = String.valueOf(message.chat().id());
-        String text = message.text();
-        // 포럼이 아닌 방과 General 토픽에서는 이 필드가 아예 오지 않는다 → null
-        Integer topicId = message.messageThreadId();
-        // 답을 이 명령에 답글로 단다 — 여럿이 동시에 검색해도 어느 물음의 답인지 확정된다
-        Integer replyTo = message.messageId();
-
-        // 걸러낸 것은 답하지 않고 조용히 끝낸다. 답하면 봇이 살아 있다는 걸 확인해 주고
-        // 발송 한 번을 쓴다. 대신 번호를 로그에 남긴다 — 설정할 값을 여기서 그대로 읽는다
-        if (!allowedChatId.isBlank() && !allowedChatId.equals(chatId)) {
-            log.info("[webhook] 허용되지 않은 채팅 {} (토픽 {}) — 무시합니다. TELEGRAM_CHAT_ID를 확인하세요",
-                    chatId, topicId);
-            return;
-        }
-        if (searchTopicId != null && !searchTopicId.equals(topicId)) {
-            log.info("[webhook] 채팅 {}의 토픽 {}은 명령을 받지 않습니다 — TELEGRAM_SEARCH_TOPIC_ID를 확인하세요",
-                    chatId, topicId);
-            return;
-        }
+        String chatId = accepted.get().chatId();
+        String text = accepted.get().text();
+        Integer topicId = accepted.get().topicId();
+        Integer replyTo = accepted.get().replyTo();
 
         Optional<ParsedCommand> parsed = CommandParser.parse(text);
         if (parsed.isEmpty()) {
@@ -234,6 +219,37 @@ public class TelegramWebhookController {
         log.info("[webhook] 채팅 {} 토픽 {} · {} → {}초", chatId, topicId, text,
                 String.format("%.1f", (System.nanoTime() - startedAt) / 1_000_000_000.0));
     }
+
+    /**
+     * 받을 업데이트인가 — 널·채팅방·토픽 검증. <b>걸러낸 것은 답하지 않고 조용히 끝낸다.</b>
+     *
+     * <p>답하면 봇이 살아 있다는 걸 확인해 주고 발송 한 번을 쓴다. 대신 번호를 로그에 남긴다 —
+     * 설정할 값을 거기서 그대로 읽는다.
+     */
+    private Optional<Inbound> accepted(Update update) {
+        if (update == null || update.message() == null || update.message().chat() == null) {
+            return Optional.empty();
+        }
+        Message message = update.message();
+        String chatId = String.valueOf(message.chat().id());
+        // 포럼이 아닌 방과 General 토픽에서는 이 필드가 아예 오지 않는다 → null
+        Integer topicId = message.messageThreadId();
+        if (!allowedChatId.isBlank() && !allowedChatId.equals(chatId)) {
+            log.info("[webhook] 허용되지 않은 채팅 {} (토픽 {}) — 무시합니다. TELEGRAM_CHAT_ID를 확인하세요",
+                    chatId, topicId);
+            return Optional.empty();
+        }
+        if (searchTopicId != null && !searchTopicId.equals(topicId)) {
+            log.info("[webhook] 채팅 {}의 토픽 {}은 명령을 받지 않습니다 — TELEGRAM_SEARCH_TOPIC_ID를 확인하세요",
+                    chatId, topicId);
+            return Optional.empty();
+        }
+        // 답을 이 명령에 답글로 단다 — 여럿이 동시에 검색해도 어느 물음의 답인지 확정된다
+        return Optional.of(new Inbound(chatId, topicId, message.messageId(), message.text()));
+    }
+
+    /** 검증을 통과한 명령 하나 — 어느 방·어느 토픽·어느 글에 답할지와 본문. */
+    private record Inbound(String chatId, Integer topicId, Integer replyTo, String text) {}
 
     /**
      * 차트 한 장 — <b>실패해도 답이 이미 나갔다.</b>

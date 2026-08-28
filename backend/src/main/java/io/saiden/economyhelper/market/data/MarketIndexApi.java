@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market.data;
 
+import java.util.Objects;
 import io.saiden.economyhelper.config.CacheNames;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
@@ -82,7 +83,7 @@ public class MarketIndexApi {
                     List<MarketIndex> found = request(date, name);
                     return found.isEmpty() ? null : pick(found, name);
                 },
-                java.util.Objects::nonNull, null);
+                Objects::nonNull, null);
     }
 
     /** 완전일치 우선, 없으면 가장 짧은 이름. 정규화는 공백만 지우면 충분하다. */

@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.news.rank;
 
+import java.util.function.IntFunction;
 import io.saiden.economyhelper.config.CacheNames;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.saiden.economyhelper.news.Article;
@@ -123,7 +124,7 @@ public class RelevanceScorer {
     }
 
     private Map<String, Double> score(List<Article> candidates,
-                                      java.util.function.IntFunction<String> prompt, String what) {
+                                      IntFunction<String> prompt, String what) {
         if (candidates.isEmpty()) {
             return Map.of();
         }

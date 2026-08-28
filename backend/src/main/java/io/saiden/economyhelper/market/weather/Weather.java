@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market.weather;
 
+import java.util.Objects;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -199,7 +200,7 @@ public record Weather(GeoLocation place, List<Daily> days, WeatherSource source,
                 return null;
             }
             return halves.stream().map(HalfDay::chance)
-                    .filter(java.util.Objects::nonNull)
+                    .filter(Objects::nonNull)
                     .max(Integer::compareTo).orElse(null);
         }
     }

@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market.frankfurter;
 
+import java.util.ArrayList;
 import io.saiden.economyhelper.config.CacheNames;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
@@ -146,7 +147,7 @@ public class FrankfurterFxClient implements FxRateClient {
         if (response == null || response.rates() == null || response.rates().isEmpty()) {
             throw new IllegalStateException("Frankfurter 시계열 응답이 비어 있습니다");
         }
-        List<DailyBar> bars = new java.util.ArrayList<>();
+        List<DailyBar> bars = new ArrayList<>();
         response.rates().forEach((date, byCurrency) -> {
             BigDecimal rate = byCurrency == null ? null : byCurrency.get(KRW);
             if (rate != null) {

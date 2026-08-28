@@ -77,9 +77,7 @@ public class AccuLocationApi {
                     .body(Place.class);
         } catch (RuntimeException e) {
             // 원래 예외 메시지에는 apikey가 박힌 URL이 들어간다 — 그대로 흘리면 키가 유출된다
-            log.warn("[accu] {} 지점 조회 실패: {}", place.name(), AccuFailure.reasonOf(e));
-            throw new IllegalStateException(
-                    "AccuWeather 지점 조회 실패 (" + place.name() + "): " + AccuFailure.reasonOf(e));
+            throw AccuFailure.failed("지점 조회", place.name(), e);
         }
     }
 

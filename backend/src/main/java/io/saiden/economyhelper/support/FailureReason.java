@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.support;
 
+import java.net.SocketTimeoutException;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.ratelimiter.RequestNotPermitted;
 import java.io.IOException;
@@ -96,7 +97,7 @@ public final class FailureReason {
         }
         if (e instanceof ResourceAccessException access) {
             Throwable cause = access.getCause();
-            if (cause instanceof HttpTimeoutException || cause instanceof java.net.SocketTimeoutException) {
+            if (cause instanceof HttpTimeoutException || cause instanceof SocketTimeoutException) {
                 return "타임아웃";
             }
             return cause instanceof IOException io

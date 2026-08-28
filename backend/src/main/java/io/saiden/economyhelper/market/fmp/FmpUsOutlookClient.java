@@ -1,5 +1,7 @@
 package io.saiden.economyhelper.market.fmp;
 
+import java.util.Objects;
+import java.time.LocalDate;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
@@ -165,14 +167,14 @@ public class FmpUsOutlookClient implements UsOutlookClient {
      * 안 채우는 일이 있어(실측 {@code 2026-08-19} 발표 건에 {@code epsActual}이 이미 있었지만
      * 그 반대는 확인하지 못했다) 달력이 더 믿을 만하다.
      */
-    private java.time.LocalDate nextEarnings(List<Earnings> schedule) {
+    private LocalDate nextEarnings(List<Earnings> schedule) {
         if (schedule == null) {
             return null;
         }
-        java.time.LocalDate today = java.time.LocalDate.now(clock.withZone(NEW_YORK));
+        LocalDate today = java.time.LocalDate.now(clock.withZone(NEW_YORK));
         return schedule.stream()
                 .map(Earnings::announcedOn)
-                .filter(java.util.Objects::nonNull)
+                .filter(Objects::nonNull)
                 .filter(date -> !date.isBefore(today))
                 .min(java.util.Comparator.naturalOrder())
                 .orElse(null);
@@ -250,6 +252,6 @@ public class FmpUsOutlookClient implements UsOutlookClient {
      * 이번 세션에 계속 걷어낸 부류가 그것이다.
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record Earnings(@JsonProperty("date") java.time.LocalDate announcedOn) {
+    record Earnings(@JsonProperty("date") LocalDate announcedOn) {
     }
 }

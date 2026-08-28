@@ -1,5 +1,10 @@
 package io.saiden.economyhelper.config;
 
+import io.saiden.economyhelper.market.kis.KisMasterClient.Listing;
+import io.saiden.economyhelper.market.weather.HalfDay;
+import io.saiden.economyhelper.market.chart.DailyBar;
+import java.time.LocalDate;
+import java.util.Optional;
 import io.saiden.economyhelper.config.EconomyHelperProperties.CacheTtl;
 import io.saiden.economyhelper.market.CryptoResolver.ResolvedCoin;
 import io.saiden.economyhelper.market.FxRate;
@@ -73,7 +78,7 @@ public class CacheConfig {
                 // 국내 상장 종목 전부(약 4,400행). 업비트 목록과 같은 성질 — 목록이라 6시간이다
                 .withCacheConfiguration(CacheNames.KR_LISTINGS,
                         cache(ttl.krListings(), new TypeReference<List<
-                                io.saiden.economyhelper.market.kis.KisMasterClient.Listing>>() {}))
+                                Listing>>() {}))
                 .withCacheConfiguration(CacheNames.CRYPTO_PRICE,
                         cache(ttl.cryptoPrice(), new TypeReference<List<UpbitTicker>>() {}))
                 // 업비트와 같은 수명이지만 담기는 타입이 달라 crypto-price에 섞을 수 없다
@@ -87,9 +92,9 @@ public class CacheConfig {
                 //    덤으로 Optional.empty()는 null로 벗겨져 unless="#result == null"에 걸려
                 //    아예 캐시되지 않는다 — 일시적 실패가 7일 굳지 않는 이유가 그것이다
                 .withCacheConfiguration(CacheNames.STOCK_RESOLVE,
-                        cache(ttl.stockResolve(), new TypeReference<java.util.Optional<ResolvedStock>>() {}))
+                        cache(ttl.stockResolve(), new TypeReference<Optional<ResolvedStock>>() {}))
                 .withCacheConfiguration(CacheNames.CRYPTO_RESOLVE,
-                        cache(ttl.cryptoResolve(), new TypeReference<java.util.Optional<ResolvedCoin>>() {}))
+                        cache(ttl.cryptoResolve(), new TypeReference<Optional<ResolvedCoin>>() {}))
                 // 전일 종가라 자주 바뀌지 않는다 — 짧게 잡을 이유가 없다
                 .withCacheConfiguration(CacheNames.STOCK_PRICE,
                         cache(ttl.stockPrice(), new TypeReference<List<StockPrice>>() {}))
@@ -114,16 +119,16 @@ public class CacheConfig {
                         cache(ttl.usOutlook(), new TypeReference<StockOutlook>() {}))
                 .withCacheConfiguration(CacheNames.FX_SERIES,
                         cache(ttl.fxSeries(),
-                                new TypeReference<java.util.List<
-                                        io.saiden.economyhelper.market.chart.DailyBar>>() {}))
+                                new TypeReference<List<
+                                        DailyBar>>() {}))
                 .withCacheConfiguration(CacheNames.CRYPTO_SERIES,
                         cache(ttl.cryptoSeries(),
-                                new TypeReference<java.util.List<
-                                        io.saiden.economyhelper.market.chart.DailyBar>>() {}))
+                                new TypeReference<List<
+                                        DailyBar>>() {}))
                 .withCacheConfiguration(CacheNames.STOCK_SERIES,
                         cache(ttl.stockSeries(),
-                                new TypeReference<java.util.List<
-                                        io.saiden.economyhelper.market.chart.DailyBar>>() {}))
+                                new TypeReference<List<
+                                        DailyBar>>() {}))
                 .withCacheConfiguration(CacheNames.FX,
                         cache(ttl.fx(), new TypeReference<FxRate>() {}))
                 // 하루 1,000회 한도를 지키는 실질 방어다 — 1시간이면 하루 최대 24회
@@ -137,12 +142,12 @@ public class CacheConfig {
                         cache(ttl.weather(), new TypeReference<Weather>() {}))
                 // 지명의 좌표는 낡지 않는다. 검색 한 번에 조회가 두 번 나가는 것을 막는다
                 .withCacheConfiguration(CacheNames.GEOCODE,
-                        cache(ttl.geocode(), new TypeReference<java.util.Optional<GeoLocation>>() {}))
+                        cache(ttl.geocode(), new TypeReference<Optional<GeoLocation>>() {}))
                 // 날짜별 강수 토막. weather와 나눠 쓰지 않는다 — 이름 하나에 타입 하나다
                 .withCacheConfiguration(CacheNames.PRECIPITATION_HOURS,
                         cache(ttl.precipitationHours(),
-                                new TypeReference<java.util.Map<java.time.LocalDate,
-                                        List<io.saiden.economyhelper.market.weather.HalfDay>>>() {}))
+                                new TypeReference<Map<LocalDate,
+                                        List<HalfDay>>>() {}))
                 // 좌표에 대응하는 AccuWeather 지점 키도 낡지 않는다. 이게 하루 50회 한도의
                 // 실질 방어다 — 없으면 날씨 조회 한 번마다 호출이 두 번 나간다
                 .withCacheConfiguration(CacheNames.ACCU_LOCATION,
@@ -150,7 +155,7 @@ public class CacheConfig {
                 // LLM 해석. '내일'을 offsetDays로 받으므로 캐시해도 내일이 고정되지 않는다
                 .withCacheConfiguration(CacheNames.WEATHER_RESOLVE,
                         cache(ttl.weatherResolve(),
-                                new TypeReference<java.util.Optional<ResolvedPlace>>() {}));
+                                new TypeReference<Optional<ResolvedPlace>>() {}));
     }
 
     private static RedisCacheConfiguration cache(Duration ttl, TypeReference<?> type) {

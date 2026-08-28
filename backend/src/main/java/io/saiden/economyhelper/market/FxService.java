@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market;
 
+import io.saiden.economyhelper.market.chart.DailyBar;
 import io.saiden.economyhelper.market.frankfurter.FrankfurterFxClient;
 import io.saiden.economyhelper.support.Failover;
 import io.saiden.economyhelper.support.FailureReason;
@@ -71,7 +72,7 @@ public class FxService {
      * <p>부르는 쪽(웹훅·브리핑)이 「차트만 빼고 보낸다」를 판단해야 하므로 여기서 던진다.
      * 삼키면 클라이언트에 걸린 브레이커가 정상 반환을 보고 성공을 센다.
      */
-    public List<io.saiden.economyhelper.market.chart.DailyBar> dailyBars() {
+    public List<DailyBar> dailyBars() {
         return series.dailyBars();
     }
 

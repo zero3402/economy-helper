@@ -1,5 +1,7 @@
 package io.saiden.economyhelper.market.kis;
 
+import java.net.URI;
+import java.util.ArrayList;
 import io.saiden.economyhelper.config.CacheNames;
 import io.saiden.economyhelper.market.chart.DailySeries;
 import io.saiden.economyhelper.market.chart.DailyBar;
@@ -217,7 +219,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
      */
     @Cacheable(cacheNames = CacheNames.STOCK_SERIES, key = "'stock:' + #code", unless = "#result.isEmpty()")
     @CircuitBreaker(name = "kisStock")
-    public java.util.List<DailyBar> dailyBars(String code) {
+    public List<DailyBar> dailyBars(String code) {
         DailyChart response = request(DailyChart.class, STOCK_TR, "국내 종목 일봉 " + code,
                 uri -> chartWindow(uri, STOCK_PATH, KRX_STOCK, code)
                         .queryParam("FID_ORG_ADJ_PRC", "0")
@@ -243,7 +245,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
      */
     @Cacheable(cacheNames = CacheNames.STOCK_SERIES, key = "'index:' + #name", unless = "#result.isEmpty()")
     @CircuitBreaker(name = "kisStock")
-    public java.util.List<DailyBar> dailyBarsOfIndex(String name) {
+    public List<DailyBar> dailyBarsOfIndex(String name) {
         Index target = indices.get(name);
         if (target == null || !target.hasCode()) {
             // KIS에는 지수명 검색이 없다 — 코드가 없으면 만들 수 있는 요청이 아예 없다
@@ -271,12 +273,12 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
      */
     @Cacheable(cacheNames = CacheNames.STOCK_SERIES, key = "'us:' + #symbol", unless = "#result.isEmpty()")
     @CircuitBreaker(name = "kisStock")
-    public java.util.List<DailyBar> dailyBarsOfUs(String symbol) {
+    public List<DailyBar> dailyBarsOfUs(String symbol) {
         return UsSymbol.isIndex(symbol) ? usIndexSeries(symbol) : usStockSeries(symbol);
     }
 
     /** 미국 지수 일봉 — 표가 유일한 길이다. {@code ^IXIC}를 KIS는 {@code COMP}로 부른다. */
-    private java.util.List<DailyBar> usIndexSeries(String symbol) {
+    private List<DailyBar> usIndexSeries(String symbol) {
         String kisSymbol = usIndices.get(symbol);
         if (kisSymbol == null) {
             throw new Unsupported("KIS 심볼을 모르는 미국 지수입니다: " + symbol);
@@ -316,7 +318,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
      *
      * <p>거래소를 못 찾으면 <b>던진다</b> — 부르는 쪽이 사진만 빼고 값을 내보낸다.
      */
-    private java.util.List<DailyBar> usStockSeries(String symbol) {
+    private List<DailyBar> usStockSeries(String symbol) {
         String what = "미국 종목 일봉 " + symbol;
         RuntimeException failure = null;
         // 시세와 같은 함수, 같은 순서다 — 기억해 둔 거래소가 있으면 그 하나뿐이고,
@@ -343,7 +345,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
                 failure = e;
                 continue;
             }
-            java.util.List<DailyBar> bars = barsOf(response);
+            List<DailyBar> bars = barsOf(response);
             if (bars.isEmpty()) {
                 // 거래소가 틀리면 에러가 아니라 빈 배열이 온다 — 시세가 빈 문자열을 주는 것과 같다
                 continue;
@@ -358,11 +360,11 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
     }
 
     /** {@code output2}를 일봉으로 — 걸러내기와 정렬은 {@code DailySeries}가 한 곳에서 한다. */
-    private static java.util.List<DailyBar> barsOf(DailyChart response) {
+    private static List<DailyBar> barsOf(DailyChart response) {
         if (response == null || response.bars() == null) {
             return java.util.List.of();
         }
-        java.util.List<DailyBar> bars = new java.util.ArrayList<>();
+        List<DailyBar> bars = new ArrayList<>();
         for (Bar bar : response.bars()) {
             if (bar == null || bar.on() == null || bar.close() == null) {
                 continue;
@@ -581,7 +583,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
      * <b>다만 이유는 남긴다</b> — {@link KisHeaders#reasonOf}가 본문에서 두 필드만 꺼낸다.
      */
     private <T extends KisResponse> T request(Class<T> type, String trId, String what,
-                                              Function<UriBuilder, java.net.URI> uri) {
+                                              Function<UriBuilder, URI> uri) {
         // 호출 하나에 간격 하나 — 거래소를 두 번 물어보면 그 사이도 벌어진다
         throttle.pace();
         T response;
@@ -680,7 +682,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
     @JsonIgnoreProperties(ignoreUnknown = true)
     record DailyChart(@JsonProperty("rt_cd") String resultCode,
                       @JsonProperty("msg1") String message,
-                      @JsonProperty("output2") java.util.List<Bar> bars) implements KisResponse {
+                      @JsonProperty("output2") List<Bar> bars) implements KisResponse {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

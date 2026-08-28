@@ -130,6 +130,24 @@ final class MessageLayout {
     }
 
     /**
+     * 검색어에 해당하는 것을 못 찾았다 — <b>세 명령이 같은 문장으로 답한다.</b>
+     *
+     * <p>{@link #empty}와 같은 근거다: 뼈대(「'검색어'에 해당하는 X을 찾지 못했습니다.」)와 이스케이프가
+     * 포매터 셋에 각자 적혀 있었다. 낱말({@code noun})과 그 아래 안내({@code hints})만 도메인이 든다.
+     *
+     * @param noun  종목·코인·지역 — 「…을 찾지 못했습니다」의 목적어
+     * @param hints 빈 줄로 띄워 이어 적을 안내 문구들. 없으면 뼈대 한 줄로 끝난다
+     */
+    static String notFound(Command command, String query, String noun, String... hints) {
+        StringBuilder text = new StringBuilder(head(command))
+                .append("'").append(Html.escape(query)).append("'에 해당하는 ").append(noun).append("을 찾지 못했습니다.");
+        for (String hint : hints) {
+            text.append("\n\n").append(hint);
+        }
+        return text.toString();
+    }
+
+    /**
      * 제목 줄만. 아래에 무리를 바로 붙이는 통(증시·코인·뉴스 브리핑)이 쓴다.
      *
      * <p>제목 문자열이 {@link Command}에만 있으므로 검색 답과 브리핑 답의 제목이 갈릴 수 없다.

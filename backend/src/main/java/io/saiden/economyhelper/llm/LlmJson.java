@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.llm;
 
+import java.util.function.Predicate;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +38,7 @@ public final class LlmJson {
      */
     public static <T> Optional<T> ask(GeminiApi api, ObjectMapper mapper, String prompt,
                                       Class<T> type, String tag, String query,
-                                      java.util.function.Predicate<T> usable) {
+                                      Predicate<T> usable) {
         try {
             T parsed = mapper.readValue(api.generate(prompt), type);
             if (parsed == null || !usable.test(parsed)) {

@@ -1,5 +1,8 @@
 package io.saiden.economyhelper.market.fmp;
 
+import org.springframework.core.ParameterizedTypeReference;
+import java.math.BigDecimal;
+import org.springframework.web.client.RestClientResponseException;
 import io.saiden.economyhelper.config.CacheNames;
 import io.saiden.economyhelper.support.FailureReason;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -77,7 +80,7 @@ public class FmpApi {
         String uri = baseUrl + PATH + "?symbol=" + encode(symbol) + "&apikey=" + apiKey;
         try {
             List<FmpQuote> found = restClient.get().uri(URI.create(uri)).retrieve()
-                    .body(new org.springframework.core.ParameterizedTypeReference<List<FmpQuote>>() {});
+                    .body(new ParameterizedTypeReference<List<FmpQuote>>() {});
             if (found == null || found.isEmpty()) {
                 log.info("[fmp] '{}' 심볼이 없습니다", symbol);
                 return null;
@@ -100,7 +103,7 @@ public class FmpApi {
 
     /** 402(요금제)·403(권한)만 "영영 안 된다"로 읽는다 — 나머지는 다시 시도할 여지가 있다. */
     private static boolean planBlocked(RuntimeException e) {
-        if (!(e instanceof org.springframework.web.client.RestClientResponseException failure)) {
+        if (!(e instanceof RestClientResponseException failure)) {
             return false;
         }
         int status = failure.getStatusCode().value();
@@ -123,6 +126,6 @@ public class FmpApi {
      *                         대신하지만 이쪽은 실제 시각을 그대로 쓴다
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record FmpQuote(String symbol, String name, java.math.BigDecimal price,
-                           java.math.BigDecimal changePercentage, Long timestamp) {}
+    public record FmpQuote(String symbol, String name, BigDecimal price,
+                           BigDecimal changePercentage, Long timestamp) {}
 }

@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.telegram;
 
+import java.time.LocalTime;
 import static io.saiden.economyhelper.telegram.MessageLayout.DATE;
 import static io.saiden.economyhelper.telegram.MessageLayout.SHORT_DATE;
 import static io.saiden.economyhelper.telegram.MessageLayout.empty;
@@ -201,7 +202,7 @@ public final class WeatherFormatter {
      * <p>⚠️ <b>토막은 정오를 넘지 않는다</b> — {@code HalfDays}가 반나절 안에서만 잇는다.
      * 그래서 앞끝과 뒤끝이 언제나 같은 반나절이고, 줄 앞의 이름 하나가 둘을 다 가리킨다.
      */
-    private static String range(java.time.LocalTime from, java.time.LocalTime to) {
+    private static String range(LocalTime from, LocalTime to) {
         if (from.equals(to)) {
             return twelve(from.getHour()) + "시";
         }
@@ -250,10 +251,9 @@ public final class WeatherFormatter {
     }
 
     public static String notFound(String query) {
-        return head(Command.WEATHER)
-                + "'" + Html.escape(query) + "'에 해당하는 지역을 찾지 못했습니다.\n\n"
-                + "도시나 지역 이름으로 입력해 주세요.\n\n"
-                + "예) /weather 서울 · /weather 내일 성남 · /weather 일주일치 파리";
+        return MessageLayout.notFound(Command.WEATHER, query, "지역",
+                "도시나 지역 이름으로 입력해 주세요.",
+                "예) /weather 서울 · /weather 내일 성남 · /weather 일주일치 파리");
     }
 
     /**

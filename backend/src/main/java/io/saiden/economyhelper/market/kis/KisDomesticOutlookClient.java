@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market.kis;
 
+import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
@@ -148,7 +149,7 @@ public class KisDomesticOutlookClient implements DomesticOutlookClient {
             return List.of();
         }
         return response.output().stream()
-                .filter(java.util.Objects::nonNull)
+                .filter(Objects::nonNull)
                 .map(row -> new InvestOpinions.Opinion(
                         row.broker(), row.date(), row.targetPrice()))
                 .toList();

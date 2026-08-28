@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.telegram;
 
+import java.util.regex.Pattern;
 import static io.saiden.economyhelper.telegram.MessageLayout.DATE_TIME;
 import static io.saiden.economyhelper.telegram.MessageLayout.SEOUL;
 import static io.saiden.economyhelper.telegram.MessageLayout.empty;
@@ -115,7 +116,7 @@ public final class NewsFormatter {
      * <p>점 뒤에 글자 둘 이상이 이어지고 그 뒤가 낱말 경계일 때만 문다. 문장 끝 마침표나
      * 소수점은 걸리지 않는다.
      */
-    private static final java.util.regex.Pattern TLD =
+    private static final Pattern TLD =
             java.util.regex.Pattern.compile("\\.[a-zA-Z]{2,}\\b");
 
     /**

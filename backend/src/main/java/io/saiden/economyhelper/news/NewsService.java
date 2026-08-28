@@ -1,5 +1,8 @@
 package io.saiden.economyhelper.news;
 
+import java.util.LinkedHashSet;
+import java.util.Set;
+import java.util.function.Function;
 import io.saiden.economyhelper.news.feed.FeedFetcher;
 import io.saiden.economyhelper.news.rank.HackerNewsBuzzClient;
 import io.saiden.economyhelper.news.rank.KeywordGroup;
@@ -281,8 +284,8 @@ public class NewsService {
      *
      * <p>{@code Set}으로 받지 않는다 — 순서가 곧 의미인 목록이다.
      */
-    private static <T> List<T> distinctByLink(List<T> items, java.util.function.Function<T, String> link) {
-        java.util.Set<String> seen = new java.util.LinkedHashSet<>();
+    private static <T> List<T> distinctByLink(List<T> items, Function<T, String> link) {
+        Set<String> seen = new LinkedHashSet<>();
         return items.stream().filter(item -> seen.add(link.apply(item))).toList();
     }
 

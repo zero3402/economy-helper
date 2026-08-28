@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market.weather.openmeteo;
 
+import java.time.DateTimeException;
 import io.saiden.economyhelper.config.CacheNames;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
@@ -163,7 +164,7 @@ public class GeocodingApi {
         }
         try {
             return ZoneId.of(timezone);
-        } catch (java.time.DateTimeException e) {
+        } catch (DateTimeException e) {
             log.warn("[weather] 모르는 시간대 '{}' — UTC로 둡니다", timezone);
             return ZoneId.of("UTC");
         }

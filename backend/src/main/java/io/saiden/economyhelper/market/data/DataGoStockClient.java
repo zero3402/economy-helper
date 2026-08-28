@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market.data;
 
+import java.time.Instant;
 import io.saiden.economyhelper.config.EconomyHelperProperties.Index;
 import io.saiden.economyhelper.market.DomesticStockClient;
 import io.saiden.economyhelper.market.Price;
@@ -159,7 +160,7 @@ public class DataGoStockClient implements DomesticStockClient {
     }
 
     /** 종가일을 시각으로 옮긴다. 그날 장이 끝난 값이므로 KST 자정으로 두고 표기는 날짜만 쓴다. */
-    private static java.time.Instant atSeoulMidnight(String basDt) {
+    private static Instant atSeoulMidnight(String basDt) {
         return LocalDate.parse(basDt, BAS_DT).atStartOfDay(SEOUL).toInstant();
     }
 

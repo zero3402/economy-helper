@@ -1,6 +1,8 @@
 package io.saiden.economyhelper.market.weather.accu;
 
 import io.saiden.economyhelper.support.FailureReason;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.client.RestClientResponseException;
 
 /**
@@ -12,10 +14,25 @@ import org.springframework.web.client.RestClientResponseException;
  */
 final class AccuFailure {
 
+    private static final Logger log = LoggerFactory.getLogger(AccuFailure.class);
+
     /** 하루 50회를 다 썼다는 뜻이다(실측 문구: {@code The allowed number of requests has been exceeded}). */
     private static final int QUOTA_EXHAUSTED = 503;
 
     private AccuFailure() {
+    }
+
+    /**
+     * 로그 한 줄과 던질 예외를 <b>함께</b> 만든다 — 지점 조회와 예보가 글자까지 같은 블록을 각자 들고 있었고,
+     * 그 안에서 {@link #reasonOf}를 두 번씩 불렀다.
+     *
+     * @param what  「지점 조회」·「조회」 — 로그와 예외 문구의 목적어
+     * @param place 지점 이름
+     */
+    static IllegalStateException failed(String what, String place, RuntimeException e) {
+        String reason = reasonOf(e);
+        log.warn("[accu] {} {} 실패: {}", place, what, reason);
+        return new IllegalStateException("AccuWeather " + what + " 실패 (" + place + "): " + reason);
     }
 
     /**

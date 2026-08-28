@@ -1,5 +1,7 @@
 package io.saiden.economyhelper.market;
 
+import io.saiden.economyhelper.market.chart.DailyBar;
+import io.saiden.economyhelper.market.kis.KisStockApi;
 import io.saiden.economyhelper.config.EconomyHelperProperties.Index;
 import io.saiden.economyhelper.config.EconomyHelperProperties.UsSymbol;
 import io.saiden.economyhelper.market.StockResolver.ResolvedStock;
@@ -104,7 +106,7 @@ public class StockService {
      * 열네 번이고, KIS는 한 호출로 {@code output2}를 통째로 준다. 그래서 SPI 목록이 아니라
      * 그 하나를 직접 든다 — 이름 검색에 공공데이터포털을 직접 드는 것과 같은 자리다.
      */
-    private final io.saiden.economyhelper.market.kis.KisStockApi kisSeries;
+    private final KisStockApi kisSeries;
 
     /**
      * @param names    이름으로 찾는 <b>둘째</b> 길 — 공공데이터포털(주식·ETF, 전일 종가). 한국투자증권에
@@ -115,7 +117,7 @@ public class StockService {
     public StockService(List<DomesticStockClient> domestic, List<UsStockClient> us,
                         DataGoStockClient names, StockListings listings, StockResolver resolver,
                         DomesticOutlookClient outlooks, UsOutlookClient usOutlooks,
-                        io.saiden.economyhelper.market.kis.KisStockApi kisSeries) {
+                        KisStockApi kisSeries) {
         // 순서는 여기서 정한다 — 주입 순서에 딸려 가면 클래스 이름을 바꾸다 뒤집힌다
         this.domestic = Failover.order(domestic, DOMESTIC_ORDER, StockClient::source);
         this.us = Failover.order(us, US_ORDER, StockClient::source);
@@ -129,7 +131,7 @@ public class StockService {
         java.util.stream.Stream.of(
                         Failover.unordered(domestic, StockClient::source, DOMESTIC_ORDER, US_ORDER),
                         Failover.unordered(us, StockClient::source, DOMESTIC_ORDER, US_ORDER))
-                .flatMap(java.util.List::stream)
+                .flatMap(List::stream)
                 .forEach(dropped -> log.error(
                         "[stock] {} 클라이언트가 어느 순서에도 없어 영영 안 불립니다", dropped.source()));
         this.names = names;
@@ -534,7 +536,7 @@ public class StockService {
      *
      * <p>부르는 쪽이 「차트만 빼고 보낸다」를 판단해야 하므로 던진다.
      */
-    public List<io.saiden.economyhelper.market.chart.DailyBar> dailyBarsOf(Series series) {
+    public List<DailyBar> dailyBarsOf(Series series) {
         return switch (series.kind()) {
             case DOMESTIC_STOCK -> kisSeries.dailyBars(series.key());
             case DOMESTIC_INDEX -> kisSeries.dailyBarsOfIndex(series.key());
