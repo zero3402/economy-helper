@@ -8,7 +8,11 @@ import io.saiden.economyhelper.market.StockResolver;
 import io.saiden.economyhelper.market.binance.BinanceApi;
 import io.saiden.economyhelper.market.binance.BinanceApi.BinancePrice;
 import io.saiden.economyhelper.market.data.MarketIndexApi;
+import io.saiden.economyhelper.market.data.EtfPriceApi;
 import io.saiden.economyhelper.market.data.StockPriceApi;
+import io.saiden.economyhelper.market.fmp.FmpUsOutlookClient;
+import io.saiden.economyhelper.market.kis.KisDomesticOutlookClient;
+import io.saiden.economyhelper.market.kis.KisMasterClient;
 import io.saiden.economyhelper.market.fmp.FmpApi;
 import io.saiden.economyhelper.market.kis.KisStockApi;
 import io.saiden.economyhelper.market.frankfurter.FrankfurterFxClient;
@@ -196,20 +200,41 @@ class CacheConfigTest {
                 "성남시", "대한민국", 37.3851167, 127.1232944, java.time.ZoneId.of("Asia/Seoul"));
     }
 
+    /** {@code @Cacheable}을 다는 클래스 전부. 여기에 안 적으면 새 캐시를 아래 감시 둘이 아예 안 본다. */
+    private static final List<Class<?>> CACHEABLE_TYPES = List.of(
+            BinanceApi.class, UpbitApi.class, CryptoResolver.class, StockResolver.class,
+            StockPriceApi.class, EtfPriceApi.class, MarketIndexApi.class, FmpApi.class,
+            FrankfurterFxClient.class, KeximFxClient.class, KisFxClient.class,
+            KisStockApi.class, KisMasterClient.class,
+            KisDomesticOutlookClient.class, FmpUsOutlookClient.class,
+            FeedFetcher.class, HackerNewsApi.class, RelevanceScorer.class,
+            QueryTranslator.class, TranslationService.class,
+            OpenMeteoForecastClient.class, OpenMeteoArchiveClient.class,
+            AccuWeatherClient.class, AccuLocationApi.class,
+            GeocodingApi.class, WeatherResolver.class, KmaWeatherClient.class);
+
+    @Test
+    @DisplayName("Optional을 돌려주는 @Cacheable은 빈 값을 unless로 막는다 — 안 막으면 빈 답이 조회 실패로 보인다")
+    void optionalCachesRefuseToStoreEmpty() {
+        // ⚠️ 스프링은 Optional을 벗겨 넣는다. 빈 Optional은 null이 되고 disableCachingNullValues는
+        //    그것을 「안 담는」 것이 아니라 IllegalArgumentException으로 **거절**한다 — 그 예외가
+        //    호출자까지 올라가 「전망 조회 실패」로 찍혔다(2026-08-28 실물 감사, ETF 전부).
+        //    브레이커는 안쪽이라 성공을 봤지만 값은 영영 캐시되지 않아 조회마다 KIS 1초·FMP 2회를 다시 썼다
+        List<String> unguarded = CACHEABLE_TYPES.stream()
+                .flatMap(type -> Arrays.stream(type.getDeclaredMethods()))
+                .filter(method -> method.getAnnotation(Cacheable.class) != null)
+                .filter(method -> method.getReturnType() == java.util.Optional.class)
+                .filter(method -> !method.getAnnotation(Cacheable.class).unless().contains("#result == null"))
+                .map(method -> method.getDeclaringClass().getSimpleName() + "." + method.getName())
+                .toList();
+
+        assertThat(unguarded).as("unless=\"#result == null\"이 없는 Optional 캐시").isEmpty();
+    }
+
     @Test
     @DisplayName("@Cacheable을 단 캐시는 전부 CacheConfig에 등록돼 있다")
     void configuresEveryDeclaredCache() {
-        Set<String> declared = Stream.of(
-                        BinanceApi.class, UpbitApi.class, CryptoResolver.class, StockResolver.class,
-                        StockPriceApi.class, MarketIndexApi.class, FmpApi.class,
-                        FrankfurterFxClient.class, KeximFxClient.class, KisFxClient.class,
-                        KisStockApi.class,
-                        FeedFetcher.class, HackerNewsApi.class, RelevanceScorer.class,
-                        QueryTranslator.class, TranslationService.class,
-                        // 날씨. 여기에 안 적으면 새 캐시를 감시가 아예 안 본다
-                        OpenMeteoForecastClient.class, OpenMeteoArchiveClient.class,
-                        AccuWeatherClient.class, AccuLocationApi.class,
-                        GeocodingApi.class, WeatherResolver.class, KmaWeatherClient.class)
+        Set<String> declared = CACHEABLE_TYPES.stream()
                 .flatMap(type -> cacheNamesOf(type).stream())
                 .collect(Collectors.toCollection(java.util.HashSet::new));
 

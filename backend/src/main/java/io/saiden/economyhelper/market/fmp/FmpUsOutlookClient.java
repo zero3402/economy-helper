@@ -98,7 +98,10 @@ public class FmpUsOutlookClient implements UsOutlookClient {
      * @throws IllegalStateException 키가 없거나 한도를 소진했거나, <b>둘 다</b> 실패했을 때
      */
     @Override
-    @Cacheable(cacheNames = CacheNames.US_OUTLOOK, key = "#symbol")
+    // ⚠️ unless가 없으면 빈 Optional이 IllegalArgumentException으로 튀어 오른다(KisDomesticOutlookClient
+    //    주석 참조). 여기서는 더 아프다 — 빈 답이 캐시되지 않으면 그 심볼을 검색할 때마다 FMP 하루
+    //    250회에서 **둘**을 다시 쓴다. 12시간 캐시가 한도의 실질 방어라는 말이 빈 답에서는 거짓이었다
+    @Cacheable(cacheNames = CacheNames.US_OUTLOOK, key = "#symbol", unless = "#result == null")
     @RateLimiter(name = "fmp")
     // ⚠️ 브레이커는 시세와 <b>따로</b>다. 리미터는 같이 쓴다 — 하루 250회가 한 예산이라
     //    초당 연타를 막는 일은 둘이 함께 해야 하지만, 「상대가 죽었나」는 갈린다:
@@ -110,12 +113,29 @@ public class FmpUsOutlookClient implements UsOutlookClient {
             throw new IllegalStateException("FMP API 키가 없습니다");
         }
 
-        // 두 호출은 서로를 모른다 — 겹치면 콜드 1.7초 둘이 하나가 된다(실측 p50 1,678ms).
-        // 리미터는 이 메서드에 걸려 있어 퍼밋 수는 그대로고, FmpQuotaGuard는 Redis INCR라 안전하다.
-        // 각자 실패를 값(Fetched.failed)으로 삼키므로 한쪽이 죽어도 다른 쪽이 버려지지 않는다
+        // ⚠️ 한도 퍼밋은 **순서대로 먼저** 잡는다 — 목표가가 앞, 실적발표일이 뒤. 두 호출을 겹친 뒤
+        //    각자 퍼밋을 잡게 뒀더니 한도가 하나만 남은 날 어느 쪽이 가져가는지가 경쟁이 됐고,
+        //    실적발표일이 가져가면 목표가 쪽이 「한도 소진」으로 던져 답이 통째로 없어졌다
+        //    (FmpUsOutlookClientTest가 잡았다). 처음부터 한도가 없으면 여기서 그 사유 그대로 던진다
+        if (!quota.tryAcquire()) {
+            // 어차피 거절당한다. 부르지 않는 편이 빠르고 로그도 깨끗하다
+            throw new IllegalStateException("FMP 일일 호출 한도를 소진했습니다");
+        }
+        boolean earningsPermitted = quota.tryAcquire();
+        if (!earningsPermitted) {
+            // 한도가 두 호출 사이에서 끝났다 — 이미 잡은 목표가 퍼밋을 버리지 않는다. 걸리면 그 심볼의
+            // 실적발표일이 자정(KST)까지 안 나오는데, 빈손보다 낫다
+            log.info("[fmp] '{}' 실적발표일을 못 물었습니다 — 목표가만 내보냅니다: 일일 호출 한도 소진", symbol);
+        }
+
+        // HTTP만 겹친다 — 두 호출은 서로를 모르고 콜드 1.7초씩이라(실측 p50 1,678ms) 겹치면 하나가 된다.
+        // 리미터는 이 메서드에 걸려 있어 퍼밋 수는 그대로다. 각자 HTTP 실패를 값(Fetched.failed)으로
+        // 삼키므로 한쪽이 죽어도 다른 쪽이 버려지지 않는다
         Concurrently.Pair<Fetched<Target>, Fetched<List<Earnings>>> fetched = Concurrently.both(
                 () -> fetch(TARGET, symbol, new ParameterizedTypeReference<List<Target>>() {}),
-                () -> earnings(symbol));
+                () -> earningsPermitted
+                        ? fetchAll(EARNINGS, symbol, new ParameterizedTypeReference<List<Earnings>>() {})
+                        : new Fetched<List<Earnings>>(null, true));
         Fetched<Target> target = fetched.first();
         Fetched<List<Earnings>> schedule = fetched.second();
         // ⚠️ **빈 배열과 조회 실패를 구분해야 한다.** 둘을 다 null로 뭉치면 「목표가를 낸 곳이
@@ -130,28 +150,6 @@ public class FmpUsOutlookClient implements UsOutlookClient {
                 target.value() == null ? null : positive(target.value().targetConsensus()),
                 StockSource.FMP, clock.instant());
         return outlook.isEmpty() ? Optional.empty() : Optional.of(outlook);
-    }
-
-    /**
-     * 둘째 호출 — <b>이미 받아 둔 목표가를 버리지 않는다.</b>
-     *
-     * <p>⚠️ {@link #fetchAll}은 한도가 소진되면 <b>던진다</b>(HTTP 실패와 달리 try 앞이다).
-     * 그 예외가 여기까지 올라오면 방금 성공한 목표가까지 함께 버려진다 — 「살아 있는 것은
-     * 살린다」를 이 자리만 지키지 않고 있었다. 한도가 <b>두 호출 사이에서</b> 끝나는 경계라
-     * 드물지만, 걸리면 그 심볼의 목표가 줄이 <b>자정(KST)까지</b> 안 나온다(예외는 캐시되지 않아
-     * 다음 조회도 같은 자리에서 막힌다).
-     *
-     * <p>처음부터 한도가 없던 경우는 그대로 던진다 — 첫 호출이 먼저 막히므로 여기까지 오지 않고,
-     * 그때는 「한도를 소진했다」가 정확한 사유다.
-     */
-    private Fetched<List<Earnings>> earnings(String symbol) {
-        try {
-            return fetchAll(EARNINGS, symbol, new ParameterizedTypeReference<List<Earnings>>() {});
-        } catch (RuntimeException e) {
-            log.info("[fmp] '{}' 실적발표일을 못 물었습니다 — 목표가만 내보냅니다: {}",
-                    symbol, e.getMessage());
-            return new Fetched<>(null, true);
-        }
     }
 
     /**
@@ -200,13 +198,11 @@ public class FmpUsOutlookClient implements UsOutlookClient {
      *
      * <p>{@link #fetch}가 이것을 감싼다. 호출 하나를 두 모양으로 읽는 것이라 <b>URL 조립과
      * 키 가리기가 한 곳에만</b> 있다 — 두 벌로 두면 키를 가리는 쪽만 고쳐지는 날이 온다.
+     *
+     * <p>한도 퍼밋은 여기서 잡지 않는다 — {@link #outlook}이 두 호출 몫을 순서대로 먼저 잡는다.
      */
     private <T> Fetched<List<T>> fetchAll(String path, String symbol,
                                           ParameterizedTypeReference<List<T>> type) {
-        if (!quota.tryAcquire()) {
-            // 어차피 거절당한다. 부르지 않는 편이 빠르고 로그도 깨끗하다
-            throw new IllegalStateException("FMP 일일 호출 한도를 소진했습니다");
-        }
         String uri = baseUrl + path + "?symbol=" + encode(symbol) + "&apikey=" + apiKey;
         try {
             return new Fetched<>(restClient.get().uri(URI.create(uri)).retrieve().body(type), false);

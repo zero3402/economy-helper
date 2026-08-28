@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.saiden.economyhelper.news.rank.KeywordGroup;
 import io.saiden.economyhelper.llm.GeminiApi;
 import io.saiden.economyhelper.translate.QueryTranslator;
-import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -51,9 +50,10 @@ class QueryExpanderTest {
         List<KeywordGroup> groups = new QueryExpander(translator).expand("비트코인 금리 oil");
 
         assertThat(groups).hasSize(3);
+        // 토큰별 번역은 겹쳐서 돌므로 요청 순서는 정해져 있지 않다 — 무엇을 물었는지만 본다
         assertThat(translator.requested)
                 .as("검색어 전체를 한 번에 번역하면 결과를 원래 토큰에 되붙일 수 없다")
-                .containsExactly("비트코인", "금리");
+                .containsExactlyInAnyOrder("비트코인", "금리");
     }
 
     @Test
@@ -96,7 +96,7 @@ class QueryExpanderTest {
 
     /** 어떤 토큰이 번역을 요청받았는지 기록한다 — 호출 여부가 이 클래스의 핵심 계약이다. */
     private static final class RecordingTranslator extends QueryTranslator {
-        private final List<String> requested = new ArrayList<>();
+        private final List<String> requested = new java.util.concurrent.CopyOnWriteArrayList<>();
         private final List<String> result;
         private final RuntimeException failure;
 

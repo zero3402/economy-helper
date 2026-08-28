@@ -100,7 +100,12 @@ public class KisDomesticOutlookClient implements DomesticOutlookClient {
      *                          그래야 브레이커가 실패를 먼저 센다
      */
     @Override
-    @Cacheable(cacheNames = CacheNames.KIS_OUTLOOK, key = "#code")
+    // ⚠️ unless가 없으면 빈 Optional이 조회를 **실패로 보이게** 한다. 스프링이 Optional을 벗겨 null을
+    //    넣으려 하고 disableCachingNullValues가 그것을 IllegalArgumentException으로 거절하는데,
+    //    그 예외가 outlook()을 부른 쪽까지 올라간다 — 실물 감사(2026-08-28)에서 ETF 전부가
+    //    「전망 조회 실패: IllegalArgumentException」이었다. 브레이커는 안쪽이라 성공을 봤지만
+    //    값은 영영 캐시되지 않아 조회마다 KIS 간격 1초를 다시 썼다. 해석기 셋과 같은 unless다
+    @Cacheable(cacheNames = CacheNames.KIS_OUTLOOK, key = "#code", unless = "#result == null")
     @CircuitBreaker(name = "kisStock")
     public Optional<StockOutlook> outlook(String code) {
         // 호출 하나에 간격 하나 — KIS의 제약은 "초당 몇 건"이 아니라 "호출 사이 얼마"다

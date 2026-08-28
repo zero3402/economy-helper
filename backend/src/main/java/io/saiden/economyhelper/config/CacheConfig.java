@@ -104,9 +104,10 @@ public class CacheConfig {
                 // 가르는 것은 키의 접두사('stock:'·'index:'·'us:')다
                 .withCacheConfiguration(CacheNames.KIS_QUOTE,
                         cache(ttl.kisQuote(), new TypeReference<StockQuote>() {}))
-                // 담기는 것이 Optional이다 — 「의견 낸 증권사가 없다」가 값이라 그것도 캐시된다.
-                // 빈 Optional은 스프링이 벗겨 null이 되고 disableCachingNullValues가 막으므로
-                // 실제로는 값이 있는 종목만 캐시된다
+                // 담기는 것이 Optional이다. ⚠️ 빈 Optional은 스프링이 벗겨 null이 되는데
+                // disableCachingNullValues는 그것을 「안 담는」 것이 아니라 **IllegalArgumentException으로
+                // 거절**한다 — @Cacheable 쪽에 unless="#result == null"이 있어야 조회가 멀쩡히 끝난다.
+                // 한동안 그 unless가 없어 전망 없는 종목(ETF)마다 조회가 실패로 보였다(2026-08-28 실물 감사)
                 .withCacheConfiguration(CacheNames.KIS_OUTLOOK,
                         cache(ttl.kisOutlook(),
                                 new TypeReference<java.util.Optional<StockOutlook>>() {}))

@@ -258,9 +258,10 @@ class FmpUsOutlookClientTest {
     @Test
     @DisplayName("한도가 두 호출 사이에서 끝나도 목표가는 살린다 — 이미 받아 둔 것을 버리지 않는다")
     void keepsTheTargetWhenQuotaRunsOutMidway() {
-        // ⚠️ fetchAll은 한도 소진에 **던진다**(HTTP 실패와 달리 try 앞이다). 그 예외가 그대로
-        //    올라오면 방금 성공한 목표가까지 버려지고, 예외는 캐시되지 않으므로 다음 조회도
-        //    같은 자리에서 막혀 그 심볼의 목표가 줄이 자정(KST)까지 안 나온다
+        // ⚠️ 한도 퍼밋은 목표가 → 실적발표일 순서로 **먼저** 잡는다. 두 HTTP를 겹치면서 각자 퍼밋을
+        //    잡게 뒀더니 어느 쪽이 마지막 하나를 가져가는지가 경쟁이 됐고, 실적발표일이 가져간 날은
+        //    목표가 쪽이 「한도 소진」으로 던져 답이 통째로 없어졌다 — 이 테스트가 그것을 잡았다.
+        //    예외는 캐시되지 않으므로 그때는 다음 조회도 같은 자리에서 막힌다
         stub(TARGET, 200, """
                 [{"symbol":"AAPL","targetHigh":400,"targetConsensus":340.72}]""");
         FmpUsOutlookClient client = new FmpUsOutlookClient(RestClient.builder(), server.baseUrl(),

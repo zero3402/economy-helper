@@ -72,6 +72,31 @@ curl localhost:8081/actuator/digest
 > **`force`를 습관처럼 쓰지 않는다.** 이미 보낸 슬롯을 다시 보내는 것이라 구독자에게
 > 중복이 나간다. "왜 안 왔지"는 `GET`으로 먼저 본다 — 그러라고 읽기와 쓰기를 갈라 뒀다.
 
+### 실물 감사 — 텔레그램을 싱크로 갈아 끼운다
+
+§7이 말하는 「실제 키로 실제 입력을 돌려 보는 감사」를 **그룹 채팅을 더럽히지 않고** 하는 방법이다
+(2026-08-28에 이렇게 했다). 텔레그램 `base-url`을 로컬 HTTP 싱크로 돌리면 봇이 만든 답이 전부 그리로 떨어진다.
+
+```bash
+# 1. 아무 POST에 {"ok":true,"result":{"message_id":1}}로 답하고 본문(sendMessage의 text, sendPhoto의 caption)을
+#    파일에 적는 HTTP 서버를 19999에 띄운다. ⚠️ RestClient가 chunked로 보내므로 Content-Length만 읽으면 본문이 빈다.
+# 2. 실제 키는 그대로, 텔레그램·포트·크론만 바꿔 띄운다
+set -a; . ./.env; set +a
+SERVER_PORT=18080 MANAGEMENT_SERVER_PORT=18081 \
+ECONOMY_HELPER_TELEGRAM_BASE_URL=http://127.0.0.1:19999 TELEGRAM_BOT_TOKEN=audit TELEGRAM_CHAT_ID=1 \
+TELEGRAM_WEBHOOK_SECRET= TELEGRAM_SEARCH_TOPIC_ID= TELEGRAM_NOTICE_TOPIC_ID= \
+ECONOMY_HELPER_DIGEST_CRON=- ECONOMY_HELPER_WEATHER_CRON=- ECONOMY_HELPER_KEEP_WARM_CRON=- ./gradlew bootRun
+# 3. 텔레그램이 보내는 모양 그대로 명령을 넣는다
+curl -s -H 'content-type: application/json' -d '{"update_id":1,"message":{"message_id":1,"chat":{"id":1},"text":"/stock 타임나스닥100"}}' \
+  localhost:18080/telegram/webhook
+```
+
+- **크론을 끄는 이유**: 09~10시에 띄우면 브리핑 잡이 그대로 돌아 KIS 20회·Gemini 9회를 태운다(싱크로 가니 사용자에게는 안 보인다).
+- **포트를 옮기는 이유**: 8080이 다른 앱에 잡혀 있을 수 있고, 그러면 기동 실패로 재시작을 되풀이하다 KIS 토큰을 죽인다(1분 1회).
+- **KIS 토큰은 한 번만 받는다**: 로컬 Redis(`docker compose up -d redis`)에 `kis:token`이 남아 재시작해도 재발급하지 않는다.
+- 로그의 `[webhook] … → N초`가 곧 체감 시간이고, 싱크 파일의 두 통 사이 시각 차가 간격 규칙(초당 한 통)을 보여 준다.
+- 이 감사가 잡은 것: 전망 캐시의 빈 `Optional`이 `IllegalArgumentException`으로 튀던 것(4-2) — 단위·골든 테스트는 전부 초록이었다.
+
 ### 컨테이너
 
 ```bash
@@ -337,6 +362,13 @@ this.clients = Failover.order(clients, ORDER, FxRateClient::source);   // suppor
 `unless = "#result == null"`에 걸려 **아예 캐시되지 않는다** — LLM 해석의 일시적 실패가 7일 굳지
 않는 이유가 그것이다. 실험으로 확인했다: 두 번 불러 `calls=2, cached=false`, 값이 있을 때만
 `storedType=java.lang.String`.
+
+> ⚠️ **그 `unless`는 장식이 아니라 필수다.** 없으면 `disableCachingNullValues`가 벗겨진 `null`을
+> 「안 담는」 것이 아니라 **`IllegalArgumentException`으로 거절**하고, 그 예외가 호출자까지 올라간다.
+> 전망 캐시 둘(`kis-outlook`·`us-outlook`)이 한동안 그 상태였다 — 실물 감사(2026-08-28)에서 국내 ETF
+> 전부가 「전망 조회 실패: IllegalArgumentException」이었다. 브레이커는 캐시 안쪽이라 성공을 봤지만
+> **빈 답은 영영 캐시되지 않아** 조회마다 KIS 간격 1초·FMP 2회를 다시 썼다.
+> `CacheConfigTest.optionalCachesRefuseToStoreEmpty`가 이제 Optional을 돌려주는 모든 `@Cacheable`에서 그것을 본다.
 
 **타임아웃은 호스트로 가른다.** Boot 4에는 손으로 만든 `RestClient`용 **이름별** 타임아웃이
 없다 — `spring.http.clients`는 평평한 전역 블록 하나이고, 키별 형태(`spring.http.serviceclient.*`)는
