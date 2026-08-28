@@ -165,5 +165,11 @@ public class KisMasterClient {
      * @param group     그룹코드 {@code ST}·{@code EF}·{@code EN}. 화면에 안 쓰고 로그·테스트가 본다
      * @param marketCap 시가총액(억). 동명 후보를 가르는 내부 신호 — 공공데이터포털의 {@code mrktTotAmt}와 같은 자리
      */
-    public record Listing(String code, String name, String group, long marketCap) {}
+    public record Listing(String code, String name, String group, long marketCap) {
+
+        /** ETF·ETN인가 — 증권사가 목표주가를 내지 않는 것들이다. 전망을 물어도 늘 0행이다(실측 426030). */
+        public boolean fund() {
+            return "EF".equals(group) || "EN".equals(group);
+        }
+    }
 }

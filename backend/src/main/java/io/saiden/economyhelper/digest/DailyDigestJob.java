@@ -8,18 +8,15 @@ import io.saiden.economyhelper.market.CryptoService;
 import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.FxService;
 import io.saiden.economyhelper.market.StockOutlook;
-import java.util.Map;
 import io.saiden.economyhelper.market.chart.ChartImage;
-import io.saiden.economyhelper.market.chart.ChartRenderer;
 import io.saiden.economyhelper.market.chart.DailyBar;
-import io.saiden.economyhelper.market.chart.DailySeries;
-import io.saiden.economyhelper.telegram.ChartCaption;
 import io.saiden.economyhelper.support.FailureReason;
 import io.saiden.economyhelper.market.StockQuote;
 import io.saiden.economyhelper.market.StockService;
 import io.saiden.economyhelper.news.NewsFacade;
 import io.saiden.economyhelper.news.NewsItem;
 import io.saiden.economyhelper.support.Concurrently;
+import io.saiden.economyhelper.telegram.Charts;
 import io.saiden.economyhelper.telegram.CryptoFormatter;
 import io.saiden.economyhelper.telegram.FxFormatter;
 import io.saiden.economyhelper.telegram.NewsFormatter;
@@ -29,6 +26,7 @@ import java.time.Clock;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.slf4j.Logger;
@@ -343,13 +341,9 @@ public class DailyDigestJob extends TriggerableJob {
             if (answer.series() == null) {
                 continue;
             }
-            charts.addAll(chartOf(answer.quote().name(), unitOf(answer.quote()), answer.series()));
+            charts.addAll(chartOf(answer.quote().name(), Charts.unitOf(answer.quote()), answer.series()));
         }
         return charts;
-    }
-
-    private static String unitOf(StockQuote quote) {
-        return quote.currency() == StockQuote.Money.NONE ? null : quote.currency().name();
     }
 
     /** 브리핑 코인 통의 차트 — 코인마다 한 장. 업비트는 키가 없고 한 호출로 열나흘을 준다. */
@@ -385,26 +379,9 @@ public class DailyDigestJob extends TriggerableJob {
         return chartOf(subject, unit, () -> stockService.dailyBarsOf(series));
     }
 
-    private static List<ChartImage> chartOf(String subject, String unit,
-                                            Supplier<List<DailyBar>> bars) {
-        try {
-            List<DailyBar> series = bars.get();
-            if (!DailySeries.drawable(series)) {
-                // 검색 경로(TelegramWebhookController.chartOf)와 같은 말을 남긴다 —
-                // 조용한 빈손은 「차트가 안 나온다」와 「차트를 안 물었다」를 못 가른다
-                log.info("[digest] {} 일봉이 {}칸뿐이라 차트를 뺍니다 — "
-                                + "KIS가 모르는 심볼이면 0.00만 와서 전부 걸러집니다",
-                        subject, series == null ? 0 : series.size());
-                return List.of();
-            }
-            byte[] png = ChartRenderer.render(series);
-            return png.length == 0
-                    ? List.of()
-                    : List.of(new ChartImage(png, ChartCaption.of(subject, unit, series)));
-        } catch (RuntimeException e) {
-            log.info("[digest] {} 일봉을 못 받아 차트를 뺍니다: {}", subject, FailureReason.of(e));
-            return List.of();
-        }
+    /** 검색 경로와 같은 규칙·같은 로그다 — {@link Charts}가 한 곳에 든다. */
+    private static List<ChartImage> chartOf(String subject, String unit, Supplier<List<DailyBar>> bars) {
+        return Charts.of("digest", subject, unit, bars).map(List::of).orElse(List.of());
     }
 
     /**

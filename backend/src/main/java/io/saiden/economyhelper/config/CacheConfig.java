@@ -104,16 +104,14 @@ public class CacheConfig {
                 // 가르는 것은 키의 접두사('stock:'·'index:'·'us:')다
                 .withCacheConfiguration(CacheNames.KIS_QUOTE,
                         cache(ttl.kisQuote(), new TypeReference<StockQuote>() {}))
-                // 담기는 것이 Optional이다. ⚠️ 빈 Optional은 스프링이 벗겨 null이 되는데
-                // disableCachingNullValues는 그것을 「안 담는」 것이 아니라 **IllegalArgumentException으로
-                // 거절**한다 — @Cacheable 쪽에 unless="#result == null"이 있어야 조회가 멀쩡히 끝난다.
-                // 한동안 그 unless가 없어 전망 없는 종목(ETF)마다 조회가 실패로 보였다(2026-08-28 실물 감사)
+                // ⚠️ Optional이 아니라 **빈 값 객체**를 담는다. 「의견 낸 증권사가 없다」는 값이고 12시간 안에
+                //    안 바뀌는데, Optional로 돌려주던 동안 스프링이 빈 것을 null로 벗겨 담지 못했다(unless 없이는
+                //    IllegalArgumentException으로 튀기까지 — 2026-08-28 실물 감사). 그래서 전망 없는 종목(ETF)마다
+                //    KIS 1초·FMP 2회를 다시 썼다. StockOutlook.isEmpty()가 「없다」를 든다
                 .withCacheConfiguration(CacheNames.KIS_OUTLOOK,
-                        cache(ttl.kisOutlook(),
-                                new TypeReference<java.util.Optional<StockOutlook>>() {}))
+                        cache(ttl.kisOutlook(), new TypeReference<StockOutlook>() {}))
                 .withCacheConfiguration(CacheNames.US_OUTLOOK,
-                        cache(ttl.usOutlook(),
-                                new TypeReference<java.util.Optional<StockOutlook>>() {}))
+                        cache(ttl.usOutlook(), new TypeReference<StockOutlook>() {}))
                 .withCacheConfiguration(CacheNames.FX_SERIES,
                         cache(ttl.fxSeries(),
                                 new TypeReference<java.util.List<

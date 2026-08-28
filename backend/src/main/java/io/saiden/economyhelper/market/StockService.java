@@ -310,7 +310,7 @@ public class StockService {
      */
     private Optional<Answer> byListing(String name) {
         try {
-            return listings.find(name).flatMap(listing -> stockAnswer(listing.code()));
+            return listings.find(name).flatMap(listing -> stockAnswer(listing.code(), !listing.fund()));
         } catch (RuntimeException e) {
             log.warn("[stock] '{}' 색인 검색 실패 — 공공데이터포털로 넘어갑니다: {}", name, FailureReason.of(e));
             return Optional.empty();
@@ -521,7 +521,8 @@ public class StockService {
     /** {@link #outlookOf}와 같은 이유로 여기서 삼킨다 — 클라이언트가 삼키면 브레이커가 못 본다. */
     private StockOutlook usOutlookOf(String symbol) {
         try {
-            return usOutlooks.outlook(symbol).filter(outlook -> !outlook.isEmpty()).orElse(null);
+            StockOutlook outlook = usOutlooks.outlook(symbol);
+            return outlook.isEmpty() ? null : outlook;
         } catch (RuntimeException e) {
             log.info("[stock] {} 전망 조회 실패 — 시세만 내보냅니다: {}", symbol, FailureReason.of(e));
             return null;
@@ -545,8 +546,17 @@ public class StockService {
 
     /** 국내 종목 하나 — <b>여기가 종목코드가 있는 유일한 자리</b>라 전망을 여기서 붙인다. */
     private Optional<Answer> stockAnswer(String code) {
+        return stockAnswer(code, true);
+    }
+
+    /**
+     * @param askOutlook 전망을 물을 것인가. 색인이 ETF·ETN이라고 알려 준 종목은 <b>묻지 않는다</b> —
+     *                   증권사가 목표주가를 내는 것은 기업이고, ETF에 물으면 늘 0행에 KIS 간격 1초를 쓴다.
+     *                   코드만 있는 경로는 그룹을 모르니 그대로 묻는다(빈 답은 12시간 캐시된다)
+     */
+    private Optional<Answer> stockAnswer(String code, boolean askOutlook) {
         return stock(code).map(quote ->
-                new Answer(quote, outlookOf(code), Series.domesticStock(code)));
+                new Answer(quote, askOutlook ? outlookOf(code) : null, Series.domesticStock(code)));
     }
 
     /**
@@ -563,7 +573,8 @@ public class StockService {
      */
     private StockOutlook outlookOf(String code) {
         try {
-            return outlooks.outlook(code).filter(outlook -> !outlook.isEmpty()).orElse(null);
+            StockOutlook outlook = outlooks.outlook(code);
+            return outlook.isEmpty() ? null : outlook;
         } catch (RuntimeException e) {
             log.info("[stock] {} 전망 조회 실패 — 시세만 내보냅니다: {}", code, FailureReason.of(e));
             return null;

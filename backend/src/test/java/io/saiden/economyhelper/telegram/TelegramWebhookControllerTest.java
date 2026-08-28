@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.telegram;
 
+import java.util.concurrent.atomic.AtomicBoolean;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.saiden.economyhelper.market.CryptoQuote;
@@ -206,6 +207,39 @@ class TelegramWebhookControllerTest {
         assertThat(client.captions).singleElement()
                 .satisfies(caption -> assertThat(caption).startsWith("<b>삼성전자</b>")
                         .as("종목의 통화가 caption 단위가 된다").contains("KRW"));
+        assertThat(client.order).containsExactly("글", "사진");
+    }
+
+    @Test
+    @DisplayName("차트는 글이 나간 뒤에 만든다 — 일봉 조회(KIS 간격 1초)가 첫 글을 늦추면 안 된다")
+    void fetchesTheChartOnlyAfterTheTextWentOut() {
+        RecordingClient client = new RecordingClient();
+        AtomicBoolean textAlreadySentWhenAsked = new AtomicBoolean();
+        StockQuote match = new StockQuote("삼성전자", new BigDecimal("239500"), null,
+                StockQuote.Money.KRW, StockQuote.Market.DOMESTIC,
+                io.saiden.economyhelper.market.StockSource.KIS, NOW, true);
+        StockService stock = new StockService(List.of(), List.of(), new DataGoStockClient(null, null, null),
+                new StockListings(List::of), new StockResolver(null, null),
+                code -> io.saiden.economyhelper.market.StockOutlook.NONE,
+                symbol -> io.saiden.economyhelper.market.StockOutlook.NONE, null) {
+            @Override
+            public Optional<Answer> answer(String query) {
+                return Optional.of(new Answer(match, null, StockService.Series.domesticStock("005930")));
+            }
+
+            @Override
+            public List<DailyBar> dailyBarsOf(StockService.Series requested) {
+                // 예전에는 답을 만들 때 함께 불렸다 — 그때는 글이 아직 하나도 안 나간 상태였다
+                textAlreadySentWhenAsked.set(!client.order.isEmpty());
+                return bars("245000", "239500");
+            }
+        };
+        var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()),
+                fx(Optional.empty()), stock, client);
+
+        controller.onUpdate(null, update(1, "/stock 삼성"));
+
+        assertThat(textAlreadySentWhenAsked).as("일봉을 물을 때 글은 이미 나가 있어야 한다").isTrue();
         assertThat(client.order).containsExactly("글", "사진");
     }
 
@@ -716,7 +750,7 @@ class TelegramWebhookControllerTest {
     /** 해석 규칙은 {@code StockServiceTest}가 본다. 여기서는 라우팅만 본다. */
     private static StockService stock(Optional<StockQuote> result) {
         return new StockService(List.of(), List.of(), new DataGoStockClient(null, null, null), new StockListings(List::of),
-                new StockResolver(null, null), code -> java.util.Optional.empty(), symbol -> java.util.Optional.empty(), null) {
+                new StockResolver(null, null), code -> io.saiden.economyhelper.market.StockOutlook.NONE, symbol -> io.saiden.economyhelper.market.StockOutlook.NONE, null) {
             // ⚠️ quote가 아니라 answer를 덮는다. 컨트롤러가 전망을 함께 받으려고 answer로
             //    옮겨 갔으므로, quote를 덮어 두면 페이크가 가로채지 못한다
             @Override
@@ -798,8 +832,8 @@ class TelegramWebhookControllerTest {
     /** 일봉까지 주는 종목 페이크 — {@code Series}가 있어야 차트가 붙는다. */
     private static StockService stockWithSeries(StockQuote quote, List<DailyBar> series) {
         return new StockService(List.of(), List.of(), new DataGoStockClient(null, null, null), new StockListings(List::of),
-                new StockResolver(null, null), code -> Optional.empty(),
-                symbol -> Optional.empty(), null) {
+                new StockResolver(null, null), code -> io.saiden.economyhelper.market.StockOutlook.NONE,
+                symbol -> io.saiden.economyhelper.market.StockOutlook.NONE, null) {
             @Override
             public Optional<Answer> answer(String query) {
                 return Optional.of(new Answer(quote, null,

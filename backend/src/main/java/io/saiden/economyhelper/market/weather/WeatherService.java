@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market.weather;
 
+import io.saiden.economyhelper.support.Concurrently;
 import io.saiden.economyhelper.support.Failover;
 import io.saiden.economyhelper.market.weather.openmeteo.OpenMeteoHourlyClient;
 import io.saiden.economyhelper.support.FailureReason;
@@ -85,16 +86,40 @@ public class WeatherService {
             return Optional.empty();
         }
 
-        Optional<Weather> found = Failover.first(eligible, client -> client.forecast(place, period),
-                // 다음 출처가 있으면 조용히 넘어간다. 이게 이중화가 하는 일이다
-                (client, e) -> log.warn("[weather] {} 조회 실패 — 다음 출처로 넘어갑니다: {}",
-                        client.source().displayName(), FailureReason.of(e)));
+        // 후보 중 시간별을 주는 출처가 하나도 없으면(국외가 그렇다 — AccuWeather·Open-Meteo 예보) 누가
+        // 답하든 보충이 필요하다. 그때는 예보와 보충을 **겹친다** — 순차면 국외 /weather마다 Open-Meteo
+        // 시간별(실측 912ms)을 예보 뒤에 따로 기다렸다. 국내(기상청이 후보)는 답한 출처를 봐야 하므로 순차다
+        boolean supplementCertain = !period.past(today)
+                && eligible.stream().noneMatch(WeatherClient::providesPrecipitationHours);
+        Optional<Weather> found;
+        Optional<Map<LocalDate, List<HalfDay>>> halves = Optional.empty();
+        if (supplementCertain) {
+            Concurrently.Pair<Optional<Weather>, Optional<Map<LocalDate, List<HalfDay>>>> both =
+                    Concurrently.both(() -> firstOf(eligible, place, period), () -> halvesOf(place, period));
+            found = both.first();
+            halves = both.second();
+        } else {
+            found = firstOf(eligible, place, period);
+        }
         if (found.isEmpty()) {
             log.error("[weather] 모든 출처에서 날씨를 가져오지 못했습니다");
             return found;
         }
-        return found.map(weather -> withHalvesHours(weather, place, period, today,
-                carriesHours(eligible, weather.source())));
+        Weather weather = found.get();
+        if (carriesHours(eligible, weather.source()) || period.past(today)) {
+            return found;
+        }
+        if (!supplementCertain) {
+            halves = halvesOf(place, period);
+        }
+        return Optional.of(halves.map(hours -> withHalves(weather, place, period, hours)).orElse(weather));
+    }
+
+    private Optional<Weather> firstOf(List<WeatherClient> eligible, GeoLocation place, WeatherPeriod period) {
+        return Failover.first(eligible, client -> client.forecast(place, period),
+                // 다음 출처가 있으면 조용히 넘어간다. 이게 이중화가 하는 일이다
+                (client, e) -> log.warn("[weather] {} 조회 실패 — 다음 출처로 넘어갑니다: {}",
+                        client.source().displayName(), FailureReason.of(e)));
     }
 
     /**
@@ -135,24 +160,22 @@ public class WeatherService {
      * <p><b>실패·빈손·성공을 각각 로그로 남긴다.</b> 셋이 화면에서는 같아 보이므로
      * (셋 다 강수 시각 줄이 없다) 로그로 갈라야 어느 쪽인지 알 수 있다.
      *
-     * @param sourceCarriesHours 일별을 맡은 출처가 시간별까지 함께 주는가
-     *                           ({@link WeatherClient#providesPrecipitationHours}).
-     *                           참이면 이미 손에 있으므로 묻지 않는다
+     * <p>답한 출처가 시간별까지 함께 주면({@link WeatherClient#providesPrecipitationHours}) 부르지 않는다 —
+     * 그 판단은 {@link #forecast}가 한다.
      */
-    private Weather withHalvesHours(Weather weather, GeoLocation place,
-                                           WeatherPeriod period, LocalDate today,
-                                           boolean sourceCarriesHours) {
-        if (sourceCarriesHours || period.past(today)) {
-            return weather;
-        }
-        Map<LocalDate, List<HalfDay>> halves;
+    private Optional<Map<LocalDate, List<HalfDay>>> halvesOf(GeoLocation place, WeatherPeriod period) {
         try {
-            halves = hourly.halves(place, period);
+            return Optional.of(hourly.halves(place, period));
         } catch (RuntimeException e) {
             log.warn("[weather] {} 강수 시각 보충 실패 — 일일 예보만 내보냅니다: {}",
                     place.name(), FailureReason.of(e));
-            return weather;
+            return Optional.empty();
         }
+    }
+
+    /** 받아 둔 시간별을 일별에 얹는다 — 비었거나 날짜가 안 겹치면 그대로 돌려준다. */
+    private static Weather withHalves(Weather weather, GeoLocation place, WeatherPeriod period,
+                                      Map<LocalDate, List<HalfDay>> halves) {
         if (halves.isEmpty()) {
             // ⚠️ 「마른 기간이라서」가 **아니다.** HalfDay.dry가 생긴 뒤로 HalfDays.byDay는
             //    시각이 하나라도 있는 날마다 반나절 둘을 담는다 — 마른 반나절도 제 하늘과

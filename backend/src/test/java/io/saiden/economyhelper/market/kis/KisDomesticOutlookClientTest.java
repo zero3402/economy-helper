@@ -84,7 +84,7 @@ class KisDomesticOutlookClientTest {
                   {"stck_bsop_date":"20260731","mbcr_name":"한국투자","invt_opnn":"매수",
                    "invt_opnn_cls_code":"2","hts_goal_prc":"650000"}]}""");
 
-        StockOutlook outlook = client.outlook("005930").orElseThrow();
+        StockOutlook outlook = client.outlook("005930");
 
         assertThat(outlook.targetPrice())
                 .as("(350000 + 400000 + 650000) / 3")
@@ -106,7 +106,7 @@ class KisDomesticOutlookClientTest {
                   {"stck_bsop_date":"20260810","mbcr_name":"키움","invt_opnn":"BUY",
                    "hts_goal_prc":"350000"}]}""");
 
-        StockOutlook outlook = client.outlook("005930").orElseThrow();
+        StockOutlook outlook = client.outlook("005930");
 
         assertThat(outlook.targetPrice())
                 .as("3월의 100000이 아니라 8월의 350000만 남아야 한다 — 둘의 평균(225000)이 아니다")
@@ -123,7 +123,7 @@ class KisDomesticOutlookClientTest {
                   {"stck_bsop_date":"20260810","mbcr_name":"미래","invt_opnn":"BUY",
                    "hts_goal_prc":"0"}]}""");
 
-        StockOutlook outlook = client.outlook("005930").orElseThrow();
+        StockOutlook outlook = client.outlook("005930");
 
         assertThat(outlook.targetPrice())
                 .as("0을 뺀 하나의 평균이므로 350000 그대로다")
@@ -136,7 +136,7 @@ class KisDomesticOutlookClientTest {
         stub("""
                 {"rt_cd":"0","msg1":"정상처리 되었습니다.","output":[]}""");
 
-        assertThat(client.outlook("005930")).isEmpty();
+        assertThat(client.outlook("005930").isEmpty()).as("빈 값 객체 — 값이라 캐시된다").isTrue();
     }
 
     @Test

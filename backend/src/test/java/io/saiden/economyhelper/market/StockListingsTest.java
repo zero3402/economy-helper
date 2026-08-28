@@ -1,5 +1,12 @@
 package io.saiden.economyhelper.market;
 
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.time.ZoneOffset;
+import java.time.ZoneId;
+import java.time.Instant;
+import java.time.Duration;
+import java.time.Clock;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.saiden.economyhelper.market.kis.KisMasterClient.Listing;
@@ -72,5 +79,56 @@ class StockListingsTest {
         assertThat(StockListings.agrees(KODEX_NASDAQ, "TIME 미국나스닥100액티브")).isFalse();
         assertThat(StockListings.agrees(NAVER, "네이버")).as("통칭은 상장명과 다르다 — 그때는 코드가 답한다").isFalse();
         assertThat(StockListings.agrees(SAMSUNG, "")).isFalse();
+    }
+
+    @Test
+    @DisplayName("사본을 수명 동안 들고 있는다 — 292KB Redis 값을 조회마다 다시 풀지 않는다")
+    void keepsAProcessCopyForItsLifetime() {
+        AtomicInteger loads = new AtomicInteger();
+        AtomicReference<Instant> now = new AtomicReference<>(Instant.parse("2026-08-28T00:00:00Z"));
+        Clock clock = new Clock() {
+            @Override
+            public ZoneId getZone() {
+                return ZoneOffset.UTC;
+            }
+
+            @Override
+            public Clock withZone(ZoneId zone) {
+                return this;
+            }
+
+            @Override
+            public Instant instant() {
+                return now.get();
+            }
+        };
+        StockListings listings = new StockListings(() -> {
+            loads.incrementAndGet();
+            return List.of(SAMSUNG, TIME_NASDAQ);
+        }, Duration.ofHours(6), clock);
+
+        assertThat(listings.find("삼성전자")).contains(SAMSUNG);
+        assertThat(listings.byCode("426030")).contains(TIME_NASDAQ);
+        assertThat(listings.find("time 나스닥100")).contains(TIME_NASDAQ);
+        assertThat(loads).as("세 번 물어도 목록은 한 번만 읽는다").hasValue(1);
+
+        now.set(now.get().plus(Duration.ofHours(7)));
+        assertThat(listings.find("삼성전자")).contains(SAMSUNG);
+        assertThat(loads).as("수명이 지나면 다시 읽는다 — Redis 캐시(6시간)와 같은 박자다").hasValue(2);
+    }
+
+    @Test
+    @DisplayName("수명이 0이면 부를 때마다 읽는다 — 테스트가 목록을 바꿔 가며 쓰는 길이다")
+    void reloadsEveryTimeWithoutALifetime() {
+        AtomicInteger loads = new AtomicInteger();
+        StockListings listings = new StockListings(() -> {
+            loads.incrementAndGet();
+            return List.of(SAMSUNG);
+        });
+
+        listings.find("삼성전자");
+        listings.find("삼성전자");
+
+        assertThat(loads).hasValue(2);
     }
 }

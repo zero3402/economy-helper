@@ -107,7 +107,7 @@ class FmpUsOutlookClientTest {
     void usesConsensusNotTheHigh() {
         stubAll();
 
-        assertThat(client().outlook("AAPL").orElseThrow().targetPrice())
+        assertThat(client().outlook("AAPL").targetPrice())
                 .as("400(고가)을 쓰면 목표주가가 부풀려진다")
                 .isEqualByComparingTo(new BigDecimal("340.72"));
     }
@@ -118,7 +118,7 @@ class FmpUsOutlookClientTest {
         stub(TARGET, 200, """
                 [{"symbol":"ORCL","targetConsensus":250.5}]""");
 
-        StockOutlook outlook = client().outlook("ORCL").orElseThrow();
+        StockOutlook outlook = client().outlook("ORCL");
 
         assertThat(outlook.targetPrice()).isEqualByComparingTo(new BigDecimal("250.5"));
         assertThat(outlook.earningsDate()).as("못 구한 날짜는 null이다 — 지어내지 않는다").isNull();
@@ -141,9 +141,9 @@ class FmpUsOutlookClientTest {
     void emptyArrayIsAValue() {
         stub(TARGET, 200, "[]");
 
-        assertThat(client().outlook("AAPL"))
-                .as("실패가 아니라 「없다」이므로 빈 값이다")
-                .isEmpty();
+        assertThat(client().outlook("AAPL").isEmpty())
+                .as("실패가 아니라 「없다」이므로 빈 값 객체다 — 값이라 캐시된다")
+                .isTrue();
     }
 
     @Test
@@ -152,7 +152,7 @@ class FmpUsOutlookClientTest {
         stub(TARGET, 200, """
                 [{"symbol":"AAPL","targetConsensus":0}]""");
 
-        assertThat(client().outlook("AAPL")).isEmpty();
+        assertThat(client().outlook("AAPL").isEmpty()).isTrue();
     }
 
     @Test
@@ -193,7 +193,7 @@ class FmpUsOutlookClientTest {
     void readsTheNextEarningsDate() {
         stubAll();
 
-        assertThat(client().outlook("AAPL").orElseThrow().earningsDate())
+        assertThat(client().outlook("AAPL").earningsDate())
                 .as("실측 첫 행이 2026-10-29이고 나머지 둘은 지난 분기다")
                 .isEqualTo(LocalDate.of(2026, 10, 29));
     }
@@ -208,7 +208,7 @@ class FmpUsOutlookClientTest {
                  {"symbol":"AAPL","date":"2026-10-29","epsActual":null},
                  {"symbol":"AAPL","date":"2026-07-30","epsActual":2.02}]""");
 
-        assertThat(client().outlook("AAPL").orElseThrow().earningsDate())
+        assertThat(client().outlook("AAPL").earningsDate())
                 .isEqualTo(LocalDate.of(2026, 10, 29));
     }
 
@@ -220,9 +220,8 @@ class FmpUsOutlookClientTest {
                 [{"symbol":"AAPL","date":"2026-07-30","epsActual":2.02},
                  {"symbol":"AAPL","date":"2026-04-30","epsActual":2.01}]""");
 
-        assertThat(client().outlook("AAPL"))
-                .as("셋이 다 비면 붙일 것이 없다")
-                .isEmpty();
+        assertThat(client().outlook("AAPL").isEmpty())
+                .as("셋이 다 비면 붙일 것이 없다").isTrue();
     }
 
     @Test
@@ -232,7 +231,7 @@ class FmpUsOutlookClientTest {
         stub(EARNINGS, 200, """
                 [{"symbol":"ORCL","date":"2026-09-10","epsActual":null}]""");
 
-        StockOutlook outlook = client().outlook("ORCL").orElseThrow();
+        StockOutlook outlook = client().outlook("ORCL");
 
         assertThat(outlook.earningsDate()).isEqualTo(LocalDate.of(2026, 9, 10));
         assertThat(outlook.targetPrice()).isNull();
@@ -250,7 +249,7 @@ class FmpUsOutlookClientTest {
         stub(EARNINGS, 200, """
                 [{"symbol":"AAPL","date":"2026-10-28","epsActual":null}]""");
 
-        assertThat(client.outlook("AAPL").orElseThrow().earningsDate())
+        assertThat(client.outlook("AAPL").earningsDate())
                 .as("현지로 아직 오늘인 발표를 지난 것으로 버리면 안 된다")
                 .isEqualTo(LocalDate.of(2026, 10, 28));
     }
@@ -268,7 +267,7 @@ class FmpUsOutlookClientTest {
                 API_KEY, new DeniesAfterFirst(),
                 Clock.fixed(Instant.parse("2026-08-21T00:00:00Z"), ZoneOffset.UTC));
 
-        StockOutlook outlook = client.outlook("AAPL").orElseThrow();
+        StockOutlook outlook = client.outlook("AAPL");
 
         assertThat(outlook.targetPrice())
                 .as("한도가 둘째 호출에서 끝났다고 첫째가 받아 온 값을 버리면 안 된다")

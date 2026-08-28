@@ -2,19 +2,24 @@ package io.saiden.economyhelper.telegram;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.saiden.economyhelper.market.CryptoQuote;
 import io.saiden.economyhelper.market.CryptoService;
+import io.saiden.economyhelper.market.FxRate;
 import io.saiden.economyhelper.market.FxService;
+import io.saiden.economyhelper.market.StockQuote;
 import io.saiden.economyhelper.market.StockService;
+import io.saiden.economyhelper.market.chart.ChartImage;
 import io.saiden.economyhelper.market.weather.WeatherFacade;
 import io.saiden.economyhelper.news.NewsFacade;
-import io.saiden.economyhelper.market.chart.ChartImage;
 import io.saiden.economyhelper.news.NewsItem;
 import io.saiden.economyhelper.support.FailureReason;
-import java.util.List;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Executor;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -209,9 +214,11 @@ public class TelegramWebhookController {
             // /news 3건 중 1건만 받고 왜 그런지 알 길이 없었다
             sendQuietly(chatId, topicId, replyTo, part, reply.preview());
         }
+        // 글 다음에 사진 — 순서만 여기서 정하고 간격은 클라이언트가 지킨다.
+        // ⚠️ 차트는 **글을 보낸 뒤에** 만든다. 답을 만들 때 함께 받았던 동안은 KIS 일봉(간격 1초 + HTTP)이
+        //    끝나야 첫 글이 나갔다 — /stock마다 1.3초가 그냥 늦어졌다. 이제 그 조회가 발송 간격 안에 숨는다
         if (reply.chart() != null) {
-            // 글 다음에 사진 — 순서만 여기서 정하고 간격은 클라이언트가 지킨다
-            sendChartQuietly(chatId, topicId, replyTo, reply.chart());
+            reply.chart().get().ifPresent(chart -> sendChartQuietly(chatId, topicId, replyTo, chart));
         }
 
         // 성공 경로에 유일하게 남는 줄이다. 세 가지를 여기서만 알 수 있다.
@@ -264,61 +271,25 @@ public class TelegramWebhookController {
      * @param texts   보낼 본문들. 뉴스만 여럿이고 나머지는 한 통짜리 목록이다
      * @param preview 링크 미리보기를 띄울지. 링크가 있는 통(뉴스)만 참이다
      */
-    private record Reply(List<String> texts, boolean preview, ChartImage chart) {
+    private record Reply(List<String> texts, boolean preview, Supplier<Optional<ChartImage>> chart) {
 
         static Reply plain(String text) {
             return new Reply(List.of(text), false, null);
         }
 
-        static Reply plain(String text, ChartImage chart) {
+        /** @param chart <b>지연 평가</b>된다 — 글이 나간 뒤 불린다. 실패는 빈 값이고 글은 이미 갔다 */
+        static Reply plain(String text, Supplier<Optional<ChartImage>> chart) {
             return new Reply(List.of(text), false, chart);
         }
     }
 
     /** 코인 일봉 차트 — 상장 직후 코인은 칸이 모자라 그림이 없을 수 있다. */
-    private ChartImage cryptoChart(io.saiden.economyhelper.market.CryptoQuote quote) {
+    private Supplier<Optional<ChartImage>> cryptoChart(CryptoQuote quote) {
         if (quote.market() == null) {
             // 업비트에 없는 코인이다(바이낸스만 상장) — 일봉을 물을 곳이 없다
             return null;
         }
-        return chartOf(quote.name(), "KRW", () -> cryptoService.dailyBars(quote.market()));
-    }
-
-    /**
-     * 차트 하나 — <b>못 만들면 {@code null}이고 답은 그대로 나간다.</b>
-     *
-     * <p>세 도메인이 같은 규칙을 쓰므로 한 자리에 둔다. 차트는 보충이지 답이 아니다 —
-     * 일봉 조회가 실패하거나 점이 하나뿐이면 사진만 빠진다({@code WeatherService}가 강수
-     * 시각을 다루는 방식과 같은 자리다).
-     *
-     * <p>⚠️ <b>「현재값과 일일값을 섞지 않는다」는 규칙에 걸리지 않는다.</b> 그 규칙이 막으려는
-     * 것은 <b>모양이 같은 숫자 둘</b>이 서로 다른 축에 있어 모순처럼 읽히는 것이다
-     * (「지금 21°C인데 최고가 29°C」). 차트는 숫자가 아니라 눈에 보이게 다른 표현이고, 그
-     * 오른쪽 끝이 곧 현재값이라 둘이 이어진다. 게다가 caption이 창을 이름으로 밝힌다.
-     * 규칙을 잊은 것이 아니라 해당하지 않는다는 판단이다.
-     */
-    private ChartImage chartOf(String subject, String unit,
-                          java.util.function.Supplier<
-                                  List<io.saiden.economyhelper.market.chart.DailyBar>> bars) {
-        try {
-            List<io.saiden.economyhelper.market.chart.DailyBar> series = bars.get();
-            if (!io.saiden.economyhelper.market.chart.DailySeries.drawable(series)) {
-                // ⚠️ 조용히 빠지지 않는다. 여기까지 왔다는 것은 <b>열쇠는 있었는데 칸이 없다</b>는
-                //    뜻이고 원인이 둘이다: KIS가 모르는 심볼이라 0.00만 와서 DailySeries가 전부
-                //    걸러냈거나, 상장 직후라 칸이 모자라거나. 예전에는 이 자리가 로그 한 줄 없이
-                //    null이어서 「차트가 안 나온다」와 「차트를 안 물었다」를 구분할 수 없었다
-                log.info("[webhook] {} 일봉이 {}칸뿐이라 차트를 빼고 보냅니다 — "
-                                + "KIS가 모르는 심볼이면 0.00만 와서 전부 걸러집니다",
-                        subject, series == null ? 0 : series.size());
-                return null;
-            }
-            byte[] png = io.saiden.economyhelper.market.chart.ChartRenderer.render(series);
-            return png.length == 0 ? null : new ChartImage(png, ChartCaption.of(subject, unit, series));
-        } catch (RuntimeException e) {
-            log.info("[webhook] {} 일봉을 못 받아 차트를 빼고 보냅니다: {}",
-                    subject, FailureReason.of(e));
-            return null;
-        }
+        return () -> Charts.of("webhook", quote.name(), "KRW", () -> cryptoService.dailyBars(quote.market()));
     }
 
     /**
@@ -334,13 +305,11 @@ public class TelegramWebhookController {
      * <p>단위는 시세가 든 통화를 그대로 쓴다. 지수는 {@code Money.NONE}이라 {@code null}이 되고
      * caption이 숫자만 적는다 — 「6,869.83 KRW」라고 적을 근거가 없다.
      */
-    private ChartImage stockChart(io.saiden.economyhelper.market.StockService.Answer answer) {
+    private Supplier<Optional<ChartImage>> stockChart(StockService.Answer answer) {
         if (answer.series() == null) {
             return null;
         }
-        return chartOf(answer.quote().name(),
-                answer.quote().currency() == io.saiden.economyhelper.market.StockQuote.Money.NONE
-                        ? null : answer.quote().currency().name(),
+        return () -> Charts.of("webhook", answer.quote().name(), Charts.unitOf(answer.quote()),
                 () -> stockService.dailyBarsOf(answer.series()));
     }
 
@@ -350,13 +319,12 @@ public class TelegramWebhookController {
      * <p>{@code Money.convertible()}이 곧 「원화 줄이 붙는가」다({@code this == USD}).
      * 국내 종목과 지수는 거짓이라 부르지 않는다 — 안 쓸 값에 KIS 호출과 간격을 쓰지 않는다.
      */
-    private io.saiden.economyhelper.market.FxRate fxFor(
-            io.saiden.economyhelper.market.StockQuote quote) {
+    private FxRate fxFor(StockQuote quote) {
         return quote.currency().convertible() ? fxService.orNull() : null;
     }
 
-    private ChartImage fxChart() {
-        return chartOf("환율", "KRW", fxService::dailyBars);
+    private Supplier<Optional<ChartImage>> fxChart() {
+        return () -> Charts.of("webhook", "환율", "KRW", fxService::dailyBars);
     }
 
     /**
@@ -408,8 +376,8 @@ public class TelegramWebhookController {
                                     List.of(answer.quote()), fxFor(answer.quote()),
                                     // 전망이 없으면 빈 맵 — 그러면 그 줄이 아예 안 적힌다
                                     answer.outlook() == null
-                                            ? java.util.Map.of()
-                                            : java.util.Map.of(answer.quote(), answer.outlook())),
+                                            ? Map.of()
+                                            : Map.of(answer.quote(), answer.outlook())),
                             stockChart(answer)))
                     .orElseGet(() -> Reply.plain(StockFormatter.notFound(command.argument())));
             // 답이 일일 예보라 링크가 없다 — 미리보기를 켤 이유가 없다

@@ -1,7 +1,5 @@
 package io.saiden.economyhelper.market;
 
-import java.util.Optional;
-
 /**
  * 국내 종목의 전망 — <b>이중화 상대가 없다.</b>
  *
@@ -11,6 +9,10 @@ import java.util.Optional;
  */
 public interface DomesticOutlookClient {
 
-    /** @param code 6자리 종목코드 */
-    Optional<StockOutlook> outlook(String code);
+    /**
+     * @param code 6자리 종목코드
+     * @return 전망. <b>{@code null}이 아니다</b> — 아무 값도 없으면 {@link StockOutlook#isEmpty()}가 참인 값이다.
+     *         빈 값도 값이라 캐시된다(「의견 낸 증권사가 없다」는 12시간 안에 안 바뀐다). 조회 실패는 던진다
+     */
+    StockOutlook outlook(String code);
 }

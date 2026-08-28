@@ -28,6 +28,18 @@ import java.time.LocalDate;
 public record StockOutlook(LocalDate earningsDate, BigDecimal targetPrice,
                            StockSource source, Instant at) {
 
+    /** 아무 값도 없는 전망 — 테스트와 「전망을 묻지 않는」 자리가 쓴다. */
+    public static final StockOutlook NONE = new StockOutlook(null, null, null, null);
+
+    /**
+     * 「이 출처가 이 시각에 물었는데 아무것도 없었다」 — <b>값이다.</b> {@code Optional.empty()}로 돌려주던
+     * 동안 스프링이 그것을 {@code null}로 벗겨 캐시에 담지 못했고, 전망 없는 종목(ETF 전부)마다 조회가
+     * KIS 간격 1초·FMP 2회를 다시 썼다. 빈 값 객체는 담긴다.
+     */
+    public static StockOutlook none(StockSource source, Instant at) {
+        return new StockOutlook(null, null, source, at);
+    }
+
     /** 하나도 못 구했으면 붙일 것이 없다 — 그때는 아예 안 붙인다. */
     public boolean isEmpty() {
         return earningsDate == null && targetPrice == null;

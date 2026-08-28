@@ -1,5 +1,9 @@
 package io.saiden.economyhelper.market.weather;
 
+import org.springframework.web.client.RestClient;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CountDownLatch;
+import io.saiden.economyhelper.market.weather.openmeteo.OpenMeteoHourlyClient;
 import static org.assertj.core.api.Assertions.assertThat;
 import java.util.Map;
 import java.time.LocalTime;
@@ -276,6 +280,59 @@ class WeatherServiceTest {
                 .as("Open-Meteo가 화면의 강수 줄에 아무것도 넣지 않았으면 출처에도 없어야 한다")
                 .isNull();
         assertThat(weather.days()).allSatisfy(each -> assertThat(each.halves()).isEmpty());
+    }
+
+    @Test
+    @DisplayName("후보 중 시간별을 주는 출처가 없으면 예보와 보충을 겹친다 — 국외 /weather가 912ms를 줄줄이 기다렸다")
+    void overlapsTheSupplementWhenNoCandidateCarriesHours() {
+        LocalDate day = LocalDate.ofInstant(NOW, ZoneId.of("Asia/Seoul"));
+        HalfDay spell = HalfDay.withChance(LocalTime.of(13, 0), LocalTime.of(19, 0), SkyCondition.RAIN, 80);
+        // 둘이 서로를 기다리게 해 둔다 — 순차면 예보가 보충을 영영 기다려 실패한다(시간 단언은 CI에서 흔들린다)
+        CountDownLatch bothStarted = new CountDownLatch(2);
+        WeatherClient forecaster = new WeatherClient() {
+            @Override
+            public WeatherSource source() {
+                return WeatherSource.ACCU_WEATHER;
+            }
+
+            @Override
+            public boolean supports(GeoLocation place, WeatherPeriod period, LocalDate today) {
+                return true;
+            }
+
+            @Override
+            public Weather forecast(GeoLocation place, WeatherPeriod period) {
+                bothStarted.countDown();
+                awaitOrFail(bothStarted);
+                return new Weather(place, List.of(Weather.Daily.withChance(period.from(), SkyCondition.CLOUDY,
+                        new BigDecimal("18.2"), new BigDecimal("29.6"), 20)), source());
+            }
+        };
+        OpenMeteoHourlyClient hourly = new OpenMeteoHourlyClient(RestClient.builder(), "https://example.invalid") {
+            @Override
+            public Map<LocalDate, List<HalfDay>> halves(GeoLocation place, WeatherPeriod period) {
+                bothStarted.countDown();
+                awaitOrFail(bothStarted);
+                return Map.of(day, List.of(spell));
+            }
+        };
+        WeatherService service = new WeatherService(List.of(forecaster), fixedClock(), hourly);
+
+        Weather weather = service.forecast(SEOUL, WeatherPeriod.of(day, null, null, null)).orElseThrow();
+
+        assertThat(weather.precipitationSource()).isEqualTo(WeatherSource.OPEN_METEO);
+        assertThat(weather.days()).singleElement().satisfies(each -> assertThat(each.halves()).isNotEmpty());
+    }
+
+    private static void awaitOrFail(CountDownLatch latch) {
+        try {
+            if (!latch.await(5, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("상대가 시작하지 않았다 — 순차로 돌고 있다");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(e);
+        }
     }
 
     /**

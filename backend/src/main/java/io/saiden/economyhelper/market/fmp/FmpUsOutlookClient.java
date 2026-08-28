@@ -17,7 +17,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.ZoneId;
 import java.util.List;
-import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -98,9 +97,8 @@ public class FmpUsOutlookClient implements UsOutlookClient {
      * @throws IllegalStateException 키가 없거나 한도를 소진했거나, <b>둘 다</b> 실패했을 때
      */
     @Override
-    // ⚠️ unless가 없으면 빈 Optional이 IllegalArgumentException으로 튀어 오른다(KisDomesticOutlookClient
-    //    주석 참조). 여기서는 더 아프다 — 빈 답이 캐시되지 않으면 그 심볼을 검색할 때마다 FMP 하루
-    //    250회에서 **둘**을 다시 쓴다. 12시간 캐시가 한도의 실질 방어라는 말이 빈 답에서는 거짓이었다
+    // ⚠️ Optional을 돌려주던 때가 있었다 — 빈 답이 캐시되지 않아 그 심볼을 검색할 때마다 FMP 하루 250회에서
+    //    **둘**을 다시 썼다. 12시간 캐시가 한도의 실질 방어라는 말이 빈 답에서는 거짓이었다. 지금은 빈 값 객체를 담는다
     @Cacheable(cacheNames = CacheNames.US_OUTLOOK, key = "#symbol", unless = "#result == null")
     @RateLimiter(name = "fmp")
     // ⚠️ 브레이커는 시세와 <b>따로</b>다. 리미터는 같이 쓴다 — 하루 250회가 한 예산이라
@@ -108,7 +106,7 @@ public class FmpUsOutlookClient implements UsOutlookClient {
     //    허용목록 밖 심볼(PATH·ORCL)의 전망은 언제나 402여서, 한 브레이커면 그 402가
     //    미국 시세의 2순위까지 끊는다. KIS를 kisFx·kisStock으로 나눈 것과 같은 판단이다
     @CircuitBreaker(name = "fmpOutlook")
-    public Optional<StockOutlook> outlook(String symbol) {
+    public StockOutlook outlook(String symbol) {
         if (apiKey.isBlank()) {
             throw new IllegalStateException("FMP API 키가 없습니다");
         }
@@ -149,7 +147,8 @@ public class FmpUsOutlookClient implements UsOutlookClient {
                 nextEarnings(schedule.value()),
                 target.value() == null ? null : positive(target.value().targetConsensus()),
                 StockSource.FMP, clock.instant());
-        return outlook.isEmpty() ? Optional.empty() : Optional.of(outlook);
+        // 비어도 돌려준다 — 값이라 캐시된다. 컨센서스 없는 심볼을 검색할 때마다 FMP 2회를 다시 쓰던 자리다
+        return outlook;
     }
 
     /**

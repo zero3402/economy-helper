@@ -10,7 +10,6 @@ import io.saiden.economyhelper.market.StockSource;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.util.List;
-import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -100,14 +99,12 @@ public class KisDomesticOutlookClient implements DomesticOutlookClient {
      *                          그래야 브레이커가 실패를 먼저 센다
      */
     @Override
-    // ⚠️ unless가 없으면 빈 Optional이 조회를 **실패로 보이게** 한다. 스프링이 Optional을 벗겨 null을
-    //    넣으려 하고 disableCachingNullValues가 그것을 IllegalArgumentException으로 거절하는데,
-    //    그 예외가 outlook()을 부른 쪽까지 올라간다 — 실물 감사(2026-08-28)에서 ETF 전부가
-    //    「전망 조회 실패: IllegalArgumentException」이었다. 브레이커는 안쪽이라 성공을 봤지만
-    //    값은 영영 캐시되지 않아 조회마다 KIS 간격 1초를 다시 썼다. 해석기 셋과 같은 unless다
+    // ⚠️ Optional을 돌려주던 때가 있었다. 빈 Optional은 스프링이 null로 벗겨 캐시에 못 담고(unless 없이는
+    //    IllegalArgumentException으로 튀기까지 했다 — 실물 감사 2026-08-28), 전망 없는 종목(ETF 전부)마다
+    //    조회가 KIS 간격 1초를 다시 썼다. 지금은 빈 값 **객체**를 돌려 그것도 12시간 담는다
     @Cacheable(cacheNames = CacheNames.KIS_OUTLOOK, key = "#code", unless = "#result == null")
     @CircuitBreaker(name = "kisStock")
-    public Optional<StockOutlook> outlook(String code) {
+    public StockOutlook outlook(String code) {
         // 호출 하나에 간격 하나 — KIS의 제약은 "초당 몇 건"이 아니라 "호출 사이 얼마"다
         throttle.pace();
         Opinions response;
@@ -139,11 +136,11 @@ public class KisDomesticOutlookClient implements DomesticOutlookClient {
         // ⚠️ 에러가 HTTP 200 본문에 실려 온다 — rt_cd를 봐야 한다
         KisHeaders.verify(response.resultCode(), response.message(), code + " 투자의견");
 
+        // 발표한 증권사가 없으면 **빈 값 객체**다 — 값이라 캐시된다(ETF·ETN이 늘 그렇다).
+        // 실적발표일은 이 엔드포인트가 주지 않는다. 국내에 무료 출처가 없어 null로 남고, 화면은 그 줄을 안 적는다
         return InvestOpinions.averageTargetOf(rowsOf(response))
-                .map(target -> new StockOutlook(
-                        // 실적발표일은 이 엔드포인트가 주지 않는다. 국내에 무료 출처가 없어
-                        // null로 남고, 화면은 그 줄을 안 적는다
-                        null, target, StockSource.KIS, clock.instant()));
+                .map(target -> new StockOutlook(null, target, StockSource.KIS, clock.instant()))
+                .orElseGet(() -> StockOutlook.none(StockSource.KIS, clock.instant()));
     }
 
     private static List<InvestOpinions.Opinion> rowsOf(Opinions response) {

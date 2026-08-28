@@ -1,7 +1,5 @@
 package io.saiden.economyhelper.market;
 
-import java.util.Optional;
-
 /**
  * 미국 종목의 전망 — <b>이중화 상대가 없다</b>({@link DomesticOutlookClient}와 같은 이유).
  *
@@ -11,5 +9,6 @@ import java.util.Optional;
  */
 public interface UsOutlookClient {
 
-    Optional<StockOutlook> outlook(String symbol);
+    /** @return 전망. {@code null}이 아니다 — 비면 {@link StockOutlook#isEmpty()}. 실패는 던진다 */
+    StockOutlook outlook(String symbol);
 }

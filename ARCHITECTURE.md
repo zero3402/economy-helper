@@ -366,9 +366,13 @@ this.clients = Failover.order(clients, ORDER, FxRateClient::source);   // suppor
 > ⚠️ **그 `unless`는 장식이 아니라 필수다.** 없으면 `disableCachingNullValues`가 벗겨진 `null`을
 > 「안 담는」 것이 아니라 **`IllegalArgumentException`으로 거절**하고, 그 예외가 호출자까지 올라간다.
 > 전망 캐시 둘(`kis-outlook`·`us-outlook`)이 한동안 그 상태였다 — 실물 감사(2026-08-28)에서 국내 ETF
-> 전부가 「전망 조회 실패: IllegalArgumentException」이었다. 브레이커는 캐시 안쪽이라 성공을 봤지만
-> **빈 답은 영영 캐시되지 않아** 조회마다 KIS 간격 1초·FMP 2회를 다시 썼다.
+> 전부가 「전망 조회 실패: IllegalArgumentException」이었다.
 > `CacheConfigTest.optionalCachesRefuseToStoreEmpty`가 이제 Optional을 돌려주는 모든 `@Cacheable`에서 그것을 본다.
+>
+> ⚠️ **그리고 「없다」가 값이면 Optional로 돌려주지 않는다.** `unless`를 달아도 빈 Optional은 **담기지 않는다** —
+> 해석기에서는 그게 원하는 것이지만(일시 실패가 7일 굳지 않는다), 전망에서는 「의견 낸 증권사가 없다」가 12시간 안에
+> 안 바뀌는 **값**이라 담겨야 한다. 그래서 전망 SPI는 `StockOutlook`을 그대로 돌려주고 빈 것은 `isEmpty()`가 든다
+> (`StockOutlook.none`). Optional이던 동안 ETF마다 KIS 1초, 컨센서스 없는 미국 심볼마다 FMP 2회를 영영 다시 썼다.
 
 **목록을 돌려주는 캐시는 빈 목록을 담지 않는다**(`unless = "#result.isEmpty()"`) — 상대의 한순간 빈손이 TTL만큼
 굳기 때문이다. 일봉 캐시 넷이 한동안 그 상태였다: KIS가 `0.00`만 준 순간의 빈 목록이 12시간 남아 회복 뒤에도 차트가
@@ -485,6 +489,8 @@ this.clients = Failover.order(clients, ORDER, FxRateClient::source);   // suppor
 | HN 반응(`HackerNewsBuzzClient`) | `/news 검색`이 도메인 최대 7개를 순차(콜드 1.6초씩 → 최대 10초) | 도메인별로 겹친다. 리미터가 없고 브레이커만 있어 막을 것이 없다. 도메인마다 잡는 강등은 그대로다 |
 | 검색어 번역(`QueryExpander`) | 한글 토큰마다 Gemini 순차 | 토큰별로 겹친다 — 리미터는 퍼밋 수를 세므로 소비량은 같다 |
 | 텔레그램 간격(`TelegramClient`) | 호출부가 통마다 `sleep(1초)` — 앞 통의 HTTP 764ms와 **합산** | 방마다 「발송 시작 사이 1초」를 클라이언트가 지킨다(`KisThrottle` 모양). 브리핑 24통에서 ~18초가 준다 |
+| 검색 답의 차트(`TelegramWebhookController`) | 답을 만들 때 일봉까지 받아 **차트가 끝나야 첫 글**이 나갔다(KIS 간격 1초 + HTTP) | `Reply.chart`가 `Supplier`다 — 글을 보낸 뒤 만들어 조회가 발송 간격 안에 숨는다. `/stock`마다 −1.3초. 차트 실패가 답 전체를 `unavailable`로 만들던 것도 함께 사라졌다 |
+| 국외 날씨 보충(`WeatherService`) | AccuWeather가 답한 **뒤에** Open-Meteo 시간별(912ms) | 후보 중 시간별을 주는 출처가 없으면(국외) 누가 답하든 보충이 필요하니 예보와 겹친다. 국내(기상청 후보)는 답한 출처를 봐야 해 순차 그대로 |
 
 **겹쳐도 무의미한 자리는 건드리지 않았다.** KIS는 `KisThrottle`이 호출 사이 1초를 지키므로 브리핑의
 KIS ~20회는 겹쳐도 20초가 바닥이고, `/crypto`의 업비트∥바이낸스는 실측 37ms·86ms라 얻을 것이 86ms다.

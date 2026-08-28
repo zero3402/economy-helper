@@ -404,6 +404,27 @@ class StockServiceTest {
     }
 
     @Test
+    @DisplayName("색인이 ETF라고 알려 준 종목에는 전망을 묻지 않는다 — 증권사가 목표가를 내는 것은 기업이다")
+    void neverAsksAnOutlookForAFundTheIndexRecognises() {
+        FakeDomestic kis = domestic(StockSource.KIS, Map.of(
+                "426030", krStock("TIME 미국나스닥100액티브", "45500", StockSource.KIS),
+                "005930", krStock("삼성전자", "268500", StockSource.KIS)));
+        List<String> askedOutlook = new ArrayList<>();
+        StockService service = new StockService(List.of(kis), List.of(), new RecordingNames(Map.of()),
+                listings(TIME_NASDAQ, SAMSUNG), resolver(null),
+                code -> {
+                    askedOutlook.add(code);
+                    return StockOutlook.NONE;
+                }, symbol -> StockOutlook.NONE, null);
+
+        assertThat(service.answer("TIME 미국나스닥100액티브")).isPresent();
+        assertThat(askedOutlook).as("ETF에 물으면 늘 0행에 KIS 간격 1초를 쓴다").isEmpty();
+
+        assertThat(service.answer("삼성전자")).isPresent();
+        assertThat(askedOutlook).as("기업에는 그대로 묻는다").containsExactly("005930");
+    }
+
+    @Test
     @DisplayName("LLM의 코드와 이름이 다른 종목이면 이름을 믿는다 — 존재하는 틀린 코드는 시세가 걸러 주지 않는다")
     void trustsTheNameWhenTheLlmCodeNamesAnotherListing() {
         FakeDomestic kis = domestic(StockSource.KIS, Map.of(
@@ -487,7 +508,7 @@ class StockServiceTest {
                                         StockListings listings) {
         // 전망은 여기서 보지 않는다 — KisDomesticOutlookClientTest가 본다
         return new StockService(domestic, us, names, listings, resolver,
-                code -> java.util.Optional.empty(), symbol -> java.util.Optional.empty(), null);
+                code -> StockOutlook.NONE, symbol -> StockOutlook.NONE, null);
     }
 
     private static StockListings listings(Listing... listings) {

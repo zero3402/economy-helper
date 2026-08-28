@@ -3,14 +3,21 @@ package io.saiden.economyhelper.market;
 import io.saiden.economyhelper.market.kis.KisMasterClient;
 import io.saiden.economyhelper.market.kis.KisMasterClient.Listing;
 import io.saiden.economyhelper.text.QueryNormalizer;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
@@ -33,6 +40,16 @@ import org.springframework.stereotype.Component;
  * <p>{@link #agrees}는 LLM이 준 코드와 이름이 <b>서로 다른 종목을 가리키는지</b> 보는 데 쓴다 —
  * ETF는 이름이 비슷한 코드가 수십 개라 <b>존재하는 틀린 코드</b>가 흔하고, 그러면 KIS가 멀쩡히
  * 답해 다른 ETF가 나간다. 틀린 값이 빈손보다 나쁘다.
+ *
+ * <h2>프로세스 사본 — Redis 값을 부를 때마다 다시 풀지 않는다</h2>
+ *
+ * <p>목록은 Redis에 6시간 캐시되지만(인스턴스 간 공유·다운로드 절약) 그 값이 <b>292KB·약 4천 행</b>이다.
+ * {@code find} 한 번이 그것을 GET하고 JSON으로 풀고 4천 이름을 전부 정규화했고, {@code /stock} 한 번에
+ * 그 일을 최대 네 번 했다. 그래서 정규화한 이름·코드 맵까지 만든 색인을 <b>프로세스에 같은 수명으로</b>
+ * 들고 있는다 — {@code KisTokenStore}가 토큰 사본을 두는 그 모양이다.
+ *
+ * <p>⚠️ 대가: {@code /actuator/evict?name=kr-listings}가 이 사본은 비우지 못한다 — 수명(6시간)이 지나야
+ * 다시 읽는다. 상장·폐지가 그 안에 화면에 닿아야 할 일은 없다.
  */
 @Component
 public class StockListings {
@@ -41,15 +58,27 @@ public class StockListings {
     private static final Pattern TOKEN = Pattern.compile("[0-9]+|[a-z]+|[가-힣]+");
 
     private final Supplier<List<Listing>> source;
+    /** 사본을 얼마나 들고 있는가. {@code Duration.ZERO}면 부를 때마다 다시 읽는다 — 테스트가 그렇게 쓴다. */
+    private final Duration keepFor;
+    private final Clock clock;
+    private volatile Index index;
 
     @Autowired
-    public StockListings(KisMasterClient master) {
-        this(master::listings);
+    public StockListings(KisMasterClient master,
+                         @Value("${economy-helper.cache-ttl.kr-listings:6h}") Duration keepFor,
+                         Clock clock) {
+        this(master::listings, keepFor, clock);
     }
 
-    /** 목록을 직접 준다 — 테스트와, 마스터 없이 돌아야 하는 자리가 쓴다. */
+    /** 목록을 직접 주고 사본은 두지 않는다 — 테스트와, 마스터 없이 돌아야 하는 자리가 쓴다. */
     public StockListings(Supplier<List<Listing>> source) {
+        this(source, Duration.ZERO, Clock.systemUTC());
+    }
+
+    StockListings(Supplier<List<Listing>> source, Duration keepFor, Clock clock) {
         this.source = source;
+        this.keepFor = keepFor;
+        this.clock = clock;
     }
 
     /**
@@ -57,7 +86,7 @@ public class StockListings {
      * @throws RuntimeException 마스터를 못 받았을 때(브레이커 열림 포함). 부르는 쪽이 삼킨다
      */
     public Optional<Listing> find(String query) {
-        return find(source.get(), query);
+        return index().find(query);
     }
 
     /** 코드로 찾는다 — 대소문자를 가리지 않는다(정규화가 소문자로 내린다). */
@@ -65,26 +94,18 @@ public class StockListings {
         if (code == null || code.isBlank()) {
             return Optional.empty();
         }
-        return source.get().stream().filter(listing -> listing.code().equalsIgnoreCase(code)).findFirst();
+        return Optional.ofNullable(index().byCode().get(code.toUpperCase(Locale.ROOT)));
     }
 
-    static Optional<Listing> find(List<Listing> listings, String query) {
-        String wanted = QueryNormalizer.normalize(query);
-        if (wanted.isEmpty()) {
-            return Optional.empty();
+    /** 사본이 없거나 낡았으면 다시 만든다. 경쟁하면 둘이 만들 수 있는데 같은 값이라 해롭지 않다. */
+    private Index index() {
+        Index current = index;
+        Instant now = clock.instant();
+        if (current == null || keepFor.isZero() || current.loadedAt().plus(keepFor).isBefore(now)) {
+            current = Index.of(source.get(), now);
+            index = current;
         }
-        List<Listing> exact = new ArrayList<>();
-        List<Listing> containing = new ArrayList<>();
-        List<String> tokens = tokens(wanted);
-        for (Listing listing : listings) {
-            String name = QueryNormalizer.normalize(listing.name());
-            if (name.equals(wanted)) {
-                exact.add(listing);
-            } else if (containsAll(name, tokens)) {
-                containing.add(listing);
-            }
-        }
-        return largest(exact.isEmpty() ? containing : exact);
+        return current;
     }
 
     /** {@code name}의 토큰이 전부 상장명에 들어 있는가 — {@code 삼성전자}↔{@code 삼성전자}는 참, {@code 네이버}↔{@code NAVER}는 거짓. */
@@ -106,7 +127,39 @@ public class StockListings {
         return tokens;
     }
 
-    private static Optional<Listing> largest(List<Listing> candidates) {
-        return candidates.stream().max(Comparator.comparingLong(Listing::marketCap));
+    /** 이름을 한 번 정규화해 둔 상장 — 조회마다 4천 번 정규화하지 않기 위해서다. */
+    private record Entry(Listing listing, String normalizedName) {}
+
+    /** 목록 한 판의 색인. 만든 시각을 들고 있어 수명을 잰다. */
+    private record Index(Instant loadedAt, List<Entry> entries, Map<String, Listing> byCode) {
+
+        static Index of(List<Listing> listings, Instant at) {
+            List<Entry> entries = new ArrayList<>(listings.size());
+            Map<String, Listing> byCode = new HashMap<>(listings.size() * 2);
+            for (Listing listing : listings) {
+                entries.add(new Entry(listing, QueryNormalizer.normalize(listing.name())));
+                byCode.putIfAbsent(listing.code().toUpperCase(Locale.ROOT), listing);
+            }
+            return new Index(at, List.copyOf(entries), Map.copyOf(byCode));
+        }
+
+        Optional<Listing> find(String query) {
+            String wanted = QueryNormalizer.normalize(query);
+            if (wanted.isEmpty()) {
+                return Optional.empty();
+            }
+            List<Listing> exact = new ArrayList<>();
+            List<Listing> containing = new ArrayList<>();
+            List<String> tokens = tokens(wanted);
+            for (Entry entry : entries) {
+                if (entry.normalizedName().equals(wanted)) {
+                    exact.add(entry.listing());
+                } else if (containsAll(entry.normalizedName(), tokens)) {
+                    containing.add(entry.listing());
+                }
+            }
+            return (exact.isEmpty() ? containing : exact).stream()
+                    .max(Comparator.comparingLong(Listing::marketCap));
+        }
     }
 }
