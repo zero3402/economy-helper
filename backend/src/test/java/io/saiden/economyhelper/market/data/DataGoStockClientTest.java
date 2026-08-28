@@ -182,6 +182,24 @@ class DataGoStockClientTest {
                 .isInstanceOf(RuntimeException.class);
     }
 
+    @Test
+    @DisplayName("주식 API가 죽어도 ETF는 나간다 — dataGo 브레이커가 dataGoEtf까지 끊으면 가른 뜻이 없다")
+    void stockApiOutageDoesNotKillEtfLookup() {
+        // ⚠️ 한동안 best(stocks.searchByCode(code))가 .or(...)의 인자로 **먼저 평가**돼, 주식 API가
+        //    던지면 ETF 가지는 실행조차 안 됐다. 주식 → ETF 방향의 격리는 이 테스트가 처음 본다
+        DataGoStockClient client = client(null, Map.of("426030", TIME_NASDAQ, "나스닥", TIGER_NASDAQ), null);
+
+        assertThat(client.stock("426030").name()).isEqualTo("TIME 미국나스닥100액티브");
+        assertThat(client.byName("나스닥")).get().extracting(StockQuote::name).isEqualTo("TIGER 미국나스닥100");
+    }
+
+    @Test
+    @DisplayName("둘 다 죽었으면 던진다 — 빈손을 값으로 주면 이중화가 다음 출처로 못 넘어간다")
+    void throwsWhenBothApisAreDown() {
+        assertThatThrownBy(() -> client(null, null, null).stock("005930")).isInstanceOf(RuntimeException.class);
+        assertThat(client(null, null, null).byName("삼성")).as("이름 검색은 「없다」가 값이라 던지지 않는다").isEmpty();
+    }
+
     private static DataGoStockClient client(Map<String, List<StockPrice>> byQuery,
                                             MarketIndexApi indices) {
         return client(byQuery, Map.of(), indices);
@@ -237,12 +255,20 @@ class DataGoStockClientTest {
 
         @Override
         public List<StockPrice> searchByName(String name) {
-            return byQuery.getOrDefault(name, List.of());
+            return answer(name);
         }
 
         @Override
         public List<StockPrice> searchByCode(String code) {
-            return byQuery.getOrDefault(code, List.of());
+            return answer(code);
+        }
+
+        /** {@code byQuery}가 {@code null}이면 던진다 — dataGo 브레이커가 열린 모양이다. */
+        private List<StockPrice> answer(String query) {
+            if (byQuery == null) {
+                throw new IllegalStateException("공공데이터포털 조회 실패 (dataGo 브레이커 열림)");
+            }
+            return byQuery.getOrDefault(query, List.of());
         }
     }
 

@@ -143,6 +143,35 @@ public class DailyDigestJob extends TriggerableJob {
         Once<List<StockService.Answer>> american = Once.of(() -> stockService.usAnswersOf(usSymbols));
         Once<List<CryptoQuote>> coins = Once.of(() -> cryptoService.quotesOf(cryptoMarkets));
 
+        // ⚠️ 여기부터 release 판단까지는 **무엇이 새어도 슬롯을 되돌려야 한다.** section()이
+        //    RuntimeException을 값으로 바꾸지만 Error와 인터럽트(Concurrently가 IllegalStateException으로
+        //    올린다 — 배포 중 종료가 그 경로)는 그대로 새고, 그러면 슬롯은 잡힌 채 아무것도 안 나가
+        //    그날 창의 나머지 틱이 전부 「이미 보냈다」가 된다. 한 통이라도 나갔으면 되돌리지 않는다
+        try {
+            collectAndSend(fx, domestic, american, coins, delivered, failed);
+        } catch (RuntimeException | Error e) {
+            if (delivered.isEmpty()) {
+                slot.release(claim);
+                log.error("[digest] {} 수집 중 예외 — 슬롯을 되돌립니다: {}", claim.id(), e.toString());
+            }
+            throw e;
+        }
+
+        if (delivered.isEmpty()) {
+            // 넷 다 실패했다. "보냈다"로 남기면 이 시간대는 복구 후에도 영영 비어 있다
+            slot.release(claim);
+            log.warn("[digest] {} 슬롯에 보낼 내용이 하나도 없습니다 — 발송하지 않습니다", claim.id());
+            return DigestResult.allFailed(claim.id(), failed);
+        }
+
+        log.info("[digest] {} 슬롯 발송 완료 — 성공 {} / 실패 {}", claim.id(), delivered, failed);
+        return DigestResult.completed(claim.id(), delivered, failed);
+    }
+
+    /** 네 통을 겹쳐 모아 순서대로 보낸다. 슬롯 되돌림은 부르는 쪽({@link #execute})의 몫이다. */
+    private void collectAndSend(FxRate fx, Once<List<StockService.Answer>> domestic,
+                                Once<List<StockService.Answer>> american, Once<List<CryptoQuote>> coins,
+                                List<String> delivered, List<DigestResult.Failure> failed) {
         // 네 통의 수집을 겹친다. 서로 무관한 외부 호출인데 줄줄이 기다렸고, 그중 뉴스 하나가
         // (피드 5 + Gemini 10) 대부분을 차지했다.
         List<Section> sections = Concurrently.map(List.of(
@@ -167,16 +196,6 @@ public class DailyDigestJob extends TriggerableJob {
         for (Section section : sections) {
             send(section, delivered, failed);
         }
-
-        if (delivered.isEmpty()) {
-            // 넷 다 실패했다. "보냈다"로 남기면 이 시간대는 복구 후에도 영영 비어 있다
-            slot.release(claim);
-            log.warn("[digest] {} 슬롯에 보낼 내용이 하나도 없습니다 — 발송하지 않습니다", claim.id());
-            return DigestResult.allFailed(claim.id(), failed);
-        }
-
-        log.info("[digest] {} 슬롯 발송 완료 — 성공 {} / 실패 {}", claim.id(), delivered, failed);
-        return DigestResult.completed(claim.id(), delivered, failed);
     }
 
     /**

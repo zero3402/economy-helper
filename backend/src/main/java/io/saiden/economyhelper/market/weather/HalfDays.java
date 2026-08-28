@@ -230,8 +230,12 @@ public final class HalfDays {
         if (skies == null) {
             return best;
         }
-        for (SkyCondition each : skies) {
-            SkyCondition sky = each == null ? SkyCondition.UNKNOWN : each;
+        for (SkyCondition sky : skies) {
+            // ⚠️ 모르는 값은 세지 않는다. UNKNOWN이 열거의 맨 뒤라 동률 규칙(「무거운 쪽」)이 모르는
+            //    값을 고르던 자리다 — 아는 것이 하나도 없을 때만 UNKNOWN이 남는다
+            if (sky == null || !sky.known()) {
+                continue;
+            }
             int count = counts.merge(sky, 1, Integer::sum);
             if (count > bestCount || (count == bestCount && sky.compareTo(best) > 0)) {
                 best = sky;

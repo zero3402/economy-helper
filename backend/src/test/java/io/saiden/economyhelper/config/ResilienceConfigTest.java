@@ -469,4 +469,24 @@ class ResilienceConfigTest {
             }
         }
     }
+
+    @Test
+    @DisplayName("지오코딩 브레이커는 400만 무시하고 429는 센다 — 4xx 통째를 빼면 물러설 수 없다")
+    void geocodingIgnoresOnlyBadRequest() {
+        // ⚠️ 저장소의 마지막 「4xx 한 덩이」였다. 바이낸스가 418·429를 세게 고친 사고(§7)와 같은 조건
+        CircuitBreaker breaker = registry.circuitBreaker("weatherGeocoding");
+
+        long before = breaker.getMetrics().getNumberOfFailedCalls();
+        breaker.onError(0, java.util.concurrent.TimeUnit.MILLISECONDS,
+                org.springframework.web.client.HttpClientErrorException.create(
+                        org.springframework.http.HttpStatus.BAD_REQUEST, "", null, null, null));
+        assertThat(breaker.getMetrics().getNumberOfFailedCalls())
+                .as("없는 지명의 400은 우리 잘못이다").isEqualTo(before);
+
+        breaker.onError(0, java.util.concurrent.TimeUnit.MILLISECONDS,
+                org.springframework.web.client.HttpClientErrorException.create(
+                        org.springframework.http.HttpStatus.TOO_MANY_REQUESTS, "", null, null, null));
+        assertThat(breaker.getMetrics().getNumberOfFailedCalls())
+                .as("429는 세어져야 브레이커가 열려 물러선다").isEqualTo(before + 1);
+    }
 }

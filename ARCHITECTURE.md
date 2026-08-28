@@ -370,6 +370,12 @@ this.clients = Failover.order(clients, ORDER, FxRateClient::source);   // suppor
 > **빈 답은 영영 캐시되지 않아** 조회마다 KIS 간격 1초·FMP 2회를 다시 썼다.
 > `CacheConfigTest.optionalCachesRefuseToStoreEmpty`가 이제 Optional을 돌려주는 모든 `@Cacheable`에서 그것을 본다.
 
+**목록을 돌려주는 캐시는 빈 목록을 담지 않는다**(`unless = "#result.isEmpty()"`) — 상대의 한순간 빈손이 TTL만큼
+굳기 때문이다. 일봉 캐시 넷이 한동안 그 상태였다: KIS가 `0.00`만 준 순간의 빈 목록이 12시간 남아 회복 뒤에도 차트가
+안 붙었다. **예외는 공공데이터포털 `searchBy*` 넷**이다 — 열흘을 되짚어 빈 것은 「없다」이고 한 시간은 안정된 값이라
+**일부러 담는다**(주식 API는 ETF 코드에 구조적으로 늘 0건이어서, 안 담으면 조회마다 되짚기 열 번을 다시 쓴다).
+`CacheConfigTest.listCachesRefuseToStoreEmpty`가 그 예외 목록째로 지킨다.
+
 **타임아웃은 호스트로 가른다.** Boot 4에는 손으로 만든 `RestClient`용 **이름별** 타임아웃이
 없다 — `spring.http.clients`는 평평한 전역 블록 하나이고, 키별 형태(`spring.http.serviceclient.*`)는
 `@ImportHttpServices` 인터페이스 클라이언트 전용이다(의존성 jar의 설정 메타데이터로 확인).
@@ -592,6 +598,9 @@ KIS ~20회는 겹쳐도 20초가 바닥이고, `/crypto`의 업비트∥바이�
 
 ## 7. 알려진 한계
 
+- **수집 중 예외가 새면 슬롯을 되돌린다 — 안 그러던 자리다.** `section()`이 `RuntimeException`은 값으로 바꾸지만
+  `Error`와 인터럽트(배포 중 종료)는 새고, 그러면 슬롯이 잡힌 채 아무것도 안 나가 그날 창의 나머지 틱이 전부
+  「이미 보냈다」였다. 이제 두 잡이 한 통도 못 보냈으면 `release`하고 다시 던진다(2026-08-28 정합성 리뷰).
 - **중복 발송이 완전히 막히지는 않는다.** 비영속 저장소(Render Key Value 등)가 오후에 비면
   "오늘 안 보냄"으로 보인다. 발송 창을 두 시간으로 닫은 것이 그 방어이고, 창 밖에서는
   크론이 아예 안 돈다.

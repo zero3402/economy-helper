@@ -693,15 +693,18 @@ resilience4j:
       # 과거 조회는 그대로 멈춘다 — 그래서 예보와 한 브레이커를 쓰지 않는다.
       weatherOpenMeteoArchive:
         baseConfig: default
-      # 지오코딩은 4xx를 실패로 세지 않는다. 없는 지명이나 이상한 문자가 섞인 검색어에
+      # 지오코딩은 **400만** 실패로 세지 않는다. 없는 지명이나 이상한 문자가 섞인 검색어에
       # 400이 오는 건 우리 잘못이지 상대 장애가 아닌데, 그걸 세면 검색 몇 번에 브레이커가
       # 열려 멀쩡한 지오코딩이 60초 끊긴다 — 바이낸스가 미상장 심볼의 400을 빼는 것과 같다.
+      # ⚠️ 한동안 HttpClientErrorException **통째**를 뺐다 — 저장소의 마지막 「4xx 한 덩이」였고,
+      #    그러면 429·403이 브레이커를 절대 못 열어 물러서지 못한다. 바이낸스가 418·429를 세게
+      #    고친 그 사고(ARCHITECTURE §7)의 재현 조건이었다. 400만 좁은 타입으로 뺀다
       weatherGeocoding:
         baseConfig: default
         # ⚠️ 아래 목록이 configs.default의 것을 덮어쓴다 — 위 default 블록 주석 참조
         ignoreExceptions:
           - io.github.resilience4j.ratelimiter.RequestNotPermitted
-          - org.springframework.web.client.HttpClientErrorException
+          - org.springframework.web.client.HttpClientErrorException$BadRequest
   # 재시도 — **폴백이 없거나 한도가 없는 곳에만** 건다.
   #
   # 규칙 하나로 압축하면: **한도가 있으면 안 걸고, 다음 출처가 있으면 안 걸고, 실패가 영구인
@@ -792,7 +795,7 @@ resilience4j:
         baseConfig: default
         maxAttempts: 3
         # ⚠️ 300ms가 아니다. 텔레그램은 같은 방에 초당 한 통을 권고하고
-        #    TelegramClient.BETWEEN_MESSAGES가 그 값이다 — 더 빨리 다시 쏘면 429를 우리가 만든다
+        #    economy-helper.telegram.min-interval이 그 값이다 — 더 빨리 다시 쏘면 429를 우리가 만든다
         waitDuration: 1s
         enableExponentialBackoff: false
         # ⚠️ retryExceptions·ignoreExceptions는 둘 다 baseConfig의 것을 **덮어쓴다** —

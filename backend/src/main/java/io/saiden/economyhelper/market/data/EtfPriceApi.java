@@ -61,14 +61,16 @@ public class EtfPriceApi {
     }
 
     /** ETF 이름 부분검색. {@code 나스닥100}에 22건이 걸린다(실측). */
-    @Cacheable(cacheNames = CacheNames.STOCK_PRICE, key = "'etf-name:' + #name", unless = "#result.isEmpty()")
+    // ⚠️ 빈 결과도 담는다(다른 List 캐시와 반대다). 열흘을 되짚어 빈 것은 「없다」이고 한 시간은 안정된
+    //    값이다 — 주식 API는 ETF 코드에 **구조적으로 늘 0건**이라, 안 담으면 조회마다 되짚기 열 번을 다시 쓴다
+    @Cacheable(cacheNames = CacheNames.STOCK_PRICE, key = "'etf-name:' + #name")
     @CircuitBreaker(name = "dataGoEtf")
     public List<StockPrice> searchByName(String name) {
         return searchRecent("likeItmsNm", name, null);
     }
 
     /** ETF 코드 검색 — {@code likeSrtnCd}로 묻고 {@code srtnCd}로 한 번 더 거른다. */
-    @Cacheable(cacheNames = CacheNames.STOCK_PRICE, key = "'etf-code:' + #code", unless = "#result.isEmpty()")
+    @Cacheable(cacheNames = CacheNames.STOCK_PRICE, key = "'etf-code:' + #code")
     @CircuitBreaker(name = "dataGoEtf")
     public List<StockPrice> searchByCode(String code) {
         return searchRecent("likeSrtnCd", code, code);

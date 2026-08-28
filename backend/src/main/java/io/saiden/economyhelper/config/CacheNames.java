@@ -1,7 +1,8 @@
 package io.saiden.economyhelper.config;
 
 /**
- * 캐시 이름 스물일곱 — <b>그리고 그중 어느 것에 판(version) 번호가 붙는지.</b>
+ * 캐시 이름 전부 — <b>그리고 그중 어느 것에 판(version) 번호가 붙는지.</b>
+ * (개수는 적지 않는다 — 한 번 적었고 하나 늘자마자 틀렸다. 세고 싶으면 {@code CacheConfigTest}가 센다.)
  *
  * <p><b>왜 상수로 모으는가.</b> 이름이 {@code @Cacheable}과 {@link CacheConfig} 두 곳에
  * 문자열로 적혀 있었다. 어긋나면 그 캐시가 Redis 기본값(JDK 직렬화·무기한)으로 떨어져

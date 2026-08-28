@@ -120,7 +120,16 @@ public class WeatherDigestJob extends TriggerableJob {
         }
 
         List<DigestResult.Failure> failed = new ArrayList<>();
-        List<Weather> collected = collect(failed);
+        List<Weather> collected;
+        try {
+            collected = collect(failed);
+        } catch (RuntimeException | Error e) {
+            // forecastOf가 RuntimeException은 삼키지만 Error와 인터럽트는 새어 온다 — 배포 중 종료가
+            // 그 경로다. 슬롯을 잡은 채 새면 그날 알람이 영영 안 나간다(DailyDigestJob과 같은 자리)
+            slot.release(claim);
+            log.error("[weather] {} 수집 중 예외 — 슬롯을 되돌립니다: {}", claim.id(), e.toString());
+            throw e;
+        }
         if (collected.isEmpty()) {
             // 보낸 적 없는 슬롯을 "보냄"으로 남기면 그날 알람이 영영 복구되지 않는다
             slot.release(claim);

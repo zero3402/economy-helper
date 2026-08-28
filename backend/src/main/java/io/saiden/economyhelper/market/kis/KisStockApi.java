@@ -215,7 +215,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
      * <p>⚠️ <b>{@code 0.00}은 값이 아니다.</b> 없는 종목코드에 에러가 아니라 0이 오므로
      * 그대로 그리면 차트가 0으로 절벽을 그린다 — {@code DailySeries}가 걸러낸다.
      */
-    @Cacheable(cacheNames = CacheNames.STOCK_SERIES, key = "'stock:' + #code")
+    @Cacheable(cacheNames = CacheNames.STOCK_SERIES, key = "'stock:' + #code", unless = "#result.isEmpty()")
     @CircuitBreaker(name = "kisStock")
     public java.util.List<DailyBar> dailyBars(String code) {
         DailyChart response = request(DailyChart.class, STOCK_TR, "국내 종목 일봉 " + code,
@@ -241,7 +241,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
      * 아니라 설정에 있고, 이름이 그것을 찾는 열쇠다. 남은 조건은 하나뿐이다:
      * <b>설정 표에 없는 지수</b>는 차트가 없다(그때만 아래에서 던진다).
      */
-    @Cacheable(cacheNames = CacheNames.STOCK_SERIES, key = "'index:' + #name")
+    @Cacheable(cacheNames = CacheNames.STOCK_SERIES, key = "'index:' + #name", unless = "#result.isEmpty()")
     @CircuitBreaker(name = "kisStock")
     public java.util.List<DailyBar> dailyBarsOfIndex(String name) {
         Index target = indices.get(name);
@@ -269,7 +269,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
      * ({@code DailySeries.drawable}). 그 자리에 로그를 한 줄 남기는 것이 「KIS가 그 심볼을
      * 모른다」와 「차트를 아예 안 물었다」를 가르는 유일한 단서다.
      */
-    @Cacheable(cacheNames = CacheNames.STOCK_SERIES, key = "'us:' + #symbol")
+    @Cacheable(cacheNames = CacheNames.STOCK_SERIES, key = "'us:' + #symbol", unless = "#result.isEmpty()")
     @CircuitBreaker(name = "kisStock")
     public java.util.List<DailyBar> dailyBarsOfUs(String symbol) {
         return UsSymbol.isIndex(symbol) ? usIndexSeries(symbol) : usStockSeries(symbol);
@@ -433,6 +433,10 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
     }
 
     private Index known(Index index) {
+        if (index.name() == null) {
+            // 불변 맵은 null 키에 NPE를 던진다 — 그건 브레이커에 「우리 잘못」이 아닌 실패로 쌓인다
+            throw new Unsupported("KIS 지수 조회에 이름이 없습니다");
+        }
         Index configured = indices.get(index.name());
         return configured == null || index.hasCode() ? index : configured;
     }

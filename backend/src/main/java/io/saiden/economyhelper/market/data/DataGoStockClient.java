@@ -11,9 +11,12 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import io.saiden.economyhelper.support.FailureReason;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -60,11 +63,19 @@ public class DataGoStockClient implements DomesticStockClient {
         return StockSource.DATA_GO;
     }
 
-    /** 주식에 없으면 ETF에서 찾는다 — 코드 하나가 두 API 중 한쪽에만 있다. */
+    /**
+     * 주식에 없으면 ETF에서 찾는다 — 코드 하나가 두 API 중 한쪽에만 있다.
+     *
+     * <p>⚠️ <b>한쪽 API의 장애가 다른 쪽을 죽이면 안 된다.</b> 한동안 {@code best(stocks.searchByCode(code))}가
+     * {@code .or(...)}의 <b>인자로 먼저 평가</b>돼, 주식 API가 던지면(500·{@code dataGo} 브레이커 열림)
+     * ETF 가지는 실행조차 안 됐다 — 브레이커를 {@code dataGo}/{@code dataGoEtf}로 가른 취지가 반대
+     * 방향에서 깨진 자리다. 이제 두 검색을 같은 모양으로 삼키고, <b>둘 다 빈손일 때만</b> 던진다
+     * (SPI 계약 — 그래야 이중화가 다음 출처로 넘어간다). 사유는 각자 warn으로 남는다.
+     */
     @Override
     public StockQuote stock(String code) {
-        return best(stocks.searchByCode(code))
-                .or(() -> best(etfs.searchByCode(code)))
+        return best(quietly("주식", code, () -> stocks.searchByCode(code)))
+                .or(() -> best(quietly("ETF", code, () -> etfs.searchByCode(code))))
                 .orElseThrow(() -> new IllegalStateException("종목코드 " + code + " 시세가 없습니다"));
     }
 
@@ -99,22 +110,22 @@ public class DataGoStockClient implements DomesticStockClient {
         // 주식과 ETF 후보를 **합쳐** 고른다 — 순서로 두면 「삼성」이 ETF에 절대 안 가는 대신
         // 규칙이 둘이 된다. 대가는 이름 검색 한 번이 호출 둘인 것인데(하루 1만 회·1시간 캐시)
         // 여유가 크다
-        List<StockPrice> candidates = new java.util.ArrayList<>(stocks.searchByName(name));
-        candidates.addAll(etfsByName(name));
+        List<StockPrice> candidates = new ArrayList<>(quietly("주식", name, () -> stocks.searchByName(name)));
+        candidates.addAll(quietly("ETF", name, () -> etfs.searchByName(name)));
         return best(candidates);
     }
 
     /**
-     * ETF 이름 검색은 <b>주식 결과를 죽이지 않는다.</b> 활용신청 전이면 여기가 늘 403이다 —
-     * 그때도 주식은 나가야 한다. {@code @CircuitBreaker}는 {@link EtfPriceApi} 쪽에 있어
-     * 여기서 삼켜도 브레이커는 실패를 먼저 센다.
+     * 한쪽 API의 실패가 다른 쪽 후보를 죽이지 않게 삼킨다 — <b>양쪽에 같은 모양으로</b>.
+     * ETF는 활용신청 전이면 늘 403이고, 주식은 {@code dataGo} 브레이커가 열려 있을 수 있다.
+     * {@code @CircuitBreaker}는 {@link StockPriceApi}·{@link EtfPriceApi} 쪽에 있어 여기서 삼켜도
+     * 브레이커는 실패를 먼저 센다.
      */
-    private List<StockPrice> etfsByName(String name) {
+    private static List<StockPrice> quietly(String what, String query, Supplier<List<StockPrice>> search) {
         try {
-            return etfs.searchByName(name);
+            return search.get();
         } catch (RuntimeException e) {
-            log.warn("[stock] '{}' ETF 이름 검색 실패 — 주식 후보만 봅니다: {}", name,
-                    io.saiden.economyhelper.support.FailureReason.of(e));
+            log.warn("[stock] '{}' {} 검색 실패 — 다른 쪽 후보만 봅니다: {}", query, what, FailureReason.of(e));
             return List.of();
         }
     }

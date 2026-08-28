@@ -231,6 +231,31 @@ class CacheConfigTest {
         assertThat(unguarded).as("unless=\"#result == null\"이 없는 Optional 캐시").isEmpty();
     }
 
+    /**
+     * 빈 목록을 <b>일부러</b> 담는 넷 — 열흘을 되짚어 빈 것은 「없다」이고 한 시간은 안정된 값이라서다.
+     * 주식 API는 ETF 코드에 구조적으로 늘 0건이고, 안 담으면 조회마다 되짚기 열 번을 다시 쓴다.
+     */
+    private static final Set<String> LIST_CACHES_THAT_KEEP_EMPTY = Set.of(
+            "StockPriceApi.searchByName", "StockPriceApi.searchByCode",
+            "EtfPriceApi.searchByName", "EtfPriceApi.searchByCode");
+
+    @Test
+    @DisplayName("목록을 돌려주는 @Cacheable은 빈 목록을 담지 않는다 — 담으면 상대의 한순간 빈손이 TTL만큼 굳는다")
+    void listCachesRefuseToStoreEmpty() {
+        // ⚠️ 일봉 캐시 넷이 한동안 그 상태였다 — KIS가 0.00만 준 순간의 빈 목록이 12시간 남아
+        //    회복 뒤에도 차트가 안 붙고, 「0칸뿐이라 뺍니다」 로그가 HTTP 없이 되풀이됐다
+        List<String> unguarded = CACHEABLE_TYPES.stream()
+                .flatMap(type -> Arrays.stream(type.getDeclaredMethods()))
+                .filter(method -> method.getAnnotation(Cacheable.class) != null)
+                .filter(method -> List.class.isAssignableFrom(method.getReturnType()))
+                .filter(method -> !method.getAnnotation(Cacheable.class).unless().contains("isEmpty()"))
+                .map(method -> method.getDeclaringClass().getSimpleName() + "." + method.getName())
+                .filter(name -> !LIST_CACHES_THAT_KEEP_EMPTY.contains(name))
+                .toList();
+
+        assertThat(unguarded).as("unless=\"#result.isEmpty()\"가 없는 목록 캐시").isEmpty();
+    }
+
     @Test
     @DisplayName("@Cacheable을 단 캐시는 전부 CacheConfig에 등록돼 있다")
     void configuresEveryDeclaredCache() {

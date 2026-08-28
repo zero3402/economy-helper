@@ -89,7 +89,7 @@ public class KisMasterClient {
      *
      * @throws IllegalStateException 어느 파일이든 못 받거나 한 행도 못 읽었을 때
      */
-    @Cacheable(cacheNames = CacheNames.KR_LISTINGS, key = "'all'")
+    @Cacheable(cacheNames = CacheNames.KR_LISTINGS, key = "'all'", unless = "#result.isEmpty()")
     @CircuitBreaker(name = "kisMaster")
     public List<Listing> listings() {
         List<Listing> all = new ArrayList<>();

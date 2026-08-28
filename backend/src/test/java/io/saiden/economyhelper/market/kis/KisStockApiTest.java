@@ -469,6 +469,14 @@ class KisStockApiTest {
     }
 
     @Test
+    @DisplayName("이름 없는 지수는 Unsupported다 — 불변 맵의 null 키 NPE가 브레이커에 「상대 장애」로 쌓이면 안 된다")
+    void treatsAnIndexWithoutANameAsUnsupported() {
+        assertThatThrownBy(() -> api.index(new Index(null, null)))
+                .isInstanceOf(KisStockApi.Unsupported.class);
+        assertThat(server.getAllServeEvents()).isEmpty();
+    }
+
+    @Test
     @DisplayName("지수는 표에 없으면 부르지도 않고 던진다 — ^IXIC→COMP 같은 규칙이 없어 만들 요청이 없다")
     void neverGuessesAnIndexSymbol() {
         KisStockApi bare = apiWith(List.of(), List.of());

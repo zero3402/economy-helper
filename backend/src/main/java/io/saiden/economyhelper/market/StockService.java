@@ -186,9 +186,13 @@ public class StockService {
                 // 업종코드는 비워 보낸다. 설정에 있는 지수면 KIS가 제 표에서 채우고,
                 // 없으면 이름으로 찾는 2순위가 맡는다 — LLM에게 지수코드를 지어내게 두지 않는다.
                 // 목표주가는 없다(낼 주체가 없다). 차트는 붙는다 — 열쇠가 그 이름이다
+                // ⚠️ 이름 없는 지수 해석은 조회할 열쇠가 없다. 그대로 넘기면 KIS 표 조회가 null 키로
+                //    NPE를 kisStock 브레이커 안에서 던져 HTTP 없이 실패가 쌓인다(Unsupported가 막으려던 모양)
                 String name = resolved.get().name();
-                Optional<Answer> byIndex = index(new Index(name, null))
-                        .map(quote -> new Answer(quote, null, Series.domesticIndex(name)));
+                Optional<Answer> byIndex = resolved.get().hasName()
+                        ? index(new Index(name, null))
+                                .map(quote -> new Answer(quote, null, Series.domesticIndex(name)))
+                        : Optional.empty();
                 // ⚠️ 여기서 무조건 돌려주면 한 방향 문이 된다 — LLM이 ETF를 INDEX로 잘못
                 //    읽으면 국내 지수 조회가 빈손인 채로 끝나고 아래 그물에 닿지 못한다
                 return byIndex.isPresent() ? byIndex : usByTicker(query, null);
@@ -379,7 +383,8 @@ public class StockService {
         /**
          * 전망도 일봉 열쇠도 없는 것 — <b>이름 검색</b>이 그렇다.
          *
-         * <p>공공데이터포털은 이름으로 찾고 코드를 돌려주지 않아, 전망도 차트도 붙일 열쇠가
+         * <p>공공데이터포털 이름 검색 결과에서 코드를 쓰지 않는다(주식 API는 코드를 안 주고, ETF API는
+         * 주지만 그 경로는 KIS 색인이 실패한 뒤에만 오므로 코드가 있어도 1순위로 되짚지 않는다) — 그래서 전망도 차트도 붙일 열쇠가
          * 없다. 그때는 값만 나가고 그 둘이 빠진다 — 보충이지 폴백이 아니다.
          */
         public static Answer of(StockQuote quote) {

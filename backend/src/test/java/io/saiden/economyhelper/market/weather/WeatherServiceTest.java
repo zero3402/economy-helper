@@ -258,6 +258,26 @@ class WeatherServiceTest {
                 .isEqualTo(WeatherSource.OPEN_METEO);
     }
 
+    @Test
+    @DisplayName("시간별이 물어본 날짜와 하나도 안 겹치면 출처를 붙이지 않는다 — 강수 줄은 여전히 일별 것이다")
+    void leavesTheSourceAloneWhenNoDayReceivedHours() {
+        LocalDate day = LocalDate.ofInstant(NOW, ZoneId.of("Asia/Seoul"));
+        HalfDay spell = HalfDay.withChance(
+                LocalTime.of(13, 0), LocalTime.of(19, 0), SkyCondition.RAIN, 80);
+        // 시각은 왔지만 **다음 날** 것이다 — 날짜 창이 어긋난 응답
+        WeatherService service = new WeatherService(
+                List.of(new FakeClient(WeatherSource.ACCU_WEATHER, false)),
+                fixedClock(), TestWeather.hourly(Map.of(day.plusDays(1), List.of(spell))));
+
+        Weather weather = service.forecast(SEOUL, WeatherPeriod.of(day, null, null, null))
+                .orElseThrow();
+
+        assertThat(weather.precipitationSource())
+                .as("Open-Meteo가 화면의 강수 줄에 아무것도 넣지 않았으면 출처에도 없어야 한다")
+                .isNull();
+        assertThat(weather.days()).allSatisfy(each -> assertThat(each.halves()).isEmpty());
+    }
+
     /**
      * <b>부르지 않는 것</b>을 단언한다 — 마른 날에는 보충을 부르든 안 부르든 화면이 같아서
      * 결과로는 드러나지 않는다. 그래서 세는 자리가 필요하다.

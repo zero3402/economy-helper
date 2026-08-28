@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.digest;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.saiden.economyhelper.config.EconomyHelperProperties;
@@ -261,7 +262,8 @@ class DailyDigestJobTest {
     @DisplayName("뉴스 열 건이면 열세 통이다 — 클래스 주석이 말하는 그 상한을 값으로 못 박는다")
     void sendsThirteenMessagesForTheProductionNewsCount() {
         // 운영 기본값이 코인 5 + 경제 5이므로 시세 셋 + 뉴스 열이 실제 발송 모양이다.
-        // 통마다 1초를 쉬므로 텍스트만 ~13초인데 발송 창이 두 시간이라 문제가 되지 않는다
+        // 같은 방에 초당 한 통(TelegramClient가 발송 시작 사이 간격을 지킨다)이라 스물네 통이 ~25초인데
+        // 발송 창이 두 시간이라 문제가 되지 않는다
         RecordingClient telegram = new RecordingClient();
         List<NewsItem> ten = java.util.stream.IntStream.rangeClosed(1, 10)
                 .mapToObj(i -> item("기사 " + i))
@@ -295,6 +297,24 @@ class DailyDigestJobTest {
         assertThat(second.sent()).isFalse();
         assertThat(telegram.sent).as("같은 날 두 번 나가면 구독자가 같은 브리핑을 두 번 받는다")
                 .hasSize(1);
+    }
+
+    @Test
+    @DisplayName("수집이 예외로 새면 슬롯을 되돌린다 — 안 그러면 그날 창의 나머지 틱이 전부 「이미 보냈다」다")
+    void releasesTheSlotWhenCollectionEscapes() {
+        // section()은 RuntimeException을 값으로 바꾸지만 Error와 인터럽트는 그대로 샌다 — 배포 중 종료가 그 경로다
+        InMemoryHistory history = new InMemoryHistory();
+        NewsFacade exploding = new CountingFacade(List.of()) {
+            @Override
+            public List<NewsItem> digest() {
+                throw new AssertionError("종료 신호");
+            }
+        };
+
+        assertThatThrownBy(() -> job(new RecordingClient(), history, exploding).run(false))
+                .isInstanceOf(AssertionError.class);
+
+        assertThat(history.claimed).as("아무것도 못 보냈으니 다음 틱이 다시 시도할 수 있어야 한다").doesNotContain(SLOT);
     }
 
     private static DailyDigestJob job(TelegramClient telegram, SendHistory history,
@@ -550,7 +570,7 @@ class DailyDigestJobTest {
     }
 
     /** 수집 호출 횟수까지 세어 "건너뛸 때는 수집도 안 한다"를 확인한다. */
-    private static final class CountingFacade extends NewsFacade {
+    private static class CountingFacade extends NewsFacade {
         private final List<NewsItem> items;
         private int calls;
 

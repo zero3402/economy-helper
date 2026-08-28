@@ -122,7 +122,7 @@ public class FrankfurterFxClient implements FxRateClient {
      *
      * @return 날짜 순 일봉. 비영업일은 <b>키 자체가 없어</b> 빈 칸으로 남는다 — 0으로 채우지 않는다
      */
-    @Cacheable(cacheNames = CacheNames.FX_SERIES, key = "'usd-krw'")
+    @Cacheable(cacheNames = CacheNames.FX_SERIES, key = "'usd-krw'", unless = "#result.isEmpty()")
     @Retry(name = "fxFrankfurter")
     @CircuitBreaker(name = "fxFrankfurter")
     public List<DailyBar> dailyBars() {

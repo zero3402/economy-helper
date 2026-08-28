@@ -122,8 +122,11 @@ public class TelegramClient {
                 }
                 nextAllowed = System.nanoTime() + intervalNanos;
             } catch (InterruptedException e) {
-                // 인터럽트는 삼키지 않고 플래그를 되살린다 — 종료 신호가 무시되면 컨테이너가 강제 종료된다
+                // 인터럽트는 삼키지 않고 플래그를 되살린다 — 종료 신호가 무시되면 컨테이너가 강제 종료된다.
+                // ⚠️ 그리고 **던진다.** 한동안 정상 반환해 그대로 보냈는데, 그러면 종료 중 남은 통이
+                //    간격 없이 연달아 나가 429를 우리가 만든다 — KisThrottle이 Congested를 던지는 것과 같은 자리다
                 Thread.currentThread().interrupt();
+                throw new IllegalStateException("텔레그램 발송 간격을 기다리다 중단됐습니다");
             } finally {
                 lock.unlock();
             }

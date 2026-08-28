@@ -68,14 +68,16 @@ public class StockPriceApi {
     }
 
     /** 종목명 부분검색. {@code 하이닉스} → SK하이닉스가 걸린다. */
-    @Cacheable(cacheNames = CacheNames.STOCK_PRICE, key = "'name:' + #name", unless = "#result.isEmpty()")
+    // ⚠️ 빈 결과도 담는다(다른 List 캐시와 반대다). 열흘을 되짚어 빈 것은 「없다」이고 한 시간은 안정된
+    //    값이다 — 주식 API는 ETF 코드에 **구조적으로 늘 0건**이라, 안 담으면 조회마다 되짚기 열 번을 다시 쓴다
+    @Cacheable(cacheNames = CacheNames.STOCK_PRICE, key = "'name:' + #name")
     @CircuitBreaker(name = "dataGo")
     public List<StockPrice> searchByName(String name) {
         return searchRecent("likeItmsNm", name);
     }
 
     /** 종목코드 검색. {@code srtnCd}가 아니라 {@code likeSrtnCd}여야 한다. */
-    @Cacheable(cacheNames = CacheNames.STOCK_PRICE, key = "'code:' + #code", unless = "#result.isEmpty()")
+    @Cacheable(cacheNames = CacheNames.STOCK_PRICE, key = "'code:' + #code")
     @CircuitBreaker(name = "dataGo")
     public List<StockPrice> searchByCode(String code) {
         return searchRecent("likeSrtnCd", code);

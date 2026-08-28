@@ -422,4 +422,16 @@ class HalfDaysTest {
     private static List<BigDecimal> mm(double... values) {
         return Arrays.stream(values).mapToObj(BigDecimal::valueOf).toList();
     }
+
+    @Test
+    @DisplayName("가장 흔한 하늘에서 모르는 값은 세지 않는다 — 동률이면 UNKNOWN(열거 맨 뒤)이 이기던 자리다")
+    void commonestSkyNeverLetsUnknownWinATie() {
+        assertThat(HalfDays.commonestSky(List.of(
+                SkyCondition.CLOUDY, SkyCondition.CLOUDY, SkyCondition.CLOUDY,
+                SkyCondition.UNKNOWN, SkyCondition.UNKNOWN, SkyCondition.UNKNOWN)))
+                .isEqualTo(SkyCondition.CLOUDY);
+        assertThat(HalfDays.commonestSky(List.of(SkyCondition.UNKNOWN, SkyCondition.UNKNOWN)))
+                .as("아는 것이 하나도 없을 때만 UNKNOWN").isEqualTo(SkyCondition.UNKNOWN);
+        assertThat(HalfDays.commonestSky(List.of())).isEqualTo(SkyCondition.UNKNOWN);
+    }
 }

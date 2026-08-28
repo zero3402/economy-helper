@@ -366,6 +366,17 @@ class StockServiceTest {
                 .extracting(answer -> answer.quote().name()).containsExactly("애플");
     }
 
+    @Test
+    @DisplayName("이름 없는 지수 해석은 지수 조회를 건너뛴다 — null 키가 kisStock 브레이커 안에서 NPE를 내던 자리다")
+    void skipsTheIndexLookupWhenTheLlmGaveNoName() {
+        FakeDomestic kis = domestic(StockSource.KIS, Map.of(), Map.of());
+        StockService service = service(List.of(kis), List.of(),
+                resolver(new ResolvedStock("KR", "INDEX", "0001", null)));
+
+        assertThat(service.quote("지수")).isEmpty();
+        assertThat(kis.askedIndex).as("열쇠가 없으면 부르지 않는다").isEmpty();
+    }
+
     // --- 색인(KIS 종목 마스터) ---
 
     private static final Listing TIME_NASDAQ = new Listing("426030", "TIME 미국나스닥100액티브", "EF", 24944);

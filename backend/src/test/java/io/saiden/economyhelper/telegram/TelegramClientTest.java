@@ -222,6 +222,23 @@ class TelegramClientTest {
     }
 
     @Test
+    @DisplayName("간격을 기다리다 인터럽트되면 보내지 않고 던진다 — 종료 중 남은 통이 연달아 나가면 429를 우리가 만든다")
+    void refusesToSendWhenInterruptedWhilePacing() {
+        TelegramClient paced = client(Duration.ofSeconds(2));
+        paced.send("12345", null, null, "첫 통");
+
+        Thread.currentThread().interrupt();
+        try {
+            assertThatThrownBy(() -> paced.send("12345", null, null, "둘째 통"))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("중단");
+        } finally {
+            assertThat(Thread.interrupted()).as("인터럽트 플래그는 삼키지 않고 되살린다").isTrue();
+        }
+        assertThat(server.findAll(postRequestedFor(anyUrl()))).as("둘째 통은 나가지 않았다").hasSize(1);
+    }
+
+    @Test
     @DisplayName("다른 방으로 가는 통은 서로 기다리지 않는다 — 권고가 방 단위다")
     void neverPacesAcrossChats() {
         TelegramClient paced = client(Duration.ofSeconds(3));

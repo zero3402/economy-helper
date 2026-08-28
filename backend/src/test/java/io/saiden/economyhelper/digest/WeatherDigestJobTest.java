@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.digest;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.saiden.economyhelper.config.EconomyHelperProperties;
@@ -130,6 +131,34 @@ class WeatherDigestJobTest {
                 .toList();
 
         assertThat(telegram.sent.get(0)).isEqualTo(WeatherFormatter.format(collected));
+    }
+
+    @Test
+    @DisplayName("수집이 예외로 새면 슬롯을 되돌린다 — 브리핑과 같은 자리, 같은 이유")
+    void releasesTheSlotWhenCollectionEscapes() {
+        InMemoryHistory history = new InMemoryHistory();
+        WeatherClient exploding = new WeatherClient() {
+            @Override
+            public WeatherSource source() {
+                return WeatherSource.OPEN_METEO;
+            }
+
+            @Override
+            public boolean supports(GeoLocation place, WeatherPeriod period, LocalDate today) {
+                return true;
+            }
+
+            @Override
+            public Weather forecast(GeoLocation place, WeatherPeriod period) {
+                // forecastOf가 RuntimeException은 삼킨다 — Error만이 이 경로로 샌다
+                throw new AssertionError("종료 신호");
+            }
+        };
+
+        assertThatThrownBy(() -> job(new RecordingClient(), history, exploding).run(false))
+                .isInstanceOf(AssertionError.class);
+
+        assertThat(history.claimed).doesNotContain(SLOT);
     }
 
     private static WeatherDigestJob job(RecordingClient telegram, InMemoryHistory history,

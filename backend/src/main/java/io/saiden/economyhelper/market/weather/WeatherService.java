@@ -169,8 +169,16 @@ public class WeatherService {
                         ? day.withHalves(halves.get(day.date()))
                         : day)
                 .toList();
+        long replaced = weather.days().stream().filter(day -> halves.containsKey(day.date())).count();
+        if (replaced == 0) {
+            // 시각은 왔는데 물어본 날짜와 하나도 겹치지 않았다(날짜 창이 어긋난 경우). 그러면 화면의 강수 줄은
+            // 여전히 일별 출처 것이므로 Open-Meteo를 출처로 적으면 안 된다 — 아래 규칙의 거울상이다
+            log.warn("[weather] {} 시간별 {}일이 물어본 날짜와 하나도 겹치지 않습니다 — 보충 없이 내보냅니다",
+                    place.name(), halves.size());
+            return weather;
+        }
         log.info("[weather] {} 강수 시각을 {}일에 얹었습니다 ({} 보충)",
-                place.name(), halves.size(), WeatherSource.OPEN_METEO.displayName());
+                place.name(), replaced, WeatherSource.OPEN_METEO.displayName());
         // ⚠️ 강수 줄이 이쪽 것이 되었으므로 화면도 그렇게 말해야 한다.
         //    withHalves이 확률까지 이 시간별로 다시 세므로 일별 출처의 확률은 더 이상
         //    화면에 없다 — 숨기면 「Open-Meteo가 답했는데 AccuWeather라고 적는」 그 거짓말이 된다.
