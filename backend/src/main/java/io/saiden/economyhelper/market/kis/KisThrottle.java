@@ -65,11 +65,6 @@ public class KisThrottle {
         this.capNanos = Math.max(0, maxWait.toNanos());
     }
 
-    /** 기다리지 않는 문 — 테스트가 쓴다. 간격을 세는 것은 실물 계정의 제약이라 여기서는 뺀다. */
-    static KisThrottle none() {
-        return new KisThrottle(Duration.ZERO, Duration.ZERO);
-    }
-
     /**
      * 앞 호출과 최소 간격이 벌어질 때까지 기다린다. <b>실제 HTTP 호출 직전에</b> 부른다 —
      * 메서드 단위로 부르면 그 안에서 두 번 나가는 경로가 다시 새어 나간다.

@@ -1,6 +1,7 @@
 package io.saiden.economyhelper.market.kis;
 
 import java.time.Clock;
+import java.time.Duration;
 import org.springframework.web.client.RestClient;
 
 /**
@@ -20,6 +21,15 @@ final class KisFixtures {
     }
 
     /**
+     * 기다리지 않는 문. 간격을 세는 것은 실물 계정의 제약이라 테스트에서는 뺀다 —
+     * 규칙 자체는 {@code KisThrottleTest}가 본다. 예전에는 {@code KisFixtures.unpaced()}으로
+     * <b>main에</b> 있었다: 테스트만 부르는 코드가 운영 클래스에 살고 있었다.
+     */
+    static KisThrottle unpaced() {
+        return new KisThrottle(Duration.ZERO, Duration.ZERO);
+    }
+
+    /**
      * 발급을 흉내 내지 않는 토큰 저장소 — <b>토큰 재사용 규칙은 {@code KisTokenStoreTest}가 본다.</b>
      *
      * <p>{@code invalidated}를 기록한다. 무효 토큰({@code EGW00121})을 알아차렸을 때 버리는지가
@@ -31,7 +41,7 @@ final class KisFixtures {
 
         FixedToken(Clock clock) {
             super(RestClient.builder(), "http://localhost:1", "key", "secret", null, clock,
-                    KisThrottle.none());
+                    KisFixtures.unpaced());
         }
 
         @Override

@@ -1,6 +1,5 @@
 package io.saiden.economyhelper.market.weather;
 
-
 /**
  * 하늘 상태 — <b>두 출처의 말을 하나로 모은다.</b>
  *

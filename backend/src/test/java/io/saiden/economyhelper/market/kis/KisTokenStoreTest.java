@@ -80,7 +80,7 @@ class KisTokenStoreTest {
                         + "\",\"access_token_token_expired\":\"2026-08-26 12:00:00\"}")));
 
         new KisTokenStore(RestClient.builder(), server.baseUrl(), "key\n", "secret  \n",
-                null, Clock.fixed(NOW, ZoneOffset.UTC), KisThrottle.none()).token();
+                null, Clock.fixed(NOW, ZoneOffset.UTC), KisFixtures.unpaced()).token();
 
         server.verify(postRequestedFor(urlPathEqualTo("/oauth2/tokenP"))
                 .withRequestBody(WireMock.matchingJsonPath("$.appkey", WireMock.equalTo("key")))
@@ -89,12 +89,12 @@ class KisTokenStoreTest {
 
     private KisTokenStore store(Instant now) {
         return new KisTokenStore(RestClient.builder(), server.baseUrl(), "key", "secret",
-                null, Clock.fixed(now, ZoneOffset.UTC), KisThrottle.none());
+                null, Clock.fixed(now, ZoneOffset.UTC), KisFixtures.unpaced());
     }
 
     private KisTokenStore store(Instant now, FakeRedis redis) {
         return new KisTokenStore(RestClient.builder(), server.baseUrl(), "key", "secret",
-                redis.template(), Clock.fixed(now, ZoneOffset.UTC), KisThrottle.none());
+                redis.template(), Clock.fixed(now, ZoneOffset.UTC), KisFixtures.unpaced());
     }
 
     /**
@@ -308,7 +308,7 @@ class KisTokenStoreTest {
     @DisplayName("키가 없으면 발급조차 안 한다 — 1분에 한 번뿐인 발급을 헛되이 쓰지 않는다")
     void skipsIssuingWithoutKeys() {
         KisTokenStore keyless = new KisTokenStore(RestClient.builder(), server.baseUrl(), "", "",
-                null, Clock.fixed(NOW, ZoneOffset.UTC), KisThrottle.none());
+                null, Clock.fixed(NOW, ZoneOffset.UTC), KisFixtures.unpaced());
 
         assertThatThrownBy(keyless::token).hasMessageContaining("앱키");
         server.verify(0, postRequestedFor(urlPathEqualTo(PATH)));

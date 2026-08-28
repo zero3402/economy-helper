@@ -118,7 +118,7 @@ class KisStockApiTest {
                                 new EconomyHelperProperties.Kis(usIndices)))
                         .build(),
                 // 간격을 지키는 문은 여기서 열어 둔다 — 규칙은 KisThrottleTest가 따로 본다
-                exchanges, KisThrottle.none());
+                exchanges, KisFixtures.unpaced());
     }
 
     /** Redis 대신 메모리에 기억한다 — 규칙만 본다. */

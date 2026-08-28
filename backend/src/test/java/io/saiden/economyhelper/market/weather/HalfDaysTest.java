@@ -143,8 +143,8 @@ class HalfDaysTest {
 
         assertThat(HalfDays.byDay(hours(DAY, 6), chances, amounts, wmo(codes)).get(DAY))
                 .singleElement().satisfies(half -> {
-                    assertThat(half.single()).as("한 시간짜리다").isTrue();
                     assertThat(half.from()).isEqualTo(LocalTime.of(3, 0));
+                    assertThat(half.to()).as("한 시간짜리다 — 시작과 끝이 같다").isEqualTo(LocalTime.of(3, 0));
                     assertThat(half.kind()).isEqualTo(SkyCondition.SHOWERS);
                 });
     }

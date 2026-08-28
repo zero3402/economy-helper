@@ -61,7 +61,7 @@ class KisDomesticOutlookClientTest {
         Clock clock = Clock.fixed(NOW, ZoneId.of("Asia/Seoul"));
         tokens = new KisFixtures.FixedToken(clock);
         client = new KisDomesticOutlookClient(RestClient.builder(), server.baseUrl(),
-                tokens, new KisHeaders("key", "secret"), KisThrottle.none(), clock);
+                tokens, new KisHeaders("key", "secret"), KisFixtures.unpaced(), clock);
     }
 
     private void stub(String body) {

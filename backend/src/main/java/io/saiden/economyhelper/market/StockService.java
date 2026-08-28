@@ -140,7 +140,6 @@ public class StockService {
         this.kisSeries = kisSeries;
     }
 
-
     /**
      * @return 시가총액 1위 후보의 시세. 걸리는 종목이 없거나 모든 출처가 실패하면
      *         {@link Optional#empty()}

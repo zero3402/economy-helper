@@ -175,8 +175,8 @@ class KmaVillageApi {
     record Response(Envelope response) {
     }
 
+    /** {@code KmaRequest.opened}가 여는 봉투 — 머리가 정상일 때만 {@code body}를 읽는다. */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record Envelope(KmaRequest.Header header, VillageBlock body)
-            implements KmaRequest.Envelope {
+    record Envelope(KmaRequest.Header header, VillageBlock body) {
     }
 }

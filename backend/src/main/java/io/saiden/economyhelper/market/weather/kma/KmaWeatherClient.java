@@ -53,8 +53,8 @@ public class KmaWeatherClient implements WeatherClient {
 
     private static final Logger log = LoggerFactory.getLogger(KmaWeatherClient.class);
 
-    /** 남한의 시간대는 하나다. 이것이 「국내인가」의 두 번째 열쇠다. */
-    private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
+    /** 남한의 시간대는 하나다. 이것이 「국내인가」의 두 번째 열쇠다 — 패키지 공용 상수를 그대로 쓴다. */
+    private static final ZoneId SEOUL = KmaRequest.SEOUL;
 
     /**
      * 오늘부터 나흘(오늘 + 3) — <b>단기예보가 온전히 덮는 범위</b>다.
@@ -140,7 +140,6 @@ public class KmaWeatherClient implements WeatherClient {
         requireEveryDay(period, days);
         return new Weather(place, List.copyOf(days), source());
     }
-
 
     /**
      * <b>물어본 날이 하나라도 비면 던진다 — 이 출처만 계약보다 엄하다.</b>

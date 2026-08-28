@@ -12,7 +12,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.web.client.RestClient;
 
 /**
- * 기상청에 <b>묻는 방법</b> — 단기예보와 중기예보가 나눠 쓴다.
+ * 기상청에 <b>묻는 방법</b> — 단기예보 클라이언트({@code KmaVillageApi})가 쓴다.
+ * 중기예보도 함께 쓰던 때가 있었는데 물렸다(그 이유는 {@code KmaWeatherClient} javadoc에 있다).
  *
  * <p>{@code market.data.DataGoRequest}와 같은 자리이고, 그쪽이 주식에서 세운 규칙 둘이 여기
  * 그대로 통한다. 코드를 합치지 않는 이유는 파라미터가 겹치지 않기 때문이다 —
@@ -39,8 +40,8 @@ final class KmaRequest {
     /**
      * 남한의 시간대는 하나다. 발표시각도 이 달력으로 고른다 — <b>출처가 한국이다.</b>
      *
-     * <p>패키지가 함께 쓴다. 예전에는 {@code KmaVillageApi}에 있고 {@code KmaMidTermApi}가
-     * <b>형제 클라이언트의 상수를 꺼내 썼다</b> — 저장소의 다른 여덟 선언은 모두 자기완결이다.
+     * <p>패키지가 함께 쓴다({@code KmaVillageApi}·{@code KmaWeatherClient}). 예전에는 한 클라이언트에
+     * 있고 형제가 <b>그 상수를 꺼내 썼다</b> — 다른 패키지의 {@code SEOUL} 선언들은 각자 자기완결이다.
      */
     static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
 
@@ -93,7 +94,7 @@ final class KmaRequest {
      * @return 정상인 봉투. 정상이 아니면 돌아오지 않는다
      * @throws IllegalStateException 봉투가 다르거나 {@code resultCode}가 정상이 아닐 때
      */
-    static <E extends Envelope> E opened(E envelope, String what) {
+    static KmaVillageApi.Envelope opened(KmaVillageApi.Envelope envelope, String what) {
         if (envelope == null) {
             throw new IllegalStateException("기상청 " + what
                     + " 응답 봉투가 다릅니다 — 서비스키를 의심할 자리입니다");
@@ -107,15 +108,9 @@ final class KmaRequest {
         return envelope;
     }
 
-    /** 단기·중기가 같은 머리를 쓴다 — {@code body}만 다르다. */
+    /** 응답의 머리 — {@code resultCode}가 {@link #OK}가 아니면 {@code body}에 값이 없다. */
     @JsonIgnoreProperties(ignoreUnknown = true)
     record Header(String resultCode, String resultMsg) {
-    }
-
-    /** {@link #opened}가 열 수 있는 봉투. 두 API의 {@code Envelope}가 이것을 구현한다. */
-    interface Envelope {
-
-        Header header();
     }
 
     /**

@@ -67,7 +67,7 @@ class KisThrottleTest {
     @Test
     @DisplayName("간격이 0이면 기다리지 않는다 — 테스트와 실전 계정(초당 20건)이 이 자리를 쓴다")
     void doesNotWaitWhenTheIntervalIsZero() {
-        KisThrottle throttle = KisThrottle.none();
+        KisThrottle throttle = KisFixtures.unpaced();
 
         long started = System.nanoTime();
         for (int i = 0; i < 50; i++) {

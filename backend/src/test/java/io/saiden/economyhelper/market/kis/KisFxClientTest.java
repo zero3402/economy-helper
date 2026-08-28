@@ -55,7 +55,7 @@ class KisFxClientTest {
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
         client = new KisFxClient(RestClient.builder(), server.baseUrl(),
                 new KisFixtures.FixedToken(clock), new KisHeaders("key", "secret"), clock,
-                KisThrottle.none());
+                KisFixtures.unpaced());
     }
 
     private void stub(String body) {

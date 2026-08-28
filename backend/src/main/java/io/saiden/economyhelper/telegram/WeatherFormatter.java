@@ -208,7 +208,6 @@ public final class WeatherFormatter {
         return twelve(from.getHour()) + "시~" + twelve(to.getHour()) + "시";
     }
 
-
     /**
      * 12시간제의 시 숫자 — <b>0시와 12시가 모두 {@code 12}다.</b>
      *

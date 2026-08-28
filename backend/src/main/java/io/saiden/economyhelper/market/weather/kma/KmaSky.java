@@ -3,7 +3,7 @@ package io.saiden.economyhelper.market.weather.kma;
 import io.saiden.economyhelper.market.weather.SkyCondition;
 
 /**
- * 기상청 어휘 → 우리 어휘. <b>단기예보는 코드로, 중기예보는 한글 문장으로</b> 온다.
+ * 기상청 어휘 → 우리 어휘. 단기예보는 {@code SKY}·{@code PTY} <b>코드</b>로 온다.
  *
  * <p>{@code SkyCondition.ofWmoCode}와 같은 자리다 — 옮기는 일은 그 코드를 아는 쪽,
  * 곧 출처의 몫이다. {@code HalfDays}는 어느 출처의 코드도 몰라야 한다.
@@ -56,7 +56,6 @@ final class KmaSky {
             default -> SkyCondition.UNKNOWN;
         };
     }
-
 
     private static String trimmed(String value) {
         return value == null ? "" : value.trim();

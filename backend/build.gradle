@@ -56,8 +56,6 @@ dependencies {
 
 	// Boot 4.1은 스타터마다 짝이 되는 테스트 아티팩트를 따로 붙인다
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
-	testImplementation 'org.springframework.boot:spring-boot-starter-actuator-test'
-	testImplementation 'org.springframework.boot:spring-boot-starter-data-redis-test'
 	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
 	// Testcontainers 2.x에서 모듈명이 junit-jupiter -> testcontainers-junit-jupiter로 바뀌었다
 	testImplementation 'org.testcontainers:testcontainers-junit-jupiter'

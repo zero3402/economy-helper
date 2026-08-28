@@ -1,7 +1,6 @@
 package io.saiden.economyhelper.telegram;
 
 import static io.saiden.economyhelper.telegram.MessageLayout.DATE;
-import static io.saiden.economyhelper.telegram.MessageLayout.SEOUL;
 import static io.saiden.economyhelper.telegram.MessageLayout.change;
 import static io.saiden.economyhelper.telegram.MessageLayout.money;
 
