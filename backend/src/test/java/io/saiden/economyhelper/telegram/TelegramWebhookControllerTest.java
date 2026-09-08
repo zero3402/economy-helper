@@ -212,8 +212,8 @@ class TelegramWebhookControllerTest {
     }
 
     @Test
-    @DisplayName("차트는 글이 나간 뒤에 만든다 — 일봉 조회(KIS 간격 1초)가 첫 글을 늦추면 안 된다")
-    void fetchesTheChartOnlyAfterTheTextWentOut() {
+    @DisplayName("일봉 조회가 첫 글을 늦추지 않는다 — 글과 겹쳐 돈다")
+    void neverLetsTheChartFetchDelayTheText() {
         RecordingTelegram client = new RecordingTelegram();
         AtomicBoolean textAlreadySentWhenAsked = new AtomicBoolean();
         StockQuote match = new StockQuote("삼성전자", new BigDecimal("239500"), null,
@@ -230,7 +230,15 @@ class TelegramWebhookControllerTest {
 
             @Override
             public List<DailyBar> dailyBarsOf(StockService.Series requested) {
-                // 예전에는 답을 만들 때 함께 불렸다 — 그때는 글이 아직 하나도 안 나간 상태였다
+                // ⚠️ **방식이 아니라 성질을 본다.** 예전에는 「불릴 때 글이 이미 나가 있나」를 봤는데,
+                //    그것은 「글 뒤에 조회한다」는 **구현**을 못 박은 것이었다. 지금은 조회를 글 발송과
+                //    겹치므로 그 단언이 경쟁이 된다 — 지켜야 할 것은 「조회가 첫 글을 늦추지 않는다」다.
+                //    그래서 여기서 글이 나갈 때까지 기다린다: 구현이 글을 이 조회 뒤로 미뤘다면
+                //    영영 안 나가고 이 기다림이 시간을 넘겨 단언이 깨진다
+                long deadline = System.nanoTime() + java.time.Duration.ofSeconds(5).toNanos();
+                while (client.order.isEmpty() && System.nanoTime() < deadline) {
+                    Thread.onSpinWait();
+                }
                 textAlreadySentWhenAsked.set(!client.order.isEmpty());
                 return bars("245000", "239500");
             }
@@ -240,7 +248,8 @@ class TelegramWebhookControllerTest {
 
         controller.onUpdate(null, update(1, "/stock 삼성"));
 
-        assertThat(textAlreadySentWhenAsked).as("일봉을 물을 때 글은 이미 나가 있어야 한다").isTrue();
+        assertThat(textAlreadySentWhenAsked)
+                .as("일봉 조회가 첫 글을 기다리게 만들었다 — 겹쳐 돌지 않는다는 뜻이다").isTrue();
         assertThat(client.order).containsExactly("글", "사진");
     }
 

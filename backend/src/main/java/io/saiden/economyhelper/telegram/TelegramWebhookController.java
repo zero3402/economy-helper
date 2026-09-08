@@ -194,16 +194,27 @@ public class TelegramWebhookController {
         // 뉴스 검색은 기사마다 한 통이다(브리핑과 같은 규칙). 같은 방에 초당 한 통은
         // TelegramClient가 방마다 지키므로 여기서 쉴 일은 없다 — 예전에는 통마다 1초를 잤고
         // 그것이 앞 통의 HTTP 시간과 합산돼 /news 다섯 통에 4초를 더 태웠다
-        for (String part : reply.texts()) {
-            // 통마다 따로 실패한다 — 예전에는 2번 통이 던지면 3번은 시도조차 못 해
-            // /news 3건 중 1건만 받고 왜 그런지 알 길이 없었다
-            sendQuietly(chatId, topicId, replyTo, part, reply.preview());
-        }
-        // 글 다음에 사진 — 순서만 여기서 정하고 간격은 클라이언트가 지킨다.
-        // ⚠️ 차트는 **글을 보낸 뒤에** 만든다. 답을 만들 때 함께 받았던 동안은 KIS 일봉(간격 1초 + HTTP)이
-        //    끝나야 첫 글이 나갔다 — /stock마다 1.3초가 그냥 늦어졌다. 이제 그 조회가 발송 간격 안에 숨는다
-        if (reply.chart() != null) {
-            reply.chart().get().ifPresent(chart -> sendChartQuietly(chatId, topicId, replyTo, chart));
+        // ⚠️ **차트 조회를 글 발송과 겹친다.** 순서는 그대로 글 다음에 사진이지만, 조회를
+        //    글이 나간 **뒤에** 시작하면 그 시간이 발송 간격(같은 방에 초당 한 통) 위에 그대로
+        //    얹힌다 — 실측(2026-09-08) 글과 사진 사이가 1.0초(하한)에서 **2.4초**까지 벌어졌고,
+        //    그 차이가 KIS 일봉의 간격 문 + HTTP였다. 먼저 띄워 두면 글을 보내는 동안 끝난다.
+        //    답을 만들 때 함께 받던 예전 모양으로 되돌리는 것이 아니다: 그때는 일봉이 끝나야
+        //    **첫 글**이 나가 /stock마다 1.3초가 늦었다. 지금은 답이 다 만들어진 뒤에 띄우므로
+        //    KIS 간격 문에도 답의 호출들이 먼저 줄을 서 있다 — 글은 안 늦고 사진만 빨라진다
+        // ⚠️ 실행기를 try-with-resources로 닫는다. 닫지 않으면 **요청마다 하나가 남는다** —
+        //    가상 스레드라 스레드는 싸지만 실행기 자체는 아니다. join을 먼저 하므로 close는 안 기다린다
+        try (var executor = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
+            java.util.concurrent.Future<Optional<ChartImage>> pending =
+                    reply.chart() == null ? null : executor.submit(reply.chart()::get);
+
+            for (String part : reply.texts()) {
+                // 통마다 따로 실패한다 — 예전에는 2번 통이 던지면 3번은 시도조차 못 해
+                // /news 3건 중 1건만 받고 왜 그런지 알 길이 없었다
+                sendQuietly(chatId, topicId, replyTo, part, reply.preview());
+            }
+            if (pending != null) {
+                chartOf(pending).ifPresent(image -> sendChartQuietly(chatId, topicId, replyTo, image));
+            }
         }
 
         // 성공 경로에 유일하게 남는 줄이다. 세 가지를 여기서만 알 수 있다.
@@ -250,6 +261,34 @@ public class TelegramWebhookController {
 
     /** 검증을 통과한 명령 하나 — 어느 방·어느 토픽·어느 글에 답할지와 본문. */
     private record Inbound(String chatId, Integer topicId, Integer replyTo, String text) {}
+
+    /**
+     * 겹쳐 둔 차트 조회의 결과 — <b>실패는 빈 값이고 글은 이미 갔다.</b>
+     *
+     * <p>{@code Charts.of}가 이미 {@code RuntimeException}을 삼켜 빈 값으로 주지만, 겹치면서
+     * 생기는 실패가 둘 더 있다 — 인터럽트와 {@code Error}다. 인터럽트는 플래그를 되살리고
+     * 넘어간다(종료 신호이지 차트의 문제가 아니다). {@code Error}는 그대로 올린다:
+     * {@code Concurrently.join}이 {@code OutOfMemoryError}를 「이 출처 실패」로 만들지 않는 것과
+     * 같은 판단이다.
+     */
+    private Optional<ChartImage> chartOf(java.util.concurrent.Future<Optional<ChartImage>> pending) {
+        try {
+            return pending.get();
+        } catch (InterruptedException e) {
+            // 종료 신호다 — 플래그를 되살리고 사진만 뺀다. 글은 이미 갔다
+            Thread.currentThread().interrupt();
+            return Optional.empty();
+        } catch (java.util.concurrent.ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof Error error) {
+                // OutOfMemoryError를 「차트 실패」로 삼키지 않는다 — Concurrently.join과 같은 판단이다
+                throw error;
+            }
+            log.info("[webhook] 차트 조회 실패 — 값은 이미 나갔습니다: {}",
+                    FailureReason.of(cause instanceof RuntimeException runtime ? runtime : e));
+            return Optional.empty();
+        }
+    }
 
     /**
      * 차트 한 장 — <b>실패해도 답이 이미 나갔다.</b>
