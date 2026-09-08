@@ -35,6 +35,14 @@ import javax.imageio.ImageIO;
  * 위에 있으면 올랐고 아래면 내렸다. 눈금 숫자가 없어도 방향은 읽힌다. <b>기준선만 점선</b>인
  * 것은 격자와 뜻이 다르기 때문이다 — 격자는 눈이 기대는 자이고 기준선은 값이다.
  *
+ * <p><b>겹이 일곱이다</b> — 격자(가로 5 · 세로는 거래일마다) · 점선 기준선(첫날 값) ·
+ * 그라데이션 메우기 · 선 · 고가·저가 고리 · 날마다 점 · 끝점(점+후광).
+ *
+ * <p>⚠️ <b>그림에 있는 모든 선은 자료에 있는 것이어야 한다.</b> 그것이 이 클래스의 둘째 규칙이고,
+ * 한 번 어겼다. 세로선을 <b>x축 6등분</b>으로 그리던 때가 있었는데 자료점은 열넷(간격 열셋)이라
+ * <b>어느 세로선도 거래일과 맞지 않았다</b> — 그런데 그림은 세로선을 하루로 읽으라고 유도한다.
+ * 지금은 <b>자료점마다</b> 긋는다. 눈이 기댈 자는 그대로 남고, 이제 세로선을 세면 거래일이 세어진다.
+ *
  * <p><b>바탕이 어둡다.</b> 트레이딩뷰 기본 화면과 같은 자리인데, 고른 이유는 흉내가 아니라
  * <b>텔레그램에 실리는 방식</b>이다: 사진은 말풍선 안에 통째로 박히므로 흰 판이면 다크 모드
  * 대화에서 홀로 빛나는 사각형이 된다. 어두운 판은 두 테마 어디에 놓아도 튀지 않는다.
@@ -77,9 +85,22 @@ public final class ChartRenderer {
     static final Color DOWN = new Color(0x42, 0x8E, 0xFF);
     static final Color FLAT = new Color(0x9A, 0xA0, 0xAE);
 
-    /** 격자 칸 수. 가로가 넓으므로 세로선을 더 촘촘히 둔다. */
+    /**
+     * 가로 격자 칸 수 — <b>이것은 값이다.</b> {@link #yOf}가 최저→아래·최고→위로 선형이므로
+     * {@code row}가 0..4면 그 다섯 줄이 <b>기간 최고 · 75% · 50% · 25% · 최저에 정확히</b> 놓인다.
+     * 곧 <b>맨 위 선이 기간 고가이고 맨 아래 선이 기간 저가다</b> — 우연이 아니라 성질이다.
+     *
+     * <p>⚠️ 한동안 javadoc이 「값과는 무관하므로(눈금이 아니다)」라고 적어 두고 있었는데
+     * <b>코드는 그 반대였다.</b> 값이 있는 자를 「값과 무관」이라 적어 두면 다음 사람이 그 줄을
+     * 마음대로 옮긴다. 세로선은 {@link #grid}가 자료점에서 뽑으므로 칸 수 상수가 없다.
+     */
     private static final int ROWS = 4;
-    private static final int COLUMNS = 6;
+
+    /** 날마다 찍는 점의 반지름. 선(2.5px)보다 조금 굵어 표본 자리가 보이되 선을 삼키지 않는다. */
+    private static final double DOT = 2.6;
+
+    /** 기간 고가·저가에 얹는 고리의 반지름. 속이 비어 점과 갈린다. */
+    private static final double RING = 5.5;
 
     private ChartRenderer() {
     }
@@ -110,10 +131,14 @@ public final class ChartRenderer {
             double last = bars.get(bars.size() - 1).close().doubleValue();
             Color line = colorOf(first, last);
 
-            grid(canvas);
+            // 겹 순서가 뜻을 만든다 — 격자는 메우기 **아래**여야 색을 흐리지 않고,
+            // 고리·점은 선 **위**여야 보인다(끝점에 후광을 둔 것과 같은 이유다)
+            grid(canvas, bars.size());
             baseline(canvas, yOf(first, low, high));
             area(canvas, bars, low, high, line);
             polyline(canvas, bars, low, high, line);
+            extremes(canvas, bars, low, high, line);
+            dots(canvas, bars, low, high, line);
             endpoint(canvas, xOf(bars.size() - 1, bars.size()), yOf(last, low, high), line);
         } finally {
             canvas.dispose();
@@ -132,21 +157,26 @@ public final class ChartRenderer {
     }
 
     /**
-     * 눈이 기댈 자 — <b>숫자가 없어도 기울기를 읽게 해 준다.</b>
+     * 눈이 기댈 자 — <b>숫자가 없어도 기울기를 읽게 해 준다.</b> 선 하나만 떠 있으면 얼마나
+     * 가파른지 견줄 것이 없다.
      *
-     * <p>선 하나만 떠 있으면 얼마나 가파른지 견줄 것이 없다. 격자가 그 자를 대신한다.
-     * 값과는 무관하므로(눈금이 아니다) 칸 수를 고정해 둔다 — 값에 맞춰 움직이면 눈금처럼
-     * 보이는데, 숫자가 없으니 <b>읽을 수 없는 눈금</b>이 된다.
+     * <p><b>가로선은 값이다</b>({@link #ROWS}) — 기간 최고·75%·50%·25%·최저에 정확히 놓인다.
+     *
+     * <p><b>세로선은 거래일이다</b> — 자료점 하나에 한 줄이다. 임의로 6등분하던 때는 자료점
+     * 간격(열셋)과 맞지 않아 <b>있지도 않은 날 경계를 그리고 있었다.</b> 자료에서 뽑으면 그 거짓이
+     * 사라지고, 덤으로 <b>선이 꺾인 자리가 표본인지 보간인지</b>가 세로선과 맞춰 보인다.
+     *
+     * @param count 자료점 수. {@link #xOf}가 이 값으로 x를 정하므로 그대로 넘겨받는다
      */
-    private static void grid(Graphics2D canvas) {
+    private static void grid(Graphics2D canvas, int count) {
         canvas.setColor(GRID);
         canvas.setStroke(new BasicStroke(1f));
         for (int row = 0; row <= ROWS; row++) {
             int y = PAD + Math.round((float) row / ROWS * (HEIGHT - 2 * PAD));
             canvas.drawLine(PAD, y, WIDTH - PAD, y);
         }
-        for (int column = 0; column <= COLUMNS; column++) {
-            int x = PAD + Math.round((float) column / COLUMNS * (WIDTH - 2 * PAD));
+        for (int index = 0; index < count; index++) {
+            int x = xOf(index, count);
             canvas.drawLine(x, PAD, x, HEIGHT - PAD);
         }
     }
@@ -190,6 +220,55 @@ public final class ChartRenderer {
             canvas.drawLine(
                     xOf(i - 1, bars.size()), yOf(bars.get(i - 1).close().doubleValue(), low, high),
                     xOf(i, bars.size()), yOf(bars.get(i).close().doubleValue(), low, high));
+        }
+    }
+
+    /**
+     * 날마다 점 하나 — <b>표본이 어디인지 짚는다.</b>
+     *
+     * <p>선만 있으면 꺾인 자리가 실제 거래일인지 그냥 기울기가 바뀐 곳인지 알 수 없다.
+     * 점을 찍으면 열나흘이 몇 점인지 세어지고, 세로 격자선과 맞아떨어지는 것이 눈에 보인다.
+     * <b>선 색을 그대로 쓴다</b> — 새 색을 넣으면 테스트의 「판이 아닌 화소」 분류가 그것을
+     * 선으로 세어 단언이 뜻을 잃는다({@link #BACKGROUND} javadoc).
+     */
+    private static void dots(Graphics2D canvas, List<DailyBar> bars,
+                             double low, double high, Color line) {
+        canvas.setPaint(line);
+        for (int i = 0; i < bars.size(); i++) {
+            double x = xOf(i, bars.size());
+            double y = yOf(bars.get(i).close().doubleValue(), low, high);
+            canvas.fill(new Ellipse2D.Double(x - DOT, y - DOT, DOT * 2, DOT * 2));
+        }
+    }
+
+    /**
+     * 기간 고가·저가에 고리 — <b>극값이 어느 날이었는지 짚는다.</b>
+     *
+     * <p>가로 격자의 맨 위·맨 아래 줄이 이미 그 <b>값</b>을 그리지만, 그 값이 <b>어느 날</b>이었는지는
+     * 선이 그 줄에 닿는 자리를 눈으로 훑어야 알 수 있다. 고리가 그 자리를 짚는다.
+     *
+     * <p>⚠️ <b>같은 값이면 전부 찍는다.</b> 최고값이 두 날에 있으면 두 날 다 고가다 —
+     * 「먼저 온 것 하나」를 고르면 응답 순서가 화면을 정하게 되고, 그건 오늘 배당 쪽에서
+     * {@code Dividend.nextOf}가 물렸던 그 함정이다.
+     *
+     * <p>⚠️ <b>폭이 0이면 아무것도 안 찍는다.</b> 열나흘이 전부 같은 값일 때(스테이블코인)
+     * 어느 한 점을 「고가」라 부르면 그것은 거짓이다 — 그때는 고가도 저가도 없다.
+     */
+    private static void extremes(Graphics2D canvas, List<DailyBar> bars,
+                                 double low, double high, Color line) {
+        if (high - low <= 0) {
+            return;
+        }
+        canvas.setColor(line);
+        canvas.setStroke(new BasicStroke(2f));
+        for (int i = 0; i < bars.size(); i++) {
+            double value = bars.get(i).close().doubleValue();
+            if (value != high && value != low) {
+                continue;
+            }
+            double x = xOf(i, bars.size());
+            double y = yOf(value, low, high);
+            canvas.draw(new Ellipse2D.Double(x - RING, y - RING, RING * 2, RING * 2));
         }
     }
 

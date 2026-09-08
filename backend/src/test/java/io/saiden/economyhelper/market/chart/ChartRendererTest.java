@@ -110,10 +110,155 @@ class ChartRendererTest {
     @Test
     @DisplayName("열나흘을 그려도 가볍다 — 사진이 무거우면 발송이 느려진다")
     void staysSmall() {
-        byte[] png = ChartRenderer.render(
+        byte[] smooth = ChartRenderer.render(
                 bars(100, 102, 99, 105, 110, 108, 115, 120, 118, 125, 130, 128, 135, 140));
+        // ⚠️ **매끈한 계열로만 재면 안 된다.** 진짜 환율은 톱니처럼 오르내리는데, 그 모양이
+        //    면 그라데이션·세로선과 겹쳐 고유 색이 늘어 PNG 압축이 훨씬 덜 먹는다 —
+        //    매끈한 것만 재고 통과시키면 실물에서 두 배가 나온다
+        byte[] zigzag = ChartRenderer.render(
+                bars(1412.20, 1398.50, 1405.80, 1401.17, 1410.40, 1395.10, 1408.90,
+                        1399.60, 1412.50, 1403.30, 1397.80, 1409.10, 1400.20, 1406.60));
 
-        assertThat(png.length).as("실측 3~4KB 급이어야 한다").isLessThan(30_000);
+        // 실측 2026-09-08(세로선·점·고리를 더한 뒤): 매끈 13KB · 지그재그 27KB.
+        // 상한은 「텔레그램에 사진 한 장」 기준으로 넉넉히 둔다 — 27KB는 사진으로 가벼운 쪽이다
+        assertThat(smooth.length).as("매끈한 계열 실측 13KB").isLessThan(40_000);
+        assertThat(zigzag.length).as("지그재그 계열 실측 27KB — 이쪽이 실물에 가깝다")
+                .isLessThan(40_000);
+    }
+
+    @Test
+    @DisplayName("세로선이 거래일과 맞는다 — 임의로 6등분하면 있지도 않은 날 경계를 그린다")
+    void verticalLinesLandOnTradingDays() {
+        // ⚠️ 예전에는 x축을 COLUMNS=6으로 나눠 일곱 줄을 그었다. 자료점은 열넷(간격 열셋)이라
+        //    양 끝 말고는 **어느 세로선도 거래일과 맞지 않았다** — 그런데 그림은 세로선을
+        //    하루로 읽으라고 유도한다. 그림에 있는 선은 자료에 있는 것이어야 한다
+        List<DailyBar> bars = bars(100, 102, 99, 105, 110, 108, 115, 120, 118, 125, 130, 128, 135, 140);
+        BufferedImage image = decode(ChartRenderer.render(bars));
+
+        // ⚠️ 격자색과 **정확히** 같은 화소를 세지 않는다 — 1px 선이 안티앨리어싱되면 두 열에
+        //    반씩 걸려 어느 화소도 그 색이 아니게 된다. 「배경이 아닌 것」의 세로 길이로 본다
+        int between = (xOf(0, bars.size()) + xOf(1, bars.size())) / 2;
+        int onBetween = paintedPixels(image, between);
+        for (int i = 0; i < bars.size(); i++) {
+            int x = xOf(i, bars.size());
+            assertThat(paintedPixels(image, x))
+                    .as("%d번째 거래일(x=%d)에 세로선이 없다", i, x)
+                    .isGreaterThan(onBetween + 100);
+        }
+
+        // 자료점 사이 한가운데에는 세로선이 없어야 한다 — 있으면 그것은 자료가 아니다
+        assertThat(onBetween)
+                .as("자료점이 아닌 x=%d에 세로선이 있다 — 없는 날을 그렸다", between)
+                .isLessThan(60);
+    }
+
+    @Test
+    @DisplayName("날마다 점을 찍는다 — 꺾인 자리가 표본인지 보간인지 보여야 한다")
+    void marksEveryTradingDay() {
+        List<DailyBar> bars = bars(100, 102, 99, 105, 110, 108, 115, 120, 118, 125, 130, 128, 135, 140);
+        BufferedImage image = decode(ChartRenderer.render(bars));
+
+        // 점이 있으면 그 열의 선 색 화소가 이웃 중간 열보다 많다. 가운데 자료점 하나로 본다
+        // (양 끝은 끝점 강조·여백 때문에 뜻이 섞인다)
+        int middle = bars.size() / 2;
+        int onPoint = drawnPixels(image, xOf(middle, bars.size()));
+        int offPoint = drawnPixels(image,
+                (xOf(middle, bars.size()) + xOf(middle + 1, bars.size())) / 2);
+
+        // 실측: 점이 있으면 6, 그 사이는 3이다. 점을 지우면 꼭짓점이 굵어지는 만큼(+1 안팎)만
+        // 남으므로 「크다」만으로는 약하다 — 둘 이상 차이를 요구한다
+        assertThat(onPoint).as("표본 자리(%d)가 그 사이(%d)보다 뚜렷이 굵어야 점이 있는 것이다",
+                        onPoint, offPoint)
+                .isGreaterThanOrEqualTo(offPoint + 2);
+    }
+
+    @Test
+    @DisplayName("기간 고가·저가에 고리를 얹는다 — 극값이 어느 날이었는지 짚는다")
+    void ringsTheWindowHighAndLow() {
+        // 최고는 마지막(140), 최저는 세 번째(99)
+        List<DailyBar> bars = bars(100, 102, 99, 105, 110, 108, 115, 120, 118, 125, 130, 128, 135, 140);
+        BufferedImage image = decode(ChartRenderer.render(bars));
+
+        int lowIndex = 2;
+        int onLow = drawnPixels(image, xOf(lowIndex, bars.size()));
+        int onPlain = drawnPixels(image, xOf(1, bars.size()));
+
+        // 실측: 고리가 얹힌 저가 자리가 12, 평범한 날이 6이다
+        assertThat(onLow).as("저가 자리(%d)는 고리가 얹혀 평범한 날(%d)보다 굵어야 한다",
+                        onLow, onPlain)
+                .isGreaterThanOrEqualTo(onPlain + 4);
+    }
+
+    @Test
+    @DisplayName("같은 값이 두 날이면 고리도 둘 — 응답 순서가 화면을 정하면 안 된다")
+    void ringsEveryTiedExtreme() {
+        // 최저 99가 둘째와 여섯째에 있다. 「먼저 온 것 하나」만 찍으면 뒤엣것이 빈다
+        List<DailyBar> bars = bars(100, 99, 105, 110, 108, 99, 115, 120, 118, 125, 130, 128, 135, 140);
+        BufferedImage image = decode(ChartRenderer.render(bars));
+
+        int plain = drawnPixels(image, xOf(2, bars.size()));
+
+        assertThat(drawnPixels(image, xOf(1, bars.size())))
+                .as("첫째 최저에 고리가 없다").isGreaterThan(plain);
+        assertThat(drawnPixels(image, xOf(5, bars.size())))
+                .as("둘째 최저에 고리가 없다 — 동점을 순서로 가른 것이다").isGreaterThan(plain);
+    }
+
+    @Test
+    @DisplayName("평평한 계열에는 고가·저가 고리가 없다 — 다 같으면 극값이 없다")
+    void drawsNoRingsWhenNothingMoved() {
+        List<DailyBar> flat = bars(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1);
+        BufferedImage image = decode(ChartRenderer.render(flat));
+
+        // 고리(반지름 5.5)가 얹히면 그 열의 그려진 화소가 선+점(둘 다 y=120 근처)보다 뚜렷이 는다
+        int drawn = drawnPixels(image, xOf(3, flat.size()));
+
+        // 실측: 선+점만이면 4다. 고리가 얹히면 오르는 계열에서처럼 6쯤 늘어 10을 넘는다
+        assertThat(drawn)
+                .as("어느 한 점을 「고가」라 부르면 거짓이다 — 고리는 안 얹는다. 실측 %d", drawn)
+                .isLessThanOrEqualTo(8);
+    }
+
+    /** {@code ChartRenderer.xOf}와 같은 셈 — 자료점의 x. 렌더러의 것은 private이라 여기서 다시 센다. */
+    private static int xOf(int index, int count) {
+        int pad = 18;
+        int width = 640;
+        return pad + (int) Math.round((double) index / (count - 1) * (width - 2 * pad));
+    }
+
+    /** 그 세로줄에서 배경이 아닌 화소 수 — <b>세로 격자선이 거기 있나</b>를 본다(격자색과 정확히 같지 않아도 잡힌다). */
+    private static int paintedPixels(BufferedImage image, int x) {
+        int count = 0;
+        for (int y = 0; y < image.getHeight(); y++) {
+            if ((image.getRGB(x, y) & 0xFFFFFF) != (ChartRenderer.BACKGROUND.getRGB() & 0xFFFFFF)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /**
+     * 그 세로줄에서 <b>우리가 그린 것</b>의 화소 수 — 선·점·고리다.
+     *
+     * <p>⚠️ <b>「판이 아닌 것」으로 세면 안 된다.</b> 세로 격자선이 안티앨리어싱되면 격자색과
+     * 정확히 같지 않아 판에서 빠지고, 그 200여 화소가 점·고리 신호를 통째로 삼킨다 —
+     * 처음에 그렇게 써서 <b>테스트 둘이 엉뚱한 이유로 통과했다.</b> 그래서 색으로 가른다:
+     * 오름·내림은 붉거나 푸르고(채널 차), 평평은 밝은 회색이다(기준선보다 밝다).
+     */
+    private static int drawnPixels(BufferedImage image, int x) {
+        int count = 0;
+        for (int y = 0; y < image.getHeight(); y++) {
+            int rgb = image.getRGB(x, y) & 0xFFFFFF;
+            int red = (rgb >> 16) & 0xFF;
+            int green = (rgb >> 8) & 0xFF;
+            int blue = rgb & 0xFF;
+            boolean hued = Math.abs(red - blue) > 40;
+            boolean brighterThanBaseline = red + green + blue > 0x1A0;
+            if (hued || brighterThanBaseline) {
+                count++;
+            }
+        }
+        return count;
     }
 
     /**
