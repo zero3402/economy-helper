@@ -184,32 +184,40 @@ class RenderedOutputTest {
         //    **같은 환율**로 환산한다. 값은 실측 NVDA(2026-09-07)의 것이다
         cases.put("stock/outlook-with-dividend", usWithOutlook(
                 new StockOutlook(java.time.LocalDate.of(2026, 10, 29), new BigDecimal("340.72"),
-                        new StockOutlook.Dividend(java.time.LocalDate.of(2026, 9, 10),
+                        StockOutlook.Dividend.row(java.time.LocalDate.of(2026, 9, 10),
                                 java.time.LocalDate.of(2026, 10, 1), new BigDecimal("0.25")),
                         StockSource.FMP, US_AT)));
         // 기준일은 지났고 지급일만 남은 분기 — 있는 줄만 적는다
         cases.put("stock/outlook-dividend-pay-only", usWithOutlook(
                 new StockOutlook(null, null,
-                        new StockOutlook.Dividend(null, java.time.LocalDate.of(2026, 10, 1),
+                        StockOutlook.Dividend.row(null, java.time.LocalDate.of(2026, 10, 1),
                                 new BigDecimal("0.25")),
                         StockSource.FMP, US_AT)));
         // 환율이 없으면 배당금도 달러만 — 목표가와 같은 규칙이다
         cases.put("stock/outlook-dividend-without-fx", usWithOutlook(
                 new StockOutlook(null, null,
-                        new StockOutlook.Dividend(java.time.LocalDate.of(2026, 9, 10),
+                        StockOutlook.Dividend.row(java.time.LocalDate.of(2026, 9, 10),
                                 java.time.LocalDate.of(2026, 10, 1), new BigDecimal("0.25")),
                         StockSource.FMP, US_AT), null));
         // 국내 — 예탁원 배당일정. 이름표에 (미국)이 없고 이미 원화라 환산 줄도 없다.
         // 값은 실측 SK하이닉스(2026-09-08: 기준일 08-31은 지났고 지급일 09-30 · 375원)의 것이다
         cases.put("stock/with-dividend", withOutlook(
                 new StockOutlook(null, new BigDecimal("466667"),
-                        new StockOutlook.Dividend(null, java.time.LocalDate.of(2026, 9, 30),
+                        StockOutlook.Dividend.row(null, java.time.LocalDate.of(2026, 9, 30),
                                 new BigDecimal("375")),
+                        StockSource.KIS, BASIS)));
+        // ⚠️ 앞으로 올 배당이 없으면 **지난 건**을 들고 이름표가 그렇게 말한다.
+        //    「앞으로 올 것만」으로 뒀더니 배당을 주는 종목이 분기마다 몇 주씩 빈칸이었다 —
+        //    실측 2026-09-08 삼성전자가 이 모양이다(기준일 6/30·지급 8/28 뒤로 다음 기준일이 아직 없다)
+        cases.put("stock/with-past-dividend", withOutlook(
+                new StockOutlook(null, new BigDecimal("496136"),
+                        new StockOutlook.Dividend(java.time.LocalDate.of(2026, 6, 30),
+                                java.time.LocalDate.of(2026, 8, 28), new BigDecimal("374"), true),
                         StockSource.KIS, BASIS)));
         // 국내 — 기준일만 잡히고 배당금·지급일은 아직 안 정해진 분기. 0은 값이 아니라 그 줄이 없다
         cases.put("stock/with-dividend-record-only", withOutlook(
                 new StockOutlook(null, null,
-                        new StockOutlook.Dividend(java.time.LocalDate.of(2026, 9, 30), null, null),
+                        StockOutlook.Dividend.row(java.time.LocalDate.of(2026, 9, 30), null, null),
                         StockSource.KIS, BASIS)));
         // 차트 사진의 설명 — **그림에 없는 낱말이 전부 여기 있다.** 그림은 골든이 못 보지만
         // caption은 본다. 그림에 글자를 안 넣기로 한 대가로 이 줄들이 화면 회귀 그물에 남는다

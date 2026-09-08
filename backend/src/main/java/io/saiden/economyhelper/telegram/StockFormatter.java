@@ -264,17 +264,20 @@ public final class StockFormatter {
         if (dividend == null) {
             return;
         }
-        // 필드마다 따로 본다 — 기준일은 지났고 지급일만 남은 분기, 기준일만 잡히고 배당금이 미정인 분기가 흔하다
+        // 필드마다 따로 본다 — 기준일은 지났고 지급일만 남은 분기, 기준일만 잡히고 배당금이 미정인 분기가 흔하다.
+        // ⚠️ 지난 배당을 든 경우에는 이름표가 그렇게 말한다 — 그것이 「지난 것을 다음이라 부르지 않는다」를
+        //    지키는 방법이다. 앞으로 올 것이 없을 때 빈칸을 내보내는 쪽이 더 나쁘다(신고받은 자리다)
+        String when = dividend.past() ? "지난 " : "";
         if (dividend.recordDate() != null) {
-            message.append(labelled("배당기준일" + calendarTag(quote)))
+            message.append(labelled(when + "배당기준일" + calendarTag(quote)))
                     .append(DATE.format(dividend.recordDate()));
         }
         if (dividend.payDate() != null) {
-            message.append(labelled("배당지급일" + calendarTag(quote)))
+            message.append(labelled(when + "배당지급일" + calendarTag(quote)))
                     .append(DATE.format(dividend.payDate()));
         }
         if (dividend.amount() != null) {
-            message.append(labelled("배당금")).append(unitOf(quote, dividend.amount()));
+            message.append(labelled(when + "배당금")).append(unitOf(quote, dividend.amount()));
             if (convertible(quote, fx)) {
                 message.append("\n").append(money(krw(dividend.amount(), fx))).append(" KRW");
             }

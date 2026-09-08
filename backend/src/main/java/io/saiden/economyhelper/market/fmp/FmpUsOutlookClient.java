@@ -248,7 +248,7 @@ public class FmpUsOutlookClient implements UsOutlookClient {
         }
         return Dividend.nextOf(rows.stream()
                 .filter(Objects::nonNull)
-                .map(row -> new Dividend(row.recordDate(), row.paymentDate(), row.dividend()))
+                .map(row -> Dividend.row(row.recordDate(), row.paymentDate(), row.dividend()))
                 .toList(), today);
     }
 

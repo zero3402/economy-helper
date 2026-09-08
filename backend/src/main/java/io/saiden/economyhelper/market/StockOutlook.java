@@ -64,47 +64,75 @@ public record StockOutlook(LocalDate earningsDate, BigDecimal targetPrice, Divid
      * @param recordDate 배당기준일 — 이날 주주명부에 올라 있어야 받는다. 그 시장의 달력이다
      * @param payDate    배당금 지급일
      * @param amount     주당 배당금. 통화는 {@link StockQuote#currency()}를 따른다. {@code 0}은 값이 아니다
+     * @param past       <b>이미 지난 배당인가.</b> 앞으로 올 것이 없어 <b>가장 최근에 끝난</b> 건을
+     *                   대신 든 경우다 — 화면이 이름표에 그렇게 적어야 한다. 출처가 준 <b>행</b>을
+     *                   담을 때는 뜻이 없으므로 {@link #row}가 거짓을 넣는다
      */
-    public record Dividend(LocalDate recordDate, LocalDate payDate, BigDecimal amount) {
+    public record Dividend(LocalDate recordDate, LocalDate payDate, BigDecimal amount,
+                           boolean past) {
+
+        /** 출처가 준 행 하나 — 「지났나」는 {@link #nextOf}가 고를 때 정한다. */
+        public static Dividend row(LocalDate recordDate, LocalDate payDate, BigDecimal amount) {
+            return new Dividend(recordDate, payDate, amount, false);
+        }
 
         /**
-         * 다음 배당 <b>한 건</b> — <b>가장 가까운 사건</b>이다.
+         * 배당 <b>한 건</b> — <b>앞으로 올 가장 가까운 사건</b>, 없으면 <b>가장 최근에 끝난 건</b>.
          *
          * <p>행마다 「앞으로 올 날짜 중 이른 것」을 사건 시각으로 잡고 그 최솟값을 고른다.
          * 지난 날짜는 그 칸만 비우므로, 기준일이 지난 건은 <b>지급일이 사건 시각</b>이 된다.
          *
+         * <p>⚠️ <b>앞으로 올 것이 없으면 빈손으로 두지 않는다 — 지난 건을 든다.</b>
+         * 「앞으로 올 것만」으로 뒀더니 <b>배당을 주는 종목이 분기마다 몇 주씩 빈칸</b>이었다:
+         * 실측(2026-09-08) 삼성전자는 예탁원이 준 행이 기준일 {@code 20260630} · 지급
+         * {@code 2026/08/28}까지뿐이고 <b>다음 기준일을 아직 안 올렸다</b>(앞으로 180일을 물어도
+         * 0행이다). 그래서 8/28이 지난 뒤로는 화면에 배당이 통째로 없었다 — 신고받은 그 자리다.
+         * 지난 건은 <b>{@link #past}가 참</b>이고 화면이 이름표에 그렇게 적는다: 지난 것을
+         * 「다음」이라 부르지 않는다는 규칙은 <b>이름표로</b> 지킨다.
+         *
          * <p>⚠️ <b>세 줄이 한 사건에서 나와야 한다.</b> 기준일과 지급일을 각각 「가장 이른 앞날」로
-         * 따로 고르면 <b>서로 다른 분기의 날짜가 한 블록에 선다</b> — 이번 분기 기준일(9/30)과 지난
-         * 분기 지급일(8/28)이 함께 잡히면 화면이 「기준일 9/30 · 지급일 8/28」이 되어 <b>지급이
-         * 기준일에 앞서는</b>, 있을 수 없는 통이 된다. 날씨의 「한 블록의 강수 값은 한 예보에서
-         * 나온다」와 같은 자리다.
+         * 따로 고르면 서로 다른 분기의 날짜가 한 블록에 서서 <b>지급이 기준일에 앞선다.</b>
          *
-         * <p>⚠️ <b>「앞으로 올 기준일 우선」이 아니다 — 그렇게 썼다가 고쳤다.</b> 기준일이 있는 건을
-         * 무조건 앞세우면 <b>가까운 확정 건이 먼 미확정 건에 가려진다</b>: 창 안에
-         * {@code (기준 06-30, 지급 09-30, 375원)}과 {@code (기준 12-31, 지급 미정)}이 있을 때
-         * 12-31 한 줄만 나가고 <b>22일 뒤 들어올 375원이 사라졌다.</b> 그리고 국내는 앞으로 180일을
-         * 보므로 <b>매년 하반기에 늘 그 모양이 된다</b>(문서가 근거로 든 실측 화면이 그때부터 틀린다).
+         * <p>⚠️ <b>「앞으로 올 기준일 우선」이 아니다.</b> 기준일이 있는 건을 무조건 앞세우면
+         * 가까운 확정 건이 먼 미확정 건에 가려진다(창 안에 미래 기준일이 늘 있는 하반기에 특히).
          *
-         * <p>⚠️ <b>동점은 응답 순서로 가르지 않는다.</b> {@code min}은 비길 때 먼저 온 것을 주는데,
-         * 기준일이 같은 두 행(하나는 예비 — 지급일 공백·배당금 {@code 0})이 오면 <b>순서만 바뀌어도
-         * 화면이 달라진다.</b> 그래서 <b>더 채워진 행</b>을 고른다 — 「첫 행을 그냥 집지 않는다」가
-         * 이 자리에서도 지켜져야 한다.
-         *
-         * <p>배당금 {@code 0}·{@code null}은 「아직 안 정해졌다」이므로 그 줄만 빠진다.
+         * <p>⚠️ <b>동점은 응답 순서로 가르지 않는다</b> — <b>더 채워진 행</b>이 이긴다.
          *
          * @param rows  출처가 준 행들. 필드가 비어 있어도 되고 {@code null} 원소가 있어도 된다
          * @param today 그 시장의 오늘. 오늘은 아직 「앞날」이다
-         * @return 앞으로 올 날짜가 하나도 없으면 {@code null} — 화면이 그 블록을 통째로 안 적는다
+         * @return 날짜가 하나도 없으면 {@code null} — 화면이 그 블록을 통째로 안 적는다
          */
         public static Dividend nextOf(List<Dividend> rows, LocalDate today) {
-            return rows.stream()
-                    .filter(Objects::nonNull)
+            List<Dividend> clean = rows.stream().filter(Objects::nonNull).toList();
+            Dividend upcoming = clean.stream()
                     .map(row -> new Dividend(upcomingOrNull(row.recordDate(), today),
-                            upcomingOrNull(row.payDate(), today), positive(row.amount())))
+                            upcomingOrNull(row.payDate(), today), positive(row.amount()), false))
                     .filter(row -> row.soonest() != null)
                     .min(Comparator.comparing(Dividend::soonest)
                             .thenComparing(Comparator.comparingInt(Dividend::filled).reversed()))
                     .orElse(null);
+            if (upcoming != null) {
+                return upcoming;
+            }
+            // 앞으로 올 것이 없다 — 가장 최근에 끝난 건을 든다. 날짜를 비우지 않으므로 셋이 다 나온다
+            return clean.stream()
+                    .map(row -> new Dividend(row.recordDate(), row.payDate(),
+                            positive(row.amount()), true))
+                    .filter(row -> row.latest() != null)
+                    .max(Comparator.comparing(Dividend::latest)
+                            .thenComparing(Comparator.comparingInt(Dividend::filled)))
+                    .orElse(null);
+        }
+
+        /** 이 건이 끝난 시각 — 든 날짜 중 늦은 것. 지난 건들 중 「가장 최근」을 고르는 열쇠다. */
+        private LocalDate latest() {
+            if (recordDate == null) {
+                return payDate;
+            }
+            if (payDate == null) {
+                return recordDate;
+            }
+            return recordDate.isAfter(payDate) ? recordDate : payDate;
         }
 
         /** 이 건의 사건 시각 — 남은 날짜 중 이른 것. 둘 다 지났으면 {@code null}이라 고를 대상이 아니다. */

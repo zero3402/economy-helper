@@ -21,7 +21,7 @@ class StockOutlookTest {
     private static final LocalDate TODAY = LocalDate.of(2026, 9, 7);
 
     private static Dividend row(String record, String pay, String amount) {
-        return new Dividend(record == null ? null : LocalDate.parse(record),
+        return Dividend.row(record == null ? null : LocalDate.parse(record),
                 pay == null ? null : LocalDate.parse(pay),
                 amount == null ? null : new BigDecimal(amount));
     }
@@ -104,17 +104,19 @@ class StockOutlookTest {
     }
 
     @Test
-    @DisplayName("지난 날짜는 그 칸만 빠진다 — 남은 것이 없으면 블록이 통째로 없다")
-    void pastDatesOnlyDropTheirOwnLine() {
-        assertThat(Dividend.nextOf(List.of(
-                row("2026-09-30", null, "0"),
-                row("2026-06-30", "2026-08-28", "374")), LocalDate.of(2026, 10, 1)))
-                .as("9/30 기준일도 8/28 지급도 지났으면 남은 것이 없다").isNull();
-
+    @DisplayName("앞으로 올 건에서는 지난 날짜가 그 칸만 빠진다 — 지난 건을 들 때는 안 빠진다")
+    void pastDatesOnlyDropTheirOwnLineWhileSomethingIsUpcoming() {
         assertThat(Dividend.nextOf(List.of(
                 row("2026-06-30", "2026-08-28", "374")), LocalDate.of(2026, 8, 10)))
                 .as("기준일 6/30은 지났고 지급 8/28만 남았다 — 기준일 줄은 빠진다")
                 .isEqualTo(row(null, "2026-08-28", "374"));
+
+        // 둘 다 지나면 그 건을 **지난 배당**으로 든다 — 이때는 날짜를 비우지 않는다.
+        // 비우면 셋이 다 null이 되어 배당을 주는 종목이 빈칸이 된다
+        assertThat(Dividend.nextOf(List.of(
+                row("2026-09-30", null, "0"),
+                row("2026-06-30", "2026-08-28", "374")), LocalDate.of(2026, 10, 1)))
+                .isEqualTo(new Dividend(LocalDate.of(2026, 9, 30), null, null, true));
     }
 
     @Test
@@ -128,12 +130,48 @@ class StockOutlookTest {
     }
 
     @Test
-    @DisplayName("전부 지났으면 null — 실측 AAPL(2026-09-07)이 이 모양이다: 다음 배당이 미선언이다")
-    void nullWhenEverythingHasPassed() {
-        assertThat(Dividend.nextOf(List.of(
-                row("2026-08-10", "2026-08-13", "0.27"),
-                row("2026-05-11", "2026-05-14", "0.27")), TODAY)).isNull();
+    @DisplayName("앞으로 올 것이 없으면 가장 최근에 끝난 건을 든다 — 빈칸을 내보내지 않는다")
+    void fallsBackToTheLastCompletedDividend() {
+        // ⚠️ 신고받은 자리다. 「앞으로 올 것만」으로 뒀더니 배당을 주는 종목이 분기마다 몇 주씩
+        //    빈칸이었다 — 실측 2026-09-08 삼성전자가 기준일 20260630·지급 2026/08/28까지뿐이고
+        //    다음 기준일을 예탁원이 아직 안 올렸다(앞으로 180일을 물어도 0행이다)
+        Dividend last = Dividend.nextOf(List.of(
+                row("2026-06-30", "2026-08-28", "374"),
+                row("2026-03-31", "2026-05-29", "372")), TODAY);
+
+        assertThat(last).isEqualTo(new Dividend(LocalDate.of(2026, 6, 30),
+                LocalDate.of(2026, 8, 28), new java.math.BigDecimal("374"), true));
+        assertThat(last.past()).as("화면이 이름표에 「지난」을 붙이는 열쇠다").isTrue();
+    }
+
+    @Test
+    @DisplayName("지난 건 중에서도 가장 최근을 든다 — 응답 순서가 아니라 날짜로 고른다")
+    void picksTheMostRecentAmongThePast() {
+        Dividend last = Dividend.nextOf(List.of(
+                row("2026-03-31", "2026-05-29", "372"),
+                row("2026-06-30", "2026-08-28", "374"),
+                row("2025-12-31", "2026-04-17", "566")), TODAY);
+
+        assertThat(last.payDate()).isEqualTo(LocalDate.of(2026, 8, 28));
+        assertThat(last.amount()).isEqualByComparingTo(new java.math.BigDecimal("374"));
+    }
+
+    @Test
+    @DisplayName("앞으로 올 것이 있으면 지난 것을 쳐다보지 않는다 — 지난 것은 마지막 수단이다")
+    void prefersTheUpcomingOverThePast() {
+        Dividend next = Dividend.nextOf(List.of(
+                row("2026-06-30", "2026-08-28", "374"),
+                row("2026-09-30", null, "0")), TODAY);
+
+        assertThat(next).isEqualTo(new Dividend(LocalDate.of(2026, 9, 30), null, null, false));
+        assertThat(next.past()).isFalse();
+    }
+
+    @Test
+    @DisplayName("행이 아예 없으면 null — 배당을 안 주는 종목이다")
+    void nullWhenThereIsNothingAtAll() {
         assertThat(Dividend.nextOf(List.of(), TODAY)).isNull();
+        assertThat(Dividend.nextOf(List.of(row(null, null, null)), TODAY)).isNull();
     }
 
     @Test

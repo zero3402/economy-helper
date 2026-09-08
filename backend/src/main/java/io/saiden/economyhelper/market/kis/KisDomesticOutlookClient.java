@@ -358,7 +358,7 @@ public class KisDomesticOutlookClient implements DomesticOutlookClient {
         }
         return response.output1().stream()
                 .filter(Objects::nonNull)
-                .map(row -> new Dividend(
+                .map(row -> Dividend.row(
                         date(row.recordDate(), COMPACT, "record_date"),
                         date(row.payDate(), SLASHED, "divi_pay_dt"),
                         number(row.amount())))

@@ -171,7 +171,7 @@ class KisDomesticOutlookClientTest extends WireMockTest {
         StockOutlook outlook = client.outlook("005930", false);
 
         assertThat(outlook.dividend())
-                .isEqualTo(new StockOutlook.Dividend(null, LocalDate.of(2026, 8, 28), new BigDecimal("374")));
+                .isEqualTo(StockOutlook.Dividend.row(null, LocalDate.of(2026, 8, 28), new BigDecimal("374")));
     }
 
     @Test
@@ -186,7 +186,7 @@ class KisDomesticOutlookClientTest extends WireMockTest {
                    "per_sto_divi_amt":"0","divi_pay_dt":"","stk_div_pay_dt":"","odd_pay_dt":"","stk_kind":"보통"}]}""");
 
         assertThat(client.outlook("005930", false).dividend())
-                .isEqualTo(new StockOutlook.Dividend(LocalDate.of(2026, 9, 30), null, null));
+                .isEqualTo(StockOutlook.Dividend.row(LocalDate.of(2026, 9, 30), null, null));
     }
 
     @Test
@@ -234,7 +234,7 @@ class KisDomesticOutlookClientTest extends WireMockTest {
 
         assertThat(outlook.dividend())
                 .as("기준일은 읽혔고 어긋난 지급일·배당금만 빠진다")
-                .isEqualTo(new StockOutlook.Dividend(LocalDate.of(2026, 9, 30), null, null));
+                .isEqualTo(StockOutlook.Dividend.row(LocalDate.of(2026, 9, 30), null, null));
     }
 
     @Test
@@ -247,7 +247,7 @@ class KisDomesticOutlookClientTest extends WireMockTest {
                   {"record_date":"20260930","divi_pay_dt":"2026/11/19","per_sto_divi_amt":"374"}]}""");
 
         assertThat(client.outlook("005930", false).dividend())
-                .isEqualTo(new StockOutlook.Dividend(LocalDate.of(2026, 9, 30),
+                .isEqualTo(StockOutlook.Dividend.row(LocalDate.of(2026, 9, 30),
                         LocalDate.of(2026, 11, 19), new BigDecimal("374")));
     }
 
@@ -349,7 +349,7 @@ class KisDomesticOutlookClientTest extends WireMockTest {
         StockOutlook outlook = client.outlook("069500", true);
 
         assertThat(outlook.dividend())
-                .isEqualTo(new StockOutlook.Dividend(LocalDate.of(2026, 10, 31),
+                .isEqualTo(StockOutlook.Dividend.row(LocalDate.of(2026, 10, 31),
                         LocalDate.of(2026, 11, 4), new BigDecimal("183")));
         assertThat(outlook.targetPrice()).isNull();
         server.verify(0, getRequestedFor(urlPathEqualTo(OPINION)));

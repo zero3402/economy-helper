@@ -124,7 +124,7 @@ class CacheConfigTest {
         io.saiden.economyhelper.market.StockOutlook original =
                 new io.saiden.economyhelper.market.StockOutlook(
                         java.time.LocalDate.of(2026, 10, 29), new java.math.BigDecimal("340.72"),
-                        new io.saiden.economyhelper.market.StockOutlook.Dividend(
+                        io.saiden.economyhelper.market.StockOutlook.Dividend.row(
                                 java.time.LocalDate.of(2026, 9, 10),
                                 java.time.LocalDate.of(2026, 10, 1),
                                 new java.math.BigDecimal("0.25")),

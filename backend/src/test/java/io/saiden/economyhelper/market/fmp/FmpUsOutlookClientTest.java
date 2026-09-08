@@ -283,19 +283,23 @@ class FmpUsOutlookClientTest extends WireMockTest {
         assertThat(outlook.dividend())
                 .as("기준일은 recordDate(09-10)이고 락일(date, 09-09)이 아니다. "
                         + "금액은 dividend(0.25)이고 조정치(adjDividend, 0.99)가 아니다")
-                .isEqualTo(new StockOutlook.Dividend(LocalDate.of(2026, 9, 10), LocalDate.of(2026, 10, 1),
+                .isEqualTo(StockOutlook.Dividend.row(LocalDate.of(2026, 9, 10), LocalDate.of(2026, 10, 1),
                         new BigDecimal("0.25")));
     }
 
     @Test
-    @DisplayName("배당이 전부 지났으면 배당 블록이 없다 — 실측 AAPL(2026-09-07)이 이 모양이다")
-    void omitsTheDividendWhenEveryDateIsPast() {
+    @DisplayName("배당이 전부 지났으면 지난 배당을 든다 — 미국도 국내와 같은 규칙이다")
+    void fallsBackToTheLastDividendWhenEveryDateIsPast() {
+        // 실측 AAPL(2026-09-07): 마지막 배당이 기준일 08-10·지급 08-13이고 다음이 미선언이다.
+        // 「앞으로 올 것만」으로 뒀더니 배당을 주는 종목이 빈칸이었다 — 이름표가 「지난」을 든다
         stubAll();
 
         StockOutlook outlook = client(Instant.parse("2026-09-07T12:00:00Z")).outlook("AAPL");
 
-        assertThat(outlook.dividend()).as("다음 배당이 미선언이다 — 지난 배당을 「다음」이라 적지 않는다").isNull();
-        assertThat(outlook.targetPrice()).as("배당이 없다고 나머지가 빠지면 안 된다").isNotNull();
+        assertThat(outlook.dividend()).isEqualTo(new StockOutlook.Dividend(
+                LocalDate.of(2026, 8, 10), LocalDate.of(2026, 8, 13),
+                new BigDecimal("0.27"), true));
+        assertThat(outlook.targetPrice()).as("배당과 나머지는 따로 논다").isNotNull();
     }
 
     @Test
@@ -307,7 +311,7 @@ class FmpUsOutlookClientTest extends WireMockTest {
         StockOutlook outlook = client(Instant.parse("2026-09-20T12:00:00Z")).outlook("NVDA");
 
         assertThat(outlook.dividend())
-                .isEqualTo(new StockOutlook.Dividend(null, LocalDate.of(2026, 10, 1), new BigDecimal("0.25")));
+                .isEqualTo(StockOutlook.Dividend.row(null, LocalDate.of(2026, 10, 1), new BigDecimal("0.25")));
     }
 
     @Test
@@ -334,7 +338,7 @@ class FmpUsOutlookClientTest extends WireMockTest {
         StockOutlook outlook = client(Instant.parse("2026-09-07T12:00:00Z")).outlook("X");
 
         assertThat(outlook.dividend())
-                .isEqualTo(new StockOutlook.Dividend(LocalDate.of(2026, 9, 10), LocalDate.of(2026, 10, 1), null));
+                .isEqualTo(StockOutlook.Dividend.row(LocalDate.of(2026, 9, 10), LocalDate.of(2026, 10, 1), null));
     }
 
     @Test
