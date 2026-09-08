@@ -172,6 +172,9 @@ public class FmpUsOutlookClient implements UsOutlookClient {
             //    「빈 답도 값이라 담는다」가 이 자리에서만 안 지켜지고 있었다(변경 이전부터).
             //    다시 될 여지가 있는 실패가 하나라도 섞였으면 던진다 — 담을 「값」이 아니기 때문이다.
             if (everyLegPermanentlyBlocked(target, schedule, dividends)) {
+                // 이 한 줄이 「그래서 내 한도를 계속 태우나」에 답한다 — 담으므로 안 태운다
+                log.info("[fmp] '{}' 전망이 없는 심볼입니다 — 빈 값을 담아 12시간 동안 다시 묻지 않습니다",
+                        symbol);
                 return StockOutlook.none(StockSource.FMP, clock.instant());
             }
             throw new IllegalStateException("FMP 전망 조회 실패 (" + symbol + ")");
@@ -286,7 +289,17 @@ public class FmpUsOutlookClient implements UsOutlookClient {
             //    FailureReason은 상태 코드와 예외 이름만 주므로 키가 새지 않는다.
             //    예외 **객체**는 들고 있되(영구·일시를 가르려면 상태 코드가 필요하다)
             //    밖으로 나가는 메시지에는 그 객체를 얹지 않는다
-            log.info("[fmp] '{}' {} 조회 실패: {}", symbol, path, FailureReason.of(e));
+            //
+            // ⚠️ **영구와 일시를 로그가 갈라 말해야 한다.** 「조회 실패: HTTP 402」라고만 적던 동안
+            //    허용목록 밖 심볼(JEPI·SCHD)의 줄이 **고칠 것처럼 읽혀** 신고가 들어왔다 —
+            //    그건 요금제가 그 심볼을 안 주는 것이고 다시 물어도 같다. FmpApi가 시세 쪽에서
+            //    같은 구분을 이미 하고 있었는데(planBlocked) 이 로그만 안 하고 있었다
+            if (FmpApi.planBlocked(e)) {
+                log.info("[fmp] '{}' {} — 요금제가 이 심볼을 안 줍니다(다시 물어도 같습니다)",
+                        symbol, path);
+            } else {
+                log.info("[fmp] '{}' {} 조회 실패: {}", symbol, path, FailureReason.of(e));
+            }
             return new Fetched<>(null, e, true);
         }
     }
