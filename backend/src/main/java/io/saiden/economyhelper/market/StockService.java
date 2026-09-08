@@ -312,7 +312,7 @@ public class StockService {
      */
     private Optional<Answer> byListing(String name) {
         try {
-            return listings.find(name).flatMap(listing -> stockAnswer(listing.code(), !listing.fund()));
+            return listings.find(name).flatMap(listing -> stockAnswer(listing.code(), listing.fund()));
         } catch (RuntimeException e) {
             log.warn("[stock] '{}' 색인 검색 실패 — 공공데이터포털로 넘어갑니다: {}", name, FailureReason.of(e));
             return Optional.empty();
@@ -356,17 +356,18 @@ public class StockService {
     /**
      * 미국 심볼을 이미 아는 경우 — 아침 브리핑의 나스닥·S&amp;P500·시총 상위가 여기로 온다.
      *
-     * <p><b>시세만 받던 자리였다.</b> 그래서 목표주가·실적발표일이 {@code /stock} 검색에만
+     * <p><b>시세만 받던 자리였다.</b> 그래서 목표주가·실적발표일·배당이 {@code /stock} 검색에만
      * 나오고 브리핑에는 없었는데, 요청은 「검색 <b>및 알림</b> 때 보여 준다」였다. 지수는
      * {@link #withUsOutlook}이 알아서 걸러내므로 심볼 목록을 나눠 둘 필요가 없다.
      *
-     * <p>대가는 FMP 호출이다 — 브리핑의 미국 <b>종목</b> 수 × <b>2회</b>
-     * ({@code price-target-consensus}·{@code earnings}). 실측 설정은 둘(엔비디아·애플)이라
-     * 하루 4회이고 한도가 250회다. 12시간 캐시라 그 사이 검색은 호출을 나눠 쓴다.
+     * <p>대가는 FMP 호출이다 — 브리핑의 미국 <b>종목</b> 수 × <b>3회</b>
+     * ({@code price-target-consensus}·{@code earnings}·{@code dividends}). 실측 설정은
+     * 둘(엔비디아·애플)이라 하루 6회이고 한도가 250회다. 12시간 캐시라 그 사이 검색은
+     * 호출을 나눠 쓴다.
      *
-     * <p>⚠️ <b>셋이었다가 둘로 줄었다</b> — 투자의견을 화면에서 걷어내면서
-     * {@code grades-consensus} 호출도 함께 지웠다({@code FmpUsOutlookClient} 참고).
-     * 이 문단이 한동안 「× 3회 · 하루 6회」로 남아 있었다.
+     * <p>⚠️ <b>셋 → 둘 → 셋이다.</b> 처음 셋째는 {@code grades-consensus}(투자의견)였고 화면에서
+     * 그 줄을 걷어내면서 호출도 함께 지웠는데, 배당이 그 자리에 왔다. 이 문단이 개수를 적는 자리라
+     * <b>고칠 때 함께 고쳐야 하는 곳</b>이다 — 한동안 실제와 어긋나 있었다.
      */
     public List<Answer> usAnswersOf(List<UsSymbol> symbols) {
         return symbols.stream().map(this::usAnswer).flatMap(Optional::stream).toList();
@@ -502,9 +503,9 @@ public class StockService {
     /**
      * 시세에 전망을 붙인다 — <b>지수에는 붙이지 않는다.</b>
      *
-     * <p>목표주가와 실적발표일은 증권사·기업이 <b>기업</b>에 대해 내는 것이다. {@code ^IXIC}에
-     * 목표가를 낼 주체가 없으므로 부르지 않는다 — 호출을 아끼는 것이 아니라 있을 수 없는
-     * 값을 묻지 않는 것이다(FMP는 하루 250회이고 이쪽은 심볼당 2회를 쓴다).
+     * <p>목표주가·실적발표일·배당은 증권사·기업이 <b>기업</b>에 대해 내는 것이다. {@code ^IXIC}에
+     * 목표가를 낼 주체가 없고 지수는 배당을 주지 않으므로 부르지 않는다 — 호출을 아끼는 것이
+     * 아니라 있을 수 없는 값을 묻지 않는 것이다(FMP는 하루 250회이고 이쪽은 심볼당 3회를 쓴다).
      *
      * <p>검색과 브리핑이 <b>이 한 자리를 나눠 쓴다.</b> 두 벌로 두면 「지수를 걸러낸다」가
      * 두 곳에 적히고 한쪽만 고쳐지는 날이 온다.
@@ -548,21 +549,22 @@ public class StockService {
 
     /** 국내 종목 하나 — <b>여기가 종목코드가 있는 유일한 자리</b>라 전망을 여기서 붙인다. */
     private Optional<Answer> stockAnswer(String code) {
-        return stockAnswer(code, true);
+        return stockAnswer(code, false);
     }
 
     /**
-     * @param askOutlook 전망을 물을 것인가. 색인이 ETF·ETN이라고 알려 준 종목은 <b>묻지 않는다</b> —
-     *                   증권사가 목표주가를 내는 것은 기업이고, ETF에 물으면 늘 0행에 KIS 간격 1초를 쓴다.
-     *                   코드만 있는 경로는 그룹을 모르니 그대로 묻는다(빈 답은 12시간 캐시된다)
+     * @param fund 색인이 ETF·ETN이라고 알려 줬나. 참이면 클라이언트가 <b>목표주가 조회만</b>
+     *             건너뛴다 — 증권사가 목표가를 내는 것은 기업이라 ETF에 물으면 늘 0행이다.
+     *             <b>배당은 묻는다</b>: ETF의 분배금이 같은 배당일정 응답에 온다(실측 2026-09-08, 코드가 보내는 ±180일 창 — KODEX 200(069500) 두 행).
+     *             코드만 있는 경로는 그룹을 모르니 거짓을 주고 둘 다 묻는다
      */
-    private Optional<Answer> stockAnswer(String code, boolean askOutlook) {
+    private Optional<Answer> stockAnswer(String code, boolean fund) {
         return stock(code).map(quote ->
-                new Answer(quote, askOutlook ? outlookOf(code) : null, Series.domesticStock(code)));
+                new Answer(quote, outlookOf(code, fund), Series.domesticStock(code)));
     }
 
     /**
-     * 그 종목의 목표주가 — <b>못 구하면 {@code null}이고 시세는 그대로 나간다.</b>
+     * 그 종목의 목표주가·배당 — <b>못 구하면 {@code null}이고 시세는 그대로 나간다.</b>
      *
      * <p><b>삼키는 일이 왜 클라이언트가 아니라 여기 있나.</b> 클라이언트가 삼키면 거기 걸린
      * {@code @CircuitBreaker}가 <b>정상 반환을 보고 성공을 센다</b> — 실패율이 영원히 0이라
@@ -573,9 +575,9 @@ public class StockService {
      * <p>화면에서 「의견이 없는 종목」과 「조회 실패」가 같은 결과(그 줄이 없음)라는 것은
      * 여전히 맞다 — 그 판단을 브레이커가 실패를 본 <b>뒤에</b> 하는 것뿐이다.
      */
-    private StockOutlook outlookOf(String code) {
+    private StockOutlook outlookOf(String code, boolean fund) {
         try {
-            StockOutlook outlook = outlooks.outlook(code);
+            StockOutlook outlook = outlooks.outlook(code, fund);
             return outlook.isEmpty() ? null : outlook;
         } catch (RuntimeException e) {
             log.info("[stock] {} 전망 조회 실패 — 시세만 내보냅니다: {}", code, FailureReason.of(e));

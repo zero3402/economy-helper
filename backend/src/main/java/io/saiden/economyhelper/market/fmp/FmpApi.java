@@ -101,8 +101,14 @@ public class FmpApi {
         }
     }
 
-    /** 402(요금제)·403(권한)만 "영영 안 된다"로 읽는다 — 나머지는 다시 시도할 여지가 있다. */
-    private static boolean planBlocked(RuntimeException e) {
+    /**
+     * 402(요금제)·403(권한)만 "영영 안 된다"로 읽는다 — 나머지는 다시 시도할 여지가 있다.
+     *
+     * <p>{@code FmpUsOutlookClient}가 <b>같은 판단</b>을 쓴다: 허용목록 밖 심볼의 402는 다시 물어도
+     * 같은 답이므로 <b>남은 값을 캐시해도 되는 실패</b>이고, 500·타임아웃은 그렇지 않다.
+     * 두 벌로 두면 한쪽만 고쳐지는 날이 온다.
+     */
+    static boolean planBlocked(RuntimeException e) {
         if (!(e instanceof RestClientResponseException failure)) {
             return false;
         }

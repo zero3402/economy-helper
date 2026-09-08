@@ -404,24 +404,37 @@ class StockServiceTest {
     }
 
     @Test
-    @DisplayName("색인이 ETF라고 알려 준 종목에는 전망을 묻지 않는다 — 증권사가 목표가를 내는 것은 기업이다")
-    void neverAsksAnOutlookForAFundTheIndexRecognises() {
+    @DisplayName("색인이 ETF라고 알려 주면 그 사실을 클라이언트에 넘긴다 — 목표가는 건너뛰고 배당은 묻는다")
+    void tellsTheClientWhenTheIndexRecognisesAFund() {
+        // ⚠️ 예전에는 ETF면 전망 조회를 **통째로** 건너뛰었다. 그런데 예탁원 배당일정은 ETF에도
+        //    분배금을 준다(실측 2026-09-08, 코드가 보내는 ±180일 창 — KODEX 200(069500) 두 행) — 한 덩어리로
+        //    건너뛰면 있는 값을 알면서 버린다. 그래서 플래그만 넘기고 무엇을 건너뛸지는 클라이언트가 정한다
         FakeDomestic kis = domestic(StockSource.KIS, Map.of(
                 "426030", krStock("TIME 미국나스닥100액티브", "45500", StockSource.KIS),
                 "005930", krStock("삼성전자", "268500", StockSource.KIS)));
-        List<String> askedOutlook = new ArrayList<>();
+        Map<String, Boolean> askedOutlook = new java.util.LinkedHashMap<>();
         StockService service = new StockService(List.of(kis), List.of(), new RecordingNames(Map.of()),
                 listings(TIME_NASDAQ, SAMSUNG), resolver(null),
-                code -> {
-                    askedOutlook.add(code);
+                (code, fund) -> {
+                    askedOutlook.put(code, fund);
                     return StockOutlook.NONE;
                 }, symbol -> StockOutlook.NONE, null);
 
         assertThat(service.answer("TIME 미국나스닥100액티브")).isPresent();
-        assertThat(askedOutlook).as("ETF에 물으면 늘 0행에 KIS 간격 1초를 쓴다").isEmpty();
+        assertThat(askedOutlook).as("ETF에도 묻는다 — 분배금이 그 응답에 온다").containsEntry("426030", true);
 
         assertThat(service.answer("삼성전자")).isPresent();
-        assertThat(askedOutlook).as("기업에는 그대로 묻는다").containsExactly("005930");
+        assertThat(askedOutlook).as("기업에는 거짓을 준다 — 목표가를 낼 주체가 있다")
+                .containsEntry("005930", false);
+
+        // ⚠️ **코드로 물은 경로도 잡는다.** 위 둘은 이름 검색(byListing)만 지나므로 코드 경로의
+        //    기본값이 잡히지 않았다 — 그 자리를 true로 뒤집어도 테스트가 안 깨지는데, 그러면
+        //    모든 /stock 005930과 브리핑 국내 종목이 **목표가를 조용히 잃고** 그 반쪽이 12시간
+        //    캐시된다. 코드만 있는 경로는 그룹을 모르므로 거짓이 맞다
+        askedOutlook.clear();
+        assertThat(service.answer("005930")).isPresent();
+        assertThat(askedOutlook).as("코드 경로는 그룹을 모른다 — 둘 다 물어야 한다")
+                .containsEntry("005930", false);
     }
 
     @Test
@@ -508,7 +521,7 @@ class StockServiceTest {
                                         StockListings listings) {
         // 전망은 여기서 보지 않는다 — KisDomesticOutlookClientTest가 본다
         return new StockService(domestic, us, names, listings, resolver,
-                code -> StockOutlook.NONE, symbol -> StockOutlook.NONE, null);
+                (code, fund) -> StockOutlook.NONE, symbol -> StockOutlook.NONE, null);
     }
 
     private static StockListings listings(Listing... listings) {

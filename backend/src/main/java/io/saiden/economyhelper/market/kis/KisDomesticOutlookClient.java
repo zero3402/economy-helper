@@ -1,15 +1,24 @@
 package io.saiden.economyhelper.market.kis;
 
 import java.util.Objects;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.saiden.economyhelper.config.CacheNames;
 import io.saiden.economyhelper.market.DomesticOutlookClient;
 import io.saiden.economyhelper.market.StockOutlook;
+import io.saiden.economyhelper.market.StockOutlook.Dividend;
 import io.saiden.economyhelper.market.StockSource;
 import java.math.BigDecimal;
+import java.net.URI;
 import java.time.Clock;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.time.format.ResolverStyle;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,18 +26,19 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.util.UriBuilder;
 
 /**
- * 국내 종목의 <b>목표주가</b> — KIS {@code invest-opinion}.
+ * 국내 종목의 <b>목표주가·배당</b> — KIS {@code invest-opinion}과 예탁원정보(배당일정) {@code ksdinfo/dividend}.
  *
  * <p>엔드포인트 이름이 「투자의견」이라 로그·예외 문구는 그 이름을 그대로 쓰지만,
- * <b>이 응답에서 읽는 것은 목표가뿐이다</b>(아래 ⚠️ 참고). 머리글이 한동안
+ * <b>그 응답에서 읽는 것은 목표가뿐이다</b>(아래 ⚠️ 참고). 머리글이 한동안
  * 「목표주가·투자의견」이라 <b>같은 파일 안에서 스스로를 반박하고 있었다.</b>
  *
- * <p><b>모의 계정에서도 200이다</b>(실측 2026-08-20). 문서가 「실전 전용 엔드포인트가 막힌다」고
- * 적어 둔 목록에 이것을 넣어 짐작할 뻔했는데, <b>막힌 것과 안 해 본 것은 다르다.</b>
+ * <p><b>둘 다 모의 계정에서도 200이다</b>(실측 투자의견 2026-08-20 · 배당일정 2026-09-07). 문서가
+ * 「실전 전용 엔드포인트가 막힌다」고 적어 둔 목록에 넣어 짐작할 뻔했는데, <b>막힌 것과 안 해 본 것은 다르다.</b>
  *
- * <p><b>응답은 컨센서스가 아니라 발표 건이다</b>(실측 2026-08-21, 삼성전자 7~8월 12행):
+ * <p><b>투자의견 응답은 컨센서스가 아니라 발표 건이다</b>(실측 2026-08-21, 삼성전자 7~8월 12행):
  *
  * <pre>
  * {"stck_bsop_date":"20260810","mbcr_name":"키움",
@@ -38,11 +48,61 @@ import org.springframework.web.client.RestClient;
  * 그래서 {@link InvestOpinions}가 증권사별 최신 한 건만 남겨 접는다 — 자주 내는 증권사가
  * 여러 표를 갖지 않게 하려는 것이다.
  *
- * <p>⚠️ <b>이 응답에서 읽는 것은 목표가뿐이다.</b> 같은 행에 {@code invt_opnn}(의견 글자)이
+ * <p>⚠️ <b>그 응답에서 읽는 것은 목표가뿐이다.</b> 같은 행에 {@code invt_opnn}(의견 글자)이
  * 함께 오지만 <b>읽지 않는다</b> — 투자의견을 화면에서 걷어냈기 때문이다. 다시 넣을 일이
  * 있으면 {@code invt_opnn_cls_code}를 등급으로 쓰지 말 것: 실측에서 코드 하나에
  * {@code Strong BUY}·{@code Hold}·{@code Outperform}·{@code Buy}가 섞여 있었고, 같은 응답
  * 안에서 표기도 갈렸다({@code "BUY"} 키움·삼성 / {@code "매수"} 한국투자).
+ *
+ * <p><b>배당은 예탁원정보(배당일정)가 준다</b> — 실측 2026-09-07, 삼성전자 {@code F_DT=20260301}:
+ *
+ * <pre>
+ * {"output1":[{"record_date":"20260630","sht_cd":"005930","isin_name":"삼성전자","divi_kind":"분기",
+ *              "face_val":"100","per_sto_divi_amt":"374","divi_rate":"374.00","stk_divi_rate":"0.00",
+ *              "divi_pay_dt":"2026/08/28","stk_div_pay_dt":"","odd_pay_dt":"","stk_kind":"보통","high_divi_gb":"Y"},
+ *             {"record_date":"20260331", … "per_sto_divi_amt":"372","divi_pay_dt":"2026/05/29", …}],
+ *  "rt_cd":"0","msg_cd":"MCA00000","msg1":"정상처리 되었습니다."}
+ * </pre>
+ *
+ * <ul>
+ *   <li>⚠️ <b>날짜 모양이 한 행 안에서 갈린다</b> — {@code record_date}는 {@code yyyyMMdd}, {@code divi_pay_dt}는
+ *       {@code yyyy/MM/dd}. 하나로 읽으면 한쪽이 조용히 죽는다
+ *   <li>⚠️ <b>{@code F_DT}·{@code T_DT}는 기준일을 거른다.</b> 지급일은 기준일 뒤 두 달~넉 달이라(실측: 결산 기준일
+ *       {@code 20251231} → 지급 {@code 2026/04/17}) 뒤로 {@value #LOOKBACK_DAYS}일을 봐야 「지급일만 남은 분기」가
+ *       들어오고, 앞으로 {@value #LOOKAHEAD_DAYS}일을 본다(기준일은 두어 주 전에 잡히므로 넉넉하다)
+ *   <li>⚠️ <b>배당금 {@code "0"}·지급일 {@code ""}인 행이 온다</b>(실측 SK하이닉스 결산 {@code 20251231}) — 아직 안
+ *       정해진 것이고 값이 아니다. 고르는 규칙은 {@link Dividend#nextOf}가 든다(FMP와 같은 규칙)
+ *   <li>⚠️ 배열 이름이 {@code output1}이다 — 투자의견은 {@code output}이다. 잘못 적으면 오류 없이 빈 목록이다
+ *   <li>{@code SHT_CD}가 종목을 거른다(실측: 우선주 {@code 005935}는 제 행만 온다). 한 종목·한 해면 몇 행이라
+ *       연속조회({@code tr_cont=M})는 일어나지 않는다(실측 {@code E})
+ * </ul>
+ *
+ * <p>⚠️ <b>종목당 KIS 호출이 둘이 됐다</b> — 간격 1초가 하나 더 든다. 12시간 캐시({@code kis-outlook})가
+ * 그 대가의 방어이고, 브리핑의 국내 종목 둘은 첫 조회에 2초를 더 낸다.
+ *
+ * <p>⚠️ <b>ETF·ETN에는 투자의견만 건너뛴다 — 배당은 묻는다.</b> 색인이 알려 준 종목에 목표가를 물으면
+ * 늘 0행이지만(실측 426030), <b>분배금은 같은 배당일정 응답에 실제로 온다</b>
+ * (실측 2026-09-08, 코드가 보내는 ±180일 창 — KODEX 200(069500) 두 행 — 기준일 {@code 20260731}·지급 {@code 2026/08/04}·183원 /
+ * {@code 20260430}·{@code 2026/05/06}·446원). 「ETF에는 전망이 없다」로 한 덩어리로 건너뛰면
+ * <b>있는 값을 알면서 버린다.</b>
+ *
+ * <p>⚠️ 처음에는 이 근거로 {@code 426030}의 {@code 20251230} 행을 들었는데, 그것은
+ * {@code F_DT=20250101}로 <b>넓게 물어야</b> 나오는 행이고 <b>코드가 보내는 창 밖</b>이다
+ * (같은 종목을 ±180일로 물으면 <b>0행</b>이다 — 연 1회 분배라 다음 행이 아직 안 올라왔다).
+ * <b>실측은 코드가 보내는 파라미터로 재야 한다.</b>
+ *
+ * <p>캐시 열쇠는 <b>코드뿐</b>이다({@code fund}를 안 섞는다). 같은 코드에 다른 플래그가 올 수는 있지만
+ * (이름으로 찾으면 참, 코드로 찾으면 거짓) ETF의 투자의견이 0행이라 <b>결과가 같다</b> — 열쇠에 넣으면
+ * ETF마다 항목이 둘이 되고 그 플래그는 우리 색인의 산물이라 판 번호까지 딸려 온다.
+ *
+ * <p>⚠️ <b>하나라도 받았으면 그것으로 답하고 담는다.</b> 한때 「하나라도 실패하면 던진다」로
+ * 좁혔다 — 반쪽이 12시간 캐시에 굳는 것을 막으려는 것이었는데 <b>대가가 더 컸다</b>: 던지면
+ * 아무것도 안 담겨 조회마다 <b>KIS 문 2초</b>를 다시 쓰고(그 문은 시세와 <b>공유</b>다),
+ * 값이 안 바뀌는 실패(파싱 같은 것)는 <b>영원히 되풀이되며 브레이커를 태운다.</b>
+ * 치르는 값은 「500 한 번에 배당 줄이 최대 반나절 안 보인다」이고 스스로 낫는다 —
+ * 보충 한 줄의 신선도보다 <b>문과 브레이커를 지키는 것</b>이 앞이다.
+ * <b>둘 다 실패했을 때만</b> 던지고, 그때 <b>원래 예외를 그대로</b> 올린다.
+ * (되돌린 것이다 — 두 번째·세 번째 검증이 그 대가를 짚었다.)
  *
  * <p>⚠️ <b>실패를 삼키지 않는다 — 던진다.</b> {@link DomesticOutlookClient}가 「빈 값으로
  * 실패한다」고 적혀 있었지만 그대로 하면 아래 {@code @CircuitBreaker}가 <b>정상 반환을 보고
@@ -52,29 +112,53 @@ import org.springframework.web.client.RestClient;
  * 화면에서 「의견이 없는 종목」과 「조회 실패」가 같은 결과(그 줄이 없음)라는 것은 여전히
  * 맞고, 그 판단을 브레이커가 실패를 본 <b>뒤에</b> 하는 것뿐이다.
  *
- * <p>빈 {@link Optional}은 <b>값</b>이다 — 그 종목에 의견을 낸 증권사가 없다는 뜻이고,
- * 그건 실패가 아니다.
+ * <p>빈 값은 <b>값</b>이다 — 그 종목에 의견을 낸 증권사가 없고 잡힌 배당이 없다는 뜻이고, 그건 실패가 아니다.
  */
 @Component
 public class KisDomesticOutlookClient implements DomesticOutlookClient {
 
     private static final Logger log = LoggerFactory.getLogger(KisDomesticOutlookClient.class);
 
-    private static final String PATH = "/uapi/domestic-stock/v1/quotations/invest-opinion";
-    private static final String TR_ID = "FHKST663300C0";
+    private static final String OPINION_PATH = "/uapi/domestic-stock/v1/quotations/invest-opinion";
+    private static final String OPINION_TR_ID = "FHKST663300C0";
 
-    /** 화면 구분 코드. 이 엔드포인트가 요구하는 고정값이다. */
+    /** 화면 구분 코드. 투자의견 엔드포인트가 요구하는 고정값이다. */
     private static final String SCREEN_DIV = "16633";
 
+    private static final String DIVIDEND_PATH = "/uapi/domestic-stock/v1/ksdinfo/dividend";
+    private static final String DIVIDEND_TR_ID = "HHKDB669102C0";
+
     /**
-     * 며칠치를 물을지.
+     * 며칠치를 물을지 — 두 호출이 같은 값을 쓴다.
      *
      * <p>증권사는 분기 실적 즈음에 몰아서 내므로 한 달로는 의견이 없는 종목이 흔하다.
      * 실측(2026-08-21)으로 삼성전자가 7~8월 두 달에 12행이었다. 넉넉히 잡아도 응답이
      * 수십 행이라 비용이 같고, 접는 쪽에서 증권사별 최신 하나만 남기므로 오래된 것이
-     * 화면에 새지 않는다.
+     * 화면에 새지 않는다. 배당은 기준일 뒤 넉 달까지 지급일이 늘어지므로 이 길이가 그쪽에도 맞다.
      */
     private static final int LOOKBACK_DAYS = 180;
+
+    /** 배당 기준일을 앞으로 며칠까지 볼지 — 기준일은 두어 주 전에 잡히므로 넉넉하다. */
+    private static final int LOOKAHEAD_DAYS = 180;
+
+    /** 배당 날짜를 자르는 달력 — 예탁원이 주는 것은 KRX 거래일이다. */
+    private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
+
+    /**
+     * {@code record_date}의 모양. {@code BASIC_ISO_DATE}는 <b>STRICT</b>라 {@code 20260231}을 거절한다.
+     */
+    private static final DateTimeFormatter COMPACT = DateTimeFormatter.BASIC_ISO_DATE;
+
+    /**
+     * {@code divi_pay_dt}의 모양 — <b>한 행 안에서 {@code record_date}와 다르다.</b>
+     *
+     * <p>⚠️ <b>{@code uuuu}와 STRICT여야 한다.</b> {@code ofPattern("yyyy/MM/dd")}는 기본이 SMART라
+     * {@code 2026/02/31}을 예외로 만들지 않고 <b>조용히 2026-02-28로 바꿔</b> 화면에 낸다 —
+     * 없는 날을 있는 날로 적는 셈이고, 같은 행의 {@code record_date}(STRICT)와 판정이 갈린다.
+     * STRICT에서는 {@code yyyy}(연대 기준 연도)가 연대 없이 못 풀리므로 {@code uuuu}를 쓴다.
+     */
+    private static final DateTimeFormatter SLASHED = DateTimeFormatter
+            .ofPattern("uuuu/MM/dd").withResolverStyle(ResolverStyle.STRICT);
 
     private final RestClient restClient;
     private final KisTokenStore tokens;
@@ -95,53 +179,166 @@ public class KisDomesticOutlookClient implements DomesticOutlookClient {
 
     /**
      * @param code 6자리 종목코드
-     * @return 접은 전망. 의견을 낸 증권사가 없으면 빈 값 — 그건 값이고 실패가 아니다
-     * @throws RuntimeException 조회가 실패하면 던진다. 삼키는 것은 {@code StockService}이고,
-     *                          그래야 브레이커가 실패를 먼저 센다
+     * @param fund 색인이 ETF·ETN이라고 알려 줬나 — 참이면 투자의견을 <b>안 묻고</b> 배당만 묻는다
+     * @return 접은 전망. 의견을 낸 증권사도 잡힌 배당도 없으면 빈 값 — 그건 값이고 실패가 아니다
+     * @throws RuntimeException <b>성공한 조회가 하나도 없을 때</b> 던진다 — 원래 예외를 그대로 올린다.
+     *                          삼키는 것은 {@code StockService}이고, 그래야 브레이커가 실패를 먼저 센다
      */
     @Override
     // ⚠️ Optional을 돌려주던 때가 있었다. 빈 Optional은 스프링이 null로 벗겨 캐시에 못 담고(unless 없이는
     //    IllegalArgumentException으로 튀기까지 했다 — 실물 감사 2026-08-28), 전망 없는 종목(ETF 전부)마다
     //    조회가 KIS 간격 1초를 다시 썼다. 지금은 빈 값 **객체**를 돌려 그것도 12시간 담는다
     @Cacheable(cacheNames = CacheNames.KIS_OUTLOOK, key = "#code", unless = "#result == null")
-    @CircuitBreaker(name = "kisStock")
-    public StockOutlook outlook(String code) {
+    @CircuitBreaker(name = "kisOutlook")
+    public StockOutlook outlook(String code, boolean fund) {
+        // 겹치지 않는다 — KIS 간격은 호출 **시작** 사이 1초라 겹쳐도 둘째는 1초를 기다린다. 순서대로 부르는 것과 같다
+        Fetched<BigDecimal> target = fund ? Fetched.skipped() : attempt(() -> targetOf(code));
+        Fetched<Dividend> dividend = attempt(() -> dividendOf(code));
+        // ⚠️ **성공한 것이 하나도 없을 때만 던진다** — 「안 물었다」는 성공으로 세지 않는다.
+        //    ETF는 목표가를 안 묻는데 그것을 성공으로 세면 배당 실패가 가려져 정상 반환이 되고,
+        //    그 순간 위의 @CircuitBreaker가 실패를 못 본다(HackerNewsApi가 실제로 그 상태였다).
+        //    반대로 하나라도 받았으면 담는다 — 안 담으면 조회마다 KIS 문 2초를 다시 쓴다
+        if (!target.succeeded() && !dividend.succeeded()) {
+            rethrowFirstFailure(target, dividend);
+        }
+        // 비어도 돌려준다 — 값이라 캐시된다(ETF·ETN이 늘 그렇다).
+        // 실적발표일은 어느 엔드포인트도 주지 않는다. 국내에 무료 출처가 없어 null로 남고, 화면은 그 줄을 안 적는다
+        return new StockOutlook(null, target.value(), dividend.value(), StockSource.KIS, clock.instant());
+    }
+
+    /** 증권사별 최신 발표를 접은 평균 목표가 — 발표한 곳이 없으면 {@code null}. */
+    private BigDecimal targetOf(String code) {
+        Opinions response = request(Opinions.class, OPINION_TR_ID, code + " 투자의견", uriBuilder -> uriBuilder
+                .path(OPINION_PATH)
+                .queryParam("FID_COND_MRKT_DIV_CODE", "J")
+                .queryParam("FID_COND_SCR_DIV_CODE", SCREEN_DIV)
+                .queryParam("FID_INPUT_ISCD", code)
+                .queryParam("FID_INPUT_DATE_1", KisHeaders.daysAgo(clock, LOOKBACK_DAYS))
+                .queryParam("FID_INPUT_DATE_2", KisHeaders.today(clock))
+                .build());
+        return InvestOpinions.averageTargetOf(rowsOf(response)).orElse(null);
+    }
+
+    /** 다음 배당 — 잡힌 것이 없으면 {@code null}. 고르는 규칙은 {@link Dividend#nextOf}. */
+    private Dividend dividendOf(String code) {
+        LocalDate today = LocalDate.now(clock.withZone(SEOUL));
+        Dividends response = request(Dividends.class, DIVIDEND_TR_ID, code + " 배당일정", uriBuilder -> uriBuilder
+                .path(DIVIDEND_PATH)
+                .queryParam("CTS", "")
+                .queryParam("GB1", "0")   // 배당 전체 — 결산·중간을 가르지 않는다
+                .queryParam("F_DT", today.minusDays(LOOKBACK_DAYS).format(DateTimeFormatter.BASIC_ISO_DATE))
+                .queryParam("T_DT", today.plusDays(LOOKAHEAD_DAYS).format(DateTimeFormatter.BASIC_ISO_DATE))
+                .queryParam("SHT_CD", code)
+                .queryParam("HIGH_GB", "")
+                .build());
+        return Dividend.nextOf(dividendRowsOf(response), today);
+    }
+
+    /**
+     * 한 호출 — 간격을 지키고, 토큰을 가린 이유만 남기고, 200 본문의 {@code rt_cd}까지 본다.
+     *
+     * <p>{@code KisStockApi.request}와 같은 모양이다. 경로마다 같은 {@code try/catch}·같은 토큰 가리기를
+     * 두 번 적지 않으려고 제네릭 하나로 둔다.
+     */
+    private <T extends KisResponse> T request(Class<T> type, String trId, String what,
+                                              Function<UriBuilder, URI> uri) {
         // 호출 하나에 간격 하나 — KIS의 제약은 "초당 몇 건"이 아니라 "호출 사이 얼마"다
         throttle.pace();
-        Opinions response;
+        T response;
         try {
             response = restClient.get()
-                    .uri(uriBuilder -> uriBuilder
-                            .path(PATH)
-                            .queryParam("FID_COND_MRKT_DIV_CODE", "J")
-                            .queryParam("FID_COND_SCR_DIV_CODE", SCREEN_DIV)
-                            .queryParam("FID_INPUT_ISCD", code)
-                            .queryParam("FID_INPUT_DATE_1", KisHeaders.daysAgo(clock, LOOKBACK_DAYS))
-                            .queryParam("FID_INPUT_DATE_2", KisHeaders.today(clock))
-                            .build())
-                    .headers(headers.of(tokens.token(), TR_ID))
+                    .uri(uri)
+                    .headers(headers.of(tokens.token(), trId))
                     .retrieve()
-                    .body(Opinions.class);
+                    .body(type);
         } catch (RuntimeException e) {
             // 헤더에 접근토큰이 실려 있어 예외를 그대로 흘리면 유출된다 — 이유만 꺼낸다
             String reason = KisHeaders.reasonOf(e);
-            log.warn("[kis] {} 투자의견 조회 실패: {}", code, reason);
+            log.warn("[kis] {} 조회 실패: {}", what, reason);
             if (KisHeaders.isInvalidToken(e)) {
                 tokens.invalidate();
             }
-            throw new IllegalStateException("KIS 투자의견 조회 실패 (" + code + "): " + reason);
+            throw new IllegalStateException("KIS " + what + " 조회 실패: " + reason);
         }
         if (response == null) {
-            throw new IllegalStateException("KIS 투자의견 응답이 비어 있습니다 (" + code + ")");
+            throw new IllegalStateException("KIS " + what + " 응답이 비어 있습니다");
         }
         // ⚠️ 에러가 HTTP 200 본문에 실려 온다 — rt_cd를 봐야 한다
-        KisHeaders.verify(response.resultCode(), response.message(), code + " 투자의견");
+        KisHeaders.verify(response.resultCode(), response.message(), what);
+        return response;
+    }
 
-        // 발표한 증권사가 없으면 **빈 값 객체**다 — 값이라 캐시된다(ETF·ETN이 늘 그렇다).
-        // 실적발표일은 이 엔드포인트가 주지 않는다. 국내에 무료 출처가 없어 null로 남고, 화면은 그 줄을 안 적는다
-        return InvestOpinions.averageTargetOf(rowsOf(response))
-                .map(target -> new StockOutlook(null, target, StockSource.KIS, clock.instant()))
-                .orElseGet(() -> StockOutlook.none(StockSource.KIS, clock.instant()));
+    /**
+     * 실패를 값으로 — 두 다리를 다 시도한 뒤에 판단해야 하기 때문이다. 이유는 {@link #request}가
+     * 이미 로그에 남겼다.
+     *
+     * <p>⚠️ <b>메시지가 아니라 예외 객체를 든다.</b> 두 가지가 여기 걸린다.
+     * {@code e.getMessage()}는 <b>{@code null}일 수 있어</b>(메시지 없이 던진 예외) 실패가 성공으로
+     * 세어졌고, 무엇보다 <b>타입이 사라지면 {@code ignoreExceptions}가 안 맞는다</b> —
+     * {@code application.yml}의 {@code kisStock}이 {@link KisThrottle.Congested}를 목록에 두는 이유가
+     * 「우리 문이 우리를 거절한 것을 상대 장애로 세지 않는다」인데, 그것을 맨
+     * {@code IllegalStateException}으로 바꿔 던지면 <b>그 보호에서 조용히 빠진다.</b>
+     * (적대적 리뷰가 잡았다 — 그 파일의 주석이 예전에 같은 사고를 적어 두고 있었다.)
+     */
+    private static <T> Fetched<T> attempt(Supplier<T> call) {
+        try {
+            return new Fetched<>(call.get(), null, true);
+        } catch (RuntimeException e) {
+            return new Fetched<>(null, e, true);
+        }
+    }
+
+    /**
+     * 실패한 다리의 <b>예외를 그대로</b> 올린다 — 감싸지 않는다.
+     *
+     * <p>감싸면 타입이 사라져 브레이커의 {@code ignoreExceptions}가 안 맞고 원인 사슬도 끊긴다
+     * ({@link KisThrottle.Congested}가 그 목록에 있는 이유가 「우리 문이 우리를 거절한 것을 상대
+     * 장애로 세지 않는다」인데, 맨 {@code IllegalStateException}으로 바꿔 던지면 그 보호에서 빠진다).
+     * 둘이 다 실패했으면 첫째를 던지고 둘째를 {@code addSuppressed}로 붙인다 — 로그에 둘 다 남는다.
+     *
+     * <p>부를 자리에서 「성공한 것이 하나도 없다」를 이미 확인하므로 실패가 적어도 하나는 있다.
+     */
+    private static void rethrowFirstFailure(Fetched<?>... calls) {
+        RuntimeException first = null;
+        for (Fetched<?> call : calls) {
+            RuntimeException failure = call.failure();
+            if (failure == null || failure == first) {
+                // ⚠️ 같은 인스턴스를 두 번 담으면 addSuppressed가 IllegalArgumentException을 던진다.
+                //    지금은 던지는 자리마다 새로 할당해 안 일어나지만, 가변인자라 (x, x)를 부르기 쉽다
+                continue;
+            }
+            if (first == null) {
+                first = failure;
+            } else {
+                first.addSuppressed(failure);
+            }
+        }
+        if (first != null) {
+            throw first;
+        }
+    }
+
+    /**
+     * 한 호출의 결과 — <b>세 상태다: 값을 받았다 · 실패했다 · 안 물었다.</b>
+     *
+     * <p>둘로는 못 든다. 「안 물었다」를 실패로 세면 ETF가 늘 던지고, 성공으로 세면 <b>배당 실패가
+     * 가려져</b> 브레이커가 실패를 못 본다. 값이 {@code null}인 성공은 「없다」이고 그건 <b>값</b>이다.
+     *
+     * @param value   받은 것. 없으면 {@code null}이고 그건 <b>값</b>이다
+     * @param failure 실패했으면 <b>그 예외</b>. 물었고 이것이 {@code null}이면 성공이다
+     * @param asked   실제로 물었나. ETF의 목표가처럼 <b>있을 수 없는 값</b>은 묻지 않는다
+     */
+    private record Fetched<T>(T value, RuntimeException failure, boolean asked) {
+
+        /** 물을 이유가 없는 값 — 성공도 실패도 아니다. */
+        static <T> Fetched<T> skipped() {
+            return new Fetched<>(null, null, false);
+        }
+
+        /** 물었고 실패하지 않았나. <b>「안 물었다」는 성공이 아니다</b> — 그게 세 상태를 든 이유다. */
+        boolean succeeded() {
+            return asked && failure == null;
+        }
     }
 
     private static List<InvestOpinions.Opinion> rowsOf(Opinions response) {
@@ -153,6 +350,62 @@ public class KisDomesticOutlookClient implements DomesticOutlookClient {
                 .map(row -> new InvestOpinions.Opinion(
                         row.broker(), row.date(), row.targetPrice()))
                 .toList();
+    }
+
+    private static List<Dividend> dividendRowsOf(Dividends response) {
+        if (response.output1() == null) {
+            return List.of();
+        }
+        return response.output1().stream()
+                .filter(Objects::nonNull)
+                .map(row -> new Dividend(
+                        date(row.recordDate(), COMPACT, "record_date"),
+                        date(row.payDate(), SLASHED, "divi_pay_dt"),
+                        number(row.amount())))
+                .toList();
+    }
+
+    /**
+     * 한 칸을 날짜로 — 공백은 「아직 없다」이고, <b>모양이 어긋나면 그 칸만 {@code null}</b>이다.
+     *
+     * <p>⚠️ <b>던지지 않는다.</b> 던지던 때가 있었고 근거는 「조용히 {@code null}이 되면 신고가
+     * 들어와도 단서가 없다」였는데, 그 근거가 실제로는 <b>성립하지 않았다</b>: 파싱은 {@code request()}가
+     * 돌아온 뒤라 {@code [kis]} 로그가 한 줄도 안 남고, 남는 한 줄은 {@code FailureReason}을 지나며
+     * <b>메시지를 버려</b> 어느 필드의 어떤 값이었는지가 사라졌다.
+     *
+     * <p>그리고 대가가 컸다. 같은 입력이면 <b>영원히 같은 실패</b>인데 예외는 캐시되지 않으므로
+     * 조회마다 되풀이되고, 캐시가 브레이커 <b>밖</b>이라 매번 새로 세어져 <b>최근 10회 중 5회</b>면
+     * {@code kisStock}이 열린다 — 그 순간 <b>국내 시세가 전일 종가로 강등되고 미국 시세가 빈손</b>이
+     * 된다. {@code KisStockApi$Unsupported}를 {@code ignoreExceptions}에 넣은 이유와 같은 부류다.
+     * 게다가 {@code nextOf}가 버릴 <b>지난 행</b> 하나가 깨져도 답 전체가 죽었다.
+     *
+     * <p>지금은 <b>그 칸만 비우고 WARN에 필드 이름과 원문을 남긴다</b> — 날씨가
+     * {@code SkyCondition.UNKNOWN}에서 세운 「모르는 어휘에 거부권을 주지 않는다」와 같은 자리다.
+     * 단서는 오히려 늘었다: 예외 이름 하나가 아니라 <b>값</b>이 로그에 남는다.
+     */
+    private static LocalDate date(String raw, DateTimeFormatter format, String field) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(raw.trim(), format);
+        } catch (DateTimeParseException e) {
+            log.warn("[kis] 배당일정의 {}를 못 읽었습니다 — 그 줄만 빠집니다: '{}'", field, raw);
+            return null;
+        }
+    }
+
+    /** 배당금 한 칸 — 어긋나면 그 줄만 빠진다({@link #date}와 같은 이유). */
+    private static BigDecimal number(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            return new BigDecimal(raw.trim());
+        } catch (NumberFormatException e) {
+            log.warn("[kis] 배당일정의 per_sto_divi_amt를 못 읽었습니다 — 그 줄만 빠집니다: '{}'", raw);
+            return null;
+        }
     }
 
     /**
@@ -178,5 +431,25 @@ public class KisDomesticOutlookClient implements DomesticOutlookClient {
     record Row(@JsonProperty("stck_bsop_date") String date,
                @JsonProperty("mbcr_name") String broker,
                @JsonProperty("hts_goal_prc") BigDecimal targetPrice) {
+    }
+
+    /** 배당일정 응답 — 배열 이름이 {@code output1}이다(실측 2026-09-07). 투자의견의 {@code output}과 다르다. */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record Dividends(@JsonProperty("rt_cd") String resultCode,
+                     @JsonProperty("msg1") String message,
+                     List<DividendRow> output1) implements KisResponse {
+    }
+
+    /**
+     * 배당 한 건 — 화면이 쓰는 셋만 담는다. 셋 다 <b>문자열</b>로 온다.
+     *
+     * @param recordDate {@code record_date} — 기준일 {@code yyyyMMdd}
+     * @param payDate    {@code divi_pay_dt} — 지급일 {@code yyyy/MM/dd}. 아직 안 정해졌으면 {@code ""}
+     * @param amount     {@code per_sto_divi_amt} — 주당 배당금(원). 아직 안 정해졌으면 {@code "0"}
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record DividendRow(@JsonProperty("record_date") String recordDate,
+                       @JsonProperty("divi_pay_dt") String payDate,
+                       @JsonProperty("per_sto_divi_amt") String amount) {
     }
 }

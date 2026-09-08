@@ -299,7 +299,7 @@ class ResilienceConfigTest {
         // 그 설정은 baseConfig의 것을 덮어쓰므로 RequestNotPermitted가 조용히 빠질 수 있다.
         // binance가 실제로 그 상태였고, 목록에 없어서 아무도 몰랐다
         for (String name : new String[] {"translation", "telegram", "fmp", "fmpOutlook",
-                "upbit", "binance", "kisFx", "kisStock",
+                "upbit", "binance", "kisFx", "kisStock", "kisOutlook",
                 "weatherKma", "weatherAccuWeather",
                 "weatherOpenMeteo", "weatherOpenMeteoHourly",
                 "weatherOpenMeteoArchive", "weatherGeocoding"}) {
@@ -327,7 +327,10 @@ class ResilienceConfigTest {
         Throwable unsupported = new io.saiden.economyhelper.market.kis.KisStockApi.Unsupported(
                 "KIS 지수 일봉에 업종코드가 없습니다: 코스피200");
 
-        for (String name : new String[] {"kisFx", "kisStock"}) {
+        // ⚠️ kisOutlook도 **같은 문을 지난다** — 전망 조회가 KisThrottle.pace()를 두 번 부른다.
+        //    브레이커를 시세와 가르면서 이 목록에 이름을 안 넣으면, 그 새 브레이커만 우리 문의
+        //    거절을 상대 장애로 세게 된다. binance가 실제로 그렇게 목록에서 빠져 있었다
+        for (String name : new String[] {"kisFx", "kisStock", "kisOutlook"}) {
             CircuitBreaker breaker = registry.circuitBreaker(name);
             long before = breaker.getMetrics().getNumberOfFailedCalls();
 

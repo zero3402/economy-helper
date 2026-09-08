@@ -352,7 +352,7 @@ class DailyDigestJobTest {
 
         private CountingStock() {
             super(List.of(), List.of(), noNames(), new StockListings(List::of), null,
-                    code -> io.saiden.economyhelper.market.StockOutlook.NONE, symbol -> io.saiden.economyhelper.market.StockOutlook.NONE, null);
+                    (code, fund) -> io.saiden.economyhelper.market.StockOutlook.NONE, symbol -> io.saiden.economyhelper.market.StockOutlook.NONE, null);
         }
 
         @Override
@@ -397,7 +397,7 @@ class DailyDigestJobTest {
     }
 
     private static StockService stock(boolean indicesAlive, boolean stocksAlive) {
-        return new StockService(List.of(), List.of(), noNames(), new StockListings(List::of), null, code -> io.saiden.economyhelper.market.StockOutlook.NONE, symbol -> io.saiden.economyhelper.market.StockOutlook.NONE, null) {
+        return new StockService(List.of(), List.of(), noNames(), new StockListings(List::of), null, (code, fund) -> io.saiden.economyhelper.market.StockOutlook.NONE, symbol -> io.saiden.economyhelper.market.StockOutlook.NONE, null) {
             @Override
             public List<StockQuote> indicesOf(List<EconomyHelperProperties.Index> indices) {
                 return indicesAlive

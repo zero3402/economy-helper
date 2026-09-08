@@ -112,7 +112,7 @@ public class CacheConfig {
                 // ⚠️ Optional이 아니라 **빈 값 객체**를 담는다. 「의견 낸 증권사가 없다」는 값이고 12시간 안에
                 //    안 바뀌는데, Optional로 돌려주던 동안 스프링이 빈 것을 null로 벗겨 담지 못했다(unless 없이는
                 //    IllegalArgumentException으로 튀기까지 — 2026-08-28 실물 감사). 그래서 전망 없는 종목(ETF)마다
-                //    KIS 1초·FMP 2회를 다시 썼다. StockOutlook.isEmpty()가 「없다」를 든다
+                //    KIS 간격 1~2초·FMP 3회를 다시 썼다. StockOutlook.isEmpty()가 「없다」를 든다
                 .withCacheConfiguration(CacheNames.KIS_OUTLOOK,
                         cache(ttl.kisOutlook(), new TypeReference<StockOutlook>() {}))
                 .withCacheConfiguration(CacheNames.US_OUTLOOK,

@@ -167,7 +167,15 @@ public class KisMasterClient {
      */
     public record Listing(String code, String name, String group, long marketCap) {
 
-        /** ETF·ETN인가 — 증권사가 목표주가를 내지 않는 것들이다. 전망을 물어도 늘 0행이다(실측 426030). */
+        /**
+         * ETF·ETN인가 — 증권사가 <b>목표주가</b>를 내지 않는 것들이다. {@code invest-opinion}에 물어도
+         * 늘 0행이다(실측 426030).
+         *
+         * <p>⚠️ <b>「전망을 물어도 0행」이 아니다.</b> 전망에 배당이 붙은 뒤로는 예탁원 배당일정이
+         * ETF에도 <b>분배금 행을 준다</b>(실측 2026-09-08, KODEX 200 두 행). 그래서 이 플래그가 뜻하는
+         * 것은 <b>목표주가를 건너뛰라</b>는 것뿐이고, 배당은 그대로 묻는다 —
+         * {@code KisDomesticOutlookClient}가 그렇게 갈라 쓴다.
+         */
         public boolean fund() {
             return "EF".equals(group) || "EN".equals(group);
         }

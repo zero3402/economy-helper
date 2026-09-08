@@ -221,7 +221,7 @@ class TelegramWebhookControllerTest {
                 io.saiden.economyhelper.market.StockSource.KIS, NOW, true);
         StockService stock = new StockService(List.of(), List.of(), new DataGoStockClient(null, null, null),
                 new StockListings(List::of), new StockResolver(null, null),
-                code -> io.saiden.economyhelper.market.StockOutlook.NONE,
+                (code, fund) -> io.saiden.economyhelper.market.StockOutlook.NONE,
                 symbol -> io.saiden.economyhelper.market.StockOutlook.NONE, null) {
             @Override
             public Optional<Answer> answer(String query) {
@@ -751,7 +751,7 @@ class TelegramWebhookControllerTest {
     /** 해석 규칙은 {@code StockServiceTest}가 본다. 여기서는 라우팅만 본다. */
     private static StockService stock(Optional<StockQuote> result) {
         return new StockService(List.of(), List.of(), new DataGoStockClient(null, null, null), new StockListings(List::of),
-                new StockResolver(null, null), code -> io.saiden.economyhelper.market.StockOutlook.NONE, symbol -> io.saiden.economyhelper.market.StockOutlook.NONE, null) {
+                new StockResolver(null, null), (code, fund) -> io.saiden.economyhelper.market.StockOutlook.NONE, symbol -> io.saiden.economyhelper.market.StockOutlook.NONE, null) {
             // ⚠️ quote가 아니라 answer를 덮는다. 컨트롤러가 전망을 함께 받으려고 answer로
             //    옮겨 갔으므로, quote를 덮어 두면 페이크가 가로채지 못한다
             @Override
@@ -833,7 +833,7 @@ class TelegramWebhookControllerTest {
     /** 일봉까지 주는 종목 페이크 — {@code Series}가 있어야 차트가 붙는다. */
     private static StockService stockWithSeries(StockQuote quote, List<DailyBar> series) {
         return new StockService(List.of(), List.of(), new DataGoStockClient(null, null, null), new StockListings(List::of),
-                new StockResolver(null, null), code -> io.saiden.economyhelper.market.StockOutlook.NONE,
+                new StockResolver(null, null), (code, fund) -> io.saiden.economyhelper.market.StockOutlook.NONE,
                 symbol -> io.saiden.economyhelper.market.StockOutlook.NONE, null) {
             @Override
             public Optional<Answer> answer(String query) {

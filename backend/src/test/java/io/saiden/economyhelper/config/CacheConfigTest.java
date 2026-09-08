@@ -114,6 +114,43 @@ class CacheConfigTest {
     }
 
     @Test
+    @DisplayName("전망 캐시 둘 — StockOutlook이 중첩된 배당까지 그대로 돌아온다")
+    void roundTripsStockOutlook() {
+        // ⚠️ 배당이 **중첩 레코드**라 담을 때는 넘어가고 읽을 때 깨지는 자리다. 그리고 레코드의
+        //    equals는 BigDecimal.equals라 **자릿수까지** 본다 — 0.25가 0.250으로 돌아오면 여기서 걸린다
+        JacksonJsonRedisSerializer<io.saiden.economyhelper.market.StockOutlook> serializer =
+                CacheConfig.serializer(
+                        new TypeReference<io.saiden.economyhelper.market.StockOutlook>() {});
+        io.saiden.economyhelper.market.StockOutlook original =
+                new io.saiden.economyhelper.market.StockOutlook(
+                        java.time.LocalDate.of(2026, 10, 29), new java.math.BigDecimal("340.72"),
+                        new io.saiden.economyhelper.market.StockOutlook.Dividend(
+                                java.time.LocalDate.of(2026, 9, 10),
+                                java.time.LocalDate.of(2026, 10, 1),
+                                new java.math.BigDecimal("0.25")),
+                        io.saiden.economyhelper.market.StockSource.FMP, NOW);
+
+        assertThat(serializer.deserialize(serializer.serialize(original))).isEqualTo(original);
+    }
+
+    @Test
+    @DisplayName("전망 캐시 — 빈 값도 그대로 돌아온다. 그것이 값이라 담기는 자리다")
+    void roundTripsAnEmptyStockOutlook() {
+        JacksonJsonRedisSerializer<io.saiden.economyhelper.market.StockOutlook> serializer =
+                CacheConfig.serializer(
+                        new TypeReference<io.saiden.economyhelper.market.StockOutlook>() {});
+        io.saiden.economyhelper.market.StockOutlook original =
+                io.saiden.economyhelper.market.StockOutlook.none(
+                        io.saiden.economyhelper.market.StockSource.KIS, NOW);
+
+        io.saiden.economyhelper.market.StockOutlook back =
+                serializer.deserialize(serializer.serialize(original));
+
+        assertThat(back).isEqualTo(original);
+        assertThat(back.isEmpty()).as("빈 값으로 돌아와야 화면이 그 블록을 안 적는다").isTrue();
+    }
+
+    @Test
     @DisplayName("weather 캐시 — Weather가 그대로 돌아온다 (LocalDate 포함)")
     void roundTripsWeather() {
         JacksonJsonRedisSerializer<io.saiden.economyhelper.market.weather.Weather> serializer =

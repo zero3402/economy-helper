@@ -194,30 +194,35 @@ public final class StockFormatter {
     /**
      * 전망 줄 — <b>있는 것만 적는다.</b>
      *
-     * <p>둘이 따로 논다. 목표주가는 두 시장 다 있지만 실적발표일은 <b>미국에만</b> 있다
+     * <p>셋이 따로 논다. 목표주가와 배당은 두 시장 다 있지만 실적발표일은 <b>미국에만</b> 있다
      * (국내에 무료 출처가 없다). <b>없는 것을 {@code 0}이나 「-」로 찍지 않는다</b> —
      * 「목표가 0원」은 모른다는 뜻이 아니라 <b>값</b>이다.
+     *
+     * <p><b>배당은 기준일 → 지급일 → 배당금 순</b>이다. 락일이 아니라 <b>기준일</b>인 이유는
+     * {@code StockOutlook.Dividend}에 있다(두 출처가 기준일을 직접 주고, 락일은 휴장일 달력이 있어야
+     * 맞다). 배당금은 목표가와 같은 규칙으로 단위를 붙이고 <b>같은 환율</b>로 환산한다.
      *
      * <p><b>이름표가 블록의 머리다</b>({@link #labelled}). 시세 줄들은 이름표가 없어
      * (「311.30 USD」·「🔵 -1.75%」) 줄만 바꿔도 무엇인지 읽히지만, 전망은 <b>이름표를 달아야
      * 뜻이 서는 값</b>이다. 그 이름표를 앞줄에 바싹 붙이면 위 숫자 무리에 딸려 붙어 읽히므로
      * <b>앞에 빈 줄을 둔다</b>. 값은 이름표 바로 아랫줄이다 — 한 블록 안이기 때문이다.
      *
-     * <p>대가는 줄 수다 — 종목마다 최대 여섯 줄이 는다. 텔레그램 한 통 상한(4,096자)에는
-     * 한참 못 미치므로(<b>실측 410자</b> — 지수 넷·종목 셋에 전망 셋을 다 붙인 브리핑 증시 통)
-     * 문제가 되지 않는다.
+     * <p>대가는 줄 수다 — 종목마다 최대 <b>열일곱 줄</b>이 는다(블록 다섯 + 그 사이 빈 줄). 그래도
+     * 텔레그램 한 통 상한(4,096자)에는 한참 못 미친다: 지수 넷·종목 셋에 <b>전망을 하나도 안 빼고</b>
+     * 붙인 브리핑 증시 통이 <b>실측 673자·89줄</b>이다(전망이 목표가·실적발표일 둘이던 때는 410자였다).
      *
      * <p>⚠️ <b>투자의견 줄은 없다.</b> 목표가 아래에 「매수 (111곳)」이 있었는데 요구가
      * 걷어내는 쪽으로 바뀌었다. 화면만 지우지 않고 {@code StockOutlook}의 필드와 FMP
      * {@code grades-consensus} 호출까지 함께 지웠다 — 화면에서만 빼면 심볼당 하루 한 번을
      * 아무도 안 보는 값에 쓴다.
      *
-     * <p>⚠️ <b>실적발표일은 미국 달력의 날짜다 — 이름표가 {@code (미국)}을 든다.</b>
-     * {@code FmpUsOutlookClient}가 FMP의 미국 거래일을 그대로 싣고 자를 때만
-     * {@code America/New_York} 달력을 쓴다. KST로 환산하지 않는 이유는 <b>발표 시각이 미국 장
+     * <p>⚠️ <b>실적발표일·배당 날짜는 그 시장 달력의 날짜다 — 미국이면 이름표가 {@code (미국)}을
+     * 든다</b>({@link #calendarTag}). {@code FmpUsOutlookClient}가 FMP의 미국 거래일을 그대로 싣고
+     * 자를 때만 {@code America/New_York} 달력을 쓴다. KST로 환산하지 않는 이유는 <b>발표 시각이 미국 장
      * 마감 뒤</b>라 환산하면 대개 다음 날 새벽이 되어 「그 시장의 달력」이 깨지기 때문이다.
      * 그런데 값이 <b>일 단위</b>라 화면만 보면 어느 달력의 그날인지 알 길이 없다 —
      * 환율의 {@code (고시)}, 증시의 {@code (종가)}, 날씨의 {@code (예보)}와 같은 자리다.
+     * 국내 날짜는 이 통의 다른 날짜와 같은 KST라 꼬리표가 없다 — 있으면 그것이 군더더기다.
      *
      * <p>⚠️ <b>꼬리표는 그 자체로 읽혀야 하고, 그 이상은 군더더기다.</b> 이 한 줄에 두 번
      * 걸렸다. {@code (현지)}만 적었을 때는 <b>어디 현지인지를 말하지 않아</b> 모자랐다 —
@@ -252,9 +257,38 @@ public final class StockFormatter {
             }
         }
         if (outlook.earningsDate() != null) {
-            message.append(labelled("실적발표일(미국)"))
+            message.append(labelled("실적발표일" + calendarTag(quote)))
                     .append(DATE.format(outlook.earningsDate()));
         }
+        StockOutlook.Dividend dividend = outlook.dividend();
+        if (dividend == null) {
+            return;
+        }
+        // 필드마다 따로 본다 — 기준일은 지났고 지급일만 남은 분기, 기준일만 잡히고 배당금이 미정인 분기가 흔하다
+        if (dividend.recordDate() != null) {
+            message.append(labelled("배당기준일" + calendarTag(quote)))
+                    .append(DATE.format(dividend.recordDate()));
+        }
+        if (dividend.payDate() != null) {
+            message.append(labelled("배당지급일" + calendarTag(quote)))
+                    .append(DATE.format(dividend.payDate()));
+        }
+        if (dividend.amount() != null) {
+            message.append(labelled("배당금")).append(unitOf(quote, dividend.amount()));
+            if (convertible(quote, fx)) {
+                message.append("\n").append(money(krw(dividend.amount(), fx))).append(" KRW");
+            }
+        }
+    }
+
+    /**
+     * 일 단위 날짜가 어느 달력의 것인지 — <b>미국이면 {@code (미국)}, 국내면 없다.</b>
+     *
+     * <p>이 통의 다른 날짜(종가일·조회 시각)가 전부 KST라 국내 날짜에는 붙일 것이 없고, 미국 날짜만
+     * 그 시장의 거래일 그대로라 밝혀야 한다. 괄호 앞 공백을 두지 않는다 — 이름표는 한 낱말로 읽힌다.
+     */
+    private static String calendarTag(StockQuote quote) {
+        return quote.market() == StockQuote.Market.US ? "(미국)" : "";
     }
 
     /** 두 시각이 KST 같은 날인가 — 값의 신선도를 가르는 단위는 초가 아니라 하루다. */

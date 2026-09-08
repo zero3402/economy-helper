@@ -158,27 +158,59 @@ class RenderedOutputTest {
         // 전망이 붙은 것 — 이름표와 값이 빈 줄로 벌어진다.
         // ⚠️ 국내 목표가에는 환산 줄이 없어야 한다. 이미 원화이므로 환산할 것이 없다
         cases.put("stock/with-outlook", withOutlook(
-                new StockOutlook(null, new BigDecimal("466667"), StockSource.KIS, BASIS)));
+                new StockOutlook(null, new BigDecimal("466667"), null, StockSource.KIS, BASIS)));
         // ⚠️ 둘이 따로 논다 — 국내는 목표가만 있고 실적발표일이 없다(무료 출처가 없다).
         //    없는 것은 줄이 아예 없다. 「-」나 0으로 찍으면 그건 모른다는 뜻이 아니라 값이다
         cases.put("stock/outlook-target-only", withOutlook(
-                new StockOutlook(null, new BigDecimal("350000"), StockSource.KIS, BASIS)));
+                new StockOutlook(null, new BigDecimal("350000"), null, StockSource.KIS, BASIS)));
         // ⚠️ **실적발표일은 미국에만 있다.** FMP의 /stable/earnings가 유일한 무료 출처이고
         //    국내(KIS invest-opinion)에는 그 필드가 아예 없다 — 그래서 이 케이스만 세 줄이 다 찬다.
         //    달러 목표가에는 **원화 환산이 한 줄 따라붙는다** — 값 줄과 같은 규칙이다
         cases.put("stock/outlook-with-earnings", usWithOutlook(
                 new StockOutlook(java.time.LocalDate.of(2026, 10, 29),
-                        new BigDecimal("340.72"), StockSource.FMP, US_AT)));
+                        new BigDecimal("340.72"), null, StockSource.FMP, US_AT)));
         // ⚠️ 환율을 못 구하면 **환산 줄만 빠지고** 달러 목표가는 그대로 나간다 —
         //    값 줄이 stock/us-without-fx에서 하는 일의 전망 짝이다.
         //    환산을 못 한다고 목표가를 빼는 것은 과하다
         cases.put("stock/outlook-without-fx", usWithOutlook(
                 new StockOutlook(java.time.LocalDate.of(2026, 10, 29),
-                        new BigDecimal("340.72"), StockSource.FMP, US_AT), null));
+                        new BigDecimal("340.72"), null, StockSource.FMP, US_AT), null));
         // 실적발표일만 있는 답도 정상이다 — FMP 무료 티어가 목표가만 402로 막을 수 있다
         cases.put("stock/outlook-earnings-only", usWithOutlook(
-                new StockOutlook(java.time.LocalDate.of(2026, 10, 29), null,
+                new StockOutlook(java.time.LocalDate.of(2026, 10, 29), null, null,
                         StockSource.FMP, US_AT)));
+        // ⚠️ 배당 — 기준일·지급일·배당금이 실적발표일 뒤에 이어 붙는다. 락일이 아니라 **기준일**이다
+        //    (두 출처가 그 값을 직접 준다 — 락일은 휴장일 달력이 있어야 맞게 나온다). 배당금은 목표가와
+        //    **같은 환율**로 환산한다. 값은 실측 NVDA(2026-09-07)의 것이다
+        cases.put("stock/outlook-with-dividend", usWithOutlook(
+                new StockOutlook(java.time.LocalDate.of(2026, 10, 29), new BigDecimal("340.72"),
+                        new StockOutlook.Dividend(java.time.LocalDate.of(2026, 9, 10),
+                                java.time.LocalDate.of(2026, 10, 1), new BigDecimal("0.25")),
+                        StockSource.FMP, US_AT)));
+        // 기준일은 지났고 지급일만 남은 분기 — 있는 줄만 적는다
+        cases.put("stock/outlook-dividend-pay-only", usWithOutlook(
+                new StockOutlook(null, null,
+                        new StockOutlook.Dividend(null, java.time.LocalDate.of(2026, 10, 1),
+                                new BigDecimal("0.25")),
+                        StockSource.FMP, US_AT)));
+        // 환율이 없으면 배당금도 달러만 — 목표가와 같은 규칙이다
+        cases.put("stock/outlook-dividend-without-fx", usWithOutlook(
+                new StockOutlook(null, null,
+                        new StockOutlook.Dividend(java.time.LocalDate.of(2026, 9, 10),
+                                java.time.LocalDate.of(2026, 10, 1), new BigDecimal("0.25")),
+                        StockSource.FMP, US_AT), null));
+        // 국내 — 예탁원 배당일정. 이름표에 (미국)이 없고 이미 원화라 환산 줄도 없다.
+        // 값은 실측 SK하이닉스(2026-09-08: 기준일 08-31은 지났고 지급일 09-30 · 375원)의 것이다
+        cases.put("stock/with-dividend", withOutlook(
+                new StockOutlook(null, new BigDecimal("466667"),
+                        new StockOutlook.Dividend(null, java.time.LocalDate.of(2026, 9, 30),
+                                new BigDecimal("375")),
+                        StockSource.KIS, BASIS)));
+        // 국내 — 기준일만 잡히고 배당금·지급일은 아직 안 정해진 분기. 0은 값이 아니라 그 줄이 없다
+        cases.put("stock/with-dividend-record-only", withOutlook(
+                new StockOutlook(null, null,
+                        new StockOutlook.Dividend(java.time.LocalDate.of(2026, 9, 30), null, null),
+                        StockSource.KIS, BASIS)));
         // 차트 사진의 설명 — **그림에 없는 낱말이 전부 여기 있다.** 그림은 골든이 못 보지만
         // caption은 본다. 그림에 글자를 안 넣기로 한 대가로 이 줄들이 화면 회귀 그물에 남는다
         cases.put("chart/caption-rising", ChartCaption.of("환율", "KRW", risingBars()));
@@ -336,7 +368,7 @@ class RenderedOutputTest {
         return StockFormatter.format(List.of(quote), FX, java.util.Map.of(quote, outlook));
     }
 
-    /** 미국 종목에 전망을 붙인 것 — <b>실적발표일이 붙는 유일한 무리</b>다. */
+    /** 미국 종목에 전망을 붙인 것 — <b>실적발표일이 붙는 유일한 무리</b>다. 배당은 두 무리 다 붙는다. */
     private static String usWithOutlook(StockOutlook outlook) {
         return usWithOutlook(outlook, FX);
     }
