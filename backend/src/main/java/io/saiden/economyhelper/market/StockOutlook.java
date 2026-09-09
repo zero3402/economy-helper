@@ -71,6 +71,21 @@ public record StockOutlook(LocalDate earningsDate, BigDecimal targetPrice, Divid
     public record Dividend(LocalDate recordDate, LocalDate payDate, BigDecimal amount,
                            boolean past) {
 
+        /**
+         * 「물었는데 배당이 없다」 — <b>값이다.</b> {@code null}로 돌려주면 스프링 캐시가
+         * {@code disableCachingNullValues}로 <b>거절</b>해 {@code IllegalArgumentException}이 튀고
+         * (실물 감사 2026-08-28에 전망 캐시가 그렇게 물렸다), 배당 안 주는 종목을 검색할 때마다
+         * 상대를 다시 부른다. 빈 값 객체는 담긴다.
+         */
+        public static Dividend none() {
+            return new Dividend(null, null, null, false);
+        }
+
+        /** 셋이 다 없으면 붙일 것이 없다 — 화면이 그 블록을 안 적는다. */
+        public boolean isEmpty() {
+            return recordDate == null && payDate == null && amount == null;
+        }
+
         /** 출처가 준 행 하나 — 「지났나」는 {@link #nextOf}가 고를 때 정한다. */
         public static Dividend row(LocalDate recordDate, LocalDate payDate, BigDecimal amount) {
             return new Dividend(recordDate, payDate, amount, false);

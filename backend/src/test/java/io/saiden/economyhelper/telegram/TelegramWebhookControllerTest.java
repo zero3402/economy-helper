@@ -222,7 +222,7 @@ class TelegramWebhookControllerTest {
         StockService stock = new StockService(List.of(), List.of(), new DataGoStockClient(null, null, null),
                 new StockListings(List::of), new StockResolver(null, null),
                 (code, fund) -> io.saiden.economyhelper.market.StockOutlook.NONE,
-                symbol -> io.saiden.economyhelper.market.StockOutlook.NONE, null) {
+                symbol -> io.saiden.economyhelper.market.StockOutlook.NONE, symbol -> null, null) {
             @Override
             public Optional<Answer> answer(String query) {
                 return Optional.of(new Answer(match, null, StockService.Series.domesticStock("005930")));
@@ -760,7 +760,7 @@ class TelegramWebhookControllerTest {
     /** 해석 규칙은 {@code StockServiceTest}가 본다. 여기서는 라우팅만 본다. */
     private static StockService stock(Optional<StockQuote> result) {
         return new StockService(List.of(), List.of(), new DataGoStockClient(null, null, null), new StockListings(List::of),
-                new StockResolver(null, null), (code, fund) -> io.saiden.economyhelper.market.StockOutlook.NONE, symbol -> io.saiden.economyhelper.market.StockOutlook.NONE, null) {
+                new StockResolver(null, null), (code, fund) -> io.saiden.economyhelper.market.StockOutlook.NONE, symbol -> io.saiden.economyhelper.market.StockOutlook.NONE, symbol -> null, null) {
             // ⚠️ quote가 아니라 answer를 덮는다. 컨트롤러가 전망을 함께 받으려고 answer로
             //    옮겨 갔으므로, quote를 덮어 두면 페이크가 가로채지 못한다
             @Override
@@ -843,7 +843,7 @@ class TelegramWebhookControllerTest {
     private static StockService stockWithSeries(StockQuote quote, List<DailyBar> series) {
         return new StockService(List.of(), List.of(), new DataGoStockClient(null, null, null), new StockListings(List::of),
                 new StockResolver(null, null), (code, fund) -> io.saiden.economyhelper.market.StockOutlook.NONE,
-                symbol -> io.saiden.economyhelper.market.StockOutlook.NONE, null) {
+                symbol -> io.saiden.economyhelper.market.StockOutlook.NONE, symbol -> null, null) {
             @Override
             public Optional<Answer> answer(String query) {
                 return Optional.of(new Answer(quote, null,

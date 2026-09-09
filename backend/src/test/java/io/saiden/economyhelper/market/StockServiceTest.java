@@ -418,7 +418,7 @@ class StockServiceTest {
                 (code, fund) -> {
                     askedOutlook.put(code, fund);
                     return StockOutlook.NONE;
-                }, symbol -> StockOutlook.NONE, null);
+                }, symbol -> StockOutlook.NONE, symbol -> null, null);
 
         assertThat(service.answer("TIME 미국나스닥100액티브")).isPresent();
         assertThat(askedOutlook).as("ETF에도 묻는다 — 분배금이 그 응답에 온다").containsEntry("426030", true);
@@ -521,7 +521,7 @@ class StockServiceTest {
                                         StockListings listings) {
         // 전망은 여기서 보지 않는다 — KisDomesticOutlookClientTest가 본다
         return new StockService(domestic, us, names, listings, resolver,
-                (code, fund) -> StockOutlook.NONE, symbol -> StockOutlook.NONE, null);
+                (code, fund) -> StockOutlook.NONE, symbol -> StockOutlook.NONE, symbol -> null, null);
     }
 
     private static StockListings listings(Listing... listings) {

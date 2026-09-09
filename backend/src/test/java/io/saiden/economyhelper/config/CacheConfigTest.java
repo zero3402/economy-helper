@@ -244,6 +244,7 @@ class CacheConfigTest {
             FrankfurterFxClient.class, KeximFxClient.class, KisFxClient.class,
             KisStockApi.class, KisMasterClient.class,
             KisDomesticOutlookClient.class, FmpUsOutlookClient.class,
+            io.saiden.economyhelper.market.polygon.PolygonDividendClient.class,
             FeedFetcher.class, HackerNewsApi.class, RelevanceScorer.class,
             QueryTranslator.class, TranslationService.class,
             OpenMeteoForecastClient.class, OpenMeteoArchiveClient.class,

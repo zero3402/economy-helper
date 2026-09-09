@@ -299,7 +299,7 @@ class ResilienceConfigTest {
         // 그 설정은 baseConfig의 것을 덮어쓰므로 RequestNotPermitted가 조용히 빠질 수 있다.
         // binance가 실제로 그 상태였고, 목록에 없어서 아무도 몰랐다
         for (String name : new String[] {"translation", "telegram", "fmp", "fmpOutlook",
-                "upbit", "binance", "kisFx", "kisStock", "kisOutlook",
+                "upbit", "binance", "kisFx", "kisStock", "kisOutlook", "polygon",
                 "weatherKma", "weatherAccuWeather",
                 "weatherOpenMeteo", "weatherOpenMeteoHourly",
                 "weatherOpenMeteoArchive", "weatherGeocoding"}) {

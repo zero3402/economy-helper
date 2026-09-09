@@ -101,6 +101,9 @@ public class StockService {
     private final DomesticOutlookClient outlooks;
     private final UsOutlookClient usOutlooks;
 
+    /** 미국 배당 — FMP 허용목록 밖 심볼도 준다. {@link #usOutlookOf}가 전망과 합친다. */
+    private final UsDividendClient dividends;
+
     /**
      * 일봉을 주는 출처 — <b>이중화되지 않는다.</b> 공공데이터포털은 날짜당 호출 하나라 열나흘이면
      * 열네 번이고, KIS는 한 호출로 {@code output2}를 통째로 준다. 그래서 SPI 목록이 아니라
@@ -117,7 +120,7 @@ public class StockService {
     public StockService(List<DomesticStockClient> domestic, List<UsStockClient> us,
                         DataGoStockClient names, StockListings listings, StockResolver resolver,
                         DomesticOutlookClient outlooks, UsOutlookClient usOutlooks,
-                        KisStockApi kisSeries) {
+                        UsDividendClient dividends, KisStockApi kisSeries) {
         // 순서는 여기서 정한다 — 주입 순서에 딸려 가면 클래스 이름을 바꾸다 뒤집힌다
         this.domestic = Failover.order(domestic, DOMESTIC_ORDER, StockClient::source);
         this.us = Failover.order(us, US_ORDER, StockClient::source);
@@ -139,6 +142,7 @@ public class StockService {
         this.resolver = resolver;
         this.outlooks = outlooks;
         this.usOutlooks = usOutlooks;
+        this.dividends = dividends;
         this.kisSeries = kisSeries;
     }
 
@@ -521,15 +525,43 @@ public class StockService {
                 index ? null : usOutlookOf(symbol), Series.us(symbol)));
     }
 
-    /** {@link #outlookOf}와 같은 이유로 여기서 삼킨다 — 클라이언트가 삼키면 브레이커가 못 본다. */
+    /**
+     * 미국 전망 — <b>출처 둘을 여기서 합친다.</b> 목표가·실적발표일은 FMP, <b>배당은 Polygon</b>이다.
+     *
+     * <p>⚠️ <b>왜 갈렸나.</b> FMP 무료 티어가 <b>심볼별 허용목록</b>이라 배당도 목록 밖 심볼에는
+     * 안 준다 — 실측(2026-09-08) 열다섯 중 다섯이 402였고 그것이 「{@code /s 슈드}에 배당이 안
+     * 나온다」로 신고됐다. Polygon은 그 심볼들을 다 주고 {@code AAPL}에서 FMP와 값이 일치했다.
+     * 덤으로 FMP 호출이 심볼당 셋에서 둘로 줄었다.
+     *
+     * <p><b>둘을 따로 삼킨다.</b> 한쪽이 죽어도 다른 쪽은 나간다 — 둘 다 보충이므로 실패가 답을
+     * 죽이지 않는다. 그래서 <b>배당만 있는 답</b>(허용목록 밖 심볼)과 <b>배당만 없는 답</b>
+     * (Polygon 장애)이 둘 다 정상이다.
+     *
+     * <p>{@link #outlookOf}와 같은 이유로 삼키는 일이 여기 있다 — 클라이언트가 삼키면 브레이커가
+     * 정상 반환을 보고 성공을 센다.
+     */
     private StockOutlook usOutlookOf(String symbol) {
+        StockOutlook outlook = null;
         try {
-            StockOutlook outlook = usOutlooks.outlook(symbol);
-            return outlook.isEmpty() ? null : outlook;
+            outlook = usOutlooks.outlook(symbol);
         } catch (RuntimeException e) {
             log.info("[stock] {} 전망 조회 실패 — 시세만 내보냅니다: {}", symbol, FailureReason.of(e));
-            return null;
         }
+        StockOutlook.Dividend dividend = null;
+        try {
+            StockOutlook.Dividend found = dividends.dividend(symbol);
+            // 빈 값 객체는 캐시를 위한 것이고 화면에는 없는 것과 같다 — 여기서 null로 접는다
+            dividend = found == null || found.isEmpty() ? null : found;
+        } catch (RuntimeException e) {
+            log.info("[stock] {} 배당 조회 실패 — 그 줄만 빠집니다: {}", symbol, FailureReason.of(e));
+        }
+        // 조회처·시각은 화면이 안 읽는다(StockOutlook javadoc). FMP가 빈손이면 그 둘을 지어내지
+        // 않고 null로 둔다 — StockOutlook.NONE이 이미 그 모양이다
+        StockOutlook merged = outlook == null
+                ? new StockOutlook(null, null, dividend, null, null)
+                : new StockOutlook(outlook.earningsDate(), outlook.targetPrice(), dividend,
+                        outlook.source(), outlook.at());
+        return merged.isEmpty() ? null : merged;
     }
 
     /**

@@ -33,7 +33,6 @@ class FmpUsOutlookClientTest extends WireMockTest {
 
     private static final String TARGET = "/stable/price-target-consensus";
     private static final String EARNINGS = "/stable/earnings";
-    private static final String DIVIDENDS = "/stable/dividends";
     private static final String API_KEY = "test-key-402";
 
     /**
@@ -77,7 +76,6 @@ class FmpUsOutlookClientTest extends WireMockTest {
     void stubEverythingEmpty() {
         stub(TARGET, 200, "[]");
         stub(EARNINGS, 200, "[]");
-        stub(DIVIDENDS, 200, "[]");
     }
 
     private void stub(String path, int status, String body) {
@@ -85,21 +83,6 @@ class FmpUsOutlookClientTest extends WireMockTest {
                 .withHeader("Content-Type", "application/json").withBody(body)));
     }
 
-    /**
-     * 실측 {@code NVDA} 2026-09-07의 모양. 첫 행이 앞날(기준일 09-10 · 지급일 10-01)이고 나머지는 지난 것이다.
-     *
-     * <p>⚠️ <b>첫 행의 {@code date}와 {@code adjDividend}를 일부러 어긋나게 뒀다.</b> 실측에서는
-     * {@code date == recordDate}이고 {@code adjDividend == dividend}인데, 그러면 <b>우리가 어느 필드를
-     * 읽는지 시험할 수 없다</b> — 락일({@code date})이나 조정치({@code adjDividend})를 잘못 읽어도
-     * 전부 초록이었다. 읽어야 하는 것은 {@code recordDate}와 {@code dividend}다.
-     */
-    private static final String NVDA_DIVIDENDS = """
-            [{"symbol":"NVDA","date":"2026-09-09","recordDate":"2026-09-10","paymentDate":"2026-10-01",
-              "declarationDate":"2026-08-26","adjDividend":0.99,"dividend":0.25,"yield":0.2257,"frequency":"Quarterly"},
-             {"symbol":"NVDA","date":"2026-06-03","recordDate":"2026-06-04","paymentDate":"2026-06-26",
-              "declarationDate":"2026-05-20","adjDividend":0.99,"dividend":0.25,"yield":0.128,"frequency":"Quarterly"},
-             {"symbol":"NVDA","date":"2026-03-10","recordDate":"2026-03-11","paymentDate":"2026-04-01",
-              "declarationDate":"2026-02-25","adjDividend":0.99,"dividend":0.01,"yield":0.0215,"frequency":"Quarterly"}]""";
 
     /**
      * 실측 그대로(무료 티어, {@code AAPL} 셋 다 200 — 목표가·실적발표 2026-08-21, 배당 2026-09-07).
@@ -119,11 +102,6 @@ class FmpUsOutlookClientTest extends WireMockTest {
                   "revenueActual":109417000000,"lastUpdated":"2026-08-21"},
                  {"symbol":"AAPL","date":"2026-04-30","epsActual":2.01,"epsEstimated":1.95,
                   "revenueActual":111184000000,"lastUpdated":"2026-07-29"}]""");
-        stub(DIVIDENDS, 200, """
-                [{"symbol":"AAPL","date":"2026-08-10","recordDate":"2026-08-10","paymentDate":"2026-08-13",
-                  "declarationDate":"2026-07-30","adjDividend":0.27,"dividend":0.27,"yield":0.3439,"frequency":"Quarterly"},
-                 {"symbol":"AAPL","date":"2026-05-11","recordDate":"2026-05-11","paymentDate":"2026-05-14",
-                  "declarationDate":"2026-04-30","adjDividend":0.27,"dividend":0.27,"yield":0.3588,"frequency":"Quarterly"}]""");
     }
 
     @Test
@@ -143,7 +121,6 @@ class FmpUsOutlookClientTest extends WireMockTest {
                 [{"symbol":"ORCL","targetConsensus":250.5}]""");
         // 허용목록 밖이라 402다 — **다시 물어도 같은 답**이므로 반쪽을 답으로 주고 캐시해도 된다
         stub(EARNINGS, 402, "{\"Error Message\":\"Exclusive Endpoint\"}");
-        stub(DIVIDENDS, 402, "{\"Error Message\":\"Exclusive Endpoint\"}");
 
         StockOutlook outlook = client().outlook("ORCL");
 
@@ -159,7 +136,6 @@ class FmpUsOutlookClientTest extends WireMockTest {
         //    안 지켜지고 있었다. 다시 물어도 같은 402이므로 빈 값이 그 심볼의 정답이다
         stub(TARGET, 402, "{}");
         stub(EARNINGS, 402, "{}");
-        stub(DIVIDENDS, 402, "{}");
 
         StockOutlook outlook = client().outlook("ORCL");
 
@@ -173,7 +149,6 @@ class FmpUsOutlookClientTest extends WireMockTest {
     void throwsWhenEveryLegFailedAndOneMightRecover() {
         stub(TARGET, 500, "{}");
         stub(EARNINGS, 402, "{}");
-        stub(DIVIDENDS, 402, "{}");
 
         // 삼키면 그 위의 @CircuitBreaker가 정상 반환을 보고 성공을 센다.
         // 삼키는 일은 StockService가 한다
@@ -230,7 +205,6 @@ class FmpUsOutlookClientTest extends WireMockTest {
         // 셋을 다 죽여야 던진다(하나라도 받으면 그것으로 답한다). 500이 섞였으므로 빈 값이 아니라 예외다
         stub(TARGET, 500, "{}");
         stub(EARNINGS, 500, "{}");
-        stub(DIVIDENDS, 500, "{}");
 
         assertThatThrownBy(() -> client().outlook("AAPL"))
                 .hasMessageNotContaining(API_KEY);
@@ -272,92 +246,16 @@ class FmpUsOutlookClientTest extends WireMockTest {
                 .as("셋이 다 비면 붙일 것이 없다").isTrue();
     }
 
-    @Test
-    @DisplayName("다음 배당을 읽는다 — 기준일·지급일·배당금이 화면의 세 블록이다")
-    void readsTheNextDividend() {
-        stub(TARGET, 200, "[]");
-        stub(DIVIDENDS, 200, NVDA_DIVIDENDS);
 
-        StockOutlook outlook = client(Instant.parse("2026-09-07T12:00:00Z")).outlook("NVDA");
 
-        assertThat(outlook.dividend())
-                .as("기준일은 recordDate(09-10)이고 락일(date, 09-09)이 아니다. "
-                        + "금액은 dividend(0.25)이고 조정치(adjDividend, 0.99)가 아니다")
-                .isEqualTo(StockOutlook.Dividend.row(LocalDate.of(2026, 9, 10), LocalDate.of(2026, 10, 1),
-                        new BigDecimal("0.25")));
-    }
 
-    @Test
-    @DisplayName("배당이 전부 지났으면 지난 배당을 든다 — 미국도 국내와 같은 규칙이다")
-    void fallsBackToTheLastDividendWhenEveryDateIsPast() {
-        // 실측 AAPL(2026-09-07): 마지막 배당이 기준일 08-10·지급 08-13이고 다음이 미선언이다.
-        // 「앞으로 올 것만」으로 뒀더니 배당을 주는 종목이 빈칸이었다 — 이름표가 「지난」을 든다
-        stubAll();
 
-        StockOutlook outlook = client(Instant.parse("2026-09-07T12:00:00Z")).outlook("AAPL");
 
-        assertThat(outlook.dividend()).isEqualTo(new StockOutlook.Dividend(
-                LocalDate.of(2026, 8, 10), LocalDate.of(2026, 8, 13),
-                new BigDecimal("0.27"), true));
-        assertThat(outlook.targetPrice()).as("배당과 나머지는 따로 논다").isNotNull();
-    }
-
-    @Test
-    @DisplayName("기준일은 지났고 지급일만 남았으면 지급일만 — 있는 줄만 적는다")
-    void keepsOnlyThePayDateAfterTheRecordDate() {
-        stub(TARGET, 200, "[]");
-        stub(DIVIDENDS, 200, NVDA_DIVIDENDS);
-
-        StockOutlook outlook = client(Instant.parse("2026-09-20T12:00:00Z")).outlook("NVDA");
-
-        assertThat(outlook.dividend())
-                .isEqualTo(StockOutlook.Dividend.row(null, LocalDate.of(2026, 10, 1), new BigDecimal("0.25")));
-    }
-
-    @Test
-    @DisplayName("목표가·실적발표일이 402여도 배당은 살린다 — 셋이 따로 논다")
-    void keepsTheDividendWhenTheOthersAreBlocked() {
-        stub(TARGET, 402, "{\"Error Message\":\"Exclusive Endpoint\"}");
-        stub(EARNINGS, 402, "{\"Error Message\":\"Exclusive Endpoint\"}");
-        stub(DIVIDENDS, 200, NVDA_DIVIDENDS);
-
-        StockOutlook outlook = client(Instant.parse("2026-09-07T12:00:00Z")).outlook("NVDA");
-
-        assertThat(outlook.dividend()).isNotNull();
-        assertThat(outlook.targetPrice()).isNull();
-        assertThat(outlook.earningsDate()).isNull();
-    }
-
-    @Test
-    @DisplayName("배당 0은 값이 아니다 — 날짜는 남고 금액 줄만 빠진다")
-    void ignoresAZeroDividend() {
-        stub(TARGET, 200, "[]");
-        stub(DIVIDENDS, 200, """
-                [{"symbol":"X","date":"2026-09-10","recordDate":"2026-09-10","paymentDate":"2026-10-01","dividend":0}]""");
-
-        StockOutlook outlook = client(Instant.parse("2026-09-07T12:00:00Z")).outlook("X");
-
-        assertThat(outlook.dividend())
-                .isEqualTo(StockOutlook.Dividend.row(LocalDate.of(2026, 9, 10), LocalDate.of(2026, 10, 1), null));
-    }
-
-    @Test
-    @DisplayName("배당 날짜도 미국 달력으로 자른다 — 기준일 당일 KST 아침에 그 줄이 사라지면 안 된다")
-    void cutsDividendDatesByTheMarketCalendar() {
-        // 2026-09-11T02:00Z는 뉴욕에서 09-10 22시이고 서울에서 09-11 11시다 — 기준일 09-10은 현지로 아직 오늘이다
-        stub(TARGET, 200, "[]");
-        stub(DIVIDENDS, 200, NVDA_DIVIDENDS);
-
-        StockOutlook outlook = client(Instant.parse("2026-09-11T02:00:00Z")).outlook("NVDA");
-
-        assertThat(outlook.dividend().recordDate()).isEqualTo(LocalDate.of(2026, 9, 10));
-    }
 
     @Test
     @DisplayName("목표가가 402여도 실적발표일은 살린다 — 둘이 따로 논다")
     void keepsEarningsWhenTheTargetIsBlocked() {
         stub(TARGET, 402, "{\"Error Message\":\"Exclusive Endpoint\"}");
-        stub(DIVIDENDS, 402, "{\"Error Message\":\"Exclusive Endpoint\"}");
         stub(EARNINGS, 200, """
                 [{"symbol":"ORCL","date":"2026-09-10","epsActual":null}]""");
 
@@ -394,7 +292,6 @@ class FmpUsOutlookClientTest extends WireMockTest {
         //    한도·폴백 보호가 보충 한 줄의 신선도보다 앞이다
         stub(TARGET, 200, """
                 [{"symbol":"AAPL","targetConsensus":340.72}]""");
-        stub(DIVIDENDS, 500, "{}");
 
         StockOutlook outlook = client().outlook("AAPL");
 
@@ -425,7 +322,6 @@ class FmpUsOutlookClientTest extends WireMockTest {
                 .isNull();
         assertThat(outlook.dividend()).isNull();
         server.verify(0, getRequestedFor(urlPathEqualTo(EARNINGS)));
-        server.verify(0, getRequestedFor(urlPathEqualTo(DIVIDENDS)));
     }
 
     @Test
@@ -440,7 +336,6 @@ class FmpUsOutlookClientTest extends WireMockTest {
 
         assertThat(outlook.targetPrice()).isEqualByComparingTo(new BigDecimal("340.72"));
         assertThat(outlook.earningsDate()).isEqualTo(LocalDate.of(2026, 10, 29));
-        server.verify(0, getRequestedFor(urlPathEqualTo(DIVIDENDS)));
     }
 
     /** 앞의 N번만 허용한다 — 한도가 호출 사이에서 끝나는 경계를 만든다. */

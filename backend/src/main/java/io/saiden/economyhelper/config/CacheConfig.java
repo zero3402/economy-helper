@@ -117,6 +117,8 @@ public class CacheConfig {
                         cache(ttl.kisOutlook(), new TypeReference<StockOutlook>() {}))
                 .withCacheConfiguration(CacheNames.US_OUTLOOK,
                         cache(ttl.usOutlook(), new TypeReference<StockOutlook>() {}))
+                .withCacheConfiguration(CacheNames.US_DIVIDEND,
+                        cache(ttl.usDividend(), new TypeReference<StockOutlook.Dividend>() {}))
                 .withCacheConfiguration(CacheNames.FX_SERIES,
                         cache(ttl.fxSeries(),
                                 new TypeReference<List<

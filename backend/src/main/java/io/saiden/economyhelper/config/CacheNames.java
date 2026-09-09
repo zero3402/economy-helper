@@ -133,6 +133,17 @@ public final class CacheNames {
     public static final String US_OUTLOOK = "us-outlook";
 
     /**
+     * 미국 종목의 <b>배당</b> — Polygon. {@link #US_OUTLOOK}과 <b>따로 둔다.</b>
+     *
+     * <p>출처가 다르므로 한쪽 장애가 다른 쪽 답을 지우면 안 된다. FMP가 막힌 심볼
+     * ({@code SCHD}·{@code JEPI}·{@code QQQ})은 목표가·실적발표일이 없는 채로 배당만 나오는데,
+     * 한 항목에 담으면 그 빈 전망이 배당까지 12시간 덮는다.
+     *
+     * <p>판은 안 매긴다 — 상대가 준 값이다.
+     */
+    public static final String US_DIVIDEND = "us-dividend";
+
+    /**
      * 환율 일봉 — 차트가 그리는 것.
      *
      * <p><b>시세({@link #FX})와 따로 두는 이유가 수명이다.</b> 시세는 1분이고 일봉은 하루에

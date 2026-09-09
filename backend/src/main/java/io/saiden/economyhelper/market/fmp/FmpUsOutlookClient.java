@@ -9,7 +9,6 @@ import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import io.saiden.economyhelper.config.CacheNames;
 import io.saiden.economyhelper.market.StockOutlook;
-import io.saiden.economyhelper.market.StockOutlook.Dividend;
 import io.saiden.economyhelper.market.StockSource;
 import io.saiden.economyhelper.market.UsOutlookClient;
 import io.saiden.economyhelper.support.Concurrently;
@@ -74,7 +73,6 @@ public class FmpUsOutlookClient implements UsOutlookClient {
 
     private static final String TARGET = "/stable/price-target-consensus";
     private static final String EARNINGS = "/stable/earnings";
-    private static final String DIVIDENDS = "/stable/dividends";
 
     /**
      * 실적발표일·배당 날짜를 자르는 달력 — <b>그 시장의 것</b>이다.
@@ -133,23 +131,17 @@ public class FmpUsOutlookClient implements UsOutlookClient {
         // 한도가 호출 사이에서 끝나면 — 이미 잡은 앞 퍼밋을 버리지 않는다. 걸리면 그 심볼의 뒷값이
         // 자정(KST)까지 안 나오는데, 빈손보다 낫다
         boolean earningsPermitted = permit(symbol, "실적발표일");
-        boolean dividendsPermitted = permit(symbol, "배당");
 
         // HTTP만 겹친다 — 세 호출은 서로를 모르고 콜드 1.7초씩이라(실측 p50 1,678ms) 겹치면 하나가 된다.
         // 리미터는 이 메서드에 걸려 있어 퍼밋 수는 그대로다. 각자 HTTP 실패를 값(Fetched.failed)으로
         // 삼키므로 한쪽이 죽어도 다른 쪽이 버려지지 않는다
-        Concurrently.Triple<Fetched<Target>, Fetched<List<Earnings>>, Fetched<List<DividendRow>>> fetched =
-                Concurrently.three(
-                        () -> fetch(TARGET, symbol, new ParameterizedTypeReference<List<Target>>() {}),
-                        () -> earningsPermitted
-                                ? fetchAll(EARNINGS, symbol, new ParameterizedTypeReference<List<Earnings>>() {})
-                                : Fetched.<List<Earnings>>skipped(),
-                        () -> dividendsPermitted
-                                ? fetchAll(DIVIDENDS, symbol, new ParameterizedTypeReference<List<DividendRow>>() {})
-                                : Fetched.<List<DividendRow>>skipped());
+        Concurrently.Pair<Fetched<Target>, Fetched<List<Earnings>>> fetched = Concurrently.both(
+                () -> fetch(TARGET, symbol, new ParameterizedTypeReference<List<Target>>() {}),
+                () -> earningsPermitted
+                        ? fetchAll(EARNINGS, symbol, new ParameterizedTypeReference<List<Earnings>>() {})
+                        : Fetched.<List<Earnings>>skipped());
         Fetched<Target> target = fetched.first();
         Fetched<List<Earnings>> schedule = fetched.second();
-        Fetched<List<DividendRow>> dividends = fetched.third();
         // ⚠️ **빈 배열과 조회 실패를 구분해야 한다.** 둘을 다 null로 뭉치면 「목표가를 낸 곳이
         //    없다」(값)와 「못 물어봤다」(실패)가 같아지고, 그러면 브레이커가 실패를 못 본다.
         //    처음에 그렇게 써 뒀고 FmpUsOutlookClientTest가 그것을 잡았다
@@ -166,12 +158,12 @@ public class FmpUsOutlookClient implements UsOutlookClient {
         //    그래서 우선순위를 적어 둔다: **한도·폴백 보호 > 보충 한 줄의 신선도.**
         //    치르는 값은 「500 한 번에 배당 줄이 최대 반나절 안 보인다」이고 스스로 낫는다.
         //    (되돌린 것이다 — 적대적 리뷰가 좁히라고 짚었고, 두 번째 검증이 그 대가를 실측했다.)
-        if (!target.succeeded() && !schedule.succeeded() && !dividends.succeeded()) {
+        if (!target.succeeded() && !schedule.succeeded()) {
             // ⚠️ **아무것도 못 받았다.** 전부 402·403이면 그 심볼에 **영영 없는 값**이므로 빈 값을
             //    담는다 — 안 담으면 허용목록 밖 심볼(ORCL·PATH)이 조회마다 퍼밋 3개를 영영 쓴다.
             //    「빈 답도 값이라 담는다」가 이 자리에서만 안 지켜지고 있었다(변경 이전부터).
             //    다시 될 여지가 있는 실패가 하나라도 섞였으면 던진다 — 담을 「값」이 아니기 때문이다.
-            if (everyLegPermanentlyBlocked(target, schedule, dividends)) {
+            if (everyLegPermanentlyBlocked(target, schedule)) {
                 // 이 한 줄이 「그래서 내 한도를 계속 태우나」에 답한다 — 담으므로 안 태운다
                 log.info("[fmp] '{}' 전망이 없는 심볼입니다 — 빈 값을 담아 12시간 동안 다시 묻지 않습니다",
                         symbol);
@@ -181,12 +173,15 @@ public class FmpUsOutlookClient implements UsOutlookClient {
         }
 
         LocalDate today = LocalDate.now(clock.withZone(NEW_YORK));
+        // ⚠️ **배당은 여기서 안 낸다.** Polygon으로 갈렸다 — FMP 무료 티어가 심볼별 허용목록이라
+        //    SCHD·JEPI·QQQ의 배당을 안 줬고(실측), 그 자리가 「배당이 안 나온다」로 신고됐다.
+        //    덤으로 심볼당 FMP 호출이 셋에서 **둘**로 줄어 하루 240회에 여유가 생겼다.
+        //    합치는 것은 StockService가 한다
         StockOutlook outlook = new StockOutlook(
                 nextEarnings(schedule.value(), today),
                 target.value() == null ? null : positive(target.value().targetConsensus()),
-                nextDividend(dividends.value(), today),
-                StockSource.FMP, clock.instant());
-        // 비어도 돌려준다 — 값이라 캐시된다. 컨센서스 없는 심볼을 검색할 때마다 FMP 3회를 다시 쓰던 자리다
+                null, StockSource.FMP, clock.instant());
+        // 비어도 돌려준다 — 값이라 캐시된다. 컨센서스 없는 심볼을 검색할 때마다 FMP 2회를 다시 쓰던 자리다
         return outlook;
     }
 
@@ -235,24 +230,6 @@ public class FmpUsOutlookClient implements UsOutlookClient {
                 .filter(date -> !date.isBefore(today))
                 .min(Comparator.naturalOrder())
                 .orElse(null);
-    }
-
-    /**
-     * 다음 배당 — 고르는 규칙은 {@link Dividend#nextOf}에 있다(예탁원 쪽과 같은 규칙이다).
-     *
-     * <p>FMP도 지난 배당을 수십 행 함께 준다(실측 {@code AAPL} 92행·{@code NVDA} 56행, 최신순으로
-     * 보였다). 실적발표일과 같은 이유로 첫 행을 집지 않는다. 실측 {@code AAPL}(2026-09-07)은 마지막
-     * 배당이 8월에 끝나고 다음이 미선언이라 <b>셋 다 지난 모양</b>이었다 — 그때는 {@code null}이고
-     * 화면에 배당 블록이 없다. 그것이 정상이다.
-     */
-    private static Dividend nextDividend(List<DividendRow> rows, LocalDate today) {
-        if (rows == null) {
-            return null;
-        }
-        return Dividend.nextOf(rows.stream()
-                .filter(Objects::nonNull)
-                .map(row -> Dividend.row(row.recordDate(), row.paymentDate(), row.dividend()))
-                .toList(), today);
     }
 
     /**
@@ -361,17 +338,4 @@ public class FmpUsOutlookClient implements UsOutlookClient {
     record Earnings(@JsonProperty("date") LocalDate announcedOn) {
     }
 
-    /**
-     * 배당 한 건 — 화면이 쓰는 셋만 담는다.
-     *
-     * <p>⚠️ <b>{@code date}(배당락일)는 읽지 않는다.</b> 화면은 <b>기준일</b>을 적기로 했다 — 두 시장의
-     * 출처가 다 기준일을 직접 주고, 국내는 락일을 만들 휴장일 달력이 없어 한 통에 두 뜻의 날짜가 서는
-     * 것을 피한다. {@code yield}·{@code frequency}·{@code declarationDate}도 같은 이유로 안 담는다.
-     *
-     * <p><b>{@code adjDividend}가 아니라 {@code dividend}다.</b> 조정치는 분할을 거슬러 옛 배당을
-     * 지금 주식 수로 환산한 값이라 지난 행에서만 갈린다 — 우리는 앞날만 보므로 선언된 금액 그대로가 맞다.
-     */
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    record DividendRow(LocalDate recordDate, LocalDate paymentDate, BigDecimal dividend) {
-    }
 }

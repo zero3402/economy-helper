@@ -125,6 +125,9 @@ economy-helper:
     - host: financialmodelingprep.com        # 1,678ms(콜드)
       connect: 5s
       read: 10s
+    - host: api.polygon.io                   # 배당 참조 데이터. 무료 티어는 분당 5회다
+      connect: 5s
+      read: 10s
     - host: oapi.koreaexim.go.kr             # 82ms
       connect: 5s
       read: 10s
@@ -249,9 +252,12 @@ economy-helper:
                            # 잡는다. 세 도메인 중 여기만 진짜 새 호출이라 캐시가 값을 한다
     fx-series: 6h          # 일봉은 하루에 한 번 바뀐다. 시세(fx: 1m)와 따로 두는 이유가
                            # 그 수명이다 — 한 이름에 담으면 하루치 값을 1분마다 다시 받는다
-    us-outlook: 12h        # 국내와 같은 성질이다. 다만 이쪽은 심볼당 FMP 호출이 **셋**이라
-                           # (목표가·실적발표일·배당) 하루 250회 한도가 걸린다 —
-                           # 이 길이가 그 한도의 실질 방어다
+    us-outlook: 12h        # 국내와 같은 성질이다. 다만 이쪽은 심볼당 FMP 호출이 **둘**이라
+                           # (목표가·실적발표일) 하루 250회 한도가 걸린다 —
+                           # 이 길이가 그 한도의 실질 방어다. 배당은 us-dividend로 갈렸다
+    us-dividend: 12h       # 미국 배당(Polygon). us-outlook과 **따로** 둔다 — 출처가 다르므로
+                           # 한쪽 장애가 다른 쪽 답을 12시간 덮으면 안 된다. FMP 허용목록 밖
+                           # 심볼(SCHD·JEPI·QQQ)이 배당만 나오는 모양이 정상이다
     kis-outlook: 12h       # 목표주가는 증권사가 분기에 몇 번 낼 뿐이고 배당 일정도 분기에
                            # 한 번 잡히므로 낡지 않는다. 길게 잡는 것이 이 기능의 실질 방어다 —
                            # 브리핑이 종목마다 조회를 **둘** 더 하는데(투자의견·배당일정)
@@ -454,6 +460,14 @@ economy-helper:
       #    (StockPriceApi가 URI를 직접 조립하는 이유다).
       base-url: https://apis.data.go.kr
       api-key: ${DATA_API_KEY:}
+
+    # Polygon — 미국 배당의 1순위. FMP 무료 티어가 심볼별 허용목록이라 SCHD·JEPI·QQQ의 배당을
+    # 안 줘서 갈랐다(실측 2026-09-09: Polygon은 그 셋을 다 주고 AAPL에서 FMP와 값이 일치했다).
+    # 무료 티어는 분당 5회이고 하루 총량 제한은 없다 — 그래서 날짜 카운터가 없다.
+    # ⚠️ 환경변수 이름이 MASSIVE_API_KEY다. 발급처와 이름이 다르므로 여기서 못 박아 둔다
+    polygon:
+      base-url: https://api.polygon.io
+      api-key: ${MASSIVE_API_KEY:}
 
     fmp:
       # Financial Modeling Prep — 미국 주식·지수 현재가.
@@ -662,6 +676,14 @@ resilience4j:
         ignoreExceptions:
           - io.github.resilience4j.ratelimiter.RequestNotPermitted
           - io.saiden.economyhelper.market.kis.KisThrottle$Congested
+      # ⚠️ Polygon도 제 브레이커를 쓴다 — 배당은 보충이라 그 실패가 미국 시세나 목표가를
+      #    끊으면 안 된다. fmpOutlook을 fmp에서 가른 것과 같은 자리다.
+      # ⚠️ ignoreExceptions를 적으면 configs.default의 것을 **덮으므로** RequestNotPermitted를
+      #    다시 적는다. Congested는 없다 — 그건 KIS의 간격 문이고 여기와 무관하다
+      polygon:
+        baseConfig: default
+        ignoreExceptions:
+          - io.github.resilience4j.ratelimiter.RequestNotPermitted
       dataGo:
         baseConfig: default
       # ⚠️ ETF 시세(증권상품시세정보)는 주식시세정보와 **활용신청이 따로**다. 신청 전·만료 뒤에는
@@ -872,6 +894,13 @@ resilience4j:
         timeoutDuration: 5s
       # FMP는 하루 250회다 — 일 단위 총량이라 이 리미터로는 못 지킨다(FmpQuotaGuard가 센다).
       # 여기서는 연타로 초당 여러 번 나가는 것만 막는다.
+      # ⚠️ Polygon 무료 티어는 **분당 5회**다. 하루 총량 제한이 없어 날짜 카운터
+      #    (FmpQuotaGuard 같은 것)는 필요 없고, 이 리미터와 12시간 캐시가 방어다.
+      #    거절되면 그 종목의 배당 줄만 빠진다 — 보충이지 폴백이 아니다
+      polygon:
+        limitForPeriod: 5
+        limitRefreshPeriod: 60s
+        timeoutDuration: 3s
       fmp:
         limitForPeriod: 5
         limitRefreshPeriod: 1s
