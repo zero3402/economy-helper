@@ -17,6 +17,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.client.ClientHttpRequest;
 import org.springframework.http.client.ClientHttpRequestFactory;
+import java.util.stream.Collectors;
 
 /**
  * 출처마다 다른 타임아웃 — <b>호스트로 가른다.</b>
@@ -66,7 +67,7 @@ public class HttpTimeouts {
         List<HttpTimeout> configured = properties.httpTimeouts() == null
                 ? List.of() : properties.httpTimeouts();
         this.byHost = configured.stream()
-                .collect(java.util.stream.Collectors.toUnmodifiableMap(
+                .collect(Collectors.toUnmodifiableMap(
                         HttpTimeout::host, timeout -> timeout));
     }
 

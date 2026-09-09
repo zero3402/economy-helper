@@ -52,4 +52,36 @@ public final class LlmJson {
             return Optional.empty();
         }
     }
+    /**
+     * <b>LLM이 준 문자열이 「없음」인가.</b> {@code null}·빈 문자열, 그리고
+     * <b>{@code "null"} 리터럴 문자열</b>이 전부 없음이다.
+     *
+     * <p>⚠️ <b>마지막 것이 이 메서드가 있는 이유다.</b> LLM이 {@code null}을 리터럴
+     * {@code "null"}로 주는 일이 <b>실제로 있다.</b> 그리고 그 판단이 해석기 셋에 다섯 벌
+     * 흩어져 있던 동안 <b>두 번 물렸다</b> — 둘 다 「나머지는 막고 있는데 이것만 빠져 있었다」다.
+     *
+     * <ul>
+     *   <li>{@code ResolvedCoin.upperSymbol}에 없어서 {@code "NULL"}이 티커로 통과해
+     *       {@code KRW-NULL}을 <b>바이낸스에</b> 물었다. 한도가 IP 단위이고 Render는 공용
+     *       이그레스라 「우리가 할 수 있는 것은 밴을 늘리지 않는 것뿐」인 상대다.
+     *   <li>{@code ResolvedPlace.countryCode}에 없어서 {@code countryCode=null}이 쿼리에
+     *       실려 나가 헛호출을 태운 뒤 원문으로 폴백했다 — 지오코딩 조회가 조용히 두 배다.
+     * </ul>
+     *
+     * <p>같은 판단이 여러 곳에 있으면 하나만 고쳐지는 날이 온다 — 이 클래스가 해석기 골격을
+     * 가져온 이유와 같은 자리이고, 이제 그 한 단 아래까지 내려온 것이다.
+     */
+    public static boolean blank(String value) {
+        return value == null || value.isBlank() || "null".equalsIgnoreCase(value.trim());
+    }
+
+    /**
+     * 쓸 만하면 <b>앞뒤를 다듬어</b> 돌려주고, 아니면 {@code null}.
+     *
+     * <p>{@link #blank}가 boolean으로 답하는 그 판단을 값으로 답한다 — 호출부가
+     * {@code blank(x) ? null : x.trim()}을 되풀이하지 않게 한다.
+     */
+    public static String text(String value) {
+        return blank(value) ? null : value.trim();
+    }
 }

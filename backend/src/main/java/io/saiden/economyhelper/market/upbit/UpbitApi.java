@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import java.time.LocalDate;
 
 /**
  * 업비트 시세 API. 인증이 없어 공개 엔드포인트 두 개만 부른다.
@@ -108,7 +109,7 @@ public class UpbitApi {
         List<DailyBar> bars = new ArrayList<>();
         for (Candle candle : response) {
             if (candle != null && candle.date() != null && candle.close() != null) {
-                bars.add(new DailyBar(java.time.LocalDate.parse(candle.date()), candle.close()));
+                bars.add(new DailyBar(LocalDate.parse(candle.date()), candle.close()));
             }
         }
         // 업비트는 최근 것이 먼저 온다 — 정렬과 걸러내기는 한 곳에서 한다
@@ -179,7 +180,7 @@ public class UpbitApi {
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     record Candle(@JsonProperty("candle_date_time_kst") String dateTime,
-                  @JsonProperty("trade_price") java.math.BigDecimal close) {
+                  @JsonProperty("trade_price") BigDecimal close) {
 
         /** {@code 2026-08-21T00:00:00} → {@code 2026-08-21}. */
         String date() {

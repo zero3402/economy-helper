@@ -18,6 +18,7 @@ import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import java.util.stream.Stream;
 
 /**
  * {@code /stock {검색어}} — 검색어를 종목으로 옮기고 시세를 가져온다.
@@ -131,7 +132,7 @@ public class StockService {
         //    타입으로 갈려 있어(DomesticStockClient / UsStockClient) 미국 전용 구현은 감사
         //    대상에 아예 들어오지 않았다 — 새 UsStockClient를 US_ORDER에 안 적으면 조용히
         //    떨어지고 그것이 이 장치가 막으려던 바로 그 사고다
-        java.util.stream.Stream.of(
+        Stream.of(
                         Failover.unordered(domestic, StockClient::source, DOMESTIC_ORDER, US_ORDER),
                         Failover.unordered(us, StockClient::source, DOMESTIC_ORDER, US_ORDER))
                 .flatMap(List::stream)
@@ -471,7 +472,7 @@ public class StockService {
         return QueryNormalizer.forLookup(query).stream()
                 .filter(candidate -> US_TICKER.matcher(candidate).matches())
                 .findFirst()
-                .map(candidate -> candidate.toUpperCase(java.util.Locale.ROOT));
+                .map(candidate -> candidate.toUpperCase(Locale.ROOT));
     }
 
     /**

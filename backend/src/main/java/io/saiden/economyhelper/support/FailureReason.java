@@ -34,6 +34,14 @@ import org.springframework.web.client.RestClientResponseException;
  * 굳이 통과시키면 "분류했다"는 인상만 남는다. 로그가 곳곳에서 다른 모양인 것이 아니라
  * <b>다른 종류의 실패라서 다른 것</b>이다.
  *
+ * <p>⚠️ <b>가르는 기준은 「그 그물이 어디 쳐졌나」가 아니라 「거기 닿을 수 있는 것이
+ * 무엇인가」다 — 그래서 서비스의 바깥 그물 셋이 서로 다르고, 그것이 맞다.</b>
+ * {@code WeatherFacade}에는 지오코딩이 삼켜지지 않고 닿으므로 이것을 쓴다.
+ * {@code CryptoService}에는 안 닿는다 — 업비트 실패를 {@code upbitSide}·{@code byUpbitName}이
+ * 그 자리에서 잡아 값으로 바꾸므로(거기서 이것을 쓴다) 바깥에 남는 것은 Redis와 내부 조립뿐이고,
+ * 그래서 거기는 {@code e.toString()}이다. <b>「셋이 갈렸으니 맞추자」로 통일하면 안 된다</b> —
+ * 한 번 그렇게 바꿨다가 적대적 리뷰가 되돌렸다.
+ *
  * <p>절대 던지지 않는다. {@code catch} 안에서 불리는 자리라 그렇다
  * ({@code KisHeaders.reasonOf}와 같은 규칙).
  */

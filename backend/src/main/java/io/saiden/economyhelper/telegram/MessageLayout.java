@@ -6,6 +6,7 @@ import java.math.RoundingMode;
 import java.text.NumberFormat;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.format.ResolverStyle;
 import java.util.Locale;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -54,10 +55,12 @@ final class MessageLayout {
      * <p>⚠️ {@link Locale#KOREAN}을 명시하지 않으면 서버 로케일에 따라 {@code Mon}으로 나온다.
      */
     static final DateTimeFormatter DATE_TIME =
-            DateTimeFormatter.ofPattern("yyyy.MM.dd(E) HH:mm:ss", Locale.KOREAN);
+            DateTimeFormatter.ofPattern("uuuu.MM.dd(E) HH:mm:ss", Locale.KOREAN)
+            .withResolverStyle(ResolverStyle.STRICT);
 
     static final DateTimeFormatter DATE =
-            DateTimeFormatter.ofPattern("yyyy.MM.dd(E)", Locale.KOREAN);
+            DateTimeFormatter.ofPattern("uuuu.MM.dd(E)", Locale.KOREAN)
+            .withResolverStyle(ResolverStyle.STRICT);
 
     /**
      * 연도를 되풀이하지 않는 자리 — 범위의 끝({@code ~ 08.24(월)})과 날짜별 블록 제목.
@@ -66,7 +69,8 @@ final class MessageLayout {
      * 맨 아래 기준 줄이 연도를 이고 있다.
      */
     static final DateTimeFormatter SHORT_DATE =
-            DateTimeFormatter.ofPattern("MM.dd(E)", Locale.KOREAN);
+            DateTimeFormatter.ofPattern("MM.dd(E)", Locale.KOREAN)
+            .withResolverStyle(ResolverStyle.STRICT);
 
     /**
      * <b>답을 만들다 예상 못 한 곳에서 실패했을 때.</b>

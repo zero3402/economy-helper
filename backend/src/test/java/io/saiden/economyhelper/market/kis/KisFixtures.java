@@ -58,4 +58,25 @@ final class KisFixtures {
             return invalidated;
         }
     }
+
+    /**
+     * 테스트용 {@link KisCall} — <b>네 인자를 네 파일에 적지 않기 위해서다.</b>
+     *
+     * <p>{@code KisCall}이 생기기 전에는 클라이언트 셋의 생성자가 저마다
+     * {@code (builder, baseUrl, tokens, headers, throttle, …)}을 받아, 간격 문이 붙던 날
+     * <b>같은 수정을 세 파일에</b> 해야 했다({@link FixedToken}의 javadoc이 그 기록이다).
+     * 이제 그 조립이 한 줄이다.
+     *
+     * @param throttle 간격을 세는 문. 대개 {@link #unpaced()}이고, 거절을 단언하는 테스트만
+     *                 제 것을 넣는다
+     */
+    static KisCall call(String baseUrl, KisTokenStore tokens, KisThrottle throttle) {
+        return new KisCall(RestClient.builder(), baseUrl, tokens,
+                new KisHeaders("key", "secret"), throttle);
+    }
+
+    /** 간격을 안 세는 판 — 대부분의 테스트가 이것을 쓴다. */
+    static KisCall call(String baseUrl, KisTokenStore tokens) {
+        return call(baseUrl, tokens, unpaced());
+    }
 }

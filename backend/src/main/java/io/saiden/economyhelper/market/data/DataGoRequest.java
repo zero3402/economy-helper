@@ -10,6 +10,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.format.ResolverStyle;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
@@ -50,7 +51,8 @@ final class DataGoRequest {
 
     /** 패키지가 함께 쓴다 — {@code DataGoStockClient}가 종가일을 옮길 때도 이 둘이다. */
     static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
-    static final DateTimeFormatter BAS_DT = DateTimeFormatter.ofPattern("yyyyMMdd");
+    static final DateTimeFormatter BAS_DT = DateTimeFormatter.ofPattern("uuuuMMdd")
+            .withResolverStyle(ResolverStyle.STRICT);
 
     /** 에러 봉투의 사유 칸. 정상 봉투({@code response})와 모양이 달라 레코드로 안 읽고 글자로 찾는다. */
     private static final Pattern ERROR_MESSAGE = Pattern.compile("\"errMsg\"\\s*:\\s*\"([^\"]*)\"");

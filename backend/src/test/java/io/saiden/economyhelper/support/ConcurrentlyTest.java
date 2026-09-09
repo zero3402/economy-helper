@@ -66,38 +66,6 @@ class ConcurrentlyTest {
         })).isInstanceOf(IllegalStateException.class).hasMessage("둘째 죽음");
     }
 
-    @Test
-    @DisplayName("종류가 다른 셋도 겹친다 — 전망 셋(목표가·실적발표일·배당)이 이 모양이다")
-    void runsThreeDifferentlyTypedTasksConcurrently() {
-        CountDownLatch allStarted = new CountDownLatch(3);
-
-        Concurrently.Triple<Boolean, String, Integer> triple = Concurrently.three(
-                () -> {
-                    allStarted.countDown();
-                    return await(allStarted);
-                },
-                () -> {
-                    allStarted.countDown();
-                    return await(allStarted) ? "둘째" : "혼자";
-                },
-                () -> {
-                    allStarted.countDown();
-                    return await(allStarted) ? 3 : 0;
-                });
-
-        assertThat(triple.first()).isTrue();
-        assertThat(triple.second()).isEqualTo("둘째");
-        assertThat(triple.third()).isEqualTo(3);
-    }
-
-    @Test
-    @DisplayName("셋 중 하나가 던지면 그대로 올린다 — 둘과 같은 규칙이다")
-    void threePropagatesFailure() {
-        assertThatThrownBy(() -> Concurrently.three(() -> 1, () -> 2, () -> {
-            throw new IllegalStateException("셋째 죽음");
-        })).isInstanceOf(IllegalStateException.class).hasMessage("셋째 죽음");
-    }
-
     private static boolean await(CountDownLatch latch) {
         try {
             return latch.await(5, TimeUnit.SECONDS);

@@ -14,6 +14,22 @@ import java.time.LocalDate;
  */
 public interface WeatherClient {
 
+    /**
+     * 캐시 키의 <b>꼬리</b> — 지점과 기간. 출처 넷이 이것을 글자까지 똑같이 들고 있었다.
+     *
+     * <p>SpEL이라 <b>오타가 런타임에만 드러난다</b>. 그리고 이 저장소는 파생 규칙을 고치면
+     * 캐시 이름의 판 번호를 올리는데({@code CacheNames}), 키 모양이 네 곳에 흩어져 있으면
+     * 「어디까지 함께 바뀌어야 하는가」를 셀 수가 없다.
+     *
+     * <p>⚠️ <b>접두사는 여기 넣지 않는다 — 일부러다.</b> 출처마다 달라야 하고
+     * ({@code 'om:'}·{@code 'oma:'}·{@code 'accu:'}·{@code 'kma:'}) 그것이
+     * <b>한 캐시에서 예보와 재분석이 자정에 섞이는 것</b>을 막는 장치다. 각 애너테이션에
+     * 눈에 보이게 남겨 두어야 다음 사람이 그 자리를 비우지 않는다.
+     * {@code OpenMeteoCacheKeyTest}가 넷이 서로 다른지 지킨다.
+     */
+    String PLACE_PERIOD =
+            "#a0.latitude() + ',' + #a0.longitude() + ',' + #a1.from() + ',' + #a1.to()";
+
     /** 이 클라이언트가 대표하는 출처. 로그와 화면의 출처 줄에 쓴다. */
     WeatherSource source();
 

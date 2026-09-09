@@ -31,6 +31,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ExecutionException;
 
 /**
  * 텔레그램 웹훅 수신 — {@code /news {검색어}}.
@@ -203,8 +206,8 @@ public class TelegramWebhookController {
         //    KIS 간격 문에도 답의 호출들이 먼저 줄을 서 있다 — 글은 안 늦고 사진만 빨라진다
         // ⚠️ 실행기를 try-with-resources로 닫는다. 닫지 않으면 **요청마다 하나가 남는다** —
         //    가상 스레드라 스레드는 싸지만 실행기 자체는 아니다. join을 먼저 하므로 close는 안 기다린다
-        try (var executor = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
-            java.util.concurrent.Future<Optional<ChartImage>> pending =
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            Future<Optional<ChartImage>> pending =
                     reply.chart() == null ? null : executor.submit(reply.chart()::get);
 
             for (String part : reply.texts()) {
@@ -271,14 +274,14 @@ public class TelegramWebhookController {
      * {@code Concurrently.join}이 {@code OutOfMemoryError}를 「이 출처 실패」로 만들지 않는 것과
      * 같은 판단이다.
      */
-    private Optional<ChartImage> chartOf(java.util.concurrent.Future<Optional<ChartImage>> pending) {
+    private Optional<ChartImage> chartOf(Future<Optional<ChartImage>> pending) {
         try {
             return pending.get();
         } catch (InterruptedException e) {
             // 종료 신호다 — 플래그를 되살리고 사진만 뺀다. 글은 이미 갔다
             Thread.currentThread().interrupt();
             return Optional.empty();
-        } catch (java.util.concurrent.ExecutionException e) {
+        } catch (ExecutionException e) {
             Throwable cause = e.getCause();
             if (cause instanceof Error error) {
                 // OutOfMemoryError를 「차트 실패」로 삼키지 않는다 — Concurrently.join과 같은 판단이다

@@ -34,21 +34,29 @@ import io.saiden.economyhelper.market.weather.kma.KmaWeatherClient;
 import io.saiden.economyhelper.market.weather.openmeteo.GeocodingApi;
 import io.saiden.economyhelper.market.weather.openmeteo.OpenMeteoArchiveClient;
 import io.saiden.economyhelper.market.weather.openmeteo.OpenMeteoForecastClient;
+import io.saiden.economyhelper.market.weather.openmeteo.OpenMeteoHourlyClient;
 import io.saiden.economyhelper.support.TestProperties;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.stream.Stream;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Map;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.cache.RedisCacheManager.RedisCacheManagerBuilder;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
@@ -249,7 +257,132 @@ class CacheConfigTest {
             QueryTranslator.class, TranslationService.class,
             OpenMeteoForecastClient.class, OpenMeteoArchiveClient.class,
             AccuWeatherClient.class, AccuLocationApi.class,
-            GeocodingApi.class, WeatherResolver.class, KmaWeatherClient.class);
+            GeocodingApi.class, WeatherResolver.class, KmaWeatherClient.class,
+            OpenMeteoHourlyClient.class);
+
+
+    /**
+     * <b>캐시는 메서드에 직접 붙은 {@code @Cacheable}로만 선언한다 — 그것이 규칙이다.</b>
+     *
+     * <p>⚠️ <b>이 테스트가 없으면 발견 범위와 정책 범위가 갈린다.</b> 감시 목록 검사는 스프링의
+     * 병합 규칙으로 넓게 찾는데({@link #cacheableSomewhere}), <b>정책 검사 둘</b>
+     * (빈 값 거절 · 등록 누락)은 {@code method.getAnnotation(Cacheable.class)}로 좁게 본다.
+     * 그 틈으로 실제 결함이 빠져나간다 — 적대적 리뷰가 만든 반례가 이것이다:
+     *
+     * <pre>
+     * &#64;Caching(cacheable = &#64;Cacheable(cacheNames = …, key = …))   // unless 없음
+     * </pre>
+     *
+     * <p>클래스는 이미 목록에 있으니 목록 검사는 통과하고, 정책 검사 둘은
+     * {@code getAnnotation}이 {@code null}이라 그 메서드를 <b>아예 건너뛴다.</b> 빈 맵이 캐시되고
+     * 등록 안 된 캐시 이름도 안 걸린다.
+     *
+     * <p><b>고르는 길이 둘이었다.</b> 정책 검사에도 스프링의 유효 캐시 연산 해석을 넣거나,
+     * <b>지원하지 않는 형태를 거절</b>하거나. 뒤쪽을 골랐다 — 이 저장소에 그 형태가 하나도 없고,
+     * 거절하면 두 범위가 <b>구조적으로</b> 같아진다. 해석을 두 곳에 두면 그 둘이 또 갈린다.
+     *
+     * <p>{@code @Caching}이나 클래스 수준 캐시가 정말 필요해지는 날에는 <b>이 테스트가 먼저
+     * 실패해서</b> 정책 검사도 함께 넓히라고 말해 준다. 그것이 이 테스트가 있는 이유다.
+     */
+    @Test
+    @DisplayName("캐시는 메서드의 @Cacheable로만 선언한다 — @Caching·클래스 수준은 정책 검사가 못 보고 지나간다")
+    void cachingIsDeclaredOnlyOnMethods() throws IOException {
+        List<String> unsupported = new java.util.ArrayList<>();
+        for (Class<?> type : compiledMainClasses()) {
+            if (cacheableSomewhere(type)) {
+                unsupported.add(type.getName() + " — 클래스 수준 캐시");
+            }
+            for (java.lang.reflect.Method method : type.getDeclaredMethods()) {
+                // ⚠️ 직접 @Cacheable 이 있는지와 **무관하게** @Caching을 거절한다. 「직접 것이
+                //    없을 때만」으로 좁히면 둘을 **함께** 단 메서드가 빠져나가고, 그 @Caching 안의
+                //    cacheable은 정책 검사가 여전히 못 본다 (적대적 리뷰가 그 병용 반례를 짚었다)
+                if (AnnotatedElementUtils.hasAnnotation(method, Caching.class)) {
+                    unsupported.add(type.getSimpleName() + "." + method.getName()
+                            + " — @Caching은 정책 검사가 못 본다");
+                } else if (cacheableSomewhere(method)
+                        && method.getAnnotation(Cacheable.class) == null) {
+                    unsupported.add(type.getSimpleName() + "." + method.getName()
+                            + " — 메타 애너테이션으로만 캐시된다(정책 검사가 못 본다)");
+                }
+            }
+        }
+
+        assertThat(unsupported).as("정책 검사가 볼 수 없는 캐시 선언").isEmpty();
+    }
+
+    /** 컴파일된 main 클래스 — 초기화하지 않고 로드한다. */
+    private List<Class<?>> compiledMainClasses() throws IOException {
+        Path classes = Path.of("build/classes/java/main");
+        List<Class<?>> loaded = new java.util.ArrayList<>();
+        try (Stream<Path> files = Files.walk(classes)) {
+            for (Path file : files.filter(path -> path.toString().endsWith(".class")).toList()) {
+                String name = classes.relativize(file).toString()
+                        .replace(".class", "").replace('/', '.');
+                try {
+                    loaded.add(Class.forName(name, false, getClass().getClassLoader()));
+                } catch (Throwable ignored) {
+                    // 로드할 수 없는 것은 캐시도 들 수 없다
+                }
+            }
+        }
+        assertThat(loaded).as("읽은 컴파일된 main 클래스 — 0개면 경로가 틀렸다").hasSizeGreaterThan(100);
+        return loaded;
+    }
+
+    /** 스프링이 이 자리에 캐시를 적용하는가 — 직접·클래스 수준·{@code @Caching}·메타를 다 본다. */
+    private static boolean cacheableSomewhere(java.lang.reflect.AnnotatedElement element) {
+        return AnnotatedElementUtils.hasAnnotation(element, Cacheable.class)
+                || AnnotatedElementUtils.hasAnnotation(element, Caching.class);
+    }
+
+    /**
+     * <b>{@link #CACHEABLE_TYPES}가 손으로 유지되는 목록이라 낡는다 — 그래서 목록 자체를 감시한다.</b>
+     *
+     * <p>{@code WireMockLifecycleTest}의 javadoc이 이 파일을 <b>이름까지 대며 예언해 뒀다</b> —
+     * 「손으로 적은 예외 목록은 낡는다: {@code CacheConfigTest}가 클래스 목록을 손으로 들고
+     * 『여기 안 적으면 새 캐시를 감시가 아예 안 본다』고 제 주석에 자백해 둔 자리가 그것이다.」
+     *
+     * <p><b>그 예언이 실현됐다.</b> {@code OpenMeteoHourlyClient}가 목록에서 빠져 있었고, 그래서
+     * {@code precipitation-hours}는 위 두 그물(빈 값 거절·등록 누락)을 <b>통째로 빠져나가고</b>
+     * 있었다. 목록에 한 줄 더하는 것으로는 <b>다음 번</b>을 못 막으므로 이 테스트가 있다.
+     *
+     * <p>⚠️ <b>애너테이션이 없는데 일부러 목록에 있는 것은 정상이다</b>({@code TranslationService} —
+     * {@code CacheManager}로 직접 읽고 쓴다). 그래서 한쪽 방향만 단언한다: <b>붙은 것은 반드시
+     * 목록에 있어야 하고</b>, 목록에 더 있는 것은 상관없다.
+     *
+     * <p>⚠️ <b>소스를 정규식으로 훑다가 리플렉션으로 바꿨다 — 정규식으로는 끝이 없었다.</b>
+     * 적대적 리뷰가 통과하는 반례를 계속 만들어 냈다: {@code @Deprecated @Cacheable(...)} ·
+     * 완전수식 {@code @org.springframework.cache.annotation.Cacheable} ·
+     * {@code /* cache *}{@code / @Cacheable(...)} · {@code @ Cacheable(...)}. 전부 유효한 자바다.
+     * 지금은 <b>컴파일된 클래스</b>에서 {@code getAnnotation(Cacheable.class)}로 직접 확인하므로
+     * 소스가 어떻게 적혀 있든 상관없다.
+     *
+     * <p>⚠️ <b>비교도 이름이 아니라 {@link Class} 객체로 한다.</b> 단순 이름으로 견주면
+     * <b>다른 패키지의 동명 클래스</b>가 「감시 중」으로 오인된다 — 새 {@code UpbitApi}를 다른
+     * 패키지에 만들면 목록 검사는 통과하는데 리플렉션 검사는 옛 클래스만 본다. (같은 리뷰가 짚었다.)
+     *
+     * <p>⚠️ <b>읽은 클래스가 0개면 통과와 「아무것도 안 읽음」이 구분되지 않는다</b> —
+     * {@code JavadocLinksTest}가 경로를 잘못 잡아 「0건」으로 초록이던 함정이라 <b>수를 먼저 단언한다.</b>
+     */
+    @Test
+    @DisplayName("@Cacheable을 단 클래스가 전부 감시 목록에 있다 — 빠지면 그 캐시는 어느 그물에도 안 걸린다")
+    void everyCacheableClassIsWatched() throws IOException {
+        Set<Class<?>> watched = Set.copyOf(CACHEABLE_TYPES);
+
+        // ⚠️ 스프링이 캐시를 적용하는 범위는 「메서드에 직접 붙은 @Cacheable」보다 넓다 —
+        //    클래스 수준 · @Caching(cacheable = ...) · 메타 애너테이션도 적용된다. 여기서는
+        //    넓게 찾고, 그 넓은 것이 정책 검사를 빠져나가지 못하게 막는 것은
+        //    cachingIsDeclaredOnlyOnMethods가 한다
+        List<String> unwatched = compiledMainClasses().stream()
+                .filter(type -> cacheableSomewhere(type)
+                        || Arrays.stream(type.getDeclaredMethods())
+                                .anyMatch(CacheConfigTest::cacheableSomewhere))
+                .filter(type -> !watched.contains(type))
+                .map(Class::getName)
+                .toList();
+
+        assertThat(unwatched).as("@Cacheable을 달았는데 CACHEABLE_TYPES에 없는 클래스").isEmpty();
+    }
 
     @Test
     @DisplayName("Optional을 돌려주는 @Cacheable은 빈 값을 unless로 막는다 — 안 막으면 빈 답이 조회 실패로 보인다")
@@ -269,26 +402,45 @@ class CacheConfigTest {
         assertThat(unguarded).as("unless=\"#result == null\"이 없는 Optional 캐시").isEmpty();
     }
 
+    /** 빈 컬렉션·맵을 거절하는 유일한 올바른 표현. 부정형이 섞이면 동작이 뒤집힌다. */
+    private static final String EMPTY_GUARD = "#result.isEmpty()";
+
     /**
-     * 빈 목록을 <b>일부러</b> 담는 넷 — 열흘을 되짚어 빈 것은 「없다」이고 한 시간은 안정된 값이라서다.
-     * 주식 API는 ETF 코드에 구조적으로 늘 0건이고, 안 담으면 조회마다 되짚기 열 번을 다시 쓴다.
+     * <b>빈 것을 일부러 담는 캐시</b> — 여기 적힌 것만 예외다.
+     *
+     * <p>공공데이터포털 {@code searchBy*} 넷은 열흘을 되짚어 빈 것이 「없다」이고 한 시간은
+     * 안정된 값이다. 주식 API는 ETF 코드에 <b>구조적으로 늘 0건</b>이어서, 안 담으면 조회마다
+     * 되짚기 열 번을 다시 쓴다.
+     *
+     * <p>⚠️ <b>{@code OpenMeteoHourlyClient.halves}를 한때 여기 올렸다가 걷어냈다.</b>
+     * 「빈 map은 마른 기간이라는 값이다」로 읽었는데 <b>틀렸다</b> — 마른 날도 제 봉우리 확률을
+     * 든 반나절이 만들어지므로({@code HalfDay.dry}) 값이 있다. 빈 map은 <b>쓸 것을 하나도 못
+     * 받았다</b>는 뜻이다. 「HTTP 실패는 던져서 캐시를 안 탄다」는 근거로는 <b>200에 본문이
+     * 비었거나 파싱이 전부 실패한 경우</b>를 배제하지 못한다. (적대적 리뷰가 잡았다.)
      */
-    private static final Set<String> LIST_CACHES_THAT_KEEP_EMPTY = Set.of(
+    private static final Set<String> CACHES_THAT_KEEP_EMPTY = Set.of(
             "StockPriceApi.searchByName", "StockPriceApi.searchByCode",
             "EtfPriceApi.searchByName", "EtfPriceApi.searchByCode");
 
     @Test
-    @DisplayName("목록을 돌려주는 @Cacheable은 빈 목록을 담지 않는다 — 담으면 상대의 한순간 빈손이 TTL만큼 굳는다")
-    void listCachesRefuseToStoreEmpty() {
+    @DisplayName("컬렉션·맵을 돌려주는 @Cacheable은 빈 것을 담지 않는다 — 담으면 상대의 한순간 빈손이 TTL만큼 굳는다")
+    void emptyCollectionsAndMapsAreNotCached() {
         // ⚠️ 일봉 캐시 넷이 한동안 그 상태였다 — KIS가 0.00만 준 순간의 빈 목록이 12시간 남아
         //    회복 뒤에도 차트가 안 붙고, 「0칸뿐이라 뺍니다」 로그가 HTTP 없이 되풀이됐다
+        // ⚠️ List만 보던 그물이다. Map·Set을 돌려주는 @Cacheable은 통째로 빠져나갔고
+        //    precipitation-hours(Map)가 실제로 그 구멍에 있었다 — 타입 하나를 적어 두면
+        //    다른 타입이 새는 그물이라, 이제 Collection과 Map 둘을 본다
         List<String> unguarded = CACHEABLE_TYPES.stream()
                 .flatMap(type -> Arrays.stream(type.getDeclaredMethods()))
                 .filter(method -> method.getAnnotation(Cacheable.class) != null)
-                .filter(method -> List.class.isAssignableFrom(method.getReturnType()))
-                .filter(method -> !method.getAnnotation(Cacheable.class).unless().contains("isEmpty()"))
+                .filter(method -> Collection.class.isAssignableFrom(method.getReturnType())
+                        || Map.class.isAssignableFrom(method.getReturnType()))
+                // ⚠️ contains("isEmpty()")로 보면 unless="!#result.isEmpty()"도 통과하는데
+                //    그건 **반대로** 동작한다(빈 것만 담는다). 글자까지 견준다
+                .filter(method -> !EMPTY_GUARD.equals(
+                        method.getAnnotation(Cacheable.class).unless().strip()))
                 .map(method -> method.getDeclaringClass().getSimpleName() + "." + method.getName())
-                .filter(name -> !LIST_CACHES_THAT_KEEP_EMPTY.contains(name))
+                .filter(name -> !CACHES_THAT_KEEP_EMPTY.contains(name))
                 .toList();
 
         assertThat(unguarded).as("unless=\"#result.isEmpty()\"가 없는 목록 캐시").isEmpty();

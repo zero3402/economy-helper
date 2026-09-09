@@ -1,8 +1,7 @@
 package io.saiden.economyhelper.market.kis;
 
 import java.util.Objects;
-import java.util.function.Function;
-import java.util.function.Supplier;
+import io.saiden.economyhelper.support.Fetched;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
@@ -12,7 +11,6 @@ import io.saiden.economyhelper.market.StockOutlook;
 import io.saiden.economyhelper.market.StockOutlook.Dividend;
 import io.saiden.economyhelper.market.StockSource;
 import java.math.BigDecimal;
-import java.net.URI;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -22,11 +20,8 @@ import java.time.format.ResolverStyle;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.util.UriBuilder;
 
 /**
  * 국내 종목의 <b>목표주가·배당</b> — KIS {@code invest-opinion}과 예탁원정보(배당일정) {@code ksdinfo/dividend}.
@@ -186,20 +181,11 @@ public class KisDomesticOutlookClient implements DomesticOutlookClient {
     private static final DateTimeFormatter SLASHED = DateTimeFormatter
             .ofPattern("uuuu/MM/dd").withResolverStyle(ResolverStyle.STRICT);
 
-    private final RestClient restClient;
-    private final KisTokenStore tokens;
-    private final KisHeaders headers;
-    private final KisThrottle throttle;
+    private final KisCall kis;
     private final Clock clock;
 
-    public KisDomesticOutlookClient(RestClient.Builder builder,
-                                    @Value("${economy-helper.market.kis.base-url}") String baseUrl,
-                                    KisTokenStore tokens, KisHeaders headers,
-                                    KisThrottle throttle, Clock clock) {
-        this.restClient = builder.baseUrl(baseUrl).build();
-        this.tokens = tokens;
-        this.headers = headers;
-        this.throttle = throttle;
+    public KisDomesticOutlookClient(KisCall kis, Clock clock) {
+        this.kis = kis;
         this.clock = clock;
     }
 
@@ -218,8 +204,8 @@ public class KisDomesticOutlookClient implements DomesticOutlookClient {
     @CircuitBreaker(name = "kisOutlook")
     public StockOutlook outlook(String code, boolean fund) {
         // 겹치지 않는다 — KIS 간격은 호출 **시작** 사이 1초라 겹쳐도 둘째는 1초를 기다린다. 순서대로 부르는 것과 같다
-        Fetched<BigDecimal> target = fund ? Fetched.skipped() : attempt(() -> targetOf(code));
-        Fetched<Dividend> dividend = attempt(() -> dividendOf(code));
+        Fetched<BigDecimal> target = fund ? Fetched.skipped() : Fetched.attempt(() -> targetOf(code));
+        Fetched<Dividend> dividend = Fetched.attempt(() -> dividendOf(code));
         // ⚠️ **성공한 것이 하나도 없을 때만 던진다** — 「안 물었다」는 성공으로 세지 않는다.
         //    ETF는 목표가를 안 묻는데 그것을 성공으로 세면 배당 실패가 가려져 정상 반환이 되고,
         //    그 순간 위의 @CircuitBreaker가 실패를 못 본다(HackerNewsApi가 실제로 그 상태였다).
@@ -234,7 +220,7 @@ public class KisDomesticOutlookClient implements DomesticOutlookClient {
 
     /** 증권사별 최신 발표를 접은 평균 목표가 — 발표한 곳이 없으면 {@code null}. */
     private BigDecimal targetOf(String code) {
-        Opinions response = request(Opinions.class, OPINION_TR_ID, code + " 투자의견", uriBuilder -> uriBuilder
+        Opinions response = kis.get(Opinions.class, OPINION_TR_ID, code + " 투자의견", uriBuilder -> uriBuilder
                 .path(OPINION_PATH)
                 .queryParam("FID_COND_MRKT_DIV_CODE", "J")
                 .queryParam("FID_COND_SCR_DIV_CODE", SCREEN_DIV)
@@ -248,7 +234,7 @@ public class KisDomesticOutlookClient implements DomesticOutlookClient {
     /** 다음 배당 — 잡힌 것이 없으면 {@code null}. 고르는 규칙은 {@link Dividend#nextOf}. */
     private Dividend dividendOf(String code) {
         LocalDate today = LocalDate.now(clock.withZone(SEOUL));
-        Dividends response = request(Dividends.class, DIVIDEND_TR_ID, code + " 배당일정", uriBuilder -> uriBuilder
+        Dividends response = kis.get(Dividends.class, DIVIDEND_TR_ID, code + " 배당일정", uriBuilder -> uriBuilder
                 .path(DIVIDEND_PATH)
                 .queryParam("CTS", "")
                 .queryParam("GB1", "0")   // 배당 전체 — 결산·중간을 가르지 않는다
@@ -262,59 +248,6 @@ public class KisDomesticOutlookClient implements DomesticOutlookClient {
         return Dividend.nextOf(dividendRowsOf(response), today);
     }
 
-    /**
-     * 한 호출 — 간격을 지키고, 토큰을 가린 이유만 남기고, 200 본문의 {@code rt_cd}까지 본다.
-     *
-     * <p>{@code KisStockApi.request}와 같은 모양이다. 경로마다 같은 {@code try/catch}·같은 토큰 가리기를
-     * 두 번 적지 않으려고 제네릭 하나로 둔다.
-     */
-    private <T extends KisResponse> T request(Class<T> type, String trId, String what,
-                                              Function<UriBuilder, URI> uri) {
-        // 호출 하나에 간격 하나 — KIS의 제약은 "초당 몇 건"이 아니라 "호출 사이 얼마"다
-        throttle.pace();
-        T response;
-        try {
-            response = restClient.get()
-                    .uri(uri)
-                    .headers(headers.of(tokens.token(), trId))
-                    .retrieve()
-                    .body(type);
-        } catch (RuntimeException e) {
-            // 헤더에 접근토큰이 실려 있어 예외를 그대로 흘리면 유출된다 — 이유만 꺼낸다
-            String reason = KisHeaders.reasonOf(e);
-            log.warn("[kis] {} 조회 실패: {}", what, reason);
-            if (KisHeaders.isInvalidToken(e)) {
-                tokens.invalidate();
-            }
-            throw new IllegalStateException("KIS " + what + " 조회 실패: " + reason);
-        }
-        if (response == null) {
-            throw new IllegalStateException("KIS " + what + " 응답이 비어 있습니다");
-        }
-        // ⚠️ 에러가 HTTP 200 본문에 실려 온다 — rt_cd를 봐야 한다
-        KisHeaders.verify(response.resultCode(), response.message(), what);
-        return response;
-    }
-
-    /**
-     * 실패를 값으로 — 두 다리를 다 시도한 뒤에 판단해야 하기 때문이다. 이유는 {@link #request}가
-     * 이미 로그에 남겼다.
-     *
-     * <p>⚠️ <b>메시지가 아니라 예외 객체를 든다.</b> 두 가지가 여기 걸린다.
-     * {@code e.getMessage()}는 <b>{@code null}일 수 있어</b>(메시지 없이 던진 예외) 실패가 성공으로
-     * 세어졌고, 무엇보다 <b>타입이 사라지면 {@code ignoreExceptions}가 안 맞는다</b> —
-     * {@code application.yml}의 {@code kisStock}이 {@link KisThrottle.Congested}를 목록에 두는 이유가
-     * 「우리 문이 우리를 거절한 것을 상대 장애로 세지 않는다」인데, 그것을 맨
-     * {@code IllegalStateException}으로 바꿔 던지면 <b>그 보호에서 조용히 빠진다.</b>
-     * (적대적 리뷰가 잡았다 — 그 파일의 주석이 예전에 같은 사고를 적어 두고 있었다.)
-     */
-    private static <T> Fetched<T> attempt(Supplier<T> call) {
-        try {
-            return new Fetched<>(call.get(), null, true);
-        } catch (RuntimeException e) {
-            return new Fetched<>(null, e, true);
-        }
-    }
 
     /**
      * 실패한 다리의 <b>예외를 그대로</b> 올린다 — 감싸지 않는다.
@@ -346,28 +279,6 @@ public class KisDomesticOutlookClient implements DomesticOutlookClient {
         }
     }
 
-    /**
-     * 한 호출의 결과 — <b>세 상태다: 값을 받았다 · 실패했다 · 안 물었다.</b>
-     *
-     * <p>둘로는 못 든다. 「안 물었다」를 실패로 세면 ETF가 늘 던지고, 성공으로 세면 <b>배당 실패가
-     * 가려져</b> 브레이커가 실패를 못 본다. 값이 {@code null}인 성공은 「없다」이고 그건 <b>값</b>이다.
-     *
-     * @param value   받은 것. 없으면 {@code null}이고 그건 <b>값</b>이다
-     * @param failure 실패했으면 <b>그 예외</b>. 물었고 이것이 {@code null}이면 성공이다
-     * @param asked   실제로 물었나. ETF의 목표가처럼 <b>있을 수 없는 값</b>은 묻지 않는다
-     */
-    private record Fetched<T>(T value, RuntimeException failure, boolean asked) {
-
-        /** 물을 이유가 없는 값 — 성공도 실패도 아니다. */
-        static <T> Fetched<T> skipped() {
-            return new Fetched<>(null, null, false);
-        }
-
-        /** 물었고 실패하지 않았나. <b>「안 물었다」는 성공이 아니다</b> — 그게 세 상태를 든 이유다. */
-        boolean succeeded() {
-            return asked && failure == null;
-        }
-    }
 
     private static List<InvestOpinions.Opinion> rowsOf(Opinions response) {
         if (response.output() == null) {
@@ -397,7 +308,7 @@ public class KisDomesticOutlookClient implements DomesticOutlookClient {
      * 한 칸을 날짜로 — 공백은 「아직 없다」이고, <b>모양이 어긋나면 그 칸만 {@code null}</b>이다.
      *
      * <p>⚠️ <b>던지지 않는다.</b> 던지던 때가 있었고 근거는 「조용히 {@code null}이 되면 신고가
-     * 들어와도 단서가 없다」였는데, 그 근거가 실제로는 <b>성립하지 않았다</b>: 파싱은 {@code request()}가
+     * 들어와도 단서가 없다」였는데, 그 근거가 실제로는 <b>성립하지 않았다</b>: 파싱은 {@code KisCall.get()}가
      * 돌아온 뒤라 {@code [kis]} 로그가 한 줄도 안 남고, 남는 한 줄은 {@code FailureReason}을 지나며
      * <b>메시지를 버려</b> 어느 필드의 어떤 값이었는지가 사라졌다.
      *

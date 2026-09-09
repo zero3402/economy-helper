@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+import java.util.Arrays;
 
 /**
  * 이중화의 <b>기계 부분</b> — 순서대로 정렬하고, 순서대로 시도한다.
@@ -70,7 +71,7 @@ public final class Failover {
     @SafeVarargs
     public static <C, S> List<C> unordered(List<C> clients, Function<C, S> sourceOf,
                                            List<S>... wanted) {
-        List<S> covered = java.util.Arrays.stream(wanted).flatMap(List::stream).toList();
+        List<S> covered = Arrays.stream(wanted).flatMap(List::stream).toList();
         return clients.stream()
                 .filter(client -> !covered.contains(sourceOf.apply(client)))
                 .toList();

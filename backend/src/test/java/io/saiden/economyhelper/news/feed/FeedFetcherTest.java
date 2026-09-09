@@ -19,8 +19,6 @@ import io.saiden.economyhelper.news.Article;
 import io.saiden.economyhelper.news.FeedType;
 import io.saiden.economyhelper.news.NewsSource;
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import io.saiden.economyhelper.support.TestRetries;
 import io.saiden.economyhelper.support.TestProperties;
 import java.time.Duration;

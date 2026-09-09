@@ -163,7 +163,8 @@ translate/  번역 (llm/을 쓴다)
 telegram/   명령 파싱 · 메시지 조립 · 발송
 digest/     정기 발송 잡 + 슬롯
 config/     캐시·회복탄력성·스케줄·동시성
-support/    Concurrently (가상 스레드 팬아웃) · Failover (이중화 기계)
+support/    Concurrently (가상 스레드 팬아웃) · Failover (이중화 기계) · Fetched (세 상태 결과) ·
+            Permit (리미터 퍼밋) · FailureReason (실패 분류)
 ```
 
 **접미사가 역할을 말한다** — 이름을 바꾸지 않고 관례를 적어 둔다(2026-08-28 구조 점검에서 확인한 실제 분포다).
@@ -177,6 +178,12 @@ support/    Concurrently (가상 스레드 팬아웃) · Failover (이중화 기
 
 예외 셋(`KisStockApi`가 SPI 둘을 구현, `TelegramClient`·`KisMasterClient`·`HackerNewsBuzzClient`가 SPI 없이 `Client`)은
 이름을 바꾸면 테스트 8파일과 javadoc 참조가 함께 움직여 그대로 둔다.
+
+**공유는 벤더 단위까지만 한다.** 호출 골격이 겹치면 그 벤더 패키지 안에서 합치고
+(`KisCall`이 KIS 클라이언트 셋의 `pace → 요청 → 토큰 가리기 → rt_cd` 열댓 줄을 든다.
+`KisHeaders`가 그 규칙을 먼저 세웠다), **여러 벤더를 아우르는 공통 베이스는 만들지 않는다** —
+파라미터가 안 겹치기 때문이다(§7 ②). 벤더에 안 매인 값 타입만 `support/`로 올라간다
+(`Fetched`가 전망 클라이언트 둘에 똑같이 있던 것을 걷은 경우다).
 
 **벤더 이름이 패키지 이름에만 산다**(`market/kis`, `market/fmp`, `market/weather/accu`).
 위층은 SPI(`FxRateClient`, `DomesticStockClient`, `UsStockClient`, `WeatherClient`)만 안다.
@@ -387,11 +394,28 @@ this.clients = Failover.order(clients, ORDER, FxRateClient::source);   // suppor
 > 안 바뀌는 **값**이라 담겨야 한다. 그래서 전망 SPI는 `StockOutlook`을 그대로 돌려주고 빈 것은 `isEmpty()`가 든다
 > (`StockOutlook.none`). Optional이던 동안 ETF마다 KIS 간격 1~2초, 컨센서스 없는 미국 심볼마다 FMP 3회를 영영 다시 썼다.
 
-**목록을 돌려주는 캐시는 빈 목록을 담지 않는다**(`unless = "#result.isEmpty()"`) — 상대의 한순간 빈손이 TTL만큼
+**컬렉션이나 맵을 돌려주는 캐시는 빈 것을 담지 않는다**(`unless = "#result.isEmpty()"`) — 상대의 한순간 빈손이 TTL만큼
 굳기 때문이다. 일봉 캐시 넷이 한동안 그 상태였다: KIS가 `0.00`만 준 순간의 빈 목록이 12시간 남아 회복 뒤에도 차트가
 안 붙었다. **예외는 공공데이터포털 `searchBy*` 넷**이다 — 열흘을 되짚어 빈 것은 「없다」이고 한 시간은 안정된 값이라
 **일부러 담는다**(주식 API는 ETF 코드에 구조적으로 늘 0건이어서, 안 담으면 조회마다 되짚기 열 번을 다시 쓴다).
-`CacheConfigTest.listCachesRefuseToStoreEmpty`가 그 예외 목록째로 지킨다.
+`CacheConfigTest.emptyCollectionsAndMapsAreNotCached`가 그 예외 목록째로 지킨다.
+
+> ⚠️ **그 그물이 `List`만 보고 있었다 — `Map`·`Set`은 통째로 빠져나갔다**(2026-09-09).
+> `precipitation-hours`(`Map<LocalDate, List<HalfDay>>`)가 실제로 그 구멍에 있었고 `unless`가
+> 없었다. 지금은 `Collection`과 `Map` 둘을 보고 그 캐시도 빈 것을 담지 않는다.
+> **타입 하나를 적어 둔 그물은 다른 타입이 새는 그물이다.**
+>
+> ⚠️ **그 캐시를 「빈 것을 일부러 담는」 예외로 올렸다가 되돌렸다.** 「빈 map은 마른 기간이라는
+> 값이다」로 읽었는데 틀렸다 — **마른 날도 반나절이 만들어진다**(`HalfDay.dry`). 빈 map은
+> 「쓸 것을 하나도 못 받았다」는 뜻이고, 「HTTP 실패는 던져서 캐시를 안 탄다」는 근거로는
+> **200에 본문이 비었거나 파싱이 전부 실패한 경우**를 배제하지 못한다. (적대적 리뷰가 잡았다.)
+>
+> ⚠️ **그리고 그 감시 목록(`CACHEABLE_TYPES`)이 손으로 유지되다 낡아 있었다.**
+> `OpenMeteoHourlyClient`가 목록에 없어서 위 두 그물(빈 값 거절·등록 누락)이 그 캐시를
+> **아예 안 보고 있었다**. `WireMockLifecycleTest`의 javadoc이 이 파일을 **이름까지 대며**
+> 그렇게 될 것이라 적어 뒀던 자리다. 목록에 한 줄 더하는 것으로는 다음 번을 못 막으므로,
+> `CacheConfigTest.everyCacheableClassIsWatched`가 **컴파일된 클래스를 읽어 `@Cacheable`이
+> 붙은(메서드든 클래스든, 병합 애너테이션까지) 타입이 전부 목록에 있는지** 본다 — §6의 「손으로 유지하는 값은 반드시 낡는다」를 그물 자신에 적용한 것이다.
 
 **타임아웃은 호스트로 가른다.** Boot 4에는 손으로 만든 `RestClient`용 **이름별** 타임아웃이
 없다 — `spring.http.clients`는 평평한 전역 블록 하나이고, 키별 형태(`spring.http.serviceclient.*`)는
@@ -713,10 +737,27 @@ KIS ~20회는 겹쳐도 20초가 바닥이고, `/crypto`의 업비트∥바이�
   ⚠️ **다음에 나면 지우지 말고 붙잡는다** — `build/reports/tests/test`의 `Caused by:` 사슬과
   그때의 시각. 사슬이 원인을 가른다: `ConnectException`(포트/커널) ·
   `Too many open files`(FD 고갈) · `Connection reset`(TIME_WAIT).
-- **미룬 구조 정리 넷(2026-08-28 점검).** ① `KisStockApi`를 시세/일봉으로 가르기 — 이음새는 진짜다(캐시 이름을 따라
-  갈리고, `StockService`의 구체 의존이 일봉 절반으로 좁아진다) 그러나 테스트 8파일·yml의 `KisStockApi$Unsupported`·
-  javadoc 11곳이 함께 움직인다. ② 벤더 요청 골격(DataGo·KMA·Open-Meteo) 합치기 — 파라미터가 안 겹친다고 각 파일이
-  이미 판단했다. ③ `*Source` 열거형 통합 — 둘째 접근자의 뜻이 열거마다 다르다. ④ `@Value` → 레코드 — 한 번 되돌린
+- **미룬 구조 정리 셋** *(2026-08-28 점검 · 2026-09-09에 ①을 닫았다)*.
+  ② 벤더 요청 골격(DataGo·KMA·Open-Meteo) 합치기 — 파라미터가 안 겹친다고 각 파일이 이미 판단했다.
+  ③ `*Source` 열거형 통합 — 둘째 접근자의 뜻이 열거마다 다르다. ④ `@Value` → 레코드 — 한 번 되돌린
   자리다(`EconomyHelperProperties` 주석). 공통 규칙은 「값이 없거나 뒤집을 근거가 이미 문서에 있다」다.
+
+- ⚠️ **①(`KisStockApi`를 시세/일봉으로 가르기)은 재보고 접었다 — 「이음새는 진짜다」가 틀렸다.**
+  그 판단은 **공개 표면만** 보고 내린 것이었다. 공개 메서드 여섯은 캐시 이름을 따라 깨끗이 갈린다
+  (`KIS_QUOTE` ↔ `STOCK_SERIES`). 그런데 **그 아래를 세어 보니 두 쪽이 공유하는 것이 열셋**이다 —
+  경로·TR 상수 여섯(`STOCK_PATH`·`STOCK_TR`·`INDEX_PATH`·`INDEX_TR`·`US_INDEX_PATH`·`US_INDEX_TR`),
+  시장코드 둘(`KRX_STOCK`·`OVERSEAS_INDEX`), `usIndices` 표, 거래소 순회(`overExchanges`·`exchangesToTry`),
+  `KisExchangeCache`, 그리고 `Unsupported`.
+
+  뿌리는 **한 엔드포인트가 시세와 일봉을 함께 준다**는 것이다: 지수는 `inquire-daily-chartprice`
+  하나가 `output1`에 현재가, `output2`에 일자별 배열을 실어 준다(그 경로는 환율과도 공유한다 —
+  `KisChartPrice`). 그래서 가르면 그 열셋을 담을 **세 번째 클래스**가 필요하고, 남는 둘은
+  껍데기가 된다. 얻는 것은 `StockService`의 구체 의존이 일봉 쪽으로 좁아지는 것 하나인데,
+  **클래스 둘을 늘려 살 값이 아니다.**
+
+  **대신 그 파일 안의 진짜 중복을 걷었다**(같은 날) — KIS 호출 골격을 `KisCall`로, 거래소 순회
+  두 벌을 `overExchanges` 하나로. 769줄에서 723줄이 됐고 **줄 수보다 중요한 것은 세 벌·두 벌이
+  한 벌이 된 것**이다. 시장(국내/미국)으로 가르는 판도 재봤는데, 그러면 `StockService`가
+  일봉 때문에 **구체 클래스 둘**에 매달려 지금보다 넓어진다.
 - **광고(AdSense)도 k8s도 아직이다.** `CLAUDE.md`가 적어 둔 최종 구성 중 이 저장소가
   실제로 세운 것은 봇과 이중화·캐시·락까지다.

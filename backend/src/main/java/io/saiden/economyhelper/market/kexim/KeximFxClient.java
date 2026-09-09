@@ -16,6 +16,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.format.ResolverStyle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -62,7 +63,8 @@ public class KeximFxClient implements FxRateClient {
     private static final Logger log = LoggerFactory.getLogger(KeximFxClient.class);
 
     private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
-    private static final DateTimeFormatter SEARCH_DATE = DateTimeFormatter.ofPattern("yyyyMMdd");
+    private static final DateTimeFormatter SEARCH_DATE = DateTimeFormatter.ofPattern("uuuuMMdd")
+            .withResolverStyle(ResolverStyle.STRICT);
 
     /** 환율 조회 코드. AP02는 대출금리, AP03은 국제금리다. */
     private static final String EXCHANGE_RATE = "AP01";

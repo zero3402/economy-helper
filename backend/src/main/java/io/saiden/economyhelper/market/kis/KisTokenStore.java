@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.format.ResolverStyle;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,6 +16,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import java.util.Arrays;
 
 /**
  * 한국투자증권 접근토큰 — <b>캐시가 최적화가 아니라 필수다.</b>
@@ -64,8 +66,18 @@ public class KisTokenStore {
 
     private static final String PATH = "/oauth2/tokenP";
     private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
-    private static final DateTimeFormatter EXPIRY =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    /**
+     * ⚠️ <b>{@code uuuu}와 STRICT여야 한다.</b> {@code ofPattern}은 기본이 SMART라
+     * {@code 2026-02-31}을 <b>조용히 2월 28일로 고쳐</b> 준다 — 그러면 만료 시각이 실제보다
+     * 이르거나 늦게 잡히고, 이 값은 「토큰을 언제 다시 받나」를 정하므로 <b>죽은 토큰을 살았다고
+     * 보는</b> 자리로 이어진다. STRICT면 대신 던지고 아래 {@code catch}가 1시간으로 떨어뜨린다 —
+     * 틀린 시각보다 짧은 시각이 낫다.
+     *
+     * <p>{@code yyyy}(연호 기준 연도)를 STRICT로 쓰면 연호 필드를 요구해 <b>파싱 자체가
+     * 실패한다</b>. 그래서 {@code uuuu}로 바꿔야 한다 — 둘을 따로 고칠 수 없는 한 쌍이다.
+     */
+    private static final DateTimeFormatter EXPIRY = DateTimeFormatter
+            .ofPattern("uuuu-MM-dd HH:mm:ss").withResolverStyle(ResolverStyle.STRICT);
 
     /**
      * 만료 직전을 유효로 보지 않는다.
@@ -416,7 +428,7 @@ public class KisTokenStore {
                     issuedAt = tail.isBlank() ? null : Instant.ofEpochSecond(Long.parseLong(tail));
                 }
                 Instant expiresAt = Instant.ofEpochSecond(Long.parseLong(parts[expiryAt]));
-                String token = String.join("|", java.util.Arrays.copyOfRange(parts, 0, expiryAt));
+                String token = String.join("|", Arrays.copyOfRange(parts, 0, expiryAt));
                 return token.isBlank() ? null : new Cached(token, expiresAt, issuedAt);
             } catch (NumberFormatException e) {
                 return null;

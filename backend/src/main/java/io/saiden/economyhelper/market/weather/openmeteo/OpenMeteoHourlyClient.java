@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.market.weather.openmeteo;
 
+import io.saiden.economyhelper.market.weather.WeatherClient;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import io.saiden.economyhelper.config.CacheNames;
@@ -53,8 +54,14 @@ public class OpenMeteoHourlyClient {
     /**
      * @return 날짜별 강수 토막. <b>실패하면 빈 map</b> — 화면에서 그 줄만 빠진다
      */
+    // ⚠️ 빈 map을 담지 않는다. 「마른 기간」이라서 비는 것이 아니다 — 마른 날도 제 봉우리
+    //    확률을 든 반나절이 만들어지므로(HalfDay.dry) 값이 있다. 빈 map은 **쓸 것을 하나도
+    //    못 받았다**는 뜻이고(200에 본문이 비었거나 hourly.time을 하나도 못 읽었을 때),
+    //    그것을 담으면 회복 뒤에도 10분 동안 같은 지점·기간을 다시 묻지 않는다.
+    //    한도도 키도 없는 상대라 다시 묻는 값이 싸다. (적대적 리뷰가 잡았다 — 「HTTP 실패는
+    //    던져서 캐시를 안 탄다」는 근거로는 본문 누락·파싱 실패를 배제하지 못한다.)
     @Cacheable(cacheNames = CacheNames.PRECIPITATION_HOURS,
-            key = "#a0.latitude() + ',' + #a0.longitude() + ',' + #a1.from() + ',' + #a1.to()")
+            key = WeatherClient.PLACE_PERIOD, unless = "#result.isEmpty()")
     // ⚠️ 브레이커·재시도 이름을 예보와 나눈다 — fmpOutlook을 시세와 가른 것과 같은 자리다.
     //    보충은 AccuWeather가 답할 때마다 불리고 알람은 지역 넷을 겹쳐 물으므로 창을 이쪽이
     //    거의 다 채운다. 한 이름이면 그 실패가 쌓여 열리는 순간 **2순위 폴백까지 함께 막히고**,

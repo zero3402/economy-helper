@@ -1,6 +1,5 @@
 package io.saiden.economyhelper.market.kis;
 
-import java.net.URI;
 import java.util.ArrayList;
 import io.saiden.economyhelper.config.CacheNames;
 import io.saiden.economyhelper.market.chart.DailySeries;
@@ -24,15 +23,17 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriBuilder;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 
 /**
  * 한국투자증권 시세 — <b>국내와 미국 이중화의 1순위</b>({@code StockService.DOMESTIC}·{@code US}).
@@ -143,26 +144,11 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
      */
     private static final int SERIES_LOOKBACK_DAYS = 25;
 
-    private final RestClient restClient;
-    private final KisTokenStore tokens;
-    private final KisHeaders headers;
+    private final KisCall kis;
     private final Clock clock;
     private final Map<String, Index> indices;
     private final Map<String, String> usIndices;
     private final KisExchangeCache exchanges;
-    /**
-     * 실제 HTTP 호출 직전에 간격을 지키는 문({@link KisThrottle}).
-     *
-     * <p>⚠️ <b>애너테이션으로는 부족했다.</b> {@code @RateLimiter}가 {@code @Cacheable} 메서드에
-     * 붙어 있으면 <b>메서드 하나에 퍼밋 하나</b>인데, 미국 종목은 그 안에서 거래소를 두 번
-     * 물어본다(NAS → NYS). 두 번째 호출이 퍼밋 없이 나갔다.
-     *
-     * <p>⚠️ <b>퍼밋을 호출마다 얻어도 부족했다.</b> 고정 윈도 리미터는 "1초에 1건"만 보장하고
-     * "호출 사이 1초"를 보장하지 않아, 윈도 경계에서 두 호출이 <b>120ms 간격</b>으로 나갔다
-     * (실측). KIS는 그걸 {@code 초당 거래건수를 초과하였습니다}로 거절하고, 그러면 그 종목이
-     * 빈손이 된다 — 왜 간격이어야 하는지는 {@link KisThrottle}에 실측 표로 적어 뒀다.
-     */
-    private final KisThrottle throttle;
 
     /**
      * @param properties <b>지수 조회 키 표만</b> 여기서 온다 — 국내는 업종코드
@@ -172,16 +158,10 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
      *                   겸했고, 그래서 목록에 없는 심볼을 통째로 거절해
      *                   {@code /stock 유아이패스}가 빈손이었다 — 그것이 둘을 가른 이유다
      */
-    public KisStockApi(RestClient.Builder builder,
-                       @Value("${economy-helper.market.kis.base-url}") String baseUrl,
-                       KisTokenStore tokens, KisHeaders headers, Clock clock,
-                       EconomyHelperProperties properties, KisExchangeCache exchanges,
-                       KisThrottle throttle) {
-        this.restClient = builder.baseUrl(baseUrl).build();
+    public KisStockApi(KisCall kis, Clock clock,
+                       EconomyHelperProperties properties, KisExchangeCache exchanges) {
+        this.kis = kis;
         this.exchanges = exchanges;
-        this.throttle = throttle;
-        this.tokens = tokens;
-        this.headers = headers;
         this.clock = clock;
         Digest digest = properties == null ? null : properties.digest();
         this.indices = byKey(digest == null ? null : digest.indices(), Index::name);
@@ -220,7 +200,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
     @Cacheable(cacheNames = CacheNames.STOCK_SERIES, key = "'stock:' + #code", unless = "#result.isEmpty()")
     @CircuitBreaker(name = "kisStock")
     public List<DailyBar> dailyBars(String code) {
-        DailyChart response = request(DailyChart.class, STOCK_TR, "국내 종목 일봉 " + code,
+        DailyChart response = kis.get(DailyChart.class, STOCK_TR, "국내 종목 일봉 " + code,
                 uri -> chartWindow(uri, STOCK_PATH, KRX_STOCK, code)
                         .queryParam("FID_ORG_ADJ_PRC", "0")
                         .build());
@@ -251,7 +231,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
             // KIS에는 지수명 검색이 없다 — 코드가 없으면 만들 수 있는 요청이 아예 없다
             throw new Unsupported("KIS 지수 일봉에 업종코드가 없습니다: " + name);
         }
-        DailyChart response = request(DailyChart.class, INDEX_TR,
+        DailyChart response = kis.get(DailyChart.class, INDEX_TR,
                 "국내 지수 일봉 " + name,
                 uri -> chartWindow(uri, INDEX_PATH, KRX_INDEX, target.code()).build());
         return barsOf(response);
@@ -283,7 +263,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
         if (kisSymbol == null) {
             throw new Unsupported("KIS 심볼을 모르는 미국 지수입니다: " + symbol);
         }
-        return barsOf(request(DailyChart.class, US_INDEX_TR, "미국 지수 일봉 " + symbol,
+        return barsOf(kis.get(DailyChart.class, US_INDEX_TR, "미국 지수 일봉 " + symbol,
                 uri -> chartWindow(uri, US_INDEX_PATH, OVERSEAS_INDEX, kisSymbol).build()));
     }
 
@@ -319,14 +299,8 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
      * <p>거래소를 못 찾으면 <b>던진다</b> — 부르는 쪽이 사진만 빼고 값을 내보낸다.
      */
     private List<DailyBar> usStockSeries(String symbol) {
-        String what = "미국 종목 일봉 " + symbol;
-        RuntimeException failure = null;
-        // 시세와 같은 함수, 같은 순서다 — 기억해 둔 거래소가 있으면 그 하나뿐이고,
-        // 없으면 NAS→NYS를 훑는다. 목록을 여기 다시 적지 않는다
-        for (String exchange : exchangesToTry(symbol)) {
-            DailyChart response;
-            try {
-                response = request(DailyChart.class, US_STOCK_SERIES_TR, what,
+        return overExchanges(symbol, "미국 종목 일봉 " + symbol, "응답에 칸이 없습니다",
+                (exchange, what) -> kis.get(DailyChart.class, US_STOCK_SERIES_TR, what,
                         uri -> uri.path(US_STOCK_SERIES_PATH)
                                 // AUTH는 빈 값으로 보낸다 — 없으면 안 되고 값도 안 받는다
                                 .queryParam("AUTH", "")
@@ -336,33 +310,18 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
                                 // BYMD를 비우면 최신부터다 — 창을 우리가 계산하지 않는다
                                 .queryParam("BYMD", "")
                                 .queryParam("MODP", RAW_PRICE)
-                                .build());
-            } catch (RuntimeException e) {
-                // 시세와 같은 이유로 거래소마다 따로 실패한다 — 초당 한도에 걸린 첫 거래소가
-                // 둘째를 못 물어보게 만들면 안 된다({@link #usStock}의 같은 자리 참조)
-                log.warn("[stock] {} — {} 조회 실패, 다음 거래소로 넘어갑니다: {}",
-                        what, exchange, FailureReason.of(e));
-                failure = e;
-                continue;
-            }
-            List<DailyBar> bars = barsOf(response);
-            if (bars.isEmpty()) {
-                // 거래소가 틀리면 에러가 아니라 빈 배열이 온다 — 시세가 빈 문자열을 주는 것과 같다
-                continue;
-            }
-            exchanges.remember(symbol, exchange);
-            return bars;
-        }
-        if (failure != null) {
-            throw failure;
-        }
-        throw new Unsupported("KIS " + what + " 응답에 칸이 없습니다");
+                                .build()),
+                response -> {
+                    // 거래소가 틀리면 에러가 아니라 빈 배열이 온다 — 시세가 빈 문자열을 주는 것과 같다
+                    List<DailyBar> bars = barsOf(response);
+                    return bars.isEmpty() ? Optional.empty() : Optional.of(bars);
+                });
     }
 
     /** {@code output2}를 일봉으로 — 걸러내기와 정렬은 {@code DailySeries}가 한 곳에서 한다. */
     private static List<DailyBar> barsOf(DailyChart response) {
         if (response == null || response.bars() == null) {
-            return java.util.List.of();
+            return List.of();
         }
         List<DailyBar> bars = new ArrayList<>();
         for (Bar bar : response.bars()) {
@@ -370,8 +329,8 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
                 continue;
             }
             bars.add(new DailyBar(
-                    java.time.LocalDate.parse(bar.on(),
-                            java.time.format.DateTimeFormatter.BASIC_ISO_DATE),
+                    LocalDate.parse(bar.on(),
+                            DateTimeFormatter.BASIC_ISO_DATE),
                     bar.close()));
         }
         return DailySeries.recent(bars, DailySeries.WINDOW);
@@ -381,7 +340,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
     @Cacheable(cacheNames = CacheNames.KIS_QUOTE, key = "'stock:' + #code")
     @CircuitBreaker(name = "kisStock")
     public StockQuote stock(String code) {
-        DomesticStock.Quote quote = request(DomesticStock.class, STOCK_TR, "국내 종목 " + code,
+        DomesticStock.Quote quote = kis.get(DomesticStock.class, STOCK_TR, "국내 종목 " + code,
                 uri -> chart(uri, STOCK_PATH, KRX_STOCK, code)
                         // 수정주가(액면분할·유무상증자 반영). 0이 원주가인데 화면에 쓰는 것은
                         // '지금 얼마냐'라 분할 전 가격이 섞이면 안 된다
@@ -406,7 +365,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
             // KIS에는 지수명 검색이 없다. 코드가 없으면 만들 수 있는 요청이 아예 없다
             throw new Unsupported("KIS 지수 조회에 업종코드가 없습니다: " + index.name());
         }
-        DomesticIndex.Quote quote = request(DomesticIndex.class, INDEX_TR,
+        DomesticIndex.Quote quote = kis.get(DomesticIndex.class, INDEX_TR,
                 "국내 지수 " + target.name(),
                 uri -> chart(uri, INDEX_PATH, KRX_INDEX, target.code()).build()).output();
 
@@ -445,7 +404,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
 
     /** 해외지수 — 환율과 같은 엔드포인트·같은 스키마다. 다른 것은 시장 코드와 심볼뿐이다. */
     private StockQuote usIndex(UsSymbol symbol, String kisSymbol) {
-        KisChartPrice.Quote quote = request(KisChartPrice.class, US_INDEX_TR,
+        KisChartPrice.Quote quote = kis.get(KisChartPrice.class, US_INDEX_TR,
                 "미국 지수 " + symbol.name(),
                 uri -> chart(uri, US_INDEX_PATH, OVERSEAS_INDEX, kisSymbol).build())
                 .output();
@@ -492,50 +451,101 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
      * 거래소는 {@link KisExchangeCache}가 30일 기억하므로 <b>반복 검색 비용은 0</b>이다.
      */
     private StockQuote usStock(UsSymbol symbol) {
-        String what = "미국 종목 " + symbol.symbol();
-        RuntimeException failure = null;
-        for (String exchange : exchangesToTry(symbol.symbol())) {
-            UsStock.Quote quote;
-            try {
-                quote = request(UsStock.class, US_STOCK_TR, what,
+        return overExchanges(symbol.symbol(), "미국 종목 " + symbol.symbol(),
+                "응답에 현재가가 없습니다",
+                (exchange, what) -> kis.get(UsStock.class, US_STOCK_TR, what,
                         uri -> uri.path(US_STOCK_PATH)
                                 // AUTH는 빈 값으로 보낸다. 없으면 안 되고 값도 안 받는다
                                 .queryParam("AUTH", "")
                                 .queryParam("EXCD", exchange)
                                 .queryParam("SYMB", symbol.symbol())
-                                .build()).output();
+                                .build()).output(),
+                quote -> {
+                    if (quote == null || !positive(quote.price())) {
+                        return Optional.empty();
+                    }
+                    // 달러 등락률 필드가 없다. t_xrat은 원화 환산가 기준이라 쓰면 틀린 값이 나간다
+                    return Optional.of(new StockQuote(symbol.name(), quote.price(),
+                            PercentChange.between(quote.price(), quote.previousClose()),
+                            StockQuote.Money.USD, StockQuote.Market.US, StockSource.KIS,
+                            clock.instant(), true));
+                });
+    }
+
+    /**
+     * <b>거래소를 순서대로 물어보고 처음 답한 곳을 기억한다.</b> 시세와 일봉이 이 루프를
+     * <b>각자 한 벌씩</b> 갖고 있었다.
+     *
+     * <p>⚠️ <b>그 두 벌이 실제로 갈라졌고, 갈라진 자리가 브레이커였다.</b> 「다 훑어도 빈손이면
+     * {@link Unsupported}로 던진다」가 <b>일봉에만 있고 시세에 빠져</b>, 없는 심볼을 몇 번
+     * 검색하면 {@code kisStock} 브레이커가 열려 <b>국내 시세가 전일 종가로 강등되고 미국 시세는
+     * 통째로 빈손</b>이 됐다. 이 클래스에서 같은 일이 두 번째다 — {@code require} 가드도 한쪽만
+     * 고쳐졌다가 {@link Price}로 빠졌다.
+     *
+     * <p>⚠️ <b>실패의 두 갈래를 섞지 않는 것이 이 메서드의 계약이다.</b>
+     *
+     * <ul>
+     *   <li><b>빈 결과 → 다음 거래소.</b> 거래소가 틀리면 KIS는 에러가 아니라 빈 문자열·빈
+     *       배열을 준다. 그건 실패가 아니라 「여기 없다」다.
+     *   <li><b>예외 → 다음 거래소, 그리고 <u>마지막에 되던진다</u>.</b> {@code rt_cd=1}(초당
+     *       거래건수 초과)이 이 앱키에서는 흔한 경로다 — NAS에서 스로틀에 걸렸다고 NYS를
+     *       시도조차 못 하면 종목이 빈손이 된다. 전부 실패했으면 <b>원래 예외를 그대로</b>
+     *       올린다: 메시지만 베끼면 타입이 사라져 브레이커가 다시 못 가른다.
+     * </ul>
+     *
+     * <p>둘이 다 「없다」로 끝나면 그것은 KIS의 장애가 아니라 <b>KIS가 모르는 심볼</b>이므로
+     * {@link Unsupported}다 — 같은 입력이면 영원히 같은 실패이고, HTTP 호출조차 없이 나는
+     * 실패를 상대 장애로 세면 안 된다({@code application.yml}의 {@code kisStock}이 그것을
+     * {@code ignoreExceptions}에 두는 이유다).
+     *
+     * <p>⚠️ <b>호출과 해석을 갈라 받는다 — 인자가 둘인 이유가 그것이고, 한 번 틀렸다가 고친 자리다.</b>
+     * {@code call}만 {@code try} 안이고 {@code read}는 밖이다. 한 덩이로 받으면 <b>응답을 읽다
+     * 난 오류가 「이 거래소가 실패했다」로 잘못 잡힌다</b> — KIS가 일봉 날짜를 {@code 20260231}로
+     * 주면 그건 어느 거래소로 물어도 같은 결과인데, 다음 거래소를 <b>한 번 더 부르고</b>
+     * (간격 문에 1초를 더 쓴다) 마지막에 올라가는 것도 <b>그 날짜 오류가 아니라 뒤엣것의
+     * 실패</b>가 된다. 원인이 로그에서 사라지는 셈이다. (적대적 리뷰가 잡았다.)
+     *
+     * @param what   로그·예외에 실리는 이름. 거래소마다 같은 이름으로 찍혀야 어느 조회인지 읽힌다
+     * @param absent 다 훑어도 빈손일 때의 꼬리말({@code "응답에 현재가가 없습니다"})
+     * @param call   {@code (거래소, what)} → 받은 응답. <b>이것만 실패가 「다음 거래소」다</b>
+     * <p>⚠️ <b>한 가지 순서가 달라졌고, 숨기지 않고 적어 둔다.</b> 옛 시세 경로는
+     * {@code remember}를 한 뒤 {@code StockQuote}를 만들었고 지금은 그 반대다. 예외 쪽으로는
+     * 닿지 않는다 — {@code PercentChange.between}은 null·0을 걸러 던지지 않고
+     * {@code StockQuote}는 검증 없는 레코드다. <b>그러나 관측 불가능하다고까지 말할 수는 없다</b>:
+     * {@code clock.instant()}를 이제 {@code remember} <b>앞</b>에서 읽으므로, Redis 저장이 느린
+     * 순간에는 화면의 기준 시각이 예전보다 그 지연만큼 이르다 — 초 경계를 넘기면
+     * {@code StockFormatter}의 초 단위 기준 시각이 실제로 갈린다. 그 대가를 받는 이유는 <b>쓸 값을 못 만든 거래소를 기억하지
+     * 않는</b> 쪽이 맞기 때문이다. 일봉 경로는 옛 순서와 같다. (적대적 리뷰가 표현을 바로잡았다.)
+     *
+     * @param read   응답 → 값, 또는 <b>「여기 없다」면 빈 {@link Optional}</b>.
+     *               여기서 난 예외는 <b>그대로 전파된다</b> — 거래소를 바꿔도 같을 일이다
+     */
+    private <T, R> R overExchanges(String symbol, String what, String absent,
+                                   BiFunction<String, String, T> call,
+                                   Function<T, Optional<R>> read) {
+        RuntimeException failure = null;
+        // 기억해 둔 거래소가 있으면 그 하나뿐이다 — 목록을 두 곳에 적지 않는다
+        for (String exchange : exchangesToTry(symbol)) {
+            T response;
+            try {
+                response = call.apply(exchange, what);
             } catch (RuntimeException e) {
-                // ⚠️ 빈 응답만 넘어가면 부족하다. request()는 rt_cd=1(초당 거래건수 초과)에
-                //    던지는데, 이 앱키는 초당 1건이라 그게 예외가 아니라 흔한 경로다 —
-                //    NAS를 물을 때 스로틀에 걸리면 NYS는 시도조차 못 하고 종목이 빈손이 됐다.
-                //    거래소마다 따로 실패하고 전부 실패했을 때만 던진다(StockService.first와 같다)
                 log.warn("[stock] {} — {} 조회 실패, 다음 거래소로 넘어갑니다: {}",
                         what, exchange, FailureReason.of(e));
                 failure = e;
                 continue;
             }
-            if (quote == null || !positive(quote.price())) {
+            Optional<R> found = read.apply(response);
+            if (found.isEmpty()) {
                 continue;
             }
-            exchanges.remember(symbol.symbol(), exchange);
-            // 달러 등락률 필드가 없다. t_xrat은 원화 환산가 기준이라 여기 쓰면 틀린 값이 나간다
-            return new StockQuote(symbol.name(), quote.price(),
-                    PercentChange.between(quote.price(), quote.previousClose()),
-                    StockQuote.Money.USD, StockQuote.Market.US, StockSource.KIS,
-                    clock.instant(), true);
+            exchanges.remember(symbol, exchange);
+            return found.get();
         }
-        // ⚠️ 빈손의 원인이 둘인데 문장은 하나였다 — 값이 정말 없는 것과, 물어보지도 못한 것.
-        //    거래소가 전부 예외로 죽었으면 "현재가가 없습니다"는 확인한 적 없는 결론이고,
-        //    실제로 그 문장 때문에 무효 토큰이 '상장 폐지된 종목'처럼 읽혔다. 그때는 그 예외를
-        //    **그대로** 올린다 — 메시지만 베끼면 타입이 사라져 브레이커가 다시 못 가른다
         if (failure != null) {
             throw failure;
         }
-        // ⚠️ 거래소를 다 훑어 전부 빈 문자열이었다 — KIS의 장애가 아니라 KIS가 모르는 심볼이다.
-        //    일봉 경로(usStockSeries)가 같은 조건에서 이미 Unsupported를 던지는데 여기만
-        //    빠져 있었다. 그 탓에 없는 심볼을 몇 번 검색하면 kisStock 브레이커가 열려
-        //    **국내 시세가 전일 종가로 강등되고 미국 시세는 통째로 빈손**이 됐다
-        throw new Unsupported("KIS " + what + " 응답에 현재가가 없습니다");
+        throw new Unsupported("KIS " + what + " " + absent);
     }
 
     /**
@@ -575,39 +585,6 @@ public class KisStockApi implements DomesticStockClient, UsStockClient {
                 .queryParam("FID_PERIOD_DIV_CODE", "D");
     }
 
-    /**
-     * 호출 한 번. 경로마다 응답 타입만 다르고 <b>헤더·에러 처리·비밀 취급이 같다.</b>
-     *
-     * <p>예외를 그대로 흘리지 않는다 — 헤더에 접근토큰이 실려 있어 로그·모니터링에 남으면
-     * 그대로 유출된다({@code FmpApi}·{@code KeximFxClient}가 URL에 실린 키를 가리는 것과 같다).
-     * <b>다만 이유는 남긴다</b> — {@link KisHeaders#reasonOf}가 본문에서 두 필드만 꺼낸다.
-     */
-    private <T extends KisResponse> T request(Class<T> type, String trId, String what,
-                                              Function<UriBuilder, URI> uri) {
-        // 호출 하나에 간격 하나 — 거래소를 두 번 물어보면 그 사이도 벌어진다
-        throttle.pace();
-        T response;
-        try {
-            response = restClient.get()
-                    .uri(uri)
-                    .headers(headers.of(tokens.token(), trId))
-                    .retrieve()
-                    .body(type);
-        } catch (RuntimeException e) {
-            // 예외 이름만으로는 부족하다 — 무효 토큰이 500으로 오고 이유가 본문에만 있다
-            String reason = KisHeaders.reasonOf(e);
-            log.warn("[kis] {} 조회 실패: {}", what, reason);
-            // 무효 토큰은 다음 호출에서도 같은 이유로 실패한다. 알아차린 자리에서 버려야
-            // 스스로 낫는다 — 안 버리면 기록된 만료까지(최대 24시간) 모든 KIS 호출이 죽는다
-            if (KisHeaders.isInvalidToken(e)) {
-                tokens.invalidate();
-            }
-            throw new IllegalStateException("KIS " + what + " 조회 실패: " + reason);
-        }
-        KisHeaders.verify(response == null ? null : response.resultCode(),
-                response == null ? null : response.message(), what);
-        return response;
-    }
 
     /**
      * {@code rt_cd}가 0인데 값이 비어 오는 경우 — <b>없는 종목코드·없는 지수 심볼</b>이 그렇다.

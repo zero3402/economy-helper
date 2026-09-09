@@ -122,7 +122,7 @@ public class KmaWeatherClient implements WeatherClient {
      */
     @Override
     @Cacheable(cacheNames = CacheNames.WEATHER,
-            key = "'kma:' + #a0.latitude() + ',' + #a0.longitude() + ',' + #a1.from() + ',' + #a1.to()")
+            key = "'kma:' + " + WeatherClient.PLACE_PERIOD)
     @CircuitBreaker(name = "weatherKma")
     public Weather forecast(GeoLocation place, WeatherPeriod period) {
         KmaGrid grid = KmaGrid.of(place.latitude(), place.longitude());

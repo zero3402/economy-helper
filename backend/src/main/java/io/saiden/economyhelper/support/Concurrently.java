@@ -62,24 +62,6 @@ public final class Concurrently {
     public record Pair<A, B>(A first, B second) {}
 
     /**
-     * 종류가 다른 셋을 동시에 — {@code FmpUsOutlookClient}가 목표가·실적발표일·배당을 겹칠 때 쓴다.
-     *
-     * <p>{@link #both}를 겹쳐 쓰면 되지만 그러면 실행기가 둘 뜨고 결과가 {@code Pair<A, Pair<B, C>>}로
-     * 읽는 쪽에서 한 번 더 벗겨야 한다. 규칙은 {@link #both}와 같다 — 하나가 던지면 나머지도 버려진다.
-     */
-    public static <A, B, C> Triple<A, B, C> three(Supplier<A> first, Supplier<B> second,
-                                                  Supplier<C> third) {
-        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            Future<A> a = executor.submit(first::get);
-            Future<B> b = executor.submit(second::get);
-            Future<C> c = executor.submit(third::get);
-            return new Triple<>(join(a), join(b), join(c));
-        }
-    }
-
-    public record Triple<A, B, C>(A first, B second, C third) {}
-
-    /**
      * <p>인터럽트를 삼키지 않는다 — 삼키면 종료 신호가 무시돼 배포 때 컨테이너가
      * 강제 종료될 때까지 남는다.
      */

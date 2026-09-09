@@ -13,6 +13,7 @@ import io.saiden.economyhelper.market.StockSource;
 import io.saiden.economyhelper.market.UsOutlookClient;
 import io.saiden.economyhelper.support.Concurrently;
 import io.saiden.economyhelper.support.FailureReason;
+import io.saiden.economyhelper.support.Fetched;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.net.URLEncoder;
@@ -27,6 +28,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import java.util.Arrays;
 
 /**
  * 미국 종목의 목표주가·실적발표일·배당 — FMP.
@@ -193,7 +195,7 @@ public class FmpUsOutlookClient implements UsOutlookClient {
      * 500·타임아웃이 섞이면 더욱 아니다.
      */
     private static boolean everyLegPermanentlyBlocked(Fetched<?>... calls) {
-        return java.util.Arrays.stream(calls).allMatch(call -> call.asked()
+        return Arrays.stream(calls).allMatch(call -> call.asked()
                 && call.failure() != null && FmpApi.planBlocked(call.failure()));
     }
 
@@ -281,31 +283,6 @@ public class FmpUsOutlookClient implements UsOutlookClient {
         }
     }
 
-    /**
-     * 한 엔드포인트의 결과 — <b>세 상태다: 값을 받았다 · 실패했다 · 한도로 못 물었다.</b>
-     *
-     * <p>둘로는 못 든다. 「없다」(빈 배열)와 「못 물어봤다」를 뭉치면 브레이커가 실패를 못 보고,
-     * <b>실패의 종류</b>를 잃으면 허용목록 402(캐시해도 되는 것)와 500(안 되는 것)을 못 가른다 —
-     * 그래서 {@code boolean}이 아니라 <b>예외 객체</b>를 든다.
-     *
-     * <p>⚠️ 그 예외를 <b>메시지로 흘리지 않는다</b> — FMP 예외에는 apikey가 박힌 URL이 들어 있다.
-     * 상태 코드를 읽는 데만 쓰고, 밖으로 나가는 것은 {@link FailureReason}이 만든 줄이다.
-     *
-     * @param value   받은 것. 빈 배열이면 {@code null}이고 그건 <b>값</b>이다
-     * @param failure 실패했으면 그 예외. 물었고 이것이 {@code null}이면 성공이다
-     * @param asked   실제로 물었나. 한도가 없어 안 물은 다리는 거짓이다
-     */
-    private record Fetched<T>(T value, RuntimeException failure, boolean asked) {
-
-        /** 한도가 없어 묻지 않은 것 — 성공은 아니지만 <b>다시 물어도 오늘은 같다</b>. */
-        static <T> Fetched<T> skipped() {
-            return new Fetched<>(null, null, false);
-        }
-
-        boolean succeeded() {
-            return asked && failure == null;
-        }
-    }
 
     /** {@code 0}은 목표가가 아니다 — 평균에 넣으면 실제보다 낮은 값이 화면에 나간다. */
     private static BigDecimal positive(BigDecimal value) {

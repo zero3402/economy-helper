@@ -9,6 +9,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.ResolverStyle;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -35,8 +36,22 @@ record VillageBlock(Items items) {
 
     private static final Logger log = LoggerFactory.getLogger(VillageBlock.class);
 
-    static final DateTimeFormatter BASE_DATE = DateTimeFormatter.ofPattern("yyyyMMdd");
-    static final DateTimeFormatter BASE_TIME = DateTimeFormatter.ofPattern("HHmm");
+    /**
+     * ⚠️ <b>{@code uuuu}와 STRICT다.</b> {@code ofPattern}은 기본이 SMART라 {@code 20260231}을
+     * <b>조용히 2월 28일로 고쳐</b> 준다 — 예보 행이 엉뚱한 날에 붙으면 그 날의 반나절 요약이
+     * 틀린 채로 화면에 선다. STRICT면 대신 던지고 {@link Item#date()}가 그 행만 떨어뜨린다.
+     *
+     * <p>{@code yyyy}(연호 기준 연도)는 STRICT에서 연호 필드를 요구해 <b>파싱이 통째로
+     * 실패한다</b> — {@code uuuu}와 STRICT는 따로 고칠 수 없는 한 쌍이다.
+     *
+     * <p>이 둘은 <b>파싱과 포맷을 겸한다</b>({@code KmaVillageApi}가 {@code base_date}·
+     * {@code base_time}을 이것으로 만든다). {@code uuuu}는 서기 연도를 {@code yyyy}와 똑같이
+     * 찍으므로 요청 파라미터는 안 바뀐다.
+     */
+    static final DateTimeFormatter BASE_DATE = DateTimeFormatter
+            .ofPattern("uuuuMMdd").withResolverStyle(ResolverStyle.STRICT);
+    static final DateTimeFormatter BASE_TIME = DateTimeFormatter
+            .ofPattern("HHmm").withResolverStyle(ResolverStyle.STRICT);
 
     /** {@code "1.0mm 미만"}·{@code "30.0~50.0mm"}에서 첫 숫자를 꺼낸다. */
     private static final Pattern FIRST_NUMBER = Pattern.compile("\\d+(?:\\.\\d+)?");

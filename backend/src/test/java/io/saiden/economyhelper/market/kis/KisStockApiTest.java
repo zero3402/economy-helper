@@ -24,7 +24,6 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.web.client.RestClient;
 
 /**
  * 실제로 호출해 확인한 KIS 시세의 성질을 고정한다(2026-08-18, 모의 계정).
@@ -92,15 +91,14 @@ class KisStockApiTest extends WireMockTest {
     private KisStockApi apiWith(List<Index> indices, List<KisIndex> usIndices) {
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
         tokens = new KisFixtures.FixedToken(clock);
-        return new KisStockApi(RestClient.builder(), server.baseUrl(),
-                tokens, new KisHeaders("key", "secret"), clock,
+        return new KisStockApi(KisFixtures.call(server.baseUrl(), tokens), clock,
                 TestProperties.builder()
                         .digest(new Digest(null, null, indices, null, null, null))
                         .market(new EconomyHelperProperties.Market(
                                 new EconomyHelperProperties.Kis(usIndices)))
                         .build(),
-                // 간격을 지키는 문은 여기서 열어 둔다 — 규칙은 KisThrottleTest가 따로 본다
-                exchanges, KisFixtures.unpaced());
+                // 간격을 지키는 문은 KisFixtures.call이 열어 둔다 — 규칙은 KisThrottleTest가 따로 본다
+                exchanges);
     }
 
     /** Redis 대신 메모리에 기억한다 — 규칙만 본다. */

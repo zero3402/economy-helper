@@ -18,7 +18,6 @@ import java.time.ZoneId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.web.client.RestClient;
 
 /**
  * KIS {@code invest-opinion}과 예탁원정보(배당일정) 실측 응답을 그대로 먹여 파싱과 접기를 고정한다.
@@ -66,8 +65,8 @@ class KisDomesticOutlookClientTest extends WireMockTest {
     void resetAndBuild() {
         Clock clock = Clock.fixed(NOW, ZoneId.of("Asia/Seoul"));
         tokens = new KisFixtures.FixedToken(clock);
-        client = new KisDomesticOutlookClient(RestClient.builder(), server.baseUrl(),
-                tokens, new KisHeaders("key", "secret"), KisFixtures.unpaced(), clock);
+        client = new KisDomesticOutlookClient(
+                KisFixtures.call(server.baseUrl(), tokens), clock);
     }
 
     private void stub(String path, String body) {
@@ -319,8 +318,8 @@ class KisDomesticOutlookClientTest extends WireMockTest {
         //
         //    실물에서 이 거절은 **락 경합**으로만 나므로(pace()는 간격만큼은 그냥 잔다) 여기서는
         //    거절하는 문을 끼워 넣는다 — 재현하려고 스레드를 띄우면 이 파일의 관심사가 흐려진다
-        KisDomesticOutlookClient congested = new KisDomesticOutlookClient(RestClient.builder(),
-                server.baseUrl(), tokens, new KisHeaders("key", "secret"), new AlwaysCongested(),
+        KisDomesticOutlookClient congested = new KisDomesticOutlookClient(
+                KisFixtures.call(server.baseUrl(), tokens, new AlwaysCongested()),
                 Clock.fixed(NOW, ZoneId.of("Asia/Seoul")));
 
         assertThatThrownBy(() -> congested.outlook("005930", false))

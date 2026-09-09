@@ -16,8 +16,10 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
+import java.time.format.ResolverStyle;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * 코인 통 — <b>브리핑도 {@code /crypto} 한 건도 이것 하나를 쓴다.</b>
@@ -39,7 +41,8 @@ public final class CryptoFormatter {
      * 상수를 따로 든 것은 뒤에 시각이 붙기 때문일 뿐이다.
      */
     private static final DateTimeFormatter RELEASE =
-            DateTimeFormatter.ofPattern("MM.dd(E) HH:mm", java.util.Locale.KOREAN);
+            DateTimeFormatter.ofPattern("MM.dd(E) HH:mm", Locale.KOREAN)
+            .withResolverStyle(ResolverStyle.STRICT);
 
     private CryptoFormatter() {
     }

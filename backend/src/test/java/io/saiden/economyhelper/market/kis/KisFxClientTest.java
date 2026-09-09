@@ -17,7 +17,6 @@ import java.time.ZoneOffset;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.web.client.RestClient;
 
 /**
  * 실제로 호출해 확인한 KIS 환율의 성질을 고정한다(2026-08-18, 모의 계정).
@@ -35,9 +34,8 @@ class KisFxClientTest extends WireMockTest {
     @BeforeEach
     void resetAndBuild() {
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
-        client = new KisFxClient(RestClient.builder(), server.baseUrl(),
-                new KisFixtures.FixedToken(clock), new KisHeaders("key", "secret"), clock,
-                KisFixtures.unpaced());
+        client = new KisFxClient(
+                KisFixtures.call(server.baseUrl(), new KisFixtures.FixedToken(clock)), clock);
     }
 
     private void stub(String body) {

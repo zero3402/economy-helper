@@ -9,10 +9,8 @@ import io.saiden.economyhelper.market.FxSource;
 import java.time.Clock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
 
 /**
  * 한국투자증권 원/달러 — <b>환율 이중화의 1순위</b>({@code FxService.ORDER}).
@@ -52,25 +50,16 @@ public class KisFxClient implements FxRateClient {
     private static final String FX_MARKET = "X";
     private static final String USD_KRW = "FX@KRW";
 
-    private final RestClient restClient;
-    private final KisTokenStore tokens;
-    private final KisHeaders headers;
+    private final KisCall kis;
     private final Clock clock;
     /**
      * 환율도 주식과 <b>같은 문</b>을 지난다 — 한도가 데이터셋이 아니라 앱키 단위라서다.
      * 따로 세면 둘이 합쳐 한도를 넘긴다({@link KisThrottle}).
      */
-    private final KisThrottle throttle;
 
-    public KisFxClient(RestClient.Builder builder,
-                       @Value("${economy-helper.market.kis.base-url}") String baseUrl,
-                       KisTokenStore tokens, KisHeaders headers, Clock clock,
-                       KisThrottle throttle) {
-        this.restClient = builder.baseUrl(baseUrl).build();
-        this.tokens = tokens;
-        this.headers = headers;
+    public KisFxClient(KisCall kis, Clock clock) {
+        this.kis = kis;
         this.clock = clock;
-        this.throttle = throttle;
     }
 
     @Override
@@ -82,7 +71,18 @@ public class KisFxClient implements FxRateClient {
     @Cacheable(cacheNames = CacheNames.FX_KIS)
     @CircuitBreaker(name = "kisFx")
     public FxRate usdToKrw() {
-        KisChartPrice.Quote quote = request().output();
+        KisChartPrice.Quote quote = kis.get(KisChartPrice.class, TR_ID, "환율",
+                uriBuilder -> uriBuilder
+                        .path(PATH)
+                        .queryParam("FID_COND_MRKT_DIV_CODE", FX_MARKET)
+                        .queryParam("FID_INPUT_ISCD", USD_KRW)
+                        // 오늘만 물으면 휴일·이른 아침에 빈 배열이 온다. 일주일을 물어도
+                        // output1의 현재가는 하나뿐이라 파싱은 그대로다
+                        .queryParam("FID_INPUT_DATE_1", KisHeaders.daysAgo(clock, 7))
+                        .queryParam("FID_INPUT_DATE_2", KisHeaders.today(clock))
+                        .queryParam("FID_PERIOD_DIV_CODE", "D")
+                        .build())
+                .output();
 
         // ⚠️ null만 보면 안 된다. 이 응답 스키마(KisChartPrice)는 심볼이 틀릴 때 에러가 아니라
         //    0.00을 주고, 그걸 값으로 받으면 환율 0이 화면의 모든 원화 환산을 오염시킨다 —
@@ -96,38 +96,4 @@ public class KisFxClient implements FxRateClient {
                 FxSource.KIS, clock.instant());
     }
 
-    private KisChartPrice request() {
-        throttle.pace();
-        KisChartPrice response;
-        try {
-            response = restClient.get()
-                    .uri(uriBuilder -> uriBuilder
-                            .path(PATH)
-                            .queryParam("FID_COND_MRKT_DIV_CODE", FX_MARKET)
-                            .queryParam("FID_INPUT_ISCD", USD_KRW)
-                            // 오늘만 물으면 휴일·이른 아침에 빈 배열이 온다. 일주일을 물어도
-                            // output1의 현재가는 하나뿐이라 파싱은 그대로다
-                            .queryParam("FID_INPUT_DATE_1", KisHeaders.daysAgo(clock, 7))
-                            .queryParam("FID_INPUT_DATE_2", KisHeaders.today(clock))
-                            .queryParam("FID_PERIOD_DIV_CODE", "D")
-                            .build())
-                    .headers(headers.of(tokens.token(), TR_ID))
-                    .retrieve()
-                    .body(KisChartPrice.class);
-        } catch (RuntimeException e) {
-            // 헤더에 토큰이 실려 있다 — 예외를 그대로 흘리면 로그에 남을 수 있다.
-            // 이유는 본문에서 두 필드만 꺼내 남긴다(KisHeaders.reasonOf)
-            String reason = KisHeaders.reasonOf(e);
-            log.warn("[kis] 환율 조회 실패: {}", reason);
-            // 주식과 같은 판단이다 — 앱키가 하나이므로 토큰도 하나다. 어느 쪽이 먼저
-            // 알아차리든 버려야 나머지 하나도 함께 낫는다
-            if (KisHeaders.isInvalidToken(e)) {
-                tokens.invalidate();
-            }
-            throw new IllegalStateException("KIS 환율 조회 실패: " + reason);
-        }
-        KisHeaders.verify(response == null ? null : response.resultCode(),
-                response == null ? null : response.message(), "환율");
-        return response;
-    }
 }

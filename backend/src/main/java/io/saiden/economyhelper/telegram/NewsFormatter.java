@@ -117,7 +117,7 @@ public final class NewsFormatter {
      * 소수점은 걸리지 않는다.
      */
     private static final Pattern TLD =
-            java.util.regex.Pattern.compile("\\.[a-zA-Z]{2,}\\b");
+            Pattern.compile("\\.[a-zA-Z]{2,}\\b");
 
     /**
      * <b>왜 없는지 함께 말한다.</b> "찾지 못했습니다"만 있으면 사용자는 봇 고장으로 읽는다 —

@@ -139,7 +139,7 @@ public class WeatherResolver {
         }
 
         public boolean hasPlace() {
-            return query != null && !query.isBlank() && !"null".equalsIgnoreCase(query.trim());
+            return !LlmJson.blank(query);
         }
 
         /**
@@ -151,18 +151,14 @@ public class WeatherResolver {
         }
 
         /**
-         * 나라 코드 — <b>{@code query}와 같은 정규화를 받는다.</b>
+         * 나라 코드 — <b>{@code query}와 같은 정규화를 받는다</b>({@link LlmJson#text}).
          *
-         * <p>⚠️ LLM이 {@code "null"} 문자열을 주는 일이 실제로 있어 {@link #hasPlace()}와
-         * {@link #absoluteDate()}가 이미 그걸 막고 있었는데, 나라만 빠져 있었다. 그대로
-         * 두면 {@code countryCode=null}이 쿼리에 실려 나가 <b>헛호출을 한 번 태운 뒤</b>
-         * 원문으로 폴백한다 — 지오코딩 조회가 조용히 두 배가 되는 자리다.
+         * <p>⚠️ 안 걸러내면 {@code countryCode=null}이 쿼리에 실려 나가 <b>헛호출을 한 번
+         * 태운 뒤</b> 원문으로 폴백한다 — 지오코딩 조회가 조용히 두 배가 되는 자리다.
+         * 그 판단이 여기 없어서 물렸던 경위는 {@link LlmJson#blank}에 있다.
          */
         public String countryCode() {
-            if (country == null || country.isBlank() || "null".equalsIgnoreCase(country.trim())) {
-                return null;
-            }
-            return country.trim();
+            return LlmJson.text(country);
         }
 
         /**
@@ -170,11 +166,12 @@ public class WeatherResolver {
          * 여기서 던지면 검색 전체가 죽는데, 날짜 하나 때문에 그럴 이유가 없다.
          */
         public LocalDate absoluteDate() {
-            if (date == null || date.isBlank() || "null".equalsIgnoreCase(date.trim())) {
+            String usable = LlmJson.text(date);
+            if (usable == null) {
                 return null;
             }
             try {
-                return LocalDate.parse(date.trim());
+                return LocalDate.parse(usable);
             } catch (DateTimeParseException e) {
                 return null;
             }

@@ -16,6 +16,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Financial Modeling Prep — 미국 주식·지수 현재가.
@@ -117,7 +119,7 @@ public class FmpApi {
     }
 
     private static String encode(String value) {
-        return java.net.URLEncoder.encode(value, java.nio.charset.StandardCharsets.UTF_8);
+        return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 
     /**

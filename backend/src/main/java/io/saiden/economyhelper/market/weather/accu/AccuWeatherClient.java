@@ -85,7 +85,7 @@ public class AccuWeatherClient implements WeatherClient {
 
     @Override
     @Cacheable(cacheNames = CacheNames.WEATHER,
-            key = "'accu:' + #a0.latitude() + ',' + #a0.longitude() + ',' + #a1.from() + ',' + #a1.to()")
+            key = "'accu:' + " + WeatherClient.PLACE_PERIOD)
     @CircuitBreaker(name = "weatherAccuWeather")
     public Weather forecast(GeoLocation place, WeatherPeriod period) {
         if (apiKey.isBlank()) {

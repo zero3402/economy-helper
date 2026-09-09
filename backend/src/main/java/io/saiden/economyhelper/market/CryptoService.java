@@ -99,7 +99,16 @@ public class CryptoService {
             // 던지는데 그건 CryptoResolver 안쪽 try가 못 잡는다(메서드 밖에서 나는 예외다).
             // StockService가 같은 이유로 같은 그물을 쳐 두었는데 여기와 WeatherFacade에는
             // 없었다. 그래서 같은 장애에서 /stock은 "찾지 못했습니다"가 나가고 /crypto는
-            // 아무 답도 안 갔다 — 판단이 셋으로 갈려 있던 자리다
+            // 아무 답도 안 갔다 — 판단이 셋으로 갈려 있던 자리다.
+            // ⚠️ **여기만 e.toString()인 것이 맞다 — FailureReason로 바꿨다가 되돌렸다.**
+            //    이 그물에 외부 호출 실패는 닿지 않는다: 업비트 마켓 목록이 죽으면
+            //    upbitSide()가 잡아 Quote.FAILED로, byUpbitName()이 잡아 빈손으로 돌린다
+            //    (둘 다 그 자리에서 FailureReason을 쓴다 — 거기가 외부 실패다).
+            //    남는 것은 Redis와 내부 조립뿐이라 예외 이름이 이미 답이고, FailureReason을
+            //    통과시키면 브레이커·리미터·451이 나올 수 없는 자리에서 **메시지만 버린다.**
+            //    StockService·WeatherFacade가 FailureReason을 쓰는 것은 그쪽 그물에는
+            //    외부 호출이 실제로 닿기 때문이다(지오코딩은 삼켜지지 않는다). 셋이 다른 것은
+            //    일관성이 깨진 것이 아니라 **닿는 것이 다르기 때문**이다. (적대적 리뷰가 잡았다.)
             log.error("[crypto] '{}' 조회 실패: {}", query, e.toString());
             return Optional.empty();
         }

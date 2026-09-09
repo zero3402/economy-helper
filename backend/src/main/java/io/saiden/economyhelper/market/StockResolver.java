@@ -128,19 +128,16 @@ public class StockResolver {
         }
 
         boolean isEmpty() {
-            return blank(code) && blank(name);
+            return LlmJson.blank(code) && LlmJson.blank(name);
         }
 
         public boolean hasCode() {
-            return !blank(code);
+            return !LlmJson.blank(code);
         }
 
         public boolean hasName() {
-            return !blank(name);
+            return !LlmJson.blank(name);
         }
 
-        private static boolean blank(String value) {
-            return value == null || value.isBlank() || "null".equalsIgnoreCase(value.trim());
-        }
     }
 }
