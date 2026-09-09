@@ -219,6 +219,49 @@ class KisDomesticOutlookClientTest extends WireMockTest {
     }
 
     @Test
+    @DisplayName("배당은 연 1회 주기를 넘겨 되짚는다 — 180일로는 결산배당이 통째로 빠졌다")
+    void looksBackPastAFullYearForDividends() {
+        // ⚠️ **신고받은 그 자리다.** F_DT는 **기준일**을 거르는데 예탁원은 다음 기준일을 미리 안
+        //    올린다(실측: 삼성전자 다음 분기 0행). 그래서 쓸 수 있는 것은 지난 마지막 기준일이고,
+        //    그것이 창 밖으로 나가면 응답이 **0행**이 되어 배당이 통째로 사라진다.
+        //    국내 다수가 연 1회 결산배당(기준일 12/31)이라 6월 말~12월이 빈칸이었다.
+        //    실측 426030이 ±180일 창에서 0행, 넓은 창에서 1행이었는데 그 뜻을 그때 못 읽었다.
+        //    ⚠️ 투자의견은 **그대로 180일**이다 — 증권사 발표 주기라 성질이 다르다
+        noOpinions();
+        noDividends();
+
+        client.outlook("005930", false);
+
+        // 고정 시각 2026-08-21(KST) 기준
+        server.verify(getRequestedFor(urlPathEqualTo(DIVIDEND))
+                .withQueryParam("F_DT", com.github.tomakehurst.wiremock.client.WireMock.equalTo("20250717"))
+                .withQueryParam("T_DT", com.github.tomakehurst.wiremock.client.WireMock.equalTo("20270217")));
+        server.verify(getRequestedFor(urlPathEqualTo(OPINION))
+                .withQueryParam("FID_INPUT_DATE_1",
+                        com.github.tomakehurst.wiremock.client.WireMock.equalTo("20260222")));
+    }
+
+    @Test
+    @DisplayName("열한 달 전 결산배당 한 건도 지난 배당으로 나온다 — 연 1회 종목이 이 모양이다")
+    void showsAnAnnualDividendFromLastYear() {
+        // 연 1회 결산배당: 기준일이 작년 말이고 지급이 올해 4월이다. 둘 다 지났으므로 「지난 배당」이다.
+        // ⚠️ 어제 확인에 쓴 표본(삼성전자·SK하이닉스)이 **분기배당**이어서 이 모양을 못 봤다
+        noOpinions();
+        stub(DIVIDEND, """
+                {"rt_cd":"0","msg1":"정상처리 되었습니다.","output1":[
+                  {"record_date":"20251231","sht_cd":"005930","isin_name":"어느연배당주","divi_kind":"결산",
+                   "per_sto_divi_amt":"1250","divi_pay_dt":"2026/04/17",
+                   "stk_div_pay_dt":"","odd_pay_dt":"","stk_kind":"보통"}]}""");
+
+        StockOutlook outlook = client.outlook("005930", false);
+
+        assertThat(outlook.dividend())
+                .as("창이 좁으면 이 행이 아예 안 와서 배당이 통째로 없었다")
+                .isEqualTo(new StockOutlook.Dividend(LocalDate.of(2025, 12, 31),
+                        LocalDate.of(2026, 4, 17), new BigDecimal("1250"), true));
+    }
+
+    @Test
     @DisplayName("모양이 어긋난 날짜는 그 줄만 빠진다 — 던지면 그 종목의 전망이 영구히 죽는다")
     void aMalformedDateOnlyDropsItsOwnLine() {
         // ⚠️ 한때 던졌다. 같은 입력이면 **영원히 같은 실패**인데 예외는 캐시되지 않아 조회마다

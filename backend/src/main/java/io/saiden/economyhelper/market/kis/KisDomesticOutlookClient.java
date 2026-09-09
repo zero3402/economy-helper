@@ -68,8 +68,10 @@ import org.springframework.web.util.UriBuilder;
  *   <li>⚠️ <b>날짜 모양이 한 행 안에서 갈린다</b> — {@code record_date}는 {@code yyyyMMdd}, {@code divi_pay_dt}는
  *       {@code yyyy/MM/dd}. 하나로 읽으면 한쪽이 조용히 죽는다
  *   <li>⚠️ <b>{@code F_DT}·{@code T_DT}는 기준일을 거른다.</b> 지급일은 기준일 뒤 두 달~넉 달이라(실측: 결산 기준일
- *       {@code 20251231} → 지급 {@code 2026/04/17}) 뒤로 {@value #LOOKBACK_DAYS}일을 봐야 「지급일만 남은 분기」가
- *       들어오고, 앞으로 {@value #LOOKAHEAD_DAYS}일을 본다(기준일은 두어 주 전에 잡히므로 넉넉하다)
+ *       {@code 20251231} → 지급 {@code 2026/04/17}) 되짚어야 「지급일만 남은 분기」가 들어오고,
+ *       <b>연 1회 배당은 되짚기가 365일을 넘어야</b> 한 건이라도 들어온다 —
+ *       {@link #DIVIDEND_LOOKBACK_DAYS}에 그 산술이 있다(좁게 뒀다가 「배당일이 안 나온다」로
+ *       신고받았다). 앞으로는 {@value #DIVIDEND_LOOKAHEAD_DAYS}일을 본다
  *   <li>⚠️ <b>배당금 {@code "0"}·지급일 {@code ""}인 행이 온다</b>(실측 SK하이닉스 결산 {@code 20251231}) — 아직 안
  *       정해진 것이고 값이 아니다. 고르는 규칙은 {@link Dividend#nextOf}가 든다(FMP와 같은 규칙)
  *   <li>⚠️ 배열 이름이 {@code output1}이다 — 투자의견은 {@code output}이다. 잘못 적으면 오류 없이 빈 목록이다
@@ -129,17 +131,41 @@ public class KisDomesticOutlookClient implements DomesticOutlookClient {
     private static final String DIVIDEND_TR_ID = "HHKDB669102C0";
 
     /**
-     * 며칠치를 물을지 — 두 호출이 같은 값을 쓴다.
+     * 투자의견을 며칠치 물을지.
      *
      * <p>증권사는 분기 실적 즈음에 몰아서 내므로 한 달로는 의견이 없는 종목이 흔하다.
      * 실측(2026-08-21)으로 삼성전자가 7~8월 두 달에 12행이었다. 넉넉히 잡아도 응답이
      * 수십 행이라 비용이 같고, 접는 쪽에서 증권사별 최신 하나만 남기므로 오래된 것이
-     * 화면에 새지 않는다. 배당은 기준일 뒤 넉 달까지 지급일이 늘어지므로 이 길이가 그쪽에도 맞다.
+     * 화면에 새지 않는다.
      */
-    private static final int LOOKBACK_DAYS = 180;
+    private static final int OPINION_LOOKBACK_DAYS = 180;
+
+    /**
+     * 배당을 며칠치 <b>되짚을지</b> — <b>연 1회 주기(365)를 넘어야 한다.</b>
+     *
+     * <p>⚠️ <b>한동안 투자의견과 같은 180일을 썼고, 그것이 「배당일이 안 나온다」의 정체였다.</b>
+     * 산술이 이렇다: {@code F_DT}는 <b>기준일</b>을 거르는데 <b>예탁원은 다음 기준일을 미리 올리지
+     * 않는다</b>(실측: 삼성전자 다음 분기 0행). 그래서 화면에 쓸 수 있는 것은 사실상 <b>이미 지난
+     * 마지막 기준일</b>이고, 그것이 {@code today − 180} 밖으로 나가는 순간 응답이 <b>0행</b>이 되어
+     * 배당 블록이 통째로 사라진다.
+     *
+     * <p><b>국내 상장사 다수가 연 1회 결산배당</b>(기준일 12/31)이므로 그 종목들은
+     * <b>6월 말부터 다음 기준일이 공시되는 12월까지 반년 가까이 빈칸</b>이었다. 실측
+     * (2026-09-08)이 이미 그것을 보여 주고 있었다 — {@code 426030}(연 1회 분배, 마지막 기준일
+     * {@code 20251230})이 <b>±180일 창에서 0행</b>인데 {@code F_DT=20250101}로 넓게 물으면 1행이다.
+     * 그때는 「다음 행이 아직 안 올라왔다」로만 읽고 <b>창이 지난 것까지 잘라낸다는 것</b>을 못 봤다.
+     *
+     * <p>⚠️ <b>확인에 쓴 표본이 분기배당이어서 못 봤다.</b> 삼성전자·SK하이닉스는 분기마다 내므로
+     * 마지막 기준일이 늘 180일 안이다 — <b>통과하는 표본으로만 확인한 셈</b>이다.
+     *
+     * <p>새 호출은 없다. 같은 요청의 파라미터만 넓히고 응답이 몇 행 늘 뿐이다(분기배당 6~7행 ·
+     * 연 1회 1~2행). 옛 배당이 화면에 새지도 않는다 — {@link Dividend#nextOf}가 앞으로 올 것이
+     * 없을 때 <b>가장 최근에 끝난 한 건</b>만 고른다.
+     */
+    private static final int DIVIDEND_LOOKBACK_DAYS = 400;
 
     /** 배당 기준일을 앞으로 며칠까지 볼지 — 기준일은 두어 주 전에 잡히므로 넉넉하다. */
-    private static final int LOOKAHEAD_DAYS = 180;
+    private static final int DIVIDEND_LOOKAHEAD_DAYS = 180;
 
     /** 배당 날짜를 자르는 달력 — 예탁원이 주는 것은 KRX 거래일이다. */
     private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
@@ -213,7 +239,7 @@ public class KisDomesticOutlookClient implements DomesticOutlookClient {
                 .queryParam("FID_COND_MRKT_DIV_CODE", "J")
                 .queryParam("FID_COND_SCR_DIV_CODE", SCREEN_DIV)
                 .queryParam("FID_INPUT_ISCD", code)
-                .queryParam("FID_INPUT_DATE_1", KisHeaders.daysAgo(clock, LOOKBACK_DAYS))
+                .queryParam("FID_INPUT_DATE_1", KisHeaders.daysAgo(clock, OPINION_LOOKBACK_DAYS))
                 .queryParam("FID_INPUT_DATE_2", KisHeaders.today(clock))
                 .build());
         return InvestOpinions.averageTargetOf(rowsOf(response)).orElse(null);
@@ -226,8 +252,10 @@ public class KisDomesticOutlookClient implements DomesticOutlookClient {
                 .path(DIVIDEND_PATH)
                 .queryParam("CTS", "")
                 .queryParam("GB1", "0")   // 배당 전체 — 결산·중간을 가르지 않는다
-                .queryParam("F_DT", today.minusDays(LOOKBACK_DAYS).format(DateTimeFormatter.BASIC_ISO_DATE))
-                .queryParam("T_DT", today.plusDays(LOOKAHEAD_DAYS).format(DateTimeFormatter.BASIC_ISO_DATE))
+                .queryParam("F_DT", today.minusDays(DIVIDEND_LOOKBACK_DAYS)
+                        .format(DateTimeFormatter.BASIC_ISO_DATE))
+                .queryParam("T_DT", today.plusDays(DIVIDEND_LOOKAHEAD_DAYS)
+                        .format(DateTimeFormatter.BASIC_ISO_DATE))
                 .queryParam("SHT_CD", code)
                 .queryParam("HIGH_GB", "")
                 .build());
