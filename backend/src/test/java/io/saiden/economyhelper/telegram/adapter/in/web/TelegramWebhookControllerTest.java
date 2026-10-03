@@ -78,6 +78,36 @@ class TelegramWebhookControllerTest {
     }
 
     @Test
+    @DisplayName("텔레그램이 같은 update_id를 다시 보내면 한 번만 답한다 — 재전송마다 답이 또 나가던 것")
+    void answersARedeliveredUpdateOnce() {
+        RecordingTelegram client = new RecordingTelegram();
+        java.util.Set<Long> seen = new java.util.HashSet<>();
+        ProcessedUpdates memory = new ProcessedUpdates(null) {
+            @Override
+            public boolean firstTime(Long updateId) {
+                return updateId == null || seen.add(updateId);
+            }
+        };
+        var controller = new TelegramWebhookController(facade(Optional.empty()), crypto(Optional.empty()),
+                fx(Optional.empty()), stock(Optional.empty()), weather(), client, SAME_THREAD, memory, "", "", "");
+        Message help = new Message(new Chat(1), "/help", MESSAGE_ID, null);
+
+        assertThat(controller.onUpdate(null, new Update(777L, help)).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(controller.onUpdate(null, new Update(777L, help)).getStatusCode())
+                .as("재전송도 200이다 — 아니면 텔레그램이 또 보낸다").isEqualTo(HttpStatus.OK);
+        controller.onUpdate(null, new Update(778L, help));
+
+        assertThat(client.messages).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("Redis가 없으면 중복을 가리지 않고 받는다 — 우리 명령을 놓치는 것보다 낫다")
+    void acceptsEverythingWithoutRedis() {
+        assertThat(new ProcessedUpdates(null).firstTime(1L)).isTrue();
+        assertThat(new ProcessedUpdates(null).firstTime(1L)).isTrue();
+    }
+
+    @Test
     @DisplayName("그룹에서 다른 봇을 부른 명령에는 답하지 않는다 — 모르는 명령 안내도 없다")
     void ignoresCommandsAddressedToAnotherBot() {
         RecordingTelegram client = new RecordingTelegram();
@@ -643,7 +673,7 @@ class TelegramWebhookControllerTest {
             RecordingTelegram client = new RecordingTelegram();
             new TelegramWebhookController(facade(Optional.empty()), crypto(Optional.empty()),
                     fx(Optional.empty()), stock(Optional.empty()), weather(reason), client,
-                    SAME_THREAD, "", "", "")
+                    SAME_THREAD, new ProcessedUpdates(null), "", "", "")
                     .onUpdate(null, update(1, "/weather 성남"));
 
             assertThat(client.messages).as("%s에도 답이 나간다", reason).hasSize(1);
@@ -681,7 +711,7 @@ class TelegramWebhookControllerTest {
         };
 
         new TelegramWebhookController(exploding, crypto(Optional.empty()), fx(Optional.empty()),
-                stock(Optional.empty()), weather(), client, SAME_THREAD, "", "", "")
+                stock(Optional.empty()), weather(), client, SAME_THREAD, new ProcessedUpdates(null), "", "", "")
                 .onUpdate(null, update(1, "/news 금리"));
 
         assertThat(client.messages).as("침묵하면 사용자에게는 봇이 죽은 것과 구분되지 않는다").hasSize(1);
@@ -716,7 +746,7 @@ class TelegramWebhookControllerTest {
                                                                TelegramClient telegramClient) {
         return new TelegramWebhookController(
                 newsFacade, cryptoService, fxService, stockService, weather(), telegramClient,
-                SAME_THREAD, "", "", "");
+                SAME_THREAD, new ProcessedUpdates(null), "", "", "");
     }
 
     /**
@@ -759,7 +789,7 @@ class TelegramWebhookControllerTest {
             String secret, String allowedChatId, String searchTopicId, TelegramClient client) {
         return new TelegramWebhookController(
                 facade(Optional.of(item("유가 상승"))), crypto(Optional.empty()), fx(Optional.empty()),
-                stock(Optional.empty()), weather(), client, SAME_THREAD, secret, allowedChatId,
+                stock(Optional.empty()), weather(), client, SAME_THREAD, new ProcessedUpdates(null), secret, allowedChatId,
                 searchTopicId);
     }
 
