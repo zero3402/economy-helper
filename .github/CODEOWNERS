@@ -1,0 +1,7 @@
+# AI 에이전트 지시와 설정은 코드처럼 리뷰한다 — 한 줄이 모든 세션의 행동을 바꾼다.
+AGENTS.md          @zero3402
+**/AGENTS.md       @zero3402
+CLAUDE.md          @zero3402
+**/CLAUDE.md       @zero3402
+/docs/             @zero3402
+/.claude/          @zero3402

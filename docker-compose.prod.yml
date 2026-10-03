@@ -1,0 +1,57 @@
+# 아무 Docker 호스트에서 통째로 띄운다 — Render·Oracle VM·VPS·로컬 전부 같은 이미지다.
+#
+#   TAG=sha-abc1234 docker compose -f docker-compose.prod.yml up -d
+#
+# 개발용 docker-compose.yml은 건드리지 않는다. 거기에 앱을 넣으면
+# "compose로 redis만 띄우고 bootRun" 흐름이 깨진다.
+#
+# 관리형 Redis(Upstash·ElastiCache 등)를 쓰는 호스트라면 redis 서비스를 지우고
+# REDIS_HOST/REDIS_PASSWORD/REDIS_SSL만 채우면 된다 — 앱은 바뀌지 않는다.
+
+name: economy-helper-prod
+
+services:
+  app:
+    image: ghcr.io/zero3402/economy-helper:${TAG:-latest}
+    container_name: economy-helper-app
+    # 시크릿은 이미지가 아니라 여기서 주입한다. 이미지는 GHCR에 공개로 올라가므로
+    # 한 번 구우면 레이어에 영원히 남는다.
+    env_file:
+      - backend/.env
+    environment:
+      REDIS_HOST: redis
+    ports:
+      # 8080은 텔레그램 웹훅을 받아야 하므로 열어 둔다.
+      - "8080:8080"
+      # ⚠️ 8081은 반드시 루프백에만 묶는다. /actuator/digest는 텔레그램 방송을
+      #    즉시 일으키므로 공개하면 누구나 발송을 트리거할 수 있다.
+      - "127.0.0.1:8081:8081"
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8081/actuator/health | grep -q '\"status\":\"UP\"'"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      # JVM 기동 + 피드 워밍업이 느린 호스트(0.1 CPU 급)를 감안한다
+      start_period: 90s
+
+  redis:
+    image: redis:7-alpine
+    container_name: economy-helper-prod-redis
+    # AOF를 켠다 — 캐시뿐 아니라 발송 이력(중복 방지)도 여기 있어서
+    # 재시작 때 날아가면 같은 뉴스를 두 번 보낼 수 있다
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  redis-data:

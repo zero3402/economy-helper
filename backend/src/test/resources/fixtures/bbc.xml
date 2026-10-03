@@ -1,0 +1,435 @@
+<?xml version="1.0" encoding="UTF-8"?><rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom" version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
+    <channel>
+        <title><![CDATA[BBC News]]></title>
+        <description><![CDATA[Synthetic test fixture. Structure mirrors the BBC Business RSS feed captured 2026-08-14; every headline, summary, name and link path is made up.]]></description>
+        <link>https://www.bbc.co.uk/news/business</link>
+        <image>
+            <url>https://example.com/img/logo.png</url>
+            <title>BBC News</title>
+            <link>https://www.bbc.co.uk/news/business</link>
+        </image>
+        <generator>RSS for Node</generator>
+        <lastBuildDate>Fri, 14 Aug 2026 08:04:03 GMT</lastBuildDate>
+        <atom:link href="https://feeds.bbci.co.uk/news/business/rss.xml" rel="self" type="application/rss+xml"/>
+        <copyright><![CDATA[Synthetic test fixture. Structure mirrors the BBC Business RSS feed captured 2026-08-14; every headline, summary, name and link path is made up.]]></copyright>
+        <language><![CDATA[en-gb]]></language>
+        <ttl>15</ttl>
+        <item>
+            <title><![CDATA[Synthetic headline 1 — it’s a test]]></title>
+            <description><![CDATA[Synthetic summary 1.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/1?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/1</guid>
+            <pubDate>Fri, 14 Aug 2026 07:45:51 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://example.com/img/1.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 2]]></title>
+            <description><![CDATA[Synthetic summary 2.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/2?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/2</guid>
+            <pubDate>Fri, 14 Aug 2026 03:09:48 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://example.com/img/2.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 3]]></title>
+            <description><![CDATA[Synthetic summary 3.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/3?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/3</guid>
+            <pubDate>Thu, 13 Aug 2026 22:00:10 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://example.com/img/3.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 4]]></title>
+            <description><![CDATA[Synthetic summary 4.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/4?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/4</guid>
+            <pubDate>Thu, 13 Aug 2026 13:38:30 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://example.com/img/4.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 5]]></title>
+            <description><![CDATA[Synthetic summary 5.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/5?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/5</guid>
+            <pubDate>Thu, 13 Aug 2026 14:27:43 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://example.com/img/5.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 6]]></title>
+            <description><![CDATA[Synthetic summary 6.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/6?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/6</guid>
+            <pubDate>Thu, 13 Aug 2026 13:02:24 GMT</pubDate>
+            <media:thumbnail width="240" height="134" url="https://example.com/img/6.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 7]]></title>
+            <description><![CDATA[Synthetic summary 7.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/7?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/7</guid>
+            <pubDate>Wed, 12 Aug 2026 23:00:47 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://example.com/img/7.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 8]]></title>
+            <description><![CDATA[Synthetic summary 8.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/8?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/8</guid>
+            <pubDate>Thu, 13 Aug 2026 10:17:56 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://example.com/img/8.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 9]]></title>
+            <description><![CDATA[Synthetic summary 9.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/9?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/9</guid>
+            <pubDate>Thu, 13 Aug 2026 11:12:33 GMT</pubDate>
+            <media:thumbnail width="240" height="134" url="https://example.com/img/9.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 10]]></title>
+            <description><![CDATA[Synthetic summary 10.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/10?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/10</guid>
+            <pubDate>Thu, 13 Aug 2026 14:09:05 GMT</pubDate>
+            <media:thumbnail width="240" height="134" url="https://example.com/img/10.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 11]]></title>
+            <description><![CDATA[Synthetic summary 11.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/11?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/11</guid>
+            <pubDate>Thu, 13 Aug 2026 10:39:02 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://example.com/img/11.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 12]]></title>
+            <description><![CDATA[Synthetic summary 12.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/12?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/12</guid>
+            <pubDate>Wed, 12 Aug 2026 17:48:56 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://example.com/img/12.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 13]]></title>
+            <description><![CDATA[Synthetic summary 13.
+]]></description>
+            <link>https://www.bbc.co.uk/synthetic/13?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/13</guid>
+            <pubDate>Wed, 12 Aug 2026 17:10:31 GMT</pubDate>
+            <media:thumbnail width="240" height="134" url="https://example.com/img/13.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 14]]></title>
+            <description><![CDATA[Synthetic summary 14.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/14?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/14</guid>
+            <pubDate>Wed, 12 Aug 2026 17:03:05 GMT</pubDate>
+            <media:thumbnail width="240" height="134" url="https://example.com/img/14.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 15]]></title>
+            <description><![CDATA[Synthetic summary 15.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/15?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/15</guid>
+            <pubDate>Wed, 12 Aug 2026 14:17:26 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://example.com/img/15.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 16]]></title>
+            <description><![CDATA[Synthetic summary 16.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/16?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/16</guid>
+            <pubDate>Tue, 11 Aug 2026 23:00:26 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://example.com/img/16.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 17]]></title>
+            <description><![CDATA[Synthetic summary 17.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/17?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/17</guid>
+            <pubDate>Wed, 12 Aug 2026 07:30:16 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://example.com/img/17.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 18]]></title>
+            <description><![CDATA[Synthetic summary 18.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/18?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/18</guid>
+            <pubDate>Wed, 12 Aug 2026 04:13:45 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://example.com/img/18.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 19]]></title>
+            <description><![CDATA[Synthetic summary 19.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/19?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/19</guid>
+            <pubDate>Wed, 12 Aug 2026 08:50:52 GMT</pubDate>
+            <media:thumbnail width="240" height="134" url="https://example.com/img/19.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 20]]></title>
+            <description><![CDATA[Synthetic summary 20.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/20?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/20</guid>
+            <pubDate>Wed, 12 Aug 2026 12:46:31 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://example.com/img/20.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 21]]></title>
+            <description><![CDATA[Synthetic summary 21.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/21?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/21</guid>
+            <pubDate>Tue, 11 Aug 2026 08:48:58 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://example.com/img/21.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 22]]></title>
+            <description><![CDATA[Synthetic summary 22.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/22?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/22</guid>
+            <pubDate>Wed, 12 Aug 2026 15:07:21 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://example.com/img/22.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 23]]></title>
+            <description><![CDATA[Synthetic summary 23.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/23?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/23</guid>
+            <pubDate>Tue, 11 Aug 2026 20:22:40 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://example.com/img/23.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 24]]></title>
+            <description><![CDATA[Synthetic summary 24.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/24?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/24</guid>
+            <pubDate>Wed, 12 Aug 2026 05:04:59 GMT</pubDate>
+            <media:thumbnail width="240" height="134" url="https://example.com/img/24.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 25]]></title>
+            <description><![CDATA[Synthetic summary 25.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/25?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/25</guid>
+            <pubDate>Tue, 11 Aug 2026 12:09:26 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://example.com/img/25.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 26]]></title>
+            <description><![CDATA[Synthetic summary 26.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/26?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/26</guid>
+            <pubDate>Tue, 11 Aug 2026 14:19:45 GMT</pubDate>
+            <media:thumbnail width="240" height="134" url="https://example.com/img/26.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 27]]></title>
+            <description><![CDATA[Synthetic summary 27.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/27?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/27</guid>
+            <pubDate>Tue, 11 Aug 2026 08:08:30 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://example.com/img/27.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 28]]></title>
+            <description><![CDATA[Synthetic summary 28.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/28?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/28</guid>
+            <pubDate>Tue, 11 Aug 2026 23:03:52 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://example.com/img/28.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 29]]></title>
+            <description><![CDATA[Synthetic summary 29.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/29?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/29</guid>
+            <pubDate>Mon, 10 Aug 2026 23:32:10 GMT</pubDate>
+            <media:thumbnail width="240" height="134" url="https://example.com/img/29.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 30]]></title>
+            <description><![CDATA[Synthetic summary 30.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/30?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/30</guid>
+            <pubDate>Mon, 10 Aug 2026 05:10:15 GMT</pubDate>
+            <media:thumbnail width="240" height="134" url="https://example.com/img/30.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 31]]></title>
+            <description><![CDATA[Synthetic summary 31.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/31?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/31</guid>
+            <pubDate>Thu, 06 Aug 2026 23:04:40 GMT</pubDate>
+            <media:thumbnail width="240" height="134" url="https://example.com/img/31.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 32]]></title>
+            <description><![CDATA[Synthetic summary 32.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/32?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/32</guid>
+            <pubDate>Thu, 06 Aug 2026 23:03:48 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://example.com/img/32.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 33]]></title>
+            <description><![CDATA[Synthetic summary 33.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/33?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/33</guid>
+            <pubDate>Thu, 06 Aug 2026 12:45:22 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://example.com/img/33.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 34]]></title>
+            <description><![CDATA[Synthetic summary 34.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/34?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/34</guid>
+            <pubDate>Thu, 06 Aug 2026 15:59:34 GMT</pubDate>
+            <media:thumbnail width="240" height="134" url="https://example.com/img/34.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 35]]></title>
+            <description><![CDATA[Synthetic summary 35.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/35?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/35</guid>
+            <pubDate>Tue, 04 Aug 2026 23:21:08 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://example.com/img/35.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 36]]></title>
+            <description><![CDATA[Synthetic summary 36.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/36?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/36</guid>
+            <pubDate>Tue, 04 Aug 2026 22:10:00 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://example.com/img/36.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 37]]></title>
+            <description><![CDATA[Synthetic summary 37.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/37?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/37</guid>
+            <pubDate>Tue, 04 Aug 2026 23:21:47 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://example.com/img/37.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 38]]></title>
+            <description><![CDATA[Synthetic summary 38.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/1?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/38</guid>
+            <pubDate>Fri, 14 Aug 2026 07:45:51 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://example.com/img/38.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 39]]></title>
+            <description><![CDATA[Synthetic summary 39.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/39?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/39</guid>
+            <pubDate>Thu, 13 Aug 2026 11:58:32 GMT</pubDate>
+            <media:thumbnail width="240" height="134" url="https://example.com/img/39.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 40]]></title>
+            <description><![CDATA[Synthetic summary 40.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/40?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/40</guid>
+            <pubDate>Thu, 13 Aug 2026 05:02:12 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://example.com/img/40.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 41]]></title>
+            <description><![CDATA[Synthetic summary 41.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/14?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/41</guid>
+            <pubDate>Wed, 12 Aug 2026 17:03:05 GMT</pubDate>
+            <media:thumbnail width="240" height="134" url="https://example.com/img/41.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 42]]></title>
+            <description><![CDATA[Synthetic summary 42.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/42?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/42</guid>
+            <pubDate>Wed, 12 Aug 2026 05:10:31 GMT</pubDate>
+            <media:thumbnail width="240" height="134" url="https://example.com/img/42.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 43]]></title>
+            <description><![CDATA[Synthetic summary 43.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/43?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/43</guid>
+            <pubDate>Wed, 22 Jul 2026 23:51:24 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://example.com/img/43.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 44]]></title>
+            <description><![CDATA[Synthetic summary 44.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/44?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/44</guid>
+            <pubDate>Tue, 30 Jun 2026 23:05:19 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://example.com/img/44.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 45]]></title>
+            <description><![CDATA[Synthetic summary 45. ]]></description>
+            <link>https://www.bbc.co.uk/synthetic/45?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/45</guid>
+            <pubDate>Wed, 10 Jun 2026 23:10:11 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://example.com/img/45.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 46]]></title>
+            <description><![CDATA[Synthetic summary 46.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/46?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/46</guid>
+            <pubDate>Sun, 07 Jun 2026 23:00:04 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://example.com/img/46.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 47]]></title>
+            <description><![CDATA[Synthetic summary 47.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/47?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/47</guid>
+            <pubDate>Thu, 28 May 2026 06:44:47 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://example.com/img/47.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 48]]></title>
+            <description><![CDATA[Synthetic summary 48.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/48?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/48</guid>
+            <pubDate>Wed, 12 Aug 2026 20:30:00 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://example.com/img/48.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 49]]></title>
+            <description><![CDATA[Synthetic summary 49.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/49?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/49</guid>
+            <pubDate>Tue, 11 Aug 2026 09:00:00 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://example.com/img/49.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 50]]></title>
+            <description><![CDATA[Synthetic summary 50.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/50?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/50</guid>
+            <pubDate>Mon, 10 Aug 2026 20:30:00 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://example.com/img/50.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 51]]></title>
+            <description><![CDATA[Synthetic summary 51.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/51?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/51</guid>
+            <pubDate>Mon, 10 Aug 2026 15:48:35 GMT</pubDate>
+            <media:thumbnail width="240" height="426" url="https://example.com/img/51.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Synthetic headline 52]]></title>
+            <description><![CDATA[Synthetic summary 52.]]></description>
+            <link>https://www.bbc.co.uk/synthetic/52?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/synthetic/52</guid>
+            <pubDate>Fri, 07 Aug 2026 08:04:21 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://example.com/img/52.jpg"/>
+        </item>
+    </channel>
+</rss>

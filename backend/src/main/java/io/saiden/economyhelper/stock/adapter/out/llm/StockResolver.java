@@ -1,0 +1,113 @@
+package io.saiden.economyhelper.stock.adapter.out.llm;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import io.saiden.economyhelper.config.CacheNames;
+import io.saiden.economyhelper.infrastructure.llm.GeminiApi;
+import io.saiden.economyhelper.infrastructure.llm.LlmJson;
+import io.saiden.economyhelper.stock.application.port.out.StockQueryResolver;
+import io.saiden.economyhelper.stock.domain.ResolvedStock;
+import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.stereotype.Component;
+import tools.jackson.databind.ObjectMapper;
+
+/**
+ * 사용자가 친 말에서 <b>종목코드와 정식 종목명</b>을 뽑아낸다.
+ *
+ * <p><b>별칭 표를 두지 않고 LLM에 맡긴다.</b> 표는 손으로 쫓아다녀야 하고, 설정에 두면 Spring Boot의
+ * relaxed binding이 {@code Map} 키에서 {@code [a-z0-9-]} 밖의 문자를 걸러내 <b>한글 별칭이 조용히
+ * 사라진다</b>(단위 테스트는 {@code Map}을 직접 넘겨 못 잡는다).
+ *
+ * <p>대신 {@code 삼전}·{@code 네이버}·{@code 오늘 삼성전자 주가 알려줘}를 한 번에 처리한다 —
+ * 약칭, 통칭(상장명이 {@code NAVER}인 경우), 자연어 군더더기가 전부 같은 문제이기 때문이다.
+ *
+ * <p><b>비용은 캐시가 막는다.</b> 아침 브리핑은 종목코드로 설정돼 있어 이 경로를 타지 않는다 —
+ * LLM은 사용자가 직접 칠 때만 불리고, 같은 검색어는 7일간 한 번뿐이다.
+ * {@code RelevanceScorer}와 같은 {@link GeminiApi}를 써 레이트리미터·서킷브레이커를 공유한다.
+ *
+ * <p><b>여기서 확정하지 않는다.</b> LLM이 준 코드·이름을 {@code StockService}가
+ * 실제 시세 API에서 다시 찾는다 — 없으면 없는 것이다. 환각이 구조적으로 걸러진다.
+ */
+@Component
+public class StockResolver implements StockQueryResolver {
+
+    private static final Logger log = LoggerFactory.getLogger(StockResolver.class);
+
+    private static final String PROMPT = """
+            사용자가 주식 시세를 묻고 있습니다. 아래 입력에서 어떤 종목을 찾는지 판단하세요.
+
+            규칙:
+            - **한국(KOSPI·KOSDAQ)과 미국에 상장된 것만** 다룹니다. 다른 나라면 전부 null을 주세요.
+              · 미국은 **거래소를 가리지 않습니다** — NASDAQ·NYSE만이 아니라 NYSE Arca에 상장된
+                ETF(SCHD·JEPI·SOXL 같은 것)도 그대로 다룹니다.
+            - market은 한국이면 "KR", 미국이면 "US"입니다.
+            - 지수를 물으면 kind를 "INDEX"로 하세요.
+              · KR 지수: name에 정식 지수명(코스피, 코스닥, 코스피 200), code는 null
+              · US 지수: code에 심볼(나스닥 → ^IXIC, S&P500 → ^GSPC, 다우 → ^DJI)
+            - 개별 종목이나 ETF면 kind를 "STOCK"으로 하세요.
+              · KR: code는 6자리 종목코드 (삼성전자 → 005930)
+              · US: code는 티커를 **대문자로** (애플 → AAPL, 엔비디아 → NVDA, 슈드 → SCHD)
+            - 약칭·통칭을 정식 종목으로 옮기세요. 예) 삼전 → 삼성전자, 하닉 → SK하이닉스
+            - **국내 ETF도 다룹니다.** code는 **확실할 때만** 적고 아니면 null — ETF는 이름이 비슷한
+              코드가 수십 개라 지어내면 다른 ETF가 나갑니다. name에는 **KRX 상장명**을 적으세요:
+              운용사 브랜드는 영문 표기 그대로(타임 → TIME, 코덱스 → KODEX, 타이거 → TIGER),
+              지수는 상장명 표기(나스닥100 → 미국나스닥100, S&P500 → 미국S&P500).
+              예) 타임나스닥100 → {"market": "KR", "kind": "STOCK", "code": null, "name": "TIME 미국나스닥100액티브"}
+            - **한글로 적은 미국 티커도 읽으세요.** 사용자는 티커를 소리 나는 대로 적습니다 —
+              그 소리에 맞는 티커를 code에 대문자로 주세요. 예) 제피 → JEPI, 속슬 → SOXL,
+              슈드 → SCHD, 테슬라 → TSLA, 엔비디아 → NVDA
+              · 소리가 여러 티커에 걸리면 **거래대금이 큰 쪽**을 고르세요.
+            - "주가", "얼마", "알려줘", "오늘" 같은 군더더기는 무시하세요.
+            - 확실하지 않으면 code만 null로 두고 name은 채우세요(KR 한정 — US는 code가 있어야 찾습니다).
+            - 종목을 특정할 수 없으면 전부 null로 두세요. **추측해서 지어내지 마세요.**
+            - 다른 말 없이 JSON만: {"market": "KR", "kind": "STOCK", "code": "005930", "name": "삼성전자"}
+
+            입력: %s
+            """;
+
+    private final GeminiApi api;
+    private final ObjectMapper objectMapper;
+
+    public StockResolver(GeminiApi api, ObjectMapper objectMapper) {
+        this.api = api;
+        this.objectMapper = objectMapper;
+    }
+
+    /**
+     * @return LLM이 판단한 종목. 실패하거나 특정하지 못하면 {@link Optional#empty()} —
+     *         호출자는 원문으로 이름 검색을 시도한다(LLM이 죽어도 직접 이름은 걸린다)
+     */
+    @Cacheable(cacheNames = CacheNames.STOCK_RESOLVE, key = "#a0", unless = "#result == null")
+    @Override
+    public Optional<ResolvedStock> resolve(String normalizedQuery) {
+        if (normalizedQuery == null || normalizedQuery.isBlank()) {
+            return Optional.empty();
+        }
+        // 골격은 LlmJson이 든다. 실패하면 호출자가 원문 이름 검색으로 내려간다
+        Optional<ResolvedStock> resolved = LlmJson.ask(api, objectMapper,
+                PROMPT.formatted(normalizedQuery), Parsed.class,
+                "stock", normalizedQuery, parsed -> !parsed.isEmpty())
+                .map(Parsed::toResolved);
+        resolved.ifPresent(parsed -> log.info("[stock] '{}' → {} ({}, {} {})", normalizedQuery,
+                parsed.name(), parsed.code() == null ? "코드없음" : parsed.code(),
+                parsed.isUs() ? "US" : "KR", parsed.kind()));
+        return resolved;
+    }
+
+    /**
+     * LLM 응답 그대로. 필드 뜻은 {@link ResolvedStock}에 있다 — 값은 다듬지 않고 옮긴다.
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record Parsed(String market, String kind, String code, String name) {
+
+        boolean isEmpty() {
+            return LlmJson.blank(code) && LlmJson.blank(name);
+        }
+
+        ResolvedStock toResolved() {
+            return new ResolvedStock(market, kind, code, name);
+        }
+    }
+}

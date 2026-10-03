@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0">
+  <channel><!-- Synthetic test fixture. Structure mirrors the Investing.com RSS feed captured 2026-08-14; every headline, summary, name and link path is made up. -->
+    <title>Stock Market News</title>
+    <link>https://www.investing.com</link>
+    <item>
+      <enclosure url="https://example.com/img/1.jpg" length="20582" type="image/jpeg"/>
+      <title>Synthetic headline 1 — it’s a test</title>
+      <pubDate>2026-08-14 07:54:20</pubDate>
+      <author>Investing.com</author>
+      <link>https://www.investing.com/synthetic/1</link>
+    </item>
+    <item>
+      <enclosure url="https://example.com/img/2.jpg" length="41246" type="image/jpeg"/>
+      <title>Synthetic headline 2</title>
+      <pubDate>2026-08-14 07:54:14</pubDate>
+      <author>Reuters</author>
+      <link>https://www.investing.com/synthetic/2</link>
+    </item>
+    <item>
+      <enclosure url="https://example.com/img/3.jpg" length="20582" type="image/jpeg"/>
+      <title>Synthetic headline 3</title>
+      <pubDate>2026-08-14 07:52:27</pubDate>
+      <author>Investing.com</author>
+      <link>https://www.investing.com/synthetic/3</link>
+    </item>
+    <item>
+      <enclosure url="https://example.com/img/4.jpg" length="20497" type="image/jpeg"/>
+      <title>Synthetic headline 4</title>
+      <pubDate>2026-08-14 07:50:28</pubDate>
+      <author>Investing.com</author>
+      <link>https://www.investing.com/synthetic/4</link>
+    </item>
+    <item>
+      <enclosure url="https://example.com/img/5.jpg" length="28908" type="image/jpeg"/>
+      <title>Synthetic headline 5</title>
+      <pubDate>2026-08-14 07:46:42</pubDate>
+      <author>Investing.com</author>
+      <link>https://www.investing.com/synthetic/5</link>
+    </item>
+    <item>
+      <enclosure url="https://example.com/img/6.jpg" length="11851" type="image/jpeg"/>
+      <title>Synthetic headline 6</title>
+      <pubDate>2026-08-14 07:45:17</pubDate>
+      <author>Investing.com</author>
+      <link>https://www.investing.com/synthetic/6</link>
+    </item>
+    <item>
+      <enclosure url="https://example.com/img/7.jpg" length="25842" type="image/jpeg"/>
+      <title>Synthetic headline 7</title>
+      <pubDate>2026-08-14 07:42:45</pubDate>
+      <author>Investing.com</author>
+      <link>https://www.investing.com/synthetic/7</link>
+    </item>
+    <item>
+      <enclosure url="https://example.com/img/8.jpg" length="47223" type="image/jpeg"/>
+      <title>Synthetic headline 8</title>
+      <pubDate>2026-08-14 07:42:27</pubDate>
+      <author>Reuters</author>
+      <link>https://www.investing.com/synthetic/8</link>
+    </item>
+    <item>
+      <enclosure url="https://example.com/img/9.jpg" length="20582" type="image/jpeg"/>
+      <title>Synthetic headline 9</title>
+      <pubDate>2026-08-14 07:41:04</pubDate>
+      <author>Investing.com</author>
+      <link>https://www.investing.com/synthetic/9</link>
+    </item>
+    <item>
+      <enclosure url="https://example.com/img/10.jpg" length="32039" type="image/jpeg"/>
+      <title>Synthetic headline 10</title>
+      <pubDate>2026-08-14 07:40:29</pubDate>
+      <author>Investing.com</author>
+      <link>https://www.investing.com/synthetic/10</link>
+    </item>
+  </channel>
+</rss>

@@ -1,0 +1,407 @@
+package io.saiden.economyhelper.news.application;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.saiden.economyhelper.config.EconomyHelperProperties.Feed;
+import io.saiden.economyhelper.config.EconomyHelperProperties.Ranking;
+import io.saiden.economyhelper.config.EconomyHelperProperties.Weights;
+import io.saiden.economyhelper.news.adapter.out.feed.FeedFetcher;
+import io.saiden.economyhelper.news.adapter.out.hackernews.HackerNewsApi;
+import io.saiden.economyhelper.news.adapter.out.hackernews.HackerNewsBuzzClient;
+import io.saiden.economyhelper.news.adapter.out.llm.RelevanceScorer;
+import io.saiden.economyhelper.news.domain.Article;
+import io.saiden.economyhelper.news.domain.KeywordGroup;
+import io.saiden.economyhelper.news.domain.NewsCategory;
+import io.saiden.economyhelper.news.domain.NewsSource;
+import io.saiden.economyhelper.news.domain.PopularityScorer;
+import io.saiden.economyhelper.news.domain.RankingWeights;
+import io.saiden.economyhelper.news.domain.ScoredArticle;
+import io.saiden.economyhelper.testsupport.TestProperties;
+import io.saiden.economyhelper.testsupport.TestRetries;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.Arrays;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.web.client.RestClient;
+
+/** 수집 실패가 발송 전체를 막지 않는지, 그리고 두 진입점이 공유할 로직이 맞는지 고정한다. */
+class NewsServiceTest {
+
+    private static final Instant NOW = Instant.parse("2026-08-11T00:00:00Z");
+    private static final Clock CLOCK = Clock.fixed(NOW, ZoneOffset.UTC);
+
+    /** 예전 필터("키워드가 하나도 안 걸리면 제외")와 같은 뜻이 되도록 0보다 크게만 잡는다. */
+    private static final double RELEVANCE_THRESHOLD = 0.01;
+    /** 신선도 창 — 날짜가 아니라 경과 시간이다. 운영 기본값과 같은 24시간으로 둔다. */
+    private static final Duration WINDOW = Duration.ofHours(24);
+
+    /** 건수는 운영 기본값과 같이 둔다 — 테스트만 작게 잡으면 상한 근처의 동작을 못 본다. */
+    private static final int SEARCH_RESULTS = 5;
+    private static final int CRYPTO_RESULTS = 5;
+    private static final int ECONOMY_RESULTS = 5;
+
+    @Test
+    @DisplayName("스쳐 지나간 기사는 답이 아니다 — 관련 없는 걸 주느니 못 찾았다고 한다")
+    void searchDropsArticlesTheLlmRejects() {
+        NewsService service = service(Map.of(
+                NewsSource.CNBC, List.of(article(NewsSource.CNBC, "Fed signals rate cut", 0))),
+                rejectingSearchScorer());
+
+        assertThat(service.search(groups("rate"), "금리")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("검색어 원문을 안 주면 LLM 검증을 건너뛴다 — 예전 경로가 그대로 남는다")
+    void searchWithoutQuerySkipsVerification() {
+        NewsService service = service(Map.of(
+                NewsSource.CNBC, List.of(article(NewsSource.CNBC, "Fed signals rate cut", 0))),
+                rejectingSearchScorer());
+
+        assertThat(service.search(groups("rate"), null)).isNotEmpty();
+    }
+
+    @Test
+    @DisplayName("상위 몇 건까지만 준다 — 걸린 게 많다고 다 쏟아내지 않는다")
+    void capsSearchResults() {
+        NewsService service = service(Map.of(NewsSource.CNBC, List.of(
+                article(NewsSource.CNBC, "Fed signals rate cut", 0),
+                article(NewsSource.CNBC, "Rate hike is off the table", 1),
+                article(NewsSource.CNBC, "Traders price in a rate move", 2),
+                article(NewsSource.CNBC, "Rate outlook shifts again", 3),
+                article(NewsSource.CNBC, "Another rate story", 4),
+                article(NewsSource.CNBC, "One more rate story", 5))));
+
+        assertThat(service.search(groups("rate"), "금리")).hasSize(SEARCH_RESULTS);
+    }
+
+    @Test
+    @DisplayName("검색은 무리로 가르지 않는다 — 검색어 하나에 대한 답이라 코인·경제를 나눌 이유가 없다")
+    void searchIgnoresCategories() {
+        // 코인 기사 넷과 경제 기사 넷이 같은 검색어에 걸리면, 무리 할당량과 무관하게
+        // 점수 상위 다섯 건이 나간다. digest()만 무리를 안다
+        NewsService service = service(Map.of(
+                NewsSource.COINDESK, List.of(
+                        article(NewsSource.COINDESK, "Bitcoin rate bets grow", 0),
+                        article(NewsSource.COINDESK, "Ethereum rate outlook", 1),
+                        article(NewsSource.COINDESK, "Crypto rate hedges", 2),
+                        article(NewsSource.COINDESK, "Stablecoin rate spread", 3)),
+                NewsSource.CNBC, List.of(
+                        article(NewsSource.CNBC, "Fed rate cut nears", 0),
+                        article(NewsSource.CNBC, "Rate hike off the table", 1),
+                        article(NewsSource.CNBC, "Rate outlook shifts", 2),
+                        article(NewsSource.CNBC, "Rate traders regroup", 3))));
+
+        assertThat(service.search(groups("rate"), "금리")).hasSize(SEARCH_RESULTS);
+    }
+
+    @Test
+    @DisplayName("같은 기사가 두 피드에 실려도 한 번만 나간다 — 한 매체가 피드를 둘 달 수 있다")
+    void neverShowsTheSameArticleTwice() {
+        // Investing.com이 본 섹션과 암호화폐 섹션을 함께 단다(ADR-0014). 같은 기사가
+        // 두 피드에 실리면 그대로 두 건이 됐다 — 실측(2026-08-19)으로 /news 금리 3건 중
+        // 1번과 3번이 글자 그대로 같은 기사였다
+        Article shared = article(NewsSource.INVESTING, "Rate cut bets grow", 0);
+        Article alsoInCrypto = new Article(NewsSource.INVESTING_CRYPTO, shared.title(), null,
+                shared.link(), shared.publishedAt(), 0);
+        NewsService service = service(Map.of(
+                NewsSource.INVESTING, List.of(shared),
+                NewsSource.INVESTING_CRYPTO, List.of(alsoInCrypto)));
+
+        assertThat(service.search(groups("rate"), "금리"))
+                .as("링크가 같으면 같은 기사다")
+                .hasSize(1);
+        assertThat(service.digest()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("코인 섹션에도 실린 기사는 코인 자리에 앉는다 — 어느 사본이 이겼느냐로 무리가 바뀌지 않는다")
+    void anArticleAlsoInTheCryptoSectionTakesACryptoSlot() {
+        // 같은 링크가 본 섹션과 암호화폐 섹션에 함께 실리면 링크 중복 제거가 점수 높은 사본 하나만 남긴다.
+        // 무리를 그 사본의 매체로 정하면 같은 기사가 날마다 코인·경제를 오가고 경제 자리를 하나 먹는다
+        Article shared = article(NewsSource.INVESTING, "Treasury yields edge higher", 0);
+        // 암호화폐 섹션에서는 꼴찌라 본 섹션 사본(1위)이 이긴다 — 그래도 코인이어야 한다
+        Article alsoInCrypto = new Article(NewsSource.INVESTING_CRYPTO, shared.title(), null,
+                shared.link(), shared.publishedAt(), 5);
+        List<Article> economy = List.of(
+                article(NewsSource.INVESTING, "econ a", 1),
+                article(NewsSource.INVESTING, "econ b", 2),
+                article(NewsSource.INVESTING, "econ c", 3),
+                article(NewsSource.INVESTING, "econ d", 4),
+                article(NewsSource.INVESTING, "econ e", 5));
+        NewsService service = service(Map.of(
+                NewsSource.INVESTING, java.util.stream.Stream.concat(
+                        java.util.stream.Stream.of(shared), economy.stream()).toList(),
+                NewsSource.INVESTING_CRYPTO, List.of(
+                        article(NewsSource.INVESTING_CRYPTO, "crypto a", 0),
+                        article(NewsSource.INVESTING_CRYPTO, "crypto b", 1),
+                        article(NewsSource.INVESTING_CRYPTO, "crypto c", 2),
+                        article(NewsSource.INVESTING_CRYPTO, "crypto d", 3),
+                        article(NewsSource.INVESTING_CRYPTO, "crypto e", 4),
+                        alsoInCrypto)));
+
+        List<ScoredArticle> digest = service.digest();
+
+        assertThat(digest).extracting(scored -> scored.article().link())
+                .as("경제 다섯 자리는 경제 기사 다섯이 받는다 — 공유 기사가 하나를 먹으면 안 된다")
+                .containsAll(economy.stream().map(Article::link).toList());
+    }
+
+    @Test
+    @DisplayName("걸린 게 상한보다 적으면 그만큼만 — 자리를 채우려 관련 없는 기사를 끌어오지 않는다")
+    void returnsFewerThanTheCapWhenThatIsAllThereIs() {
+        NewsService service = service(Map.of(NewsSource.CNBC, List.of(
+                article(NewsSource.CNBC, "Fed signals rate cut", 0))));
+
+        assertThat(service.search(groups("rate"), "금리")).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("검색은 최근 창 안의 발행분만 남긴다 — 날짜가 아니라 경과 시간으로 자른다")
+    void searchKeepsOnlyRecent() {
+        NewsService service = service(Map.of(NewsSource.CNBC, List.of(
+                article(NewsSource.CNBC, "Rate cut today", 0),
+                aged(NewsSource.CNBC, "Old rate story", 1, Duration.ofHours(25)))));
+
+        List<ScoredArticle> result = service.search(groups("rate"), "금리");
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).article().title()).isEqualTo("Rate cut today");
+    }
+
+    @Test
+    @DisplayName("23시간 전 기사는 살아남는다 — KST 달력으로 '어제'여도 하루가 안 지났다")
+    void keepsArticleFromYesterdayInKstButWithinWindow() {
+        // 실측(2026-08-15): /news 이더리움이 빈손이던 이유가 이것이었다. 가장 최근 기사가
+        // 23시간 18분 전(08-14 21:36 KST)이라 날짜로 자르면 '어제'가 되어 사라졌다
+        NewsService service = service(Map.of(NewsSource.YAHOO_FINANCE, List.of(
+                aged(NewsSource.YAHOO_FINANCE, "Bitcoin and ethereum prices today", 0,
+                        Duration.ofHours(23)))));
+
+        assertThat(service.search(groups("ethereum"), "이더리움"))
+                .singleElement()
+                .satisfies(scored -> assertThat(scored.article().title()).contains("ethereum"));
+    }
+
+    @Test
+    @DisplayName("브리핑은 코인과 경제를 각자 제 할당량만큼 채운다 — 통틀어 상위 N건이 아니다")
+    void digestFillsEachCategoryQuota() {
+        NewsService service = service(Map.of(
+                NewsSource.COINDESK, List.of(
+                        article(NewsSource.COINDESK, "coin a", 0),
+                        article(NewsSource.COINDESK, "coin b", 1),
+                        article(NewsSource.COINDESK, "coin c", 2),
+                        article(NewsSource.COINDESK, "coin d", 3),
+                        article(NewsSource.COINDESK, "coin e", 4),
+                        article(NewsSource.COINDESK, "coin f", 5)),
+                NewsSource.CNBC, List.of(
+                        article(NewsSource.CNBC, "cnbc a", 0),
+                        article(NewsSource.CNBC, "cnbc b", 1),
+                        article(NewsSource.CNBC, "cnbc c", 2),
+                        article(NewsSource.CNBC, "cnbc d", 3),
+                        article(NewsSource.CNBC, "cnbc e", 4),
+                        article(NewsSource.CNBC, "cnbc f", 5),
+                        aged(NewsSource.CNBC, "cnbc old", 6, Duration.ofHours(25)))));
+
+        List<ScoredArticle> digest = service.digest();
+
+        assertThat(digest).hasSize(CRYPTO_RESULTS + ECONOMY_RESULTS);
+        assertThat(digest).filteredOn(scored ->
+                        NewsCategory.of(scored.article()) == NewsCategory.CRYPTO)
+                .hasSize(CRYPTO_RESULTS);
+        assertThat(digest).filteredOn(scored ->
+                        NewsCategory.of(scored.article()) == NewsCategory.ECONOMY)
+                .hasSize(ECONOMY_RESULTS);
+        assertThat(digest).as("창을 벗어난 기사는 빠진다")
+                .allSatisfy(scored -> assertThat(scored.article().title()).doesNotContain("old"));
+    }
+
+    @Test
+    @DisplayName("모자란 무리는 다른 무리로 메우지 않는다 — 코인이 둘뿐인 날은 일곱 건이 나간다")
+    void digestDoesNotBackfillAShortCategory() {
+        // 메우면 사용자가 요구한 다섯 대 다섯이 조용히 다른 것이 된다
+        NewsService service = service(Map.of(
+                NewsSource.COINDESK, List.of(
+                        article(NewsSource.COINDESK, "coin a", 0),
+                        article(NewsSource.COINDESK, "coin b", 1)),
+                NewsSource.CNBC, List.of(
+                        article(NewsSource.CNBC, "cnbc a", 0),
+                        article(NewsSource.CNBC, "cnbc b", 1),
+                        article(NewsSource.CNBC, "cnbc c", 2),
+                        article(NewsSource.CNBC, "cnbc d", 3),
+                        article(NewsSource.CNBC, "cnbc e", 4),
+                        article(NewsSource.CNBC, "cnbc f", 5),
+                        article(NewsSource.CNBC, "cnbc g", 6),
+                        article(NewsSource.CNBC, "cnbc h", 7))));
+
+        assertThat(service.digest()).hasSize(2 + ECONOMY_RESULTS);
+    }
+
+    @Test
+    @DisplayName("일반 피드의 코인 기사도 코인 자리를 받는다 — 점수로는 꼴찌여도 그렇다")
+    void reservesACryptoSlotForACryptoArticleFromAGeneralFeed() {
+        // 코인 기사가 금융 일반 피드에 드물게 실린다는 것은 '드물다'는 뜻이지 '없다'는
+        // 뜻이 아니다. 통틀어 상위 N건이던 때는 이 기사가 피드 꼴찌라 통째로 밀려났다
+        NewsService service = service(Map.of(NewsSource.CNBC, List.of(
+                article(NewsSource.CNBC, "cnbc a", 0),
+                article(NewsSource.CNBC, "cnbc b", 1),
+                article(NewsSource.CNBC, "cnbc c", 2),
+                article(NewsSource.CNBC, "cnbc d", 3),
+                article(NewsSource.CNBC, "cnbc e", 4),
+                article(NewsSource.CNBC, "cnbc f", 5),
+                article(NewsSource.CNBC, "Bitcoin ETF inflows hit a record", 6))));
+
+        List<ScoredArticle> digest = service.digest();
+
+        assertThat(digest).as("경제 다섯 + 코인 하나").hasSize(ECONOMY_RESULTS + 1);
+        assertThat(digest).anySatisfy(scored ->
+                assertThat(scored.article().title()).isEqualTo("Bitcoin ETF inflows hit a record"));
+    }
+
+    @Test
+    @DisplayName("고른 뒤 다시 점수순으로 섞는다 — 통 제목의 번호가 '점수 몇 위'라는 뜻을 지킨다")
+    void digestIsOrderedByScoreNotByCategory() {
+        NewsService service = service(Map.of(
+                NewsSource.COINDESK, List.of(
+                        article(NewsSource.COINDESK, "coin a", 0),
+                        article(NewsSource.COINDESK, "coin b", 1)),
+                NewsSource.CNBC, List.of(
+                        article(NewsSource.CNBC, "cnbc a", 0),
+                        article(NewsSource.CNBC, "cnbc b", 1))));
+
+        List<ScoredArticle> digest = service.digest();
+
+        assertThat(digest).hasSize(4);
+        assertThat(digest).isSortedAccordingTo(
+                java.util.Comparator.comparingDouble(ScoredArticle::score).reversed());
+    }
+
+    @Test
+    @DisplayName("걸리는 기사가 없으면 빈 결과")
+    void searchReturnsEmptyWhenNothingMatches() {
+        NewsService service = service(Map.of(
+                NewsSource.CNBC, List.of(article(NewsSource.CNBC, "Oil prices climb", 0))));
+
+        assertThat(service.search(groups("비트코인"), null)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("키워드가 비면 전체를 훑지 않고 곧바로 빈 결과 — 토큰화는 QueryExpander의 몫이다")
+    void searchRejectsEmptyKeywords() {
+        assertThat(service(Map.of()).search(groups(), null)).isEmpty();
+        assertThat(service(Map.of()).search(null, null)).isEmpty();
+        assertThat(service(Map.of()).search(List.of(KeywordGroup.of()), null)).isEmpty();
+    }
+
+    /** 검색어와 무관하다고 답하는 LLM — 매칭은 됐지만 스쳐 지나간 기사의 상황이다. */
+    private static RelevanceScorer rejectingSearchScorer() {
+        return new RelevanceScorer(null, null) {
+            @Override
+            public Map<String, Double> scoreAll(List<Article> candidates) {
+                return candidates.stream().collect(
+                        java.util.stream.Collectors.toMap(Article::link, a -> 1.0, (x, y) -> x));
+            }
+
+            @Override
+            public Map<String, Double> scoreAll(List<Article> candidates, String query) {
+                return candidates.stream().collect(
+                        java.util.stream.Collectors.toMap(Article::link, a -> 0.0, (x, y) -> x));
+            }
+        };
+    }
+
+    /** 표현마다 1항목 묶음 — 재테크 사전이 이 모양이다. */
+    private static List<KeywordGroup> groups(String... terms) {
+        return Arrays.stream(terms).map(KeywordGroup::of).toList();
+    }
+
+    private static NewsService service(Map<NewsSource, List<Article>> bySource) {
+        return service(bySource, passAll());
+    }
+
+    private static NewsService service(Map<NewsSource, List<Article>> bySource, RelevanceScorer relevance) {
+        return new NewsService(
+                new StubFetcher(bySource),
+                new StubBuzzClient(),
+                new PopularityScorer(new RankingWeights(0.35, 0.25, 0.25, 0.15), Duration.ofHours(6)),
+                relevance,
+                CLOCK,
+                WINDOW,
+                8,
+                RELEVANCE_THRESHOLD,
+                SEARCH_RESULTS,
+                CRYPTO_RESULTS,
+                ECONOMY_RESULTS);
+    }
+
+    /**
+     * 모든 후보를 통과시킨다 — LLM 대신 결정적으로 동작한다.
+     *
+     * <p>거르는 일은 {@code rejectingSearchScorer}가 한다. 이 클래스의 관심사는 "수집 → 후보 좁히기 → 임계값 → 랭킹" 흐름이지 채점 방식이 아니다.
+     * 실제 LLM 경로는 {@code RelevanceScorerTest}가 따로 본다.
+     */
+    private static RelevanceScorer passAll() {
+        return new RelevanceScorer(null, null) {
+            @Override
+            public Map<String, Double> scoreAll(List<Article> candidates) {
+                return candidates.stream().collect(java.util.stream.Collectors.toMap(
+                        Article::link, article -> 1.0, (x, y) -> x));
+            }
+        };
+    }
+
+    private static Article article(NewsSource source, String title, int feedRank) {
+        return new Article(source, title, null,
+                "https://example.com/" + source + "/" + title.hashCode(), NOW, feedRank);
+    }
+
+    /** 발행된 지 {@code age}만큼 지난 기사 — 창 경계를 재는 데 쓴다. */
+    private static Article aged(NewsSource source, String title, int feedRank, Duration age) {
+        return new Article(source, title, null,
+                "https://example.com/" + source + "/" + title.hashCode(),
+                NOW.minus(age), feedRank);
+    }
+
+    /** 실제 HTTP 없이 소스별 결과를 정해 준다. */
+    private static final class StubFetcher extends FeedFetcher {
+        private final Map<NewsSource, List<Article>> bySource;
+
+        private StubFetcher(Map<NewsSource, List<Article>> bySource) {
+            super(RestClient.builder(),
+                    TestProperties.builder()
+                        .feeds(new EnumMap<NewsSource, Feed>(NewsSource.class))
+                        .ranking(new Ranking(new Weights(1, 1, 1, 1), Duration.ofHours(6)))
+                        .build(),
+                    CircuitBreakerRegistry.ofDefaults(),
+                TestRetries.registry(),
+                    Clock.systemUTC(),
+                    Duration.ofDays(3),
+                    List.of());
+            this.bySource = bySource;
+        }
+
+        @Override
+        public List<Article> fetch(NewsSource source) {
+            return bySource.getOrDefault(source, List.of());
+        }
+    }
+
+    /** HN을 타지 않는다 — buzz가 0이어도 랭킹이 성립하는지 함께 확인하는 셈이다. */
+    private static final class StubBuzzClient extends HackerNewsBuzzClient {
+        private StubBuzzClient() {
+            super(new HackerNewsApi(RestClient.builder(), "https://example.invalid", 100),
+                    Duration.ofDays(7));
+        }
+
+        @Override
+        public Map<String, Integer> buzzByLink(List<Article> articles, Instant now) {
+            return Map.of();
+        }
+    }
+}

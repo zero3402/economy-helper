@@ -1,0 +1,318 @@
+<?xml version="1.0" encoding="UTF-8"?><rss xmlns:metadata="http://search.cnbc.com/rss/2.0/modules/siteContentMetadata" version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel><!-- Synthetic test fixture. Structure mirrors the CNBC Markets RSS feed captured 2026-08-14; every headline, summary, name and link path is made up. -->
+    <atom:link rel="self" type="application/rss+xml" href="https://www.cnbc.com/id/10000664/device/rss/rss.html"/>
+    <language>en-us</language>
+    <ttl>60</ttl>
+    <title>Finance</title>
+    <feed_asset>
+      <id>10000664</id>
+      <type>franchise</type>
+      <subtype>section</subtype>
+      <seo>https://www.cnbc.com/finance/</seo>
+    </feed_asset>
+    <lastBuildDate>Fri, 14 Aug 2026 02:51 GMT</lastBuildDate>
+    <pubDate>Fri, 14 Aug 2026 02:51 GMT</pubDate>
+    <link>https://www.cnbc.com/finance/</link>
+    <description><![CDATA[Synthetic test fixture. Structure mirrors the CNBC Markets RSS feed captured 2026-08-14; every headline, summary, name and link path is made up.]]></description>
+    <item>
+      <link>https://www.cnbc.com/synthetic/1</link>
+      <guid isPermaLink="false">synthetic-guid-1</guid>
+      <metadata:type>cnbcnewsstory</metadata:type>
+      <metadata:id>108349491</metadata:id>
+      <metadata:sponsored>false</metadata:sponsored>
+      <title>Synthetic headline 1 — it’s a test</title>
+      <description><![CDATA[Synthetic summary 1.]]></description>
+      <pubDate>Fri, 14 Aug 2026 01:02:39 GMT</pubDate>
+    </item>
+    <item>
+      <link>https://www.cnbc.com/synthetic/2</link>
+      <guid isPermaLink="false">synthetic-guid-2</guid>
+      <metadata:type>cnbcnewsstory</metadata:type>
+      <metadata:id>108349173</metadata:id>
+      <metadata:sponsored>false</metadata:sponsored>
+      <title>Synthetic headline 2</title>
+      <description><![CDATA[Synthetic summary 2.]]></description>
+      <pubDate>Thu, 13 Aug 2026 20:21:51 GMT</pubDate>
+    </item>
+    <item>
+      <link>https://www.cnbc.com/synthetic/3</link>
+      <guid isPermaLink="false">synthetic-guid-3</guid>
+      <metadata:type>cnbcnewsstory</metadata:type>
+      <metadata:id>108349037</metadata:id>
+      <metadata:sponsored>false</metadata:sponsored>
+      <title>Synthetic headline 3</title>
+      <description><![CDATA[Synthetic summary 3.]]></description>
+      <pubDate>Thu, 13 Aug 2026 15:16:00 GMT</pubDate>
+    </item>
+    <item>
+      <link>https://www.cnbc.com/synthetic/4</link>
+      <guid isPermaLink="false">synthetic-guid-4</guid>
+      <metadata:type>cnbcnewsstory</metadata:type>
+      <metadata:id>108349036</metadata:id>
+      <metadata:sponsored>false</metadata:sponsored>
+      <title>Synthetic headline 4 </title>
+      <description><![CDATA[Synthetic summary 4.]]></description>
+      <pubDate>Thu, 13 Aug 2026 16:38:06 GMT</pubDate>
+    </item>
+    <item>
+      <link>https://www.cnbc.com/synthetic/5</link>
+      <guid isPermaLink="false">synthetic-guid-5</guid>
+      <metadata:type>cnbcnewsstory</metadata:type>
+      <metadata:id>108348853</metadata:id>
+      <metadata:sponsored>false</metadata:sponsored>
+      <title>Synthetic headline 5</title>
+      <description><![CDATA[Synthetic summary 5.]]></description>
+      <pubDate>Thu, 13 Aug 2026 02:59:50 GMT</pubDate>
+    </item>
+    <item>
+      <link>https://www.cnbc.com/synthetic/6</link>
+      <guid isPermaLink="false">synthetic-guid-6</guid>
+      <metadata:type>cnbcnewsstory</metadata:type>
+      <metadata:id>108348553</metadata:id>
+      <metadata:sponsored>false</metadata:sponsored>
+      <title>Synthetic headline 6</title>
+      <description><![CDATA[Synthetic summary 6.]]></description>
+      <pubDate>Wed, 12 Aug 2026 19:15:54 GMT</pubDate>
+    </item>
+    <item>
+      <link>https://www.cnbc.com/synthetic/7</link>
+      <guid isPermaLink="false">synthetic-guid-7</guid>
+      <metadata:type>cnbcnewsstory</metadata:type>
+      <metadata:id>108348112</metadata:id>
+      <metadata:sponsored>false</metadata:sponsored>
+      <title>Synthetic headline 7</title>
+      <description><![CDATA[Synthetic summary 7.]]></description>
+      <pubDate>Wed, 12 Aug 2026 12:08:39 GMT</pubDate>
+    </item>
+    <item>
+      <link>https://www.cnbc.com/synthetic/8</link>
+      <guid isPermaLink="false">synthetic-guid-8</guid>
+      <metadata:type>cnbcnewsstory</metadata:type>
+      <metadata:id>108347701</metadata:id>
+      <metadata:sponsored>false</metadata:sponsored>
+      <title>Synthetic headline 8</title>
+      <description><![CDATA[Synthetic summary 8.]]></description>
+      <pubDate>Thu, 13 Aug 2026 01:31:12 GMT</pubDate>
+    </item>
+    <item>
+      <link>https://www.cnbc.com/synthetic/9</link>
+      <guid isPermaLink="false">synthetic-guid-9</guid>
+      <metadata:type>cnbcnewsstory</metadata:type>
+      <metadata:id>108347984</metadata:id>
+      <metadata:sponsored>false</metadata:sponsored>
+      <title>Synthetic headline 9</title>
+      <description><![CDATA[Synthetic summary 9.]]></description>
+      <pubDate>Tue, 11 Aug 2026 21:01:13 GMT</pubDate>
+    </item>
+    <item>
+      <link>https://www.cnbc.com/synthetic/10</link>
+      <guid isPermaLink="false">synthetic-guid-10</guid>
+      <metadata:type>cnbcnewsstory</metadata:type>
+      <metadata:id>108347288</metadata:id>
+      <metadata:sponsored>false</metadata:sponsored>
+      <title>Synthetic headline 10</title>
+      <description><![CDATA[Synthetic summary 10.]]></description>
+      <pubDate>Tue, 11 Aug 2026 18:44:16 GMT</pubDate>
+    </item>
+    <item>
+      <link>https://www.cnbc.com/synthetic/11</link>
+      <guid isPermaLink="false">synthetic-guid-11</guid>
+      <metadata:type>cnbcnewsstory</metadata:type>
+      <metadata:id>108347959</metadata:id>
+      <metadata:sponsored>false</metadata:sponsored>
+      <title>Synthetic headline 11</title>
+      <description><![CDATA[Synthetic summary 11.]]></description>
+      <pubDate>Wed, 12 Aug 2026 14:14:10 GMT</pubDate>
+    </item>
+    <item>
+      <link>https://www.cnbc.com/synthetic/12</link>
+      <guid isPermaLink="false">synthetic-guid-12</guid>
+      <metadata:type>cnbcnewsstory</metadata:type>
+      <metadata:id>108347530</metadata:id>
+      <metadata:sponsored>false</metadata:sponsored>
+      <title>Synthetic headline 12</title>
+      <description><![CDATA[Synthetic summary 12. ]]></description>
+      <pubDate>Tue, 11 Aug 2026 18:50:37 GMT</pubDate>
+    </item>
+    <item>
+      <link>https://www.cnbc.com/synthetic/13</link>
+      <guid isPermaLink="false">synthetic-guid-13</guid>
+      <metadata:type>cnbcnewsstory</metadata:type>
+      <metadata:id>108347784</metadata:id>
+      <metadata:sponsored>false</metadata:sponsored>
+      <title>Synthetic headline 13</title>
+      <description><![CDATA[Synthetic summary 13.]]></description>
+      <pubDate>Tue, 11 Aug 2026 20:26:22 GMT</pubDate>
+    </item>
+    <item>
+      <link>https://www.cnbc.com/synthetic/14</link>
+      <guid isPermaLink="false">synthetic-guid-14</guid>
+      <metadata:type>cnbcnewsstory</metadata:type>
+      <metadata:id>108347586</metadata:id>
+      <metadata:sponsored>false</metadata:sponsored>
+      <title>Synthetic headline 14</title>
+      <description><![CDATA[Synthetic summary 14.]]></description>
+      <pubDate>Tue, 11 Aug 2026 14:11:05 GMT</pubDate>
+    </item>
+    <item>
+      <link>https://www.cnbc.com/synthetic/15</link>
+      <guid isPermaLink="false">synthetic-guid-15</guid>
+      <metadata:type>cnbcnewsstory</metadata:type>
+      <metadata:id>108347394</metadata:id>
+      <metadata:sponsored>false</metadata:sponsored>
+      <title>Synthetic headline 15</title>
+      <description><![CDATA[Synthetic summary 15.]]></description>
+      <pubDate>Mon, 10 Aug 2026 22:09:00 GMT</pubDate>
+    </item>
+    <item>
+      <link>https://www.cnbc.com/synthetic/16</link>
+      <guid isPermaLink="false">synthetic-guid-16</guid>
+      <metadata:type>cnbcnewsstory</metadata:type>
+      <metadata:id>108347314</metadata:id>
+      <metadata:sponsored>false</metadata:sponsored>
+      <title>Synthetic headline 16</title>
+      <description><![CDATA[Synthetic summary 16.]]></description>
+      <pubDate>Mon, 10 Aug 2026 18:36:26 GMT</pubDate>
+    </item>
+    <item>
+      <link>https://www.cnbc.com/synthetic/17</link>
+      <guid isPermaLink="false">synthetic-guid-17</guid>
+      <metadata:type>cnbcnewsstory</metadata:type>
+      <metadata:id>108346070</metadata:id>
+      <metadata:sponsored>false</metadata:sponsored>
+      <title>Synthetic headline 17</title>
+      <description><![CDATA[Synthetic summary 17.]]></description>
+      <pubDate>Sat, 08 Aug 2026 15:00:01 GMT</pubDate>
+    </item>
+    <item>
+      <link>https://www.cnbc.com/synthetic/18</link>
+      <guid isPermaLink="false">synthetic-guid-18</guid>
+      <metadata:type>cnbcnewsstory</metadata:type>
+      <metadata:id>108346947</metadata:id>
+      <metadata:sponsored>false</metadata:sponsored>
+      <title>Synthetic headline 18</title>
+      <description><![CDATA[Synthetic summary 18.]]></description>
+      <pubDate>Sat, 08 Aug 2026 13:28:00 GMT</pubDate>
+    </item>
+    <item>
+      <link>https://www.cnbc.com/synthetic/19</link>
+      <guid isPermaLink="false">synthetic-guid-19</guid>
+      <metadata:type>cnbcnewsstory</metadata:type>
+      <metadata:id>108346586</metadata:id>
+      <metadata:sponsored>false</metadata:sponsored>
+      <title>Synthetic headline 19</title>
+      <description><![CDATA[Synthetic summary 19.]]></description>
+      <pubDate>Fri, 07 Aug 2026 13:34:44 GMT</pubDate>
+    </item>
+    <item>
+      <link>https://www.cnbc.com/synthetic/20</link>
+      <guid isPermaLink="false">synthetic-guid-20</guid>
+      <metadata:type>cnbcnewsstory</metadata:type>
+      <metadata:id>108346082</metadata:id>
+      <metadata:sponsored>false</metadata:sponsored>
+      <title>Synthetic headline 20</title>
+      <description><![CDATA[Synthetic summary 20.]]></description>
+      <pubDate>Thu, 06 Aug 2026 20:07:51 GMT</pubDate>
+    </item>
+    <item>
+      <link>https://www.cnbc.com/synthetic/21</link>
+      <guid isPermaLink="false">synthetic-guid-21</guid>
+      <metadata:type>cnbcnewsstory</metadata:type>
+      <metadata:id>108346106</metadata:id>
+      <metadata:sponsored>false</metadata:sponsored>
+      <title>Synthetic headline 21 </title>
+      <description><![CDATA[Synthetic summary 21.]]></description>
+      <pubDate>Thu, 06 Aug 2026 20:37:51 GMT</pubDate>
+    </item>
+    <item>
+      <link>https://www.cnbc.com/synthetic/22</link>
+      <guid isPermaLink="false">synthetic-guid-22</guid>
+      <metadata:type>cnbcnewsstory</metadata:type>
+      <metadata:id>108345977</metadata:id>
+      <metadata:sponsored>false</metadata:sponsored>
+      <title>Synthetic headline 22</title>
+      <description><![CDATA[Synthetic summary 22.]]></description>
+      <pubDate>Thu, 06 Aug 2026 14:48:42 GMT</pubDate>
+    </item>
+    <item>
+      <link>https://www.cnbc.com/synthetic/23</link>
+      <guid isPermaLink="false">synthetic-guid-23</guid>
+      <metadata:type>cnbcnewsstory</metadata:type>
+      <metadata:id>108345599</metadata:id>
+      <metadata:sponsored>false</metadata:sponsored>
+      <title>Synthetic headline 23</title>
+      <description><![CDATA[Synthetic summary 23.]]></description>
+      <pubDate>Wed, 05 Aug 2026 20:36:16 GMT</pubDate>
+    </item>
+    <item>
+      <link>https://www.cnbc.com/synthetic/24</link>
+      <guid isPermaLink="false">synthetic-guid-24</guid>
+      <metadata:type>cnbcnewsstory</metadata:type>
+      <metadata:id>108345397</metadata:id>
+      <metadata:sponsored>false</metadata:sponsored>
+      <title>Synthetic headline 24</title>
+      <description><![CDATA[Synthetic summary 24.]]></description>
+      <pubDate>Wed, 05 Aug 2026 22:35:26 GMT</pubDate>
+    </item>
+    <item>
+      <link>https://www.cnbc.com/synthetic/25</link>
+      <guid isPermaLink="false">synthetic-guid-25</guid>
+      <metadata:type>cnbcnewsstory</metadata:type>
+      <metadata:id>108345243</metadata:id>
+      <metadata:sponsored>false</metadata:sponsored>
+      <title>Synthetic headline 25</title>
+      <description><![CDATA[Synthetic summary 25.]]></description>
+      <pubDate>Thu, 06 Aug 2026 13:25:12 GMT</pubDate>
+    </item>
+    <item>
+      <link>https://www.cnbc.com/synthetic/26</link>
+      <guid isPermaLink="false">synthetic-guid-26</guid>
+      <metadata:type>cnbcnewsstory</metadata:type>
+      <metadata:id>108345208</metadata:id>
+      <metadata:sponsored>false</metadata:sponsored>
+      <title>Synthetic headline 26</title>
+      <description><![CDATA[Synthetic summary 26.]]></description>
+      <pubDate>Wed, 05 Aug 2026 15:55:01 GMT</pubDate>
+    </item>
+    <item>
+      <link>https://www.cnbc.com/synthetic/27</link>
+      <guid isPermaLink="false">synthetic-guid-27</guid>
+      <metadata:type>cnbcnewsstory</metadata:type>
+      <metadata:id>108344460</metadata:id>
+      <metadata:sponsored>false</metadata:sponsored>
+      <title>Synthetic headline 27</title>
+      <description><![CDATA[Synthetic summary 27.]]></description>
+      <pubDate>Wed, 05 Aug 2026 16:17:55 GMT</pubDate>
+    </item>
+    <item>
+      <link>https://www.cnbc.com/synthetic/28</link>
+      <guid isPermaLink="false">synthetic-guid-28</guid>
+      <metadata:type>cnbcnewsstory</metadata:type>
+      <metadata:id>108344810</metadata:id>
+      <metadata:sponsored>false</metadata:sponsored>
+      <title>Synthetic headline 28</title>
+      <description><![CDATA[Synthetic summary 28.]]></description>
+      <pubDate>Tue, 04 Aug 2026 21:39:30 GMT</pubDate>
+    </item>
+    <item>
+      <link>https://www.cnbc.com/synthetic/29</link>
+      <guid isPermaLink="false">synthetic-guid-29</guid>
+      <metadata:type>cnbcnewsstory</metadata:type>
+      <metadata:id>108344478</metadata:id>
+      <metadata:sponsored>false</metadata:sponsored>
+      <title>Synthetic headline 29</title>
+      <description><![CDATA[Synthetic summary 29.]]></description>
+      <pubDate>Tue, 04 Aug 2026 13:31:19 GMT</pubDate>
+    </item>
+    <item>
+      <link>https://www.cnbc.com/synthetic/30</link>
+      <guid isPermaLink="false">synthetic-guid-30</guid>
+      <metadata:type>cnbcnewsstory</metadata:type>
+      <metadata:id>108344445</metadata:id>
+      <metadata:sponsored>false</metadata:sponsored>
+      <title>Synthetic headline 30</title>
+      <description><![CDATA[Synthetic summary 30.]]></description>
+      <pubDate>Tue, 04 Aug 2026 17:49:24 GMT</pubDate>
+    </item>
+  </channel>
+</rss>

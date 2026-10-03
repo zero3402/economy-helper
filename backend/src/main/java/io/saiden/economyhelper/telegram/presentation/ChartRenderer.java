@@ -1,0 +1,325 @@
+package io.saiden.economyhelper.telegram.presentation;
+
+import io.saiden.economyhelper.shared.domain.DailyBar;
+import io.saiden.economyhelper.shared.domain.DailySeries;
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.GradientPaint;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.geom.Ellipse2D;
+import java.awt.geom.GeneralPath;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.util.Arrays;
+import java.util.List;
+import javax.imageio.ImageIO;
+
+/**
+ * 일봉을 선 하나로 굽는다 — <b>글자를 넣지 않는다.</b>
+ *
+ * <p><b>새 의존성이 없다.</b> JDK의 {@code Graphics2D}+{@code ImageIO}로 PNG가 나온다.
+ * 격자·면 채우기·끝점도 전부 표준 {@code java.awt}다({@link GeneralPath}·{@link GradientPaint}·
+ * {@link Ellipse2D}, 점선은 {@link BasicStroke}의 dash).
+ *
+ * <p>⚠️ <b>글자를 넣지 않는 것이 이 클래스의 핵심 결정이다.</b> 런타임 이미지가
+ * {@code eclipse-temurin:21-jre}이고 <b>폰트 패키지를 안 깐다</b> — 글자를 그리면 배포처에서
+ * 두부(□□□)가 될 수 있다. 개발 기계에 폰트가 있다는 것은 아무 증거가 아니다.
+ * 그래서 <b>낱말과 숫자는 전부 caption</b>에 둔다. 얻는 것이 둘 더 있다:
+ * caption이 텍스트이므로 <b>골든이 낱말 전부를 계속 덮고</b>, 그림은 결정적 기하라서
+ * 성질로 검증할 수 있다.
+ *
+ * <p>폰트를 깔아서 해결하지 않는다 — 이미지가 커지고, 「배포처에 폰트가 있다」는 전제가
+ * 문서 어디에도 없는 새 숨은 의존이 된다.
+ *
+ * <p><b>축도 숫자 없이 뜻을 낸다.</b> 가로 기준선 하나를 <b>첫날 값</b>에 그린다 — 선이 그
+ * 위에 있으면 올랐고 아래면 내렸다. 눈금 숫자가 없어도 방향은 읽힌다. <b>기준선만 점선</b>인
+ * 것은 격자와 뜻이 다르기 때문이다 — 격자는 눈이 기대는 자이고 기준선은 값이다.
+ *
+ * <p><b>겹이 일곱이다</b> — 격자(가로 5 · 세로는 거래일마다) · 점선 기준선(첫날 값) ·
+ * 그라데이션 메우기 · 선 · 고가·저가 고리 · 날마다 점 · 끝점(점+후광).
+ *
+ * <p>⚠️ <b>그림에 있는 모든 선은 자료에 있는 것이어야 한다</b> — 이 클래스의 둘째 규칙이다.
+ * 그래서 세로선은 x축을 등분하지 않고 <b>자료점마다</b> 긋는다(자료점 열넷에 6등분은 어느 세로선도
+ * 거래일과 맞지 않았다). 세로선을 세면 거래일이 세어진다.
+ *
+ * <p><b>바탕이 어둡다.</b> 트레이딩뷰 기본 화면과 같은 자리인데, 고른 이유는 흉내가 아니라
+ * <b>텔레그램에 실리는 방식</b>이다: 사진은 말풍선 안에 통째로 박히므로 흰 판이면 다크 모드
+ * 대화에서 홀로 빛나는 사각형이 된다. 어두운 판은 두 테마 어디에 놓아도 튀지 않는다.
+ *
+ * <p>⚠️ <b>선 색은 한국식 그대로다</b> — 오르면 붉고 내리면 푸르다. 트레이딩뷰 기본색
+ * (상승 청록·하락 빨강)으로 바꾸면 그림은 그쪽다워지지만 <b>바로 위 본문의 {@code 🔴 +1.00%}와
+ * 방향이 뒤집힌다</b>. 한 통 안에서 색이 두 뜻을 갖게 되는 쪽이 더 나쁘다.
+ *
+ * <p>I/O를 모르는 순수 계산이다({@code HalfDays}와 같은 자리라 스프링 없이 테스트한다).
+ */
+public final class ChartRenderer {
+
+    static {
+        // ImageIO는 기본값으로 쓰기마다 java.io.tmpdir에 임시 파일을 만든다(FileCacheImageOutputStream).
+        // 640×240 PNG를 메모리 스트림에 쓰는 데 디스크를 거칠 이유가 없다 — 브리핑 한 번에 열 장이다
+        ImageIO.setUseCache(false);
+    }
+
+    /** 텔레그램이 사진을 폭에 맞춰 늘리므로 너무 작으면 흐려진다. */
+    private static final int WIDTH = 640;
+    private static final int HEIGHT = 240;
+
+    /** 선이 테두리에 닿지 않게 둘레를 비운다. 격자의 바깥 테두리가 곧 이 안쪽 경계다. */
+    private static final int PAD = 18;
+
+    /**
+     * 판 색 — <b>테스트가 이 이름으로 읽는다.</b>
+     *
+     * <p>{@code ChartRendererTest}가 「선이 아닌 화소」를 골라낼 때 배경·격자·기준선을 빼야
+     * 하는데, 그것을 테스트에 리터럴로 적어 두면 여기 색을 바꾸는 날 <b>테스트가 조용히
+     * 아무것도 안 보게 된다</b>(전부 「선」으로 세어져 단언이 뜻을 잃는다). 그래서 값을 한 곳에
+     * 두고 테스트가 그것을 든다.
+     */
+    static final Color BACKGROUND = new Color(0x13, 0x17, 0x22);
+    static final Color GRID = new Color(0x2A, 0x2E, 0x39);
+    static final Color BASELINE = new Color(0x78, 0x7B, 0x86);
+
+    /** 오른 것은 붉게, 내린 것은 푸르게 — 등락률 이모지(🔴/🔵)와 같은 방향이다. */
+    static final Color UP = new Color(0xE5, 0x39, 0x35);
+    static final Color DOWN = new Color(0x42, 0x8E, 0xFF);
+    static final Color FLAT = new Color(0x9A, 0xA0, 0xAE);
+
+    /**
+     * 가로 격자 칸 수 — <b>이것은 값이다.</b> {@link #yOf}가 최저→아래·최고→위로 선형이므로
+     * {@code row}가 0..4면 그 다섯 줄이 <b>기간 최고 · 75% · 50% · 25% · 최저에 정확히</b> 놓인다.
+     * 곧 <b>맨 위 선이 기간 고가이고 맨 아래 선이 기간 저가다</b> — 우연이 아니라 성질이다.
+     *
+     * <p>⚠️ 그래서 값 범위에 여백을 넣지 않는다 — 넣으면 이 성질이 깨진다. 세로선은 {@link #grid}가
+     * 자료점에서 뽑으므로 칸 수 상수가 없다.
+     */
+    private static final int ROWS = 4;
+
+    /** 날마다 찍는 점의 반지름. 선(2.5px)보다 조금 굵어 표본 자리가 보이되 선을 삼키지 않는다. */
+    private static final double DOT = 2.6;
+
+    /** 기간 고가·저가에 얹는 고리의 반지름. 속이 비어 점과 갈린다. */
+    private static final double RING = 5.5;
+
+    /** 선 굵기들 — {@link BasicStroke}는 불변이라 그릴 때마다 만들 이유가 없다. */
+    private static final BasicStroke HAIRLINE = new BasicStroke(1f);
+    private static final BasicStroke LINE =
+            new BasicStroke(2.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
+    private static final BasicStroke RING_STROKE = new BasicStroke(2f);
+    private static final BasicStroke DASHED = new BasicStroke(1f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER,
+            10f, new float[] {4f, 4f}, 0f);
+
+    private ChartRenderer() {
+    }
+
+    /**
+     * @param bars 날짜 순으로 정렬된 일봉. {@link DailySeries#recent}가 만든 것을 받는다
+     * @return PNG 바이트. 점이 둘 미만이면 <b>빈 배열</b> — 선이 없으므로 그릴 것이 없다
+     */
+    public static byte[] render(List<DailyBar> bars) {
+        if (!DailySeries.drawable(bars)) {
+            // 그림을 안 그리는 것과 빈 그림을 그리는 것은 다르다 — 부르는 쪽이 사진을 안 보낸다
+            return new byte[0];
+        }
+
+        BufferedImage image = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_RGB);
+        Graphics2D canvas = image.createGraphics();
+        try {
+            canvas.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                    RenderingHints.VALUE_ANTIALIAS_ON);
+            canvas.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL,
+                    RenderingHints.VALUE_STROKE_PURE);
+            canvas.setColor(BACKGROUND);
+            canvas.fillRect(0, 0, WIDTH, HEIGHT);
+
+            // BigDecimal을 한 번만 풀어 둔다 — 겹마다 다시 풀면 같은 값을 칸마다 대여섯 번 변환한다
+            double[] values = bars.stream().mapToDouble(bar -> bar.close().doubleValue()).toArray();
+            double low = Arrays.stream(values).min().orElse(0);
+            double high = Arrays.stream(values).max().orElse(0);
+            double first = values[0];
+            double last = values[values.length - 1];
+            Color line = colorOf(first, last);
+
+            // 겹 순서가 뜻을 만든다 — 격자는 메우기 **아래**여야 색을 흐리지 않고,
+            // 고리·점은 선 **위**여야 보인다(끝점에 후광을 둔 것과 같은 이유다)
+            grid(canvas, values.length);
+            baseline(canvas, yOf(first, low, high));
+            area(canvas, values, low, high, line);
+            polyline(canvas, values, low, high, line);
+            extremes(canvas, values, low, high, line);
+            dots(canvas, values, low, high, line);
+            endpoint(canvas, xOf(values.length - 1, values.length), yOf(last, low, high), line);
+        } finally {
+            canvas.dispose();
+        }
+
+        ByteArrayOutputStream png = new ByteArrayOutputStream(16 * 1024);
+        try {
+            if (!ImageIO.write(image, "png", png)) {
+                throw new IllegalStateException("PNG 인코더가 없습니다");
+            }
+        } catch (IOException e) {
+            // ByteArrayOutputStream에 쓰다 나는 IOException은 사실상 없다 — 검사 예외만 걷어낸다
+            throw new UncheckedIOException(e);
+        }
+        return png.toByteArray();
+    }
+
+    /**
+     * 눈이 기댈 자 — <b>숫자가 없어도 기울기를 읽게 해 준다.</b> 선 하나만 떠 있으면 얼마나
+     * 가파른지 견줄 것이 없다.
+     *
+     * <p><b>가로선은 값이다</b>({@link #ROWS}) — 기간 최고·75%·50%·25%·최저에 정확히 놓인다.
+     *
+     * <p><b>세로선은 거래일이다</b> — 자료점 하나에 한 줄이다(클래스 javadoc의 둘째 규칙). 덤으로
+     * <b>선이 꺾인 자리가 표본인지 보간인지</b>가 세로선과 맞춰 보인다.
+     *
+     * @param count 자료점 수. {@link #xOf}가 이 값으로 x를 정하므로 그대로 넘겨받는다
+     */
+    private static void grid(Graphics2D canvas, int count) {
+        canvas.setColor(GRID);
+        canvas.setStroke(HAIRLINE);
+        for (int row = 0; row <= ROWS; row++) {
+            int y = PAD + Math.round((float) row / ROWS * (HEIGHT - 2 * PAD));
+            canvas.drawLine(PAD, y, WIDTH - PAD, y);
+        }
+        for (int index = 0; index < count; index++) {
+            int x = xOf(index, count);
+            canvas.drawLine(x, PAD, x, HEIGHT - PAD);
+        }
+    }
+
+    /** 첫날 값 — 선이 위면 올랐고 아래면 내렸다. 격자와 갈리도록 점선이다. */
+    private static void baseline(Graphics2D canvas, int y) {
+        canvas.setColor(BASELINE);
+        canvas.setStroke(DASHED);
+        canvas.drawLine(PAD, y, WIDTH - PAD, y);
+    }
+
+    /**
+     * 선 아래를 옅게 채운다 — <b>선이 어느 쪽 면인지 알려 준다.</b>
+     *
+     * <p>배경 쪽으로 사라지는 그라데이션이라 아래쪽 경계가 눈에 잡히지 않는다. 단색으로
+     * 채우면 「선 아래」가 또 하나의 덩어리가 되어 선보다 먼저 읽힌다.
+     */
+    private static void area(Graphics2D canvas, double[] values,
+                             double low, double high, Color line) {
+        int bottom = HEIGHT - PAD;
+        GeneralPath path = new GeneralPath();
+        path.moveTo(xOf(0, values.length), bottom);
+        for (int i = 0; i < values.length; i++) {
+            path.lineTo(xOf(i, values.length), yOf(values[i], low, high));
+        }
+        path.lineTo(xOf(values.length - 1, values.length), bottom);
+        path.closePath();
+
+        canvas.setPaint(new GradientPaint(
+                0, PAD, withAlpha(line, 0x55),
+                0, bottom, withAlpha(line, 0)));
+        canvas.fill(path);
+    }
+
+    private static void polyline(Graphics2D canvas, double[] values,
+                                 double low, double high, Color line) {
+        canvas.setColor(line);
+        canvas.setStroke(LINE);
+        for (int i = 1; i < values.length; i++) {
+            canvas.drawLine(
+                    xOf(i - 1, values.length), yOf(values[i - 1], low, high),
+                    xOf(i, values.length), yOf(values[i], low, high));
+        }
+    }
+
+    /**
+     * 날마다 점 하나 — <b>표본이 어디인지 짚는다.</b>
+     *
+     * <p>선만 있으면 꺾인 자리가 실제 거래일인지 그냥 기울기가 바뀐 곳인지 알 수 없다.
+     * 점을 찍으면 열나흘이 몇 점인지 세어지고, 세로 격자선과 맞아떨어지는 것이 눈에 보인다.
+     * <b>선 색을 그대로 쓴다</b> — 새 색을 넣으면 테스트의 「판이 아닌 화소」 분류가 그것을
+     * 선으로 세어 단언이 뜻을 잃는다({@link #BACKGROUND} javadoc).
+     */
+    private static void dots(Graphics2D canvas, double[] values,
+                             double low, double high, Color line) {
+        canvas.setPaint(line);
+        for (int i = 0; i < values.length; i++) {
+            double x = xOf(i, values.length);
+            double y = yOf(values[i], low, high);
+            canvas.fill(new Ellipse2D.Double(x - DOT, y - DOT, DOT * 2, DOT * 2));
+        }
+    }
+
+    /**
+     * 기간 고가·저가에 고리 — <b>극값이 어느 날이었는지 짚는다.</b>
+     *
+     * <p>가로 격자의 맨 위·맨 아래 줄이 이미 그 <b>값</b>을 그리지만, 그 값이 <b>어느 날</b>이었는지는
+     * 선이 그 줄에 닿는 자리를 눈으로 훑어야 알 수 있다. 고리가 그 자리를 짚는다.
+     *
+     * <p>⚠️ <b>같은 값이면 전부 찍는다.</b> 최고값이 두 날에 있으면 두 날 다 고가다 —
+     * 「먼저 온 것 하나」를 고르면 응답 순서가 화면을 정하게 되고, 그건 오늘 배당 쪽에서
+     * {@code Dividend.nextOf}가 물렸던 그 함정이다.
+     *
+     * <p>⚠️ <b>폭이 0이면 아무것도 안 찍는다.</b> 열나흘이 전부 같은 값일 때(스테이블코인)
+     * 어느 한 점을 「고가」라 부르면 그것은 거짓이다 — 그때는 고가도 저가도 없다.
+     */
+    private static void extremes(Graphics2D canvas, double[] values,
+                                 double low, double high, Color line) {
+        if (high - low <= 0) {
+            return;
+        }
+        canvas.setColor(line);
+        canvas.setStroke(RING_STROKE);
+        for (int i = 0; i < values.length; i++) {
+            double value = values[i];
+            if (value != high && value != low) {
+                continue;
+            }
+            double x = xOf(i, values.length);
+            double y = yOf(value, low, high);
+            canvas.draw(new Ellipse2D.Double(x - RING, y - RING, RING * 2, RING * 2));
+        }
+    }
+
+    /**
+     * 마지막 값에 점 하나 — <b>「지금」이 어디인지 짚는다.</b>
+     *
+     * <p>선의 오른쪽 끝이 곧 현재값인데, 끝이 오른쪽 여백에 닿아 있으면 잘린 것처럼 보인다.
+     * 후광을 함께 두는 것은 선 색과 같은 점이 선 위에 얹히면 안 보이기 때문이다.
+     */
+    private static void endpoint(Graphics2D canvas, int x, int y, Color line) {
+        canvas.setPaint(withAlpha(line, 0x44));
+        canvas.fill(new Ellipse2D.Double(x - 7.0, y - 7.0, 14.0, 14.0));
+        canvas.setPaint(line);
+        canvas.fill(new Ellipse2D.Double(x - 3.5, y - 3.5, 7.0, 7.0));
+    }
+
+    private static Color withAlpha(Color color, int alpha) {
+        return new Color(color.getRed(), color.getGreen(), color.getBlue(), alpha);
+    }
+
+    private static Color colorOf(double first, double last) {
+        int direction = Double.compare(last, first);
+        return direction > 0 ? UP : direction < 0 ? DOWN : FLAT;
+    }
+
+    private static int xOf(int index, int count) {
+        return PAD + (int) Math.round((double) index / (count - 1) * (WIDTH - 2 * PAD));
+    }
+
+    /**
+     * 값 하나를 세로 좌표로.
+     *
+     * <p><b>값의 폭이 0이면 가운데에 그린다.</b> 열나흘 내내 같은 값이면 최고와 최저가 같아
+     * 나누기가 터진다 — 드문 일이지만 코인의 스테이블코인에서는 실제로 난다.
+     */
+    private static int yOf(double value, double low, double high) {
+        double span = high - low;
+        if (span <= 0) {
+            return HEIGHT / 2;
+        }
+        double ratio = (value - low) / span;
+        // 화면 좌표는 아래로 갈수록 커진다 — 높은 값이 위에 와야 한다
+        return HEIGHT - PAD - (int) Math.round(ratio * (HEIGHT - 2 * PAD));
+    }
+}
