@@ -1,6 +1,5 @@
 package io.saiden.economyhelper.stock.application;
 
-
 import io.saiden.economyhelper.config.EconomyHelperProperties.Index;
 import io.saiden.economyhelper.config.EconomyHelperProperties.UsSymbol;
 import io.saiden.economyhelper.shared.domain.DailyBar;
@@ -22,10 +21,12 @@ import io.saiden.economyhelper.stock.domain.ResolvedStock;
 import io.saiden.economyhelper.stock.domain.StockOutlook;
 import io.saiden.economyhelper.stock.domain.StockQuote;
 import io.saiden.economyhelper.stock.domain.StockSource;
+import java.text.Normalizer;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
@@ -102,6 +103,9 @@ public class StockService {
      * 국내 종목명일 수도 있는 짧은 영문이 있어서, 앞세우면 이름 검색을 가로챈다.
      */
     private static final Pattern US_TICKER = Pattern.compile("[A-Za-z]{1,5}");
+
+    /** 클래스 주식 — 티커 + 구분자 + 클래스 1~2자. 끝에 붙은 물음표 같은 군더더기는 허용한다. */
+    private static final Pattern CLASS_SHARE = Pattern.compile("([A-Z]{1,5})[./-]([A-Z]{1,2})[?!.,]?");
 
     /** 한글이 한 자라도 있으면 화면에 그대로 쓴다 — {@link #displayName}. */
     private static final Pattern HANGUL = Pattern.compile("[가-힣]");
@@ -196,7 +200,7 @@ public class StockService {
             // LLM이 US라고는 했는데 티커를 못 냈거나 그 티커가 시세에 없다.
             // 국내가 코드 → 이름 → 원문으로 세 번 시도하는 것과 같은 자리다.
             // ⚠️ 국내 상장을 US로 잘못 읽었을 수도 있다 — 이름이 딱 맞는 국내 상장만 받는다
-            return usByTicker(forms, resolved.get().code())
+            return usByTicker(query, forms, resolved.get().code())
                     .or(() -> byExactListing(resolved.get().name(), forms));
         }
         // 국내 지수는 조회가 통째로 다르다 — 종목코드가 없고 시가총액도 없다
@@ -211,12 +215,12 @@ public class StockService {
             // ⚠️ 여기서 무조건 돌려주면 한 방향 문이 된다 — LLM이 ETF를 INDEX로 잘못 읽으면(「코덱스 코스피」)
             //    국내 지수 조회가 빈손인 채로 끝난다. 다만 부분일치로는 받지 않는다: 지수 장애 중에
             //    「코스피」가 「KODEX 코스피」 ETF로 바뀌어 나가면 틀린 값이다
-            return byIndex.or(() -> byExactListing(name, forms)).or(() -> usByTicker(forms, null));
+            return byIndex.or(() -> byExactListing(name, forms)).or(() -> usByTicker(query, forms, null));
         }
         Optional<Answer> found = search(resolved, forms, query);
         // ⚠️ 국내 이름 검색까지 다 빈손이다. 원문이 미국 티커 모양이면 한 번 더 —
         //    LLM이 죽거나 거절해도 사용자가 친 글자로 찾을 수 있어야 한다
-        return found.isPresent() ? found : usByTicker(forms, null);
+        return found.isPresent() ? found : usByTicker(query, forms, null);
     }
 
     /**
@@ -513,8 +517,8 @@ public class StockService {
      *
      * <p>{@code QueryNormalizer}가 검색어를 소문자로 내리므로 <b>여기서 대문자로 올린다.</b>
      */
-    private Optional<Answer> usByTicker(List<String> forms, String already) {
-        Optional<String> ticker = tickerShaped(forms);
+    private Optional<Answer> usByTicker(String query, List<String> forms, String already) {
+        Optional<String> ticker = classShare(query).or(() -> tickerShaped(forms));
         if (ticker.isEmpty()) {
             return Optional.empty();
         }
@@ -526,6 +530,25 @@ public class StockService {
         }
         log.info("[stock] '{}'를 미국 티커로 한 번 더 찾습니다", symbol);
         return usAnswer(new UsSymbol(symbol, symbol));
+    }
+
+    /**
+     * 원문에서 <b>클래스 주식 티커</b>({@code BRK.B}·{@code brk-b}·{@code BRK/B})를 꺼내 점 표기로 맞춘다.
+     *
+     * <p>⚠️ {@link QueryNormalizer#forLookup}을 타면 구분자가 지워져 {@code BRKB}라는 없는 티커가 된다 — 그래서
+     * 이것만은 원문 토큰을 본다. KIS 표기({@code /})로 바꾸는 것은 어댑터의 몫이다.
+     */
+    static Optional<String> classShare(String query) {
+        if (query == null) {
+            return Optional.empty();
+        }
+        for (String token : Normalizer.normalize(query, Normalizer.Form.NFKC).strip().split("\s+")) {
+            Matcher matcher = CLASS_SHARE.matcher(token.toUpperCase(Locale.ROOT));
+            if (matcher.matches()) {
+                return Optional.of(matcher.group(1) + "." + matcher.group(2));
+            }
+        }
+        return Optional.empty();
     }
 
     /**
