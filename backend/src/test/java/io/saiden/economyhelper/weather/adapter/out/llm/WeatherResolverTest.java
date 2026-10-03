@@ -118,6 +118,39 @@ class WeatherResolverTest {
         assertThat(resolve("{\"weekday\":7}")).as("요일만 적어도 읽은 것이 있다").isPresent();
     }
 
+    @Test
+    @DisplayName("「N일 뒤」는 사용자가 친 글자대로 며칠 뒤다 — LLM이 「10일」을 일자로 읽어도 덮는다")
+    void readsDaysLaterFromWhatWasTyped() {
+        // LLM이 「10일」만 보고 day=10(그달 10일)으로 답하면 엉뚱한 날이 나간다. 「뒤·후」가 붙은
+        // 숫자는 사용자가 친 글자에 있는 사실이라 해석에 맡기지 않는다
+        ResolvedPlace tenDaysLater = resolve("10일 뒤 서울",
+                "{\"query\":\"서울특별시\",\"country\":\"KR\",\"day\":10}").orElseThrow();
+        assertThat(tenDaysLater.offsetDays()).isEqualTo(10);
+        assertThat(tenDaysLater.day()).isNull();
+        assertThat(tenDaysLater.month()).isNull();
+        assertThat(tenDaysLater.query()).isEqualTo("서울특별시");
+
+        assertThat(resolve("3일후 파리", "{\"query\":\"파리\"}").orElseThrow().offsetDays()).isEqualTo(3);
+        assertThat(resolve("사흘 뒤 부산", "{\"query\":\"부산광역시\"}").orElseThrow().offsetDays()).isEqualTo(3);
+        assertThat(resolve("열흘 후 제주", "{\"query\":\"제주시\"}").orElseThrow().offsetDays()).isEqualTo(10);
+    }
+
+    @Test
+    @DisplayName("「뒤·후」가 없는 「10일」·「10일치」는 LLM이 읽은 대로 둔다")
+    void leavesPlainDayAndSpanAlone() {
+        ResolvedPlace tenth = resolve("10일 서울", "{\"query\":\"서울특별시\",\"day\":10}").orElseThrow();
+        assertThat(tenth.day()).isEqualTo(10);
+        assertThat(tenth.offsetDays()).isNull();
+
+        ResolvedPlace span = resolve("10일치 서울", "{\"query\":\"서울특별시\",\"days\":10}").orElseThrow();
+        assertThat(span.days()).isEqualTo(10);
+        assertThat(span.offsetDays()).isNull();
+    }
+
+    private static Optional<ResolvedPlace> resolve(String typed, String json) {
+        return new WeatherResolver(TestGemini.answering(json), new ObjectMapper()).resolve(typed);
+    }
+
     private static Optional<ResolvedPlace> resolve(String json) {
         return new WeatherResolver(TestGemini.answering(json), new ObjectMapper()).resolve("서현");
     }

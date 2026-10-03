@@ -8,8 +8,10 @@ import io.saiden.economyhelper.weather.application.port.out.PlaceResolver;
 import io.saiden.economyhelper.weather.domain.ResolvedPlace;
 import io.saiden.economyhelper.weather.domain.WeatherPeriod;
 import java.text.Normalizer;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,6 +48,16 @@ public class WeatherResolver implements PlaceResolver {
     private static final Logger log = LoggerFactory.getLogger(WeatherResolver.class);
 
     private static final Pattern WHITESPACE = Pattern.compile("\\s+");
+
+    /** {@code 10일 뒤}·{@code 3일후} — 「뒤·후」가 붙어야 한다(「10일치」·「10일」은 아니다). */
+    private static final Pattern DAYS_LATER = Pattern.compile("(?<!\\d)(\\d{1,2})\\s*일\\s*(?:뒤|후)");
+
+    /** 하루~열흘의 고유어 — 자리가 곧 일수다. */
+    private static final List<String> NATIVE_DAYS =
+            List.of("하루", "이틀", "사흘", "나흘", "닷새", "엿새", "이레", "여드레", "아흐레", "열흘");
+
+    private static final Pattern NATIVE_DAYS_LATER =
+            Pattern.compile("(" + String.join("|", NATIVE_DAYS) + ")\\s*(?:뒤|후)");
 
     private static final String PROMPT = """
             사용자가 날씨를 묻고 있습니다. 아래 입력에서 **어느 지역**의 **언제** 날씨인지 판단하세요.
@@ -120,11 +132,33 @@ public class WeatherResolver implements PlaceResolver {
         Optional<ResolvedPlace> resolved = LlmJson.ask(api, objectMapper,
                 PROMPT.formatted(asTyped), Answer.class,
                 "weather", asTyped, parsed -> !parsed.toPlace().readsNothing())
-                .map(Answer::toPlace);
+                .map(Answer::toPlace)
+                .map(place -> daysLaterAsTyped(asTyped).map(n -> daysLater(place, n)).orElse(place));
         resolved.ifPresent(parsed -> log.info("[weather] '{}' → {} ({}), date={} offset={} days={} weekend={} weekday={}+{}w",
                 asTyped, parsed.query(), parsed.country(), parsed.date(),
                 parsed.offsetDays(), parsed.days(), parsed.asksWeekend(), parsed.weekday(), parsed.weekOffset()));
         return resolved;
+    }
+
+    /**
+     * 사용자가 친 「N일 뒤·후」 — {@code 10일 뒤}·{@code 3일후}·{@code 사흘 뒤}·{@code 열흘 후}.
+     *
+     * <p>⚠️ <b>이것은 LLM에게 맡기지 않는다.</b> 「10일」만 보고 그달 10일({@code day=10})로 읽으면 엉뚱한 날이
+     * 나가는데, 「뒤·후」가 붙은 숫자는 사용자가 친 글자에 있는 사실이다. 「10일」·「10일치」는 건드리지 않는다.
+     */
+    static Optional<Integer> daysLaterAsTyped(String typed) {
+        Matcher digits = DAYS_LATER.matcher(typed);
+        if (digits.find()) {
+            return Optional.of(Integer.parseInt(digits.group(1)));
+        }
+        Matcher words = NATIVE_DAYS_LATER.matcher(typed);
+        return words.find() ? Optional.of(NATIVE_DAYS.indexOf(words.group(1)) + 1) : Optional.empty();
+    }
+
+    /** 며칠 뒤 하루로 고친다 — LLM이 같은 숫자로 채웠을 일자·요일·주말은 비운다. 며칠치는 둔다. */
+    private static ResolvedPlace daysLater(ResolvedPlace place, int days) {
+        return new ResolvedPlace(place.query(), place.country(), null, null, null,
+                days, place.days(), null, null, null);
     }
 
     /**
