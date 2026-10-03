@@ -272,6 +272,18 @@ class StockServiceTest {
     }
 
     @Test
+    @DisplayName("클래스 주식 티커(BRK.B)는 점을 지켜 묻는다 — 정규화가 점을 지우면 BRKB라는 없는 티커가 된다")
+    void keepsTheClassShareSeparator() {
+        FakeUs kis = us(StockSource.KIS, Map.of("BRK.B", usQuote("BRK.B", StockSource.KIS)));
+
+        StockService service = service(List.of(), List.of(kis), noResolver(),
+                new RecordingNames(Map.of()));
+
+        assertThat(service.quote("brk.b 주가").orElseThrow().name()).isEqualTo("BRK.B");
+        assertThat(kis.askedSymbols).containsExactly(new UsSymbol("BRK.B", "BRK.B"));
+    }
+
+    @Test
     @DisplayName("⚠️ 해석기가 이미 준 티커를 다시 묻지 않는다 — 거래소 셋을 두 번 훑는다")
     void neverRepeatsTheSameTickerLookup() {
         // KIS는 심볼당 거래소 셋을 1초 간격으로 훑는다. 같은 심볼을 두 번 물으면 3초가

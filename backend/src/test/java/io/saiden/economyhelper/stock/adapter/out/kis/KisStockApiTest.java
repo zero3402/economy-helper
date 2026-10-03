@@ -453,6 +453,30 @@ class KisStockApiTest extends WireMockTest {
     }
 
     @Test
+    @DisplayName("클래스 주식은 KIS 표기 BRK/B로 묻는다 — BRK.B·BRK-B로 물으면 어느 거래소에도 없다")
+    void asksClassSharesInKisNotation() {
+        // KIS 해외 마스터(nysmst.cod, 2026-10-03)가 BRK/A·BRK/B·ABR/D처럼 「/」로 적는다
+        server.stubFor(get(urlPathEqualTo(US_STOCK_PATH))
+                .willReturn(aResponse().withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("""
+                                {"rt_cd":"0","msg_cd":"MCA00000","msg1":"정상처리 되었습니다.",
+                                 "output":{"rsym":"","curr":"","last":"","base":"","t_xrat":""}}""")));
+        server.stubFor(get(urlPathEqualTo(US_STOCK_PATH))
+                .withQueryParam("EXCD", WireMock.equalTo("NYS"))
+                .withQueryParam("SYMB", WireMock.equalTo("BRK/B"))
+                .willReturn(aResponse().withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("""
+                                {"rt_cd":"0","msg_cd":"MCA00000","msg1":"정상처리 되었습니다.",
+                                 "output":{"rsym":"DNYSBRK/B","curr":"USD",
+                                           "last":"480.1200","base":"478.0000","t_xrat":"0.44"}}""")));
+
+        assertThat(api.quote(new UsSymbol("BRK.B", "BRK.B")).price().value()).isEqualByComparingTo("480.1200");
+        assertThat(api.quote(new UsSymbol("BRK-B", "BRK-B")).price().value()).isEqualByComparingTo("480.1200");
+    }
+
+    @Test
     @DisplayName("나스닥이 초당 한도에 걸려도 뉴욕은 시도한다 — 초당 1건이라 그게 흔한 경로다")
     void triesTheNextExchangeEvenWhenTheFirstIsThrottled() {
         // rt_cd=1은 request()가 던진다 — 그 예외가 루프를 빠져나가면 NYS를 시도조차 못 한다.

@@ -36,6 +36,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -97,6 +98,9 @@ public class KisStockApi implements DomesticStockClient, UsStockClient, StockDai
 
     /** 국내 시장 달력 — 일봉 날짜가 KST다. */
     private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
+
+    /** 클래스 주식 — 티커 1~5자 + 구분자 + 클래스 1~2자({@code BRK.B}·{@code BF-B}·{@code BRK/B}). */
+    private static final Pattern CLASS_SHARE = Pattern.compile("^([A-Z]{1,5})[./-]([A-Z]{1,2})$");
 
     /** 미국 시장 달력 — 해외 일봉 날짜가 미국 날짜다. */
     private static final ZoneId NEW_YORK = ZoneId.of("America/New_York");
@@ -341,7 +345,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient, StockDai
                                 // AUTH는 빈 값으로 보낸다 — 없으면 안 되고 값도 안 받는다
                                 .queryParam("AUTH", "")
                                 .queryParam("EXCD", exchange)
-                                .queryParam("SYMB", symbol)
+                                .queryParam("SYMB", kisSymbol(symbol))
                                 .queryParam("GUBN", DAILY)
                                 // BYMD를 비우면 최신부터다 — 창을 우리가 계산하지 않는다
                                 .queryParam("BYMD", "")
@@ -551,7 +555,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient, StockDai
                                 // AUTH는 빈 값으로 보낸다. 없으면 안 되고 값도 안 받는다
                                 .queryParam("AUTH", "")
                                 .queryParam("EXCD", exchange)
-                                .queryParam("SYMB", symbol.symbol())
+                                .queryParam("SYMB", kisSymbol(symbol.symbol()))
                                 .build()).output(),
                 quote -> {
                     if (quote == null) {
@@ -625,6 +629,16 @@ public class KisStockApi implements DomesticStockClient, UsStockClient, StockDai
     }
 
     /**
+     * KIS가 받는 미국 심볼 — <b>클래스 주식의 구분자는 {@code /}다</b>({@code BRK.B}·{@code BRK-B} → {@code BRK/B}).
+     *
+     * <p>실측(2026-10-03, KIS 해외 마스터 {@code nysmst.cod}): {@code BRK/A}·{@code BRK/B}·{@code ABR/D}처럼 적는다.
+     * 사용자·LLM이 쓰는 점·하이픈 표기로 물으면 어느 거래소에도 없다. 그 밖의 심볼은 그대로다.
+     */
+    static String kisSymbol(String symbol) {
+        return CLASS_SHARE.matcher(symbol).replaceFirst("$1/$2");
+    }
+
+    /**
      * 물어볼 거래소 순서.
      *
      * <p><b>지난번에 찾아 기억해 둔 것이 있으면 그것 하나뿐이다</b> — 그때는 탐색 비용이 없다.
@@ -660,7 +674,6 @@ public class KisStockApi implements DomesticStockClient, UsStockClient, StockDai
                 .queryParam("FID_INPUT_DATE_2", KisHeaders.today(clock))
                 .queryParam("FID_PERIOD_DIV_CODE", "D");
     }
-
 
     /**
      * {@code rt_cd}가 0인데 값이 비어 오는 경우 — <b>없는 종목코드·없는 지수 심볼</b>이 그렇다.
