@@ -44,11 +44,12 @@ public final class CacheNames {
     public static final String GEOCODE = "geocode-v2";
 
     /**
-     * 날씨 검색어 해석. <b>v4</b> — 키가 날짜 기호를 지키고({@code 1/11}≠{@code 11/1}), 프롬프트가 친 그대로의 검색어(띄어쓰기·날짜 기호)를 보고,
+     * 날씨 검색어 해석. <b>v5</b> — 친 글자의 「N일 뒤·후」를 며칠 뒤로 덮는다. v4에는 「10일 뒤」를 그달 10일로
+     * 읽은 답이 7일 남는다. v4 — 키가 날짜 기호를 지키고({@code 1/11}≠{@code 11/1}), 프롬프트가 친 그대로의 검색어(띄어쓰기·날짜 기호)를 보고,
      * 「주말」을 일수 2가 아니라 {@code weekend}로 받는다. v3에는 공백을 지운 입력으로 낸 답과
      * 「주말 → 오늘·내일」이 7일 남는다(v3: LLM의 {@code "null"} 리터럴을 담기 전에 다듬었다).
      */
-    public static final String WEATHER_RESOLVE = "weather-resolve-v4";
+    public static final String WEATHER_RESOLVE = "weather-resolve-v5";
 
     /**
      * 종목 검색어 해석. <b>v5</b> — 프롬프트가 <b>국내 ETF</b>를 다루게 됐다({@code 타임나스닥100 →
