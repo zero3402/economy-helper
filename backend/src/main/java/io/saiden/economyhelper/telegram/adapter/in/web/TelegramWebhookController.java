@@ -91,6 +91,9 @@ public class TelegramWebhookController {
      */
     private final Executor replyExecutor;
 
+    /** 이미 받은 {@code update_id} — 텔레그램이 다시 보낸 업데이트에 두 번 답하지 않는다. */
+    private final ProcessedUpdates processedUpdates;
+
     public TelegramWebhookController(NewsFacade newsFacade,
                                      CryptoService cryptoService,
                                      FxService fxService,
@@ -98,10 +101,12 @@ public class TelegramWebhookController {
                                      WeatherFacade weatherFacade,
                                      TelegramClient telegramClient,
                                      @Qualifier("replyExecutor") Executor replyExecutor,
+                                     ProcessedUpdates processedUpdates,
                                      @Value("${economy-helper.telegram.webhook-secret:}") String webhookSecret,
                                      @Value("${economy-helper.telegram.chat-id:}") String allowedChatId,
                                      @Value("${economy-helper.telegram.search-topic-id:}") String searchTopicId) {
         this.replyExecutor = replyExecutor;
+        this.processedUpdates = processedUpdates;
         this.newsFacade = newsFacade;
         this.cryptoService = cryptoService;
         this.fxService = fxService;
@@ -137,6 +142,11 @@ public class TelegramWebhookController {
         }
         // 답을 만드는 데 몇 초가 걸릴 수 있다. 여기서 기다리면 텔레그램이 타임아웃 후
         // 같은 업데이트를 다시 보내 답이 두 번 나간다 — 받았다는 사실만 먼저 알린다
+        // 텔레그램이 같은 업데이트를 다시 보낸 것이다(우리 200이 닿지 못했다). 200으로 끝내야 더 안 보낸다
+        if (update != null && !processedUpdates.firstTime(update.updateId())) {
+            log.info("[webhook] update_id {}는 이미 받았습니다 — 다시 답하지 않습니다", update.updateId());
+            return ResponseEntity.ok().build();
+        }
         replyExecutor.execute(() -> {
             try {
                 handle(update);
@@ -466,8 +476,17 @@ public class TelegramWebhookController {
 
     // --- 텔레그램 Update 스키마 (필요한 필드만) ---
 
+    /**
+     * @param updateId 텔레그램이 업데이트마다 매기는 번호 — 재전송을 가리는 열쇠다({@link ProcessedUpdates})
+     */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Update(Message message) {}
+    public record Update(@JsonProperty("update_id") Long updateId, Message message) {
+
+        /** 번호 없는 업데이트 — 테스트가 명령 하나를 보낼 때 쓴다. */
+        public Update(Message message) {
+            this(null, message);
+        }
+    }
 
     /**
      * <b>{@code @JsonProperty}가 필요하다.</b> 이 프로젝트는 전역 snake_case 전략을 쓰지 않아
