@@ -1,0 +1,213 @@
+package io.saiden.economyhelper.stock.adapter.out.datago;
+
+import io.saiden.economyhelper.config.EconomyHelperProperties.Index;
+import io.saiden.economyhelper.shared.domain.PercentChange;
+import io.saiden.economyhelper.shared.domain.Price;
+import io.saiden.economyhelper.shared.support.FailureReason;
+import io.saiden.economyhelper.stock.adapter.out.datago.MarketIndexApi.MarketIndex;
+import io.saiden.economyhelper.stock.adapter.out.datago.StockPriceApi.StockPrice;
+import io.saiden.economyhelper.stock.application.port.out.DomesticStockClient;
+import io.saiden.economyhelper.stock.application.port.out.StockNameSearch;
+import io.saiden.economyhelper.stock.domain.StockQuote;
+import io.saiden.economyhelper.stock.domain.StockSource;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Supplier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
+
+/**
+ * 공공데이터포털(금융위원회) — <b>국내 이중화의 2순위.</b>
+ *
+ * <p>1순위인 한국투자증권이 죽거나 앱키가 없을 때 여기가 받는다. <b>제약이 적은 쪽이 뒤에
+ * 선다</b>는 규칙 그대로다 — 이쪽은 하루 1만 회고 종목명 검색까지 된다.
+ *
+ * <p>대신 <b>전일 종가만</b> 준다({@code realtime=false}). 그 사실이 화면의 기준 줄에
+ * "(종가)"로 드러나므로, 폴백이 일어났다는 것이 사용자에게 그대로 보인다.
+ *
+ * <p><b>공공데이터포털 응답 모양을 아는 것은 이 클래스뿐이다</b> — 서비스는 "어느 출처가 먼저냐"만 안다.
+ */
+@Component
+public class DataGoStockClient implements DomesticStockClient, StockNameSearch {
+
+    private static final Logger log = LoggerFactory.getLogger(DataGoStockClient.class);
+
+    // 기준일을 옮기는 시간대·형식은 패키지 공용({@code DataGoRequest})이다 — 여기 따로 두면
+    // 한쪽만 고쳐지는 날이 온다
+    private static final ZoneId SEOUL = DataGoRequest.SEOUL;
+    private static final DateTimeFormatter BAS_DT = DataGoRequest.BAS_DT;
+
+    private final StockPriceApi stocks;
+    private final MarketIndexApi indices;
+    private final EtfPriceApi etfs;
+
+    /**
+     * @param etfs ETF는 <b>다른 API</b>다 — 주식시세정보는 ETF를 아예 주지 않는다(실측 {@code KODEX} 0건).
+     *             활용신청도 따로여서 브레이커도 따로다({@code dataGoEtf})
+     */
+    public DataGoStockClient(StockPriceApi stocks, MarketIndexApi indices, EtfPriceApi etfs) {
+        this.stocks = stocks;
+        this.indices = indices;
+        this.etfs = etfs;
+    }
+
+    @Override
+    public StockSource source() {
+        return StockSource.DATA_GO;
+    }
+
+    /**
+     * 주식에 없으면 ETF에서 찾는다 — 코드 하나가 두 API 중 한쪽에만 있다.
+     *
+     * <p>⚠️ <b>한쪽 API의 장애가 다른 쪽을 죽이면 안 된다.</b> 두 검색을 같은 모양으로 삼키고
+     * ({@link #quietly}), <b>둘 다 빈손일 때만</b> 던진다(SPI 계약 — 그래야 이중화가 다음 출처로 넘어간다).
+     * ⚠️ ETF 쪽은 {@code .or(() -> …)} 람다 안에 둔다 — 인자로 먼저 평가되면 주식 API가 던질 때
+     * ETF 가지가 실행조차 안 된다.
+     */
+    @Override
+    public StockQuote stock(String code) {
+        return best(quietly("주식", code, () -> stocks.searchByCode(code)))
+                .or(() -> best(quietly("ETF", code, () -> etfs.searchByCode(code))))
+                .orElseThrow(() -> new IllegalStateException("종목코드 " + code + " 시세가 없습니다"));
+    }
+
+    /**
+     * <b>업종코드가 아니라 이름으로 찾는다</b> — 이 API에는 코드 조회가 없다.
+     * 그래서 {@link Index#code()}는 여기서 쓰이지 않는다(1순위인 KIS가 그걸 쓴다).
+     */
+    @Override
+    public StockQuote index(Index index) {
+        MarketIndex found = indices.searchByName(index.name());
+        if (found == null) {
+            throw new IllegalStateException("'" + index.name() + "' 지수를 찾지 못했습니다");
+        }
+        // 이름도 응답 것을 쓴다 — 완전일치로 고른 것이라 설정 이름과 같고, 부분일치로 떨어졌다면
+        // 실제로 찾아낸 지수의 정식명이 맞다(KIS가 '종합'을 주는 것과 사정이 다르다)
+        return new StockQuote(found.idxNm(), price(found.clpr(), "지수 " + index.name()),
+                percent(found.fltRt()),
+                StockQuote.Money.NONE, StockQuote.Market.DOMESTIC, StockSource.DATA_GO,
+                atSeoulMidnight(found.basDt()), false);
+    }
+
+    /**
+     * 종목명으로 찾는다 — <b>SPI 밖에 있는 이유가 있다.</b>
+     *
+     * <p>한국투자증권에는 종목명 검색이 아예 없다(조회가 언제나 코드 → 이름 방향이다).
+     * 이중화할 상대가 없는 경로를 SPI에 넣으면 1순위가 언제나 못 하는 메서드를 갖게 된다.
+     *
+     * @return 시가총액 1위 후보. 걸리는 것이 없으면 {@link Optional#empty()} —
+     *         <b>이건 장애가 아니라 "그런 종목이 없다"이므로 던지지 않는다</b>
+     */
+    @Override
+    public Optional<StockQuote> byName(String name) {
+        // 주식과 ETF 후보를 **합쳐** 고른다 — 순서로 두면 「삼성」이 ETF에 절대 안 가는 대신
+        // 규칙이 둘이 된다. 대가는 이름 검색 한 번이 호출 둘인 것인데(하루 1만 회·1시간 캐시)
+        // 여유가 크다
+        // ⚠️ 기준일은 API마다 따로 자른다 — 두 API가 같은 날 갱신되지 않는다. 합친 뒤 자르면 ETF가 하루 먼저
+        //    올라온 날 주식 후보가 전부 떨어져 「삼성」이 KODEX 삼성그룹이 된다
+        List<StockPrice> candidates = new ArrayList<>(
+                onlyLatestDate(quietly("주식", name, () -> stocks.searchByName(name))));
+        candidates.addAll(onlyLatestDate(quietly("ETF", name, () -> etfs.searchByName(name))));
+        return largest(candidates);
+    }
+
+    /**
+     * 한쪽 API의 실패가 다른 쪽 후보를 죽이지 않게 삼킨다 — <b>양쪽에 같은 모양으로</b>.
+     * ETF는 활용신청 전이면 늘 403이고, 주식은 {@code dataGo} 브레이커가 열려 있을 수 있다.
+     * {@code @CircuitBreaker}는 {@link StockPriceApi}·{@link EtfPriceApi} 쪽에 있어 여기서 삼켜도
+     * 브레이커는 실패를 먼저 센다.
+     */
+    private static List<StockPrice> quietly(String what, String query, Supplier<List<StockPrice>> search) {
+        try {
+            return search.get();
+        } catch (RuntimeException e) {
+            log.warn("[stock] '{}' {} 검색 실패 — 다른 쪽 후보만 봅니다: {}", query, what, FailureReason.of(e));
+            return List.of();
+        }
+    }
+
+    /**
+     * 후보 중 시가총액 1위.
+     *
+     * <p>같은 종목의 여러 날짜가 섞여 오므로 <b>가장 최근 기준일만</b> 남긴 뒤 비교한다 —
+     * 안 그러면 어제 삼성전자와 그제 삼성전자가 서로 다른 후보로 보인다.
+     */
+    private static Optional<StockQuote> best(List<StockPrice> prices) {
+        return largest(onlyLatestDate(prices));
+    }
+
+    /** 시가총액 1위 — 동명 후보를 가르는 규칙이다. 기준일은 부르는 쪽이 이미 잘랐다. */
+    private static Optional<StockQuote> largest(List<StockPrice> prices) {
+        return prices.stream()
+                .max(Comparator.comparing(price -> amountForRanking(price.mrktTotAmt())))
+                .map(DataGoStockClient::toQuote);
+    }
+
+    private static List<StockPrice> onlyLatestDate(List<StockPrice> prices) {
+        // ⚠️ 널을 먼저 걸러야 한다. Comparator.naturalOrder()는 널 원소에서 NPE인데
+        //    orElse("")는 빈 스트림만 막는다 — 기준일 없는 항목 하나가 조회 전체를 죽였다
+        List<StockPrice> dated = prices.stream().filter(price -> price.basDt() != null).toList();
+        String latest = dated.stream().map(StockPrice::basDt).max(Comparator.naturalOrder()).orElse("");
+        return dated.stream().filter(price -> latest.equals(price.basDt())).toList();
+    }
+
+    /** <b>전일 종가</b>다. {@code realtime=false}가 화면에서 "(종가)"로 드러난다. */
+    private static StockQuote toQuote(StockPrice price) {
+        return new StockQuote(price.itmsNm(), price(price.clpr(), "종목 " + price.itmsNm()),
+                percent(price.fltRt()),
+                StockQuote.Money.KRW, StockQuote.Market.DOMESTIC, StockSource.DATA_GO,
+                atSeoulMidnight(price.basDt()), false);
+    }
+
+    /** 종가일을 시각으로 옮긴다. 그날 장이 끝난 값이므로 KST 자정으로 두고 표기는 날짜만 쓴다. */
+    private static Instant atSeoulMidnight(String basDt) {
+        return LocalDate.parse(basDt, BAS_DT).atStartOfDay(SEOUL).toInstant();
+    }
+
+    /**
+     * 등락률 전용 파서 — 없거나 깨진 값은 {@code null}이다.
+     *
+     * <p><b>{@link #parse}를 쓰면 안 된다.</b> 그쪽의 폴백인 {@code 0}은 등락률에서
+     * "보합"이라는 <b>값</b>이지 "모른다"가 아니다. 못 구한 것을 보합으로 찍으면 화면이
+     * 거짓말을 한다.
+     */
+    private static PercentChange percent(String value) {
+        return PercentChange.ofNullable(number(value, null));
+    }
+
+    /**
+     * <b>순위를 매길 때만</b> 쓴다 — 시가총액이다. 값이 비거나 깨져 있어도 조회 전체를
+     * 실패시키지 않는다: 0으로 보면 후보 순위에서 뒤로 밀릴 뿐이고, 그 종목이 답이 아니게
+     * 되는 것으로 충분하다.
+     *
+     * <p><b>표시 가격에는 쓰지 않는다</b> — 쓰면 빈 종가가 {@code price=0}으로 <b>성공</b> 반환되어
+     * 「코스피 0」이 화면에 나가고 이중화의 폴백도 돌지 않는다. 이름을 갈라 둔 것이 그 방지다.
+     */
+    private static BigDecimal amountForRanking(String value) {
+        return number(value, BigDecimal.ZERO);
+    }
+
+    /** 화면에 찍히는 값 — 못 구하면 {@link Price}가 던져 다음 출처로 넘어간다. */
+    private static Price price(String value, String what) {
+        return Price.require(number(value, null), "공공데이터포털 " + what);
+    }
+
+    private static BigDecimal number(String value, BigDecimal fallback) {
+        if (value == null || value.isBlank()) {
+            return fallback;
+        }
+        try {
+            return new BigDecimal(value.trim());
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
+    }
+}

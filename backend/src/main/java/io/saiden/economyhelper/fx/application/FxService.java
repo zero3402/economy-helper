@@ -1,0 +1,107 @@
+package io.saiden.economyhelper.fx.application;
+
+import io.saiden.economyhelper.fx.application.port.out.FxDailyBarClient;
+import io.saiden.economyhelper.fx.application.port.out.FxRateClient;
+import io.saiden.economyhelper.fx.domain.FxRate;
+import io.saiden.economyhelper.fx.domain.FxSource;
+import io.saiden.economyhelper.shared.domain.DailyBar;
+import io.saiden.economyhelper.shared.support.Failover;
+import io.saiden.economyhelper.shared.support.FailureReason;
+import java.util.List;
+import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+
+/**
+ * {@code fx/AGENTS.md}가 요구하는 환율 이중화 — <b>신선한 순서로 셋을 세운다.</b>
+ *
+ * <p>순서대로 시도하고 <b>처음 성공한 것</b>을 쓴다. <b>1순위(KIS)만 앱키를 쓰고</b> 받쳐 주는
+ * 둘은 <b>인증도 IP 제한도 없어</b>
+ * 로컬과 배포가 같은 구성으로 돈다 — 어느 쪽도 호출 IP를 등록하라고 요구하지 않는다.
+ * 출처가 유럽중앙은행과 한국 정부로 완전히 독립적이라 동시에 죽을 이유도 없다.
+ *
+ * <p><b>서킷브레이커는 출처별로 따로 있고</b> 각 클라이언트에 붙어 있다. 하나로 묶으면 1순위 장애가 폴백까지 끊어
+ * 이중화가 무의미해진다.
+ *
+ * <p>클라이언트 순서는 Spring이 주입하는 목록 순서가 아니라 <b>이 클래스가 정한다</b>.
+ * 빈 등록 순서에 이중화 순서가 딸려 가면 클래스 이름을 바꾸다 순서가 뒤집힐 수 있다.
+ */
+@Service
+public class FxService {
+
+    private static final Logger log = LoggerFactory.getLogger(FxService.class);
+
+    /**
+     * 시도 순서. 앞이 1순위다. <b>{@link FxSource}의 선언 순서와 같아야 한다</b> — 신선한 순서이고
+     * 근거는 각 상수의 javadoc에 있다.
+     *
+     * <p>매번 셋을 다 불러 가장 신선한 것을 고르지는 않는다. 그러면 이중화가 아니라 선택이 되고
+     * 요청마다 수출입은행 한도를 태운다. 폴백이 일어나면 화면이 출처와 날짜로 밝힌다.
+     */
+    private static final List<FxSource> ORDER =
+            List.of(FxSource.KIS, FxSource.FRANKFURTER, FxSource.KEXIM);
+
+    private final List<FxRateClient> clients;
+    private final FxDailyBarClient series;
+
+    /**
+     * @param series 일봉을 주는 출처 — <b>이중화되지 않는다.</b> 셋 중 유럽중앙은행만 시계열을
+     *               주고(수출입은행은 날짜당 호출 하나라 열나흘이면 열네 번, KIS는 이미 초당
+     *               간격을 지불한다), 그래서 SPI 목록이 아니라 그 하나({@code FrankfurterFxClient})를
+     *               좁은 포트로 든다 —
+     *               {@code StockService}가 이름 검색에 공공데이터포털을 직접 드는 것과 같은 자리다
+     */
+    public FxService(List<FxRateClient> clients, FxDailyBarClient series) {
+        this.clients = Failover.order(clients, ORDER, FxRateClient::source);
+        // 등록해 놓고 ORDER에 안 적으면 그 출처는 영영 안 불린다 — 컴파일도 테스트도
+        // 통과하므로 장애가 나기 전에는 아무도 모른다. 기동을 막지는 않는다:
+        // 설정 실수로 서비스가 안 뜨는 것보다 뜨고 나서 로그가 잡는 편이 낫다
+        Failover.unordered(clients, FxRateClient::source, ORDER).forEach(dropped ->
+                log.error("[fx] {} 클라이언트가 ORDER에 없어 영영 안 불립니다 — 이중화에서 빠졌습니다",
+                        dropped.source()));
+        this.series = series;
+    }
+
+    /**
+     * 차트용 일봉 — <b>실패를 삼키지 않는다.</b>
+     *
+     * <p>부르는 쪽(웹훅·브리핑)이 「차트만 빼고 보낸다」를 판단해야 하므로 여기서 던진다.
+     * 삼키면 클라이언트에 걸린 브레이커가 정상 반환을 보고 성공을 센다.
+     */
+    public List<DailyBar> dailyBars() {
+        return series.dailyBars();
+    }
+
+    /**
+     * @return 처음 성공한 출처의 환율. 전부 실패하면 {@link Optional#empty()} —
+     *         사용자에게는 "가져오지 못했다"로 나간다
+     */
+    public Optional<FxRate> usdToKrw() {
+        Optional<FxRate> found = Failover.first(clients, FxRateClient::usdToKrw,
+                // 다음 출처가 있으면 조용히 넘어간다. 이게 이중화가 하는 일이다
+                (client, e) -> log.warn("[fx] {} 조회 실패 — 다음 출처로 넘어갑니다: {}",
+                        client.source().displayName(), FailureReason.of(e)));
+        if (found.isEmpty()) {
+            log.error("[fx] 모든 출처에서 환율을 가져오지 못했습니다");
+        }
+        return found;
+    }
+
+    /**
+     * 환율을 못 구해도 <b>부르는 쪽은 계속 가야 한다.</b>
+     *
+     * <p>환율은 원화 환산과 김프에만 쓰인다 — 못 구했다고 시세나 브리핑을 통째로 막는 것은
+     * 과하다. 그래서 예외를 여기서 삼키고 {@code null}로 떨어뜨린다. 받는 쪽은 이미
+     * {@code null}이면 환산 줄을 빼도록 만들어져 있다({@code StockFormatter.convertible}).
+     *
+     * <p>브리핑과 웹훅이 이 한 자리를 쓴다 — 각자 받던 동안 웹훅 쪽 태그가 {@code [stock]}이라
+     * {@code /crypto} 요청의 실패까지 증시 실패로 기록됐다.
+     *
+     * <p>{@code catch}가 없는 것은 {@link #usdToKrw()}가 출처마다 예외를 삼키고 빈 {@code Optional}을
+     * 주기 때문이다. 전부 실패한 사실은 그쪽이 이미 남긴다.
+     */
+    public FxRate orNull() {
+        return usdToKrw().orElse(null);
+    }
+}

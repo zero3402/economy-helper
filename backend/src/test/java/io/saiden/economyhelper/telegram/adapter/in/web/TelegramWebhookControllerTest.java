@@ -1,0 +1,951 @@
+package io.saiden.economyhelper.telegram.adapter.in.web;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import io.saiden.economyhelper.crypto.adapter.out.binance.BinanceApi;
+import io.saiden.economyhelper.crypto.adapter.out.binance.BinanceBanGate;
+import io.saiden.economyhelper.crypto.adapter.out.llm.CryptoResolver;
+import io.saiden.economyhelper.crypto.adapter.out.upbit.UpbitApi;
+import io.saiden.economyhelper.crypto.application.CryptoService;
+import io.saiden.economyhelper.crypto.domain.CryptoQuote;
+import io.saiden.economyhelper.fx.application.FxService;
+import io.saiden.economyhelper.fx.domain.FxRate;
+import io.saiden.economyhelper.fx.domain.FxSource;
+import io.saiden.economyhelper.news.application.NewsFacade;
+import io.saiden.economyhelper.news.domain.NewsItem;
+import io.saiden.economyhelper.shared.domain.DailyBar;
+import io.saiden.economyhelper.shared.domain.Price;
+import io.saiden.economyhelper.stock.adapter.out.datago.DataGoStockClient;
+import io.saiden.economyhelper.stock.adapter.out.llm.StockResolver;
+import io.saiden.economyhelper.stock.application.StockListings;
+import io.saiden.economyhelper.stock.application.StockService.Answer;
+import io.saiden.economyhelper.stock.application.StockService;
+import io.saiden.economyhelper.stock.domain.StockOutlook;
+import io.saiden.economyhelper.stock.domain.StockQuote;
+import io.saiden.economyhelper.stock.domain.StockSource;
+import io.saiden.economyhelper.telegram.adapter.in.web.TelegramWebhookController.Chat;
+import io.saiden.economyhelper.telegram.adapter.in.web.TelegramWebhookController.Message;
+import io.saiden.economyhelper.telegram.adapter.in.web.TelegramWebhookController.Update;
+import io.saiden.economyhelper.telegram.adapter.out.TelegramClient;
+import io.saiden.economyhelper.telegram.presentation.WeatherFormatter;
+import io.saiden.economyhelper.testsupport.RecordingTelegram;
+import io.saiden.economyhelper.weather.application.WeatherFacade;
+import io.saiden.economyhelper.weather.domain.GeoLocation;
+import io.saiden.economyhelper.weather.domain.SkyCondition;
+import io.saiden.economyhelper.weather.domain.Weather;
+import io.saiden.economyhelper.weather.domain.WeatherSource;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.client.RestClient;
+
+/**
+ * 웹훅의 응답 규약과 분기를 고정한다.
+ *
+ * <p>가장 중요한 건 <b>어떤 경우에도 200을 준다</b>는 점이다 — 텔레그램은 비-200에
+ * 같은 업데이트를 계속 재전송한다.
+ */
+class TelegramWebhookControllerTest {
+
+    /** 업비트가 시각을 안 줄 때 CryptoService가 쓰는 시계 — 얼려 둔다. */
+    private static final java.time.Clock FIXED_CLOCK = java.time.Clock.fixed(
+            java.time.Instant.parse("2026-08-25T00:00:00Z"), java.time.ZoneOffset.UTC);
+
+    private static final Instant NOW = Instant.parse("2026-08-11T00:00:00Z");
+    /**
+     * 답을 같은 스레드에서 만든다.
+     *
+     * <p>운영에서는 가상 스레드로 옮겨 실어 텔레그램에 200을 먼저 준다(늦으면 같은 업데이트를
+     * 다시 보낸다). 여기서는 "보냈다"를 곧바로 단언해야 하므로 갈아 끼운다.
+     */
+    private static final java.util.concurrent.Executor SAME_THREAD = Runnable::run;
+
+    @Test
+    @DisplayName("못 찾은 코인은 찾지 못했다고 알린다 — 무응답이면 고장으로 보인다")
+    void tellsUserWhenCryptoNotFound() {
+        RecordingTelegram client = new RecordingTelegram();
+        var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
+
+        controller.onUpdate(null,update(1, "/crypto 없는코인zzz"));
+
+        assertThat(client.messages.get(0).text()).contains("찾지 못했습니다");
+    }
+
+    @Test
+    @DisplayName("그룹에서 다른 봇을 부른 명령에는 답하지 않는다 — 모르는 명령 안내도 없다")
+    void ignoresCommandsAddressedToAnotherBot() {
+        RecordingTelegram client = new RecordingTelegram();
+        var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()),
+                fx(Optional.empty()), stock(Optional.empty()), client);
+
+        controller.onUpdate(null, update(1, "/help@other_bot"));
+        controller.onUpdate(null, update(1, "/start@other_bot"));
+        assertThat(client.messages).isEmpty();
+
+        // 우리 이름은 대소문자를 가리지 않고 받는다
+        controller.onUpdate(null, update(1, "/help@Economy_Helper_Bot"));
+        assertThat(client.messages).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("/fx는 출처를 함께 알린다 — 폴백이 일어난 걸 숨기면 거짓말이 된다")
+    void routesFxCommandWithSource() {
+        RecordingTelegram client = new RecordingTelegram();
+        FxRate kexim = new FxRate("USD", "KRW", new Price(new BigDecimal("1415")), FxSource.KEXIM, NOW);
+        var controller = defaultController(
+                facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.of(kexim)),
+                stock(Optional.empty()), client);
+
+        controller.onUpdate(null,update(1, "/fx"));
+
+        assertThat(client.messages.get(0).text())
+                .contains("1,415").contains("수출입은행").contains("고시");
+    }
+
+    @Test
+    @DisplayName("두 출처가 다 죽으면 못 가져왔다고 알린다")
+    void tellsUserWhenFxUnavailable() {
+        RecordingTelegram client = new RecordingTelegram();
+        var controller = defaultController(
+                facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
+
+        controller.onUpdate(null,update(1, "/fx"));
+
+        assertThat(client.messages.get(0).text()).contains("환율을 가져오지 못했습니다");
+    }
+
+    @Test
+    @DisplayName("/stock은 기준일과 함께 답한다 — 전일 종가라 날짜를 숨기면 실시간으로 오해한다")
+    void routesStockCommandWithBasisDate() {
+        RecordingTelegram client = new RecordingTelegram();
+        StockQuote match = new StockQuote("삼성전자", new Price(new BigDecimal("239500")), null,
+                StockQuote.Money.KRW, StockQuote.Market.DOMESTIC, io.saiden.economyhelper.stock.domain.StockSource.DATA_GO,
+                java.time.LocalDate.of(2026, 8, 11)
+                        .atStartOfDay(java.time.ZoneId.of("Asia/Seoul")).toInstant(),
+                false);
+        var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()),
+                fx(Optional.empty()), stock(Optional.of(match)), client);
+
+        controller.onUpdate(null,update(1, "/stock 삼성"));
+
+        assertThat(client.messages.get(0).text())
+                .contains("삼성전자").contains("239,500 KRW")
+                .as("전일 종가라는 사실은 값의 성격이라 반드시 남긴다")
+                .contains("2026.08.11(화) (종가)")
+                .as("이름·값·시각 셋뿐이다 — 종목코드도 거래소도 적지 않는다")
+                .doesNotContain("005930").doesNotContain("KOSPI");
+    }
+
+    @Test
+    @DisplayName("국내 종목에는 환율을 아예 묻지 않는다 — 안 쓸 값에 KIS 호출과 간격을 쓰지 않는다")
+    void neverAsksForFxOnADomesticStock() {
+        // ⚠️ 국내는 Money.KRW라 StockFormatter.convertible()이 거짓이어서 환율을 안 쓴다.
+        //    부르면 fxService 1순위(KIS)가 KisThrottle.pace()를 타 찬 캐시에서 KIS 호출을 하나
+        //    더 태우고, 간격이 전역이라 그 1초가 주가 조회까지 늦춘다
+        CountingFx counting = new CountingFx();
+        StockQuote domestic = new StockQuote("삼성전자", new Price(new BigDecimal("239500")), null,
+                StockQuote.Money.KRW, StockQuote.Market.DOMESTIC,
+                io.saiden.economyhelper.stock.domain.StockSource.DATA_GO, NOW, false);
+
+        defaultController(facade(Optional.empty()), crypto(Optional.empty()),
+                counting, stock(Optional.of(domestic)), new RecordingTelegram())
+                .onUpdate(null, update(1, "/stock 삼성"));
+
+        assertThat(counting.calls).as("원화 종목에 환율을 물을 이유가 없다").isZero();
+    }
+
+    @Test
+    @DisplayName("미국 종목에는 한 번 묻는다 — 환산 줄이 그 값을 쓴다")
+    void asksForFxOnceOnAUsStock() {
+        CountingFx counting = new CountingFx();
+        StockQuote american = new StockQuote("애플", new Price(new BigDecimal("232.14")), null,
+                StockQuote.Money.USD, StockQuote.Market.US,
+                io.saiden.economyhelper.stock.domain.StockSource.KIS, NOW, true);
+
+        RecordingTelegram client = new RecordingTelegram();
+        defaultController(facade(Optional.empty()), crypto(Optional.empty()),
+                counting, stock(Optional.of(american)), client)
+                .onUpdate(null, update(1, "/stock 애플"));
+
+        assertThat(counting.calls).isEqualTo(1);
+        assertThat(client.messages.get(0).text())
+                .as("실제로 환산 줄이 나가야 한다 — 안 나가면 이 셈이 공허하다")
+                .contains("KRW");
+    }
+
+    @Test
+    @DisplayName("못 찾은 종목에도 어느 통의 답인지는 남는다")
+    void tellsUserWhenStockNotFound() {
+        RecordingTelegram client = new RecordingTelegram();
+        var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()),
+                fx(Optional.empty()), stock(Optional.empty()), client);
+
+        controller.onUpdate(null,update(1, "/stock AAPL"));
+
+        assertThat(client.messages.get(0).text())
+                .as("못 찾음 답도 제목에 검색어를 싣는다 — 여럿이 동시에 치면 어느 검색이 실패했는지 알아야 한다")
+                .startsWith("<b>증시</b>")
+                .contains("찾지 못했습니다");
+    }
+
+    // --- 검색 답의 차트 ---
+    //
+    // ⚠️ 누가 Reply.plain(text)로 한 줄 바꾸면 사진이 조용히 사라진다 — 페이크가 sendPhoto를
+    //    받아야 그것이 보인다.
+
+    @Test
+    @DisplayName("/fx 답에 차트가 따라간다 — 글이 먼저, 사진이 나중")
+    void sendsAChartWithTheFxAnswer() {
+        RecordingTelegram client = new RecordingTelegram();
+        FxRate rate = new FxRate("USD", "KRW", new Price(new BigDecimal("1412.17")), FxSource.KIS, NOW);
+        var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()),
+                fxWithSeries(rate, bars("1398.20", "1412.17")),
+                stock(Optional.empty()), client);
+
+        controller.onUpdate(null, update(1, "/fx"));
+
+        assertThat(client.captions).singleElement()
+                .as("그림에는 글자가 없다 — 낱말은 전부 caption에 있다")
+                .satisfies(caption -> assertThat(caption).startsWith("<b>환율</b>"));
+        assertThat(client.order)
+                .as("사진이 글보다 먼저 가면 무엇의 그림인지 알 수 없다")
+                .containsExactly("글", "사진");
+    }
+
+    @Test
+    @DisplayName("/stock 답에 차트가 따라간다 — 일봉 열쇠가 있는 답만")
+    void sendsAChartWithTheStockAnswer() {
+        RecordingTelegram client = new RecordingTelegram();
+        StockQuote match = new StockQuote("삼성전자", new Price(new BigDecimal("239500")), null,
+                StockQuote.Money.KRW, StockQuote.Market.DOMESTIC,
+                io.saiden.economyhelper.stock.domain.StockSource.KIS, NOW, true);
+        var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()),
+                fx(Optional.empty()),
+                stockWithSeries(match, bars("245000", "239500")), client);
+
+        controller.onUpdate(null, update(1, "/stock 삼성"));
+
+        assertThat(client.captions).singleElement()
+                .satisfies(caption -> assertThat(caption).startsWith("<b>삼성전자</b>")
+                        .as("종목의 통화가 caption 단위가 된다").contains("KRW"));
+        assertThat(client.order).containsExactly("글", "사진");
+    }
+
+    @Test
+    @DisplayName("일봉 조회가 첫 글을 늦추지 않는다 — 글과 겹쳐 돈다")
+    void neverLetsTheChartFetchDelayTheText() {
+        RecordingTelegram client = new RecordingTelegram();
+        AtomicBoolean textAlreadySentWhenAsked = new AtomicBoolean();
+        StockQuote match = new StockQuote("삼성전자", new Price(new BigDecimal("239500")), null,
+                StockQuote.Money.KRW, StockQuote.Market.DOMESTIC,
+                io.saiden.economyhelper.stock.domain.StockSource.KIS, NOW, true);
+        StockService stock = new StockService(List.of(), List.of(), new DataGoStockClient(null, null, null),
+                new StockListings(List::of), new StockResolver(null, null),
+                (code, fund) -> io.saiden.economyhelper.stock.domain.StockOutlook.NONE,
+                symbol -> io.saiden.economyhelper.stock.domain.StockOutlook.NONE, symbol -> null, null) {
+            @Override
+            public Optional<Answer> answer(String query) {
+                return Optional.of(new Answer(match, null, StockService.Series.domesticStock("005930")));
+            }
+
+            @Override
+            public List<DailyBar> dailyBarsOf(StockService.Series requested) {
+                // ⚠️ **방식이 아니라 성질을 본다** — 조회는 글 발송과 겹치므로 지켜야 할 것은
+                //    「조회가 첫 글을 늦추지 않는다」다.
+                //    그래서 여기서 글이 나갈 때까지 기다린다: 구현이 글을 이 조회 뒤로 미뤘다면
+                //    영영 안 나가고 이 기다림이 시간을 넘겨 단언이 깨진다
+                long deadline = System.nanoTime() + java.time.Duration.ofSeconds(5).toNanos();
+                while (client.order.isEmpty() && System.nanoTime() < deadline) {
+                    Thread.onSpinWait();
+                }
+                textAlreadySentWhenAsked.set(!client.order.isEmpty());
+                return bars("245000", "239500");
+            }
+        };
+        var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()),
+                fx(Optional.empty()), stock, client);
+
+        controller.onUpdate(null, update(1, "/stock 삼성"));
+
+        assertThat(textAlreadySentWhenAsked)
+                .as("일봉 조회가 첫 글을 기다리게 만들었다 — 겹쳐 돌지 않는다는 뜻이다").isTrue();
+        assertThat(client.order).containsExactly("글", "사진");
+    }
+
+    @Test
+    @DisplayName("이름으로만 찾은 종목에는 차트가 없다 — 일봉을 물을 열쇠가 손에 없다")
+    void omitsTheChartWhenThereIsNoSeriesKey() {
+        // 2순위(공공데이터포털)는 이름으로 찾고 종목코드를 돌려주지 않는다 → Answer.of(quote)라
+        // series가 null이다. 전망이 빠지는 것과 같은 이유로 차트도 빠진다
+        RecordingTelegram client = new RecordingTelegram();
+        StockQuote match = new StockQuote("삼성전자", new Price(new BigDecimal("239500")), null,
+                StockQuote.Money.KRW, StockQuote.Market.DOMESTIC,
+                io.saiden.economyhelper.stock.domain.StockSource.DATA_GO, NOW, false);
+        var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()),
+                fx(Optional.empty()), stock(Optional.of(match)), client);
+
+        controller.onUpdate(null, update(1, "/stock 삼성"));
+
+        assertThat(client.messages.get(0).text()).as("값은 그대로 나간다").contains("239,500 KRW");
+        assertThat(client.captions).as("차트만 빠진다 — 보충이지 폴백이 아니다").isEmpty();
+    }
+
+    @Test
+    @DisplayName("/crypto 답에 차트가 따라간다 — 업비트 마켓이 그 열쇠다")
+    void sendsAChartWithTheCryptoAnswer() {
+        RecordingTelegram client = new RecordingTelegram();
+        CryptoQuote btc = new CryptoQuote("비트코인", "KRW-BTC", NOW,
+                io.saiden.economyhelper.crypto.domain.CryptoQuote.Quote.of(
+                        new Price(new BigDecimal("89848000")), null),
+                io.saiden.economyhelper.crypto.domain.CryptoQuote.Quote.FAILED);
+        var controller = defaultController(facade(Optional.empty()),
+                cryptoWithSeries(btc, bars("92400000", "89848000")),
+                fx(Optional.empty()), stock(Optional.empty()), client);
+
+        controller.onUpdate(null, update(1, "/crypto 비트코인"));
+
+        assertThat(client.captions).singleElement()
+                .satisfies(caption -> assertThat(caption).startsWith("<b>비트코인</b>"));
+        assertThat(client.order).containsExactly("글", "사진");
+    }
+
+    @Test
+    @DisplayName("일봉 조회가 던져도 값은 나간다 — 차트는 보충이지 폴백이 아니다")
+    void stillAnswersWhenTheChartFails() {
+        RecordingTelegram client = new RecordingTelegram();
+        FxRate rate = new FxRate("USD", "KRW", new Price(new BigDecimal("1412.17")), FxSource.KIS, NOW);
+        var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()),
+                // series가 null이면 dailyBars()가 던진다 — 실제로 Frankfurter가 죽었을 때 그렇다.
+                // ⚠️ 환율 차트는 이중화가 없다: 시세는 KIS로 폴백하는데 일봉은 Frankfurter뿐이다
+                fxWithSeries(rate, null), stock(Optional.empty()), client);
+
+        controller.onUpdate(null, update(1, "/fx"));
+
+        assertThat(client.messages).hasSize(1);
+        assertThat(client.messages.get(0).text()).contains("1,412.17");
+        assertThat(client.captions).isEmpty();
+    }
+
+    @Test
+    @DisplayName("/news는 기사마다 통을 쪼갠다 — 브리핑과 같은 규칙이라 검색 답도 카드가 제 기사에 붙는다")
+    void repliesWithOneMessagePerArticle() {
+        RecordingTelegram client = new RecordingTelegram();
+        var controller = defaultController(
+                facade(List.of(item("첫 번째"), item("두 번째"), item("세 번째"))),
+                crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
+
+        controller.onUpdate(null, update(1, "/news 금리"));
+
+        assertThat(client.messages).hasSize(3);
+        assertThat(client.messages.get(0).text()).startsWith("<b>뉴스 1/3</b>")
+                .contains("첫 번째").doesNotContain("두 번째");
+        assertThat(client.messages.get(2).text()).startsWith("<b>뉴스 3/3</b>").contains("세 번째");
+        assertThat(client.messages).allSatisfy(sent -> assertThat(sent.preview())
+                .as("통마다 링크가 하나뿐이라 카드가 그 기사 것으로 확정된다")
+                .isTrue());
+        assertThat(client.messages).allSatisfy(sent -> assertThat(sent.replyTo())
+                .as("세 통 모두 같은 명령을 인용해야 한다 — 통이 쪼개질수록 답이 섞이기 쉽다")
+                .isEqualTo(MESSAGE_ID));
+    }
+
+    @Test
+    @DisplayName("검색어 없는 /news는 브리핑과 같은 목록을 준다 — 사용법 안내로 막지 않는다")
+    void bareNewsAnswersWithTheDigest() {
+        // 파서는 CommandParserTest가, 문구는 골든이 본다 — 여기서는 컨트롤러가 digest()를 부르는지 본다
+        RecordingTelegram client = new RecordingTelegram();
+        var controller = defaultController(
+                facade(List.of(item("검색 결과")),
+                        List.of(item("코인 1"), item("코인 2"), item("경제 1"))),
+                crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
+
+        controller.onUpdate(null, update(1, "/news"));
+
+        assertThat(client.messages).hasSize(3);
+        assertThat(client.messages.get(0).text()).startsWith("<b>뉴스 1/3</b>").contains("코인 1");
+        assertThat(client.messages.get(2).text()).contains("경제 1");
+        assertThat(client.messages).allSatisfy(sent -> assertThat(sent.text())
+                .as("검색을 부르면 안 된다")
+                .doesNotContain("검색 결과"));
+        assertThat(client.messages).allSatisfy(sent -> assertThat(sent.preview()).isTrue());
+    }
+
+    @Test
+    @DisplayName("줄임말도 같다 — /n 하나만 쳐도 브리핑 목록이 온다")
+    void bareShortNewsTokenAnswersWithTheDigest() {
+        RecordingTelegram client = new RecordingTelegram();
+        var controller = defaultController(
+                facade(List.of(), List.of(item("코인 1"))),
+                crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
+
+        controller.onUpdate(null, update(1, "/n"));
+
+        assertThat(client.messages).singleElement()
+                .satisfies(sent -> assertThat(sent.text()).contains("코인 1"));
+    }
+
+    @Test
+    @DisplayName("검색어 없는 /news가 빈손이면 브리핑과 같은 문구를 쓴다 — 못 찾은 대상이 없다")
+    void bareNewsWithNothingToShowUsesTheDigestWording() {
+        // "''에 해당하는 최근 24시간 뉴스를 찾지 못했습니다"는 검색어가 없는 자리에서
+        // 빈 인용부호만 남는 거짓말이 된다
+        RecordingTelegram client = new RecordingTelegram();
+        var controller = defaultController(facade(List.of(), List.of()),
+                crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
+
+        controller.onUpdate(null, update(1, "/news"));
+
+        assertThat(client.messages).singleElement().satisfies(sent -> {
+            assertThat(sent.text()).contains("가져올 수 있는 값이 없습니다");
+            assertThat(sent.text()).doesNotContain("찾지 못했습니다");
+        });
+    }
+
+    @Test
+    @DisplayName("답은 물어본 명령에 답글로 단다 — 여럿이 동시에 검색하면 누구 답인지 알 수 없다")
+    void repliesToTheAskingCommand() {
+        RecordingTelegram client = new RecordingTelegram();
+        var controller = defaultController(facade(List.of()), crypto(Optional.empty()),
+                fx(Optional.empty()), stock(Optional.empty()), client);
+
+        controller.onUpdate(null, update(1, "/fx"));
+
+        assertThat(client.messages.get(0).replyTo()).isEqualTo(MESSAGE_ID);
+    }
+
+    @Test
+    @DisplayName("한 건도 못 찾으면 찾지 못했다고 답한다 — 빈 목록을 통으로 내보내지 않는다")
+    void tellsUserWhenNoArticleMatches() {
+        RecordingTelegram client = new RecordingTelegram();
+        var controller = defaultController(facade(List.<NewsItem>of()), crypto(Optional.empty()),
+                fx(Optional.empty()), stock(Optional.empty()), client);
+
+        controller.onUpdate(null, update(1, "/news 없는주제zzz"));
+
+        assertThat(client.messages.get(0).text()).contains("찾지 못했습니다");
+    }
+
+    @Test
+    @DisplayName("/help는 명령 목록을 준다")
+    void repliesToHelp() {
+        RecordingTelegram client = new RecordingTelegram();
+        var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
+
+        controller.onUpdate(null,update(1, "/help"));
+
+        assertThat(client.messages.get(0).text()).contains("/news").contains("/stock").contains("/crypto");
+    }
+
+    @Test
+    @DisplayName("인자가 필요한 명령마다 그 명령의 사용법을 준다")
+    void repliesWithPerCommandUsage() {
+        RecordingTelegram client = new RecordingTelegram();
+        var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
+
+        controller.onUpdate(null,update(1, "/stock"));
+        controller.onUpdate(null,update(1, "/crypto"));
+
+        assertThat(client.messages.get(0).text()).contains("/stock 삼성전자");
+        assertThat(client.messages.get(1).text()).contains("/crypto 비트코인");
+    }
+
+    @Test
+    @DisplayName("처리 중 예외가 나도 200 — 텔레그램의 재시도 폭풍을 막는다")
+    void alwaysReturnsOkEvenOnFailure() {
+        NewsFacade exploding = new NewsFacade(null, null, null) {
+            @Override
+            public List<NewsItem> search(String query) {
+                throw new IllegalStateException("수집 전체 실패");
+            }
+        };
+        var controller =
+                defaultController(exploding, crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), new RecordingTelegram());
+
+        var response = controller.onUpdate(null,update(1, "/news 금리"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
+    @DisplayName("message가 없는 업데이트(채널 글 등)도 200으로 넘긴다")
+    void toleratesUpdatesWithoutMessage() {
+        var controller = defaultController(
+                facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), new RecordingTelegram());
+
+        assertThat(controller.onUpdate(null,new Update(null)).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(controller.onUpdate(null,null).getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
+    // --- secret_token: 우리 주소로 직접 쏘는 사칭을 막는다 ---
+
+    @Test
+    @DisplayName("secret이 맞으면 지금까지와 똑같이 동작한다 — 진짜 텔레그램 요청을 막으면 안 된다")
+    void servesRequestsCarryingTheRegisteredSecret() {
+        RecordingTelegram client = new RecordingTelegram();
+        var controller = guarded("s3cr3t", "", client);
+
+        var response = controller.onUpdate("s3cr3t", update(777, "/news 유가"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(client.messages).hasSize(1);
+        assertThat(client.messages.get(0).text()).contains("유가 상승");
+    }
+
+    @Test
+    @DisplayName("secret이 다르면 403이고 아무것도 하지 않는다 — 200으로 삼키면 사칭이 조용히 성공한다")
+    void rejectsRequestsWithWrongSecret() {
+        RecordingTelegram client = new RecordingTelegram();
+        var controller = guarded("s3cr3t", "", client);
+
+        var response = controller.onUpdate("틀린값", update(777, "/news 유가"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(client.messages).as("사이드이펙트가 하나도 없어야 한다").isEmpty();
+    }
+
+    @Test
+    @DisplayName("헤더가 아예 없으면 거절한다 — 누락이 통과하면 방어가 없는 것과 같다")
+    void rejectsRequestsWithoutSecretHeader() {
+        RecordingTelegram client = new RecordingTelegram();
+        var controller = guarded("s3cr3t", "", client);
+
+        assertThat(controller.onUpdate(null, update(777, "/news 유가")).getStatusCode())
+                .isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(client.messages).isEmpty();
+    }
+
+    @Test
+    @DisplayName("secret을 설정하지 않으면 검증하지 않는다 — 로컬 실행과 CI가 설정 없이 돌아야 한다")
+    void skipsVerificationWhenSecretUnset() {
+        RecordingTelegram client = new RecordingTelegram();
+        var controller = guarded("", "", client);
+
+        assertThat(controller.onUpdate(null, update(777, "/news 유가")).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+        assertThat(client.messages).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("앞뒤 공백은 다듬는다 — 대시보드에 붙여 넣은 값의 줄바꿈 하나로 전부 403이 되면 안 된다")
+    void trimsConfiguredValues() {
+        RecordingTelegram client = new RecordingTelegram();
+        var controller = guarded("  s3cr3t\n", " 777 ", client);
+
+        assertThat(controller.onUpdate("s3cr3t", update(777, "/news 유가")).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+        assertThat(client.messages).hasSize(1);
+    }
+
+    // --- chat_id 허용: 봇을 찾은 제3자를 막는다 (secret은 통과한다) ---
+
+    @Test
+    @DisplayName("허용된 채팅방의 명령은 처리한다")
+    void servesTheAllowedChat() {
+        RecordingTelegram client = new RecordingTelegram();
+        var controller = guarded("", "777", client);
+
+        controller.onUpdate(null, update(777, "/news 유가"));
+
+        assertThat(client.messages).hasSize(1);
+        assertThat(client.messages.get(0).chatId()).isEqualTo("777");
+    }
+
+    @Test
+    @DisplayName("다른 채팅방은 무시한다 — 답하면 봇의 존재를 확인해 주고 FMP 한도를 남이 쓴다")
+    void ignoresOtherChats() {
+        RecordingTelegram client = new RecordingTelegram();
+        var controller = guarded("", "777", client);
+
+        var response = controller.onUpdate(null, update(999, "/news 유가"));
+
+        assertThat(response.getStatusCode())
+                .as("무응답이지 오류가 아니다 — 비-200이면 텔레그램이 계속 재전송한다")
+                .isEqualTo(HttpStatus.OK);
+        assertThat(client.messages).isEmpty();
+    }
+
+    // --- 포럼 토픽: 명령은 Search 토픽에서만 받고 그 토픽으로 답한다 ---
+
+    @Test
+    @DisplayName("지정한 토픽의 명령은 처리하고 그 토픽으로 답한다 — 다른 토픽에 답이 뜨면 대화가 어긋난다")
+    void servesTheSearchTopicAndRepliesIntoIt() {
+        RecordingTelegram client = new RecordingTelegram();
+        var controller = guarded("", "777", "42", client);
+
+        controller.onUpdate(null, update(777, 42, "/news 유가"));
+
+        assertThat(client.messages).hasSize(1);
+        assertThat(client.messages.get(0).topicId()).as("물어본 토픽으로 되돌아가야 한다").isEqualTo(42);
+        assertThat(client.messages.get(0).text()).contains("유가 상승");
+    }
+
+    @Test
+    @DisplayName("다른 토픽의 명령은 무시한다 — Notice 토픽은 브리핑만 받는 곳이다")
+    void ignoresCommandsFromOtherTopics() {
+        RecordingTelegram client = new RecordingTelegram();
+        var controller = guarded("", "777", "42", client);
+
+        var response = controller.onUpdate(null, update(777, 9, "/news 유가"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(client.messages).isEmpty();
+    }
+
+    @Test
+    @DisplayName("General 토픽은 message_thread_id가 아예 없어 자연히 걸러진다")
+    void ignoresCommandsFromTheGeneralTopic() {
+        RecordingTelegram client = new RecordingTelegram();
+        var controller = guarded("", "777", "42", client);
+
+        controller.onUpdate(null, update(777, null, "/news 유가"));
+
+        assertThat(client.messages).isEmpty();
+    }
+
+    @Test
+    @DisplayName("토픽을 지정하지 않으면 검사하지 않는다 — 번호를 잘못 넣어 봇이 막혀도 비우면 되살아난다")
+    void acceptsAnyTopicWhenSearchTopicUnset() {
+        RecordingTelegram client = new RecordingTelegram();
+        var controller = guarded("", "777", "", client);
+
+        controller.onUpdate(null, update(777, 9, "/news 유가"));
+        controller.onUpdate(null, update(777, null, "/news 유가"));
+
+        assertThat(client.messages).hasSize(2);
+        assertThat(client.messages.get(0).topicId()).as("들어온 토픽은 그대로 되돌려준다").isEqualTo(9);
+        assertThat(client.messages.get(1).topicId()).isNull();
+    }
+
+    @Test
+    @DisplayName("사용법·모르는 명령 안내도 물어본 토픽으로 간다")
+    void sendsGuidanceIntoTheAskingTopic() {
+        RecordingTelegram client = new RecordingTelegram();
+        var controller = guarded("", "777", "42", client);
+
+        controller.onUpdate(null, update(777, 42, "/stock"));
+        controller.onUpdate(null, update(777, 42, "/exchange"));
+
+        assertThat(client.messages).hasSize(2);
+        assertThat(client.messages).allSatisfy(s -> assertThat(s.topicId()).isEqualTo(42));
+    }
+
+    @Test
+    @DisplayName("/weather는 여섯 갈래가 모두 굵은 제목으로 답한다 — 맨몸 문장이 튀어나오면 안 된다")
+    void answersEveryWeatherReason() {
+        // 여섯 갈래(weatherNeedsPlace·weatherUnreadableDate·weatherTooFarAhead·weatherUnavailable …)를
+        // 다 밟는다
+        for (WeatherFacade.Lookup.Reason reason : WeatherFacade.Lookup.Reason.values()) {
+            RecordingTelegram client = new RecordingTelegram();
+            new TelegramWebhookController(facade(Optional.empty()), crypto(Optional.empty()),
+                    fx(Optional.empty()), stock(Optional.empty()), weather(reason), client,
+                    SAME_THREAD, "", "", "")
+                    .onUpdate(null, update(1, "/weather 성남"));
+
+            assertThat(client.messages).as("%s에도 답이 나간다", reason).hasSize(1);
+            assertThat(client.messages.get(0).text())
+                    .as("%s 답이 통 제목으로 시작한다", reason)
+                    .startsWith("<b>날씨</b>")
+                    .as("%s 답에 검색어가 제목에 붙지 않는다 — 답글 인용이 이미 보여 준다", reason)
+                    .doesNotContain("<b>날씨 '");
+        }
+    }
+
+    @Test
+    @DisplayName("지역을 안 적은 것과 적었는데 못 찾은 것은 다르게 답한다 — 사용자가 할 일이 다르다")
+    void distinguishesMissingPlaceFromUnknownPlace() {
+        assertThat(WeatherFormatter.needsPlace())
+                .as("무엇을 적어야 하는지 알려 준다")
+                .contains("어느 지역");
+        assertThat(WeatherFormatter.notFound("없는지역"))
+                .as("적은 것이 무엇이었는지 되짚어 준다")
+                .contains("'없는지역'");
+        assertThat(WeatherFormatter.needsPlace())
+                .isNotEqualTo(WeatherFormatter.notFound("없는지역"));
+    }
+
+    @Test
+    @DisplayName("답 만들기가 던져도 사용자에게 안내가 나간다 — 200을 이미 줬으므로 재시도가 없다")
+    void answersEvenWhenBuildingTheReplyThrows() {
+        RecordingTelegram client = new RecordingTelegram();
+        NewsFacade exploding = new NewsFacade(null, null, null) {
+            @Override
+            public List<NewsItem> search(String query) {
+                // Redis 장애로 캐시 계층이 던지거나 브레이커가 열린 상황을 흉내 낸다
+                throw new IllegalStateException("Redis 연결 실패");
+            }
+        };
+
+        new TelegramWebhookController(exploding, crypto(Optional.empty()), fx(Optional.empty()),
+                stock(Optional.empty()), weather(), client, SAME_THREAD, "", "", "")
+                .onUpdate(null, update(1, "/news 금리"));
+
+        assertThat(client.messages).as("침묵하면 사용자에게는 봇이 죽은 것과 구분되지 않는다").hasSize(1);
+        assertThat(client.messages.get(0).text())
+                .startsWith("<b>뉴스</b>")
+                .contains("잠시 후 다시");
+    }
+
+    @Test
+    @DisplayName("여러 통 중 하나가 실패해도 나머지는 나간다 — 예전에는 2번에서 끊기면 3번이 사라졌다")
+    void keepsSendingTheRestWhenOnePartFails() {
+        RecordingTelegram client = new RecordingTelegram("2/3");
+
+        defaultController(facade(List.of(news("첫째"), news("둘째"), news("셋째"))),
+                crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client)
+                .onUpdate(null, update(1, "/news 금리"));
+
+        assertThat(client.messages).as("1번과 3번은 나가야 한다").hasSize(2);
+        assertThat(client.messages.get(1).text()).contains("3/3");
+    }
+
+    private static NewsItem news(String title) {
+        return new NewsItem("CNBC", title, "본문.", "https://example.com/" + title,
+                java.time.Instant.parse("2026-08-11T00:00:00Z"), true);
+    }
+
+    /** secret·허용 채팅을 설정하지 않은 컨트롤러. 나머지 테스트는 라우팅만 보므로 이쪽을 쓴다. */
+    private static TelegramWebhookController defaultController(NewsFacade newsFacade,
+                                                               CryptoService cryptoService,
+                                                               FxService fxService,
+                                                               StockService stockService,
+                                                               TelegramClient telegramClient) {
+        return new TelegramWebhookController(
+                newsFacade, cryptoService, fxService, stockService, weather(), telegramClient,
+                SAME_THREAD, "", "", "");
+    }
+
+    /**
+     * 날씨는 이 테스트가 보는 대상이 아니다 — 라우팅만 확인하므로 늘 못 찾음으로 둔다.
+     * 실제 조회 경로는 {@code WeatherFacade}·{@code WeatherService} 쪽에서 따로 본다.
+     */
+    private static WeatherFacade weather() {
+        return weather(WeatherFacade.Lookup.Reason.NOT_FOUND);
+    }
+
+    /** 이유를 받는다 — 여섯 갈래를 다 밟아 보려면 스텁이 그것을 정할 수 있어야 한다. */
+    private static WeatherFacade weather(WeatherFacade.Lookup.Reason reason) {
+        return new WeatherFacade(null, null, null) {
+            @Override
+            public Lookup search(String query) {
+                return new Lookup(
+                        reason == WeatherFacade.Lookup.Reason.FOUND ? List.of(seongnam()) : List.of(),
+                        reason);
+            }
+        };
+    }
+
+    private static io.saiden.economyhelper.weather.domain.Weather seongnam() {
+        return new io.saiden.economyhelper.weather.domain.Weather(
+                new io.saiden.economyhelper.weather.domain.GeoLocation(
+                        "성남시", "대한민국", 37.42, 127.13, java.time.ZoneId.of("Asia/Seoul")),
+                List.of(io.saiden.economyhelper.weather.domain.Weather.Daily.withChance(
+                        java.time.LocalDate.of(2026, 8, 18),
+                        io.saiden.economyhelper.weather.domain.SkyCondition.CLEAR,
+                        new BigDecimal("21.4"), new BigDecimal("30.2"), 10)),
+                io.saiden.economyhelper.weather.domain.WeatherSource.ACCU_WEATHER);
+    }
+
+    /** 방어를 켠 컨트롤러. {@code /news 유가}가 항상 결과를 내도록 고정해 둔다. */
+    private static TelegramWebhookController guarded(String secret, String allowedChatId, TelegramClient client) {
+        return guarded(secret, allowedChatId, "", client);
+    }
+
+    private static TelegramWebhookController guarded(
+            String secret, String allowedChatId, String searchTopicId, TelegramClient client) {
+        return new TelegramWebhookController(
+                facade(Optional.of(item("유가 상승"))), crypto(Optional.empty()), fx(Optional.empty()),
+                stock(Optional.empty()), weather(), client, SAME_THREAD, secret, allowedChatId,
+                searchTopicId);
+    }
+
+    /** 토픽 없는 메시지 — 포럼이 아닌 방과 General 토픽이 이 모양이다. */
+    private static Update update(long chatId, String text) {
+        return update(chatId, null, text);
+    }
+
+    /** 명령 메시지 번호 — 답이 여기에 답글로 달려야 한다. */
+    private static final int MESSAGE_ID = 4821;
+
+    private static Update update(long chatId, Integer topicId, String text) {
+        return new Update(new Message(new Chat(chatId), text, MESSAGE_ID, topicId));
+    }
+
+    private static NewsItem item(String title) {
+        return new NewsItem("CNBC", title, "본문", "https://example.com/a", NOW, true);
+    }
+
+
+    /** 해석 규칙은 {@code StockServiceTest}가 본다. 여기서는 라우팅만 본다. */
+    private static StockService stock(Optional<StockQuote> result) {
+        return new StockService(List.of(), List.of(), new DataGoStockClient(null, null, null), new StockListings(List::of),
+                new StockResolver(null, null), (code, fund) -> io.saiden.economyhelper.stock.domain.StockOutlook.NONE, symbol -> io.saiden.economyhelper.stock.domain.StockOutlook.NONE, symbol -> null, null) {
+            // ⚠️ quote가 아니라 answer를 덮는다 — 컨트롤러가 부르는 것이 answer라 quote를 덮으면
+            //    페이크가 가로채지 못한다
+            @Override
+            public Optional<Answer> answer(String query) {
+                return result.map(Answer::of);
+            }
+        };
+    }
+
+    /**
+     * 환율을 몇 번 물었는지 센다 — 안 쓸 값을 부르지 않는지 보는 자리.
+     *
+     * <p>이중화 규칙은 {@code FxServiceTest}가 본다. 여기서는 라우팅만 본다.
+     */
+    private static final class CountingFx extends FxService {
+        private int calls;
+
+        private CountingFx() {
+            super(List.of(), null);
+        }
+
+        @Override
+        public Optional<FxRate> usdToKrw() {
+            calls++;
+            return Optional.of(new FxRate("USD", "KRW", new Price(new BigDecimal("1412.17")),
+                    io.saiden.economyhelper.fx.domain.FxSource.KIS, NOW));
+        }
+    }
+
+    private static FxService fx(Optional<FxRate> result) {
+        return new FxService(List.of(), null) {
+            @Override
+            public Optional<FxRate> usdToKrw() {
+                return result;
+            }
+        };
+    }
+
+    /**
+     * 그릴 수 있는 최소 일봉 — {@code DailySeries.drawable}이 <b>둘 이상</b>을 요구한다
+     * (점 하나로는 선이 없다).
+     */
+    private static List<DailyBar> bars(String... closes) {
+        List<DailyBar> series = new ArrayList<>();
+        java.time.LocalDate day = java.time.LocalDate.of(2026, 8, 10);
+        for (String close : closes) {
+            series.add(new DailyBar(day, new BigDecimal(close)));
+            day = day.plusDays(1);
+        }
+        return series;
+    }
+
+    /**
+     * 일봉까지 주는 환율 페이크.
+     *
+     * <p>⚠️ <b>{@link #fx}로는 차트를 볼 수 없다.</b> 그쪽은 {@code series}에 {@code null}을
+     * 넘겨 만들어져서 {@code dailyBars()}가 NPE를 내고, 그 NPE는 {@code chartOf}가 삼킨다 —
+     * 테스트는 초록인데 사진은 한 장도 안 나가는 상태가 된다.
+     *
+     * @param series {@code null}이면 일봉 조회가 <b>던진다</b> — 「차트만 빠진다」를 시험하는 데 쓴다
+     */
+    private static FxService fxWithSeries(FxRate rate, List<DailyBar> series) {
+        return new FxService(List.of(), null) {
+            @Override
+            public Optional<FxRate> usdToKrw() {
+                return Optional.of(rate);
+            }
+
+            @Override
+            public List<DailyBar> dailyBars() {
+                if (series == null) {
+                    throw new IllegalStateException("Frankfurter 시계열 응답이 비어 있습니다");
+                }
+                return series;
+            }
+        };
+    }
+
+    /** 일봉까지 주는 종목 페이크 — {@code Series}가 있어야 차트가 붙는다. */
+    private static StockService stockWithSeries(StockQuote quote, List<DailyBar> series) {
+        return new StockService(List.of(), List.of(), new DataGoStockClient(null, null, null), new StockListings(List::of),
+                new StockResolver(null, null), (code, fund) -> io.saiden.economyhelper.stock.domain.StockOutlook.NONE,
+                symbol -> io.saiden.economyhelper.stock.domain.StockOutlook.NONE, symbol -> null, null) {
+            @Override
+            public Optional<Answer> answer(String query) {
+                return Optional.of(new Answer(quote, null,
+                        StockService.Series.domesticStock("005930")));
+            }
+
+            @Override
+            public List<DailyBar> dailyBarsOf(StockService.Series requested) {
+                return series;
+            }
+        };
+    }
+
+    /** 일봉까지 주는 코인 페이크. */
+    private static CryptoService cryptoWithSeries(CryptoQuote quote, List<DailyBar> series) {
+        return new CryptoService(new UpbitApi(RestClient.builder(), "https://example.invalid"),
+                new io.saiden.economyhelper.crypto.adapter.out.binance.BinanceApi(
+                        RestClient.builder(),
+                        new io.saiden.economyhelper.crypto.adapter.out.binance.BinanceBanGate(
+                                null, java.time.Clock.systemUTC()),
+                        "https://example.invalid", ""),
+                new io.saiden.economyhelper.crypto.adapter.out.llm.CryptoResolver(null, null), FIXED_CLOCK) {
+            @Override
+            public Optional<CryptoQuote> quote(String query) {
+                return Optional.of(quote);
+            }
+
+            @Override
+            public List<DailyBar> dailyBars(String market) {
+                return series;
+            }
+        };
+    }
+
+    /** 해석 규칙은 {@code CryptoServiceTest}가 본다. 여기서는 라우팅만 본다. */
+    private static CryptoService crypto(Optional<CryptoQuote> result) {
+        return new CryptoService(new UpbitApi(RestClient.builder(), "https://example.invalid"),
+                new io.saiden.economyhelper.crypto.adapter.out.binance.BinanceApi(
+                        RestClient.builder(),
+                        new io.saiden.economyhelper.crypto.adapter.out.binance.BinanceBanGate(null, java.time.Clock.systemUTC()),
+                        "https://example.invalid", ""),
+                new io.saiden.economyhelper.crypto.adapter.out.llm.CryptoResolver(null, null), FIXED_CLOCK) {
+            @Override
+            public Optional<CryptoQuote> quote(String query) {
+                return result;
+            }
+        };
+    }
+
+    private static NewsFacade facade(Optional<NewsItem> result) {
+        return facade(result.map(List::of).orElseGet(List::of));
+    }
+
+    private static NewsFacade facade(List<NewsItem> results) {
+        return facade(results, List.of());
+    }
+
+    /**
+     * 검색 답과 <b>검색어 없는 답</b>을 따로 준다 — 컨트롤러가 갈래를 고르는지 보려면
+     * 두 경로가 서로 다른 값을 돌려줘야 한다. 같은 목록을 주면 어느 쪽을 불렀는지 알 수 없다.
+     */
+    private static NewsFacade facade(List<NewsItem> searchResults, List<NewsItem> digestResults) {
+        return new NewsFacade(null, null, null) {
+            @Override
+            public List<NewsItem> search(String query) {
+                return searchResults;
+            }
+
+            @Override
+            public List<NewsItem> digest() {
+                return digestResults;
+            }
+
+            /** 못 찾음 안내가 "최근 몇 시간"을 말하려면 이 값이 필요하다 — 운영 기본값과 같게 둔다. */
+            @Override
+            public java.time.Duration window() {
+                return java.time.Duration.ofHours(24);
+            }
+        };
+    }
+
+}

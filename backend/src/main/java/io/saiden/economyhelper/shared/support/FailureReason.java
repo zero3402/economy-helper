@@ -1,0 +1,119 @@
+package io.saiden.economyhelper.shared.support;
+
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
+import io.github.resilience4j.ratelimiter.RequestNotPermitted;
+import java.io.IOException;
+import java.net.SocketTimeoutException;
+import java.net.http.HttpTimeoutException;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestClientResponseException;
+
+/**
+ * 실패 하나를 <b>사람이 읽을 한 줄</b>로 — 그리고 그 줄이 다음 사람의 진단 순서를 정한다.
+ *
+ * <p><b>왜 필요했나.</b> {@code /crypto 이더}에서 바이낸스 칸이 빠졌는데 화면에는
+ * {@code 조회 실패} 넉 자, 로그에는 {@code e.toString()} 한 줄뿐이었다. 그 상태로는 넷을
+ * 가릴 수 없다 — 상대가 죽었나, <b>우리 브레이커가 열렸나</b>, <b>우리 리미터가 거절했나</b>,
+ * <b>지역 차단인가</b>. 앞의 셋은 잠시 뒤 낫고 마지막은 영영 안 낫는데, 사용자에게 할 말이
+ * 정반대다.
+ *
+ * <p>특히 <b>451을 따로 알아본다.</b> 바이낸스는 미국 IP를 차단하고
+ * ({@code BinanceApi} javadoc: "리전을 옮기면 가장 먼저 깨질 연동"), 그때는 재시도도
+ * 이중화도 답이 아니다 — <b>리전을 옮기는 것만</b>이 답이라 로그가 그렇게 말해야 한다.
+ *
+ * <p><b>우리 장치가 거절한 것을 상대 장애로 적지 않는다.</b> {@code RequestNotPermitted}는
+ * 우리 리미터이고 {@code CallNotPermittedException}은 우리 브레이커다. 이걸 "상대가 죽었다"로
+ * 읽으면 멀쩡한 상대를 의심하며 시간을 버린다 — 브레이커 설정이 이 둘을 실패로 세지 않는 것과
+ * 같은 판단이다.
+ *
+ * <p><b>어디에 쓰고 어디에 안 쓰는지가 규칙이다.</b> 이것은 <b>외부 호출</b> 실패를 분류한다 —
+ * 상대가 죽었는지 우리가 끊었는지를 가르는 것이 전부이기 때문이다. 그래서 Redis 접근 실패
+ * ({@code KisTokenStore}·{@code KisExchangeCache}·{@code FmpQuotaGuard}·{@code DigestSlot})와
+ * 내부 조립 실패({@code TelegramWebhookController}의 답 만들기)에는 <b>쓰지 않는다</b> —
+ * 거기서는 브레이커도 리미터도 451도 나올 수 없어 예외 이름이 이미 그 자체로 답이고,
+ * 굳이 통과시키면 "분류했다"는 인상만 남는다. 로그가 곳곳에서 다른 모양인 것이 아니라
+ * <b>다른 종류의 실패라서 다른 것</b>이다.
+ *
+ * <p>⚠️ <b>가르는 기준은 「그 그물이 어디 쳐졌나」가 아니라 「거기 닿을 수 있는 것이
+ * 무엇인가」다 — 그래서 서비스의 바깥 그물 셋이 서로 다르고, 그것이 맞다.</b>
+ * {@code WeatherFacade}에는 지오코딩이 삼켜지지 않고 닿으므로 이것을 쓴다.
+ * {@code CryptoService}에는 안 닿는다 — 업비트 실패를 {@code upbitSide}·{@code byUpbitName}이
+ * 그 자리에서 잡아 값으로 바꾸므로(거기서 이것을 쓴다) 바깥에 남는 것은 Redis와 내부 조립뿐이고,
+ * 그래서 거기는 {@code e.toString()}이다. <b>「셋이 갈렸으니 맞추자」로 통일하면 안 된다.</b>
+ *
+ * <p>절대 던지지 않는다. {@code catch} 안에서 불리는 자리라 그렇다
+ * ({@code KisHeaders.reasonOf}와 같은 규칙).
+ */
+public final class FailureReason {
+
+    private FailureReason() {
+    }
+
+    /** 지역 차단. 재시도·이중화로 못 고친다 — 리전을 옮겨야 한다. */
+    private static final int UNAVAILABLE_FOR_LEGAL_REASONS = 451;
+
+    /**
+     * <b>바이낸스가 IP를 자동 밴했다.</b> 429를 받고도 계속 부른 결과이고, 밴은 2분에서 3일까지
+     * 늘어난다 — <b>계속 부르면 길어진다</b>는 것이 규칙의 일부다. 그래서 이 코드는 "물러서라"는
+     * 뜻이고, 브레이커가 열려 호출이 멈추는 것이 옳은 대응이다.
+     */
+    private static final int IP_BANNED = 418;
+
+    /** 밴 직전 경고. 여기서 물러서지 않으면 {@link #IP_BANNED}가 된다. */
+    private static final int TOO_MANY_REQUESTS = 429;
+
+    /**
+     * @return {@code 지역 차단(451)}·{@code 브레이커 열림}처럼 짧은 이유. 모르면 예외 이름
+     */
+    public static String of(Throwable e) {
+        return of(e, 3);
+    }
+
+    /**
+     * @param depth 원인을 몇 겹까지 벗길지. <b>순환하는 원인 사슬에서 멈추기 위한 것</b>이다 —
+     *              {@code initCause}가 자기 참조는 막지만 A→B→A는 막지 않는다. 이 메서드는
+     *              {@code catch} 안에서 불리므로 스택오버플로도 던지는 것과 같다
+     */
+    private static String of(Throwable e, int depth) {
+        if (e == null) {
+            return "알 수 없음";
+        }
+        if (e instanceof CallNotPermittedException) {
+            // 우리가 스스로 끊은 것이다. 상대를 의심하기 전에 왜 열렸는지를 봐야 한다
+            return "브레이커 열림 — 앞선 실패가 쌓여 우리가 끊었습니다";
+        }
+        if (e instanceof RequestNotPermitted) {
+            return "리미터 거절 — 우리 스로틀입니다, 상대 장애가 아닙니다";
+        }
+        if (e instanceof RestClientResponseException failure) {
+            int status = failure.getStatusCode().value();
+            if (status == IP_BANNED) {
+                return "HTTP 418 IP 자동 밴 — 429를 받고도 계속 불러서 막힌 것입니다. "
+                        + "계속 부르면 밴이 길어집니다(2분~3일). 물러서야 풀립니다";
+            }
+            if (status == TOO_MANY_REQUESTS) {
+                return "HTTP 429 한도 초과 — 여기서 더 부르면 418(IP 밴)로 굳습니다";
+            }
+            if (status == UNAVAILABLE_FOR_LEGAL_REASONS) {
+                // 처방은 출처마다 다르다 — 바이낸스는 공개 미러로 우회하고(BinanceApi),
+                // 그런 우회로가 없는 곳은 리전을 옮기는 수밖에 없다. 그래서 여기서는
+                // "무엇인지"만 말하고 "어떻게 하라"는 부르는 쪽에 맡긴다
+                return "HTTP 451 지역 차단 — 이 IP가 막힌 것이라 재시도로는 안 낫습니다";
+            }
+            return "HTTP " + status;
+        }
+        if (e instanceof ResourceAccessException access) {
+            Throwable cause = access.getCause();
+            if (cause instanceof HttpTimeoutException || cause instanceof SocketTimeoutException) {
+                return "타임아웃";
+            }
+            return cause instanceof IOException io
+                    ? "연결 실패 (" + io.getClass().getSimpleName() + ")"
+                    : "연결 실패";
+        }
+        // 감싸여 온 것을 한 겹 벗겨 본다 — Failover가 IllegalStateException으로 다시 던지는 자리가 있다
+        return e.getCause() == null || e.getCause() == e || depth <= 0
+                ? e.getClass().getSimpleName()
+                : e.getClass().getSimpleName() + " — " + of(e.getCause(), depth - 1);
+    }
+}
