@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.news.adapter.out.hackernews;
 
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.news.application.port.out.ArticleBuzz;
 import io.saiden.economyhelper.news.domain.Article;
 import io.saiden.economyhelper.news.domain.PopularityScorer;
@@ -16,7 +17,6 @@ import java.util.Set;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
@@ -39,11 +39,9 @@ public class HackerNewsBuzzClient implements ArticleBuzz {
     private final HackerNewsApi api;
     private final Duration window;
 
-    public HackerNewsBuzzClient(
-            HackerNewsApi api,
-            @Value("${economy-helper.ranking.hacker-news.window:7d}") Duration window) {
+    public HackerNewsBuzzClient(HackerNewsApi api, EconomyHelperProperties properties) {
         this.api = api;
-        this.window = window;
+        this.window = properties.ranking().hackerNews().window();
     }
 
     /**

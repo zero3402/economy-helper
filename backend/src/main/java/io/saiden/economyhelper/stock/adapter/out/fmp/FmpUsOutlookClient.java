@@ -5,6 +5,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import io.saiden.economyhelper.config.CacheNames;
+import io.saiden.economyhelper.config.EconomyHelperProperties.Fmp;
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.shared.domain.Price;
 import io.saiden.economyhelper.shared.support.Concurrently;
 import io.saiden.economyhelper.shared.support.FailureReason;
@@ -25,7 +27,6 @@ import java.util.List;
 import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
@@ -80,13 +81,12 @@ public class FmpUsOutlookClient implements UsOutlookClient {
     private final FmpQuotaGuard quota;
     private final Clock clock;
 
-    public FmpUsOutlookClient(RestClient.Builder builder,
-                              @Value("${economy-helper.market.fmp.base-url}") String baseUrl,
-                              @Value("${economy-helper.market.fmp.api-key:}") String apiKey,
+    public FmpUsOutlookClient(RestClient.Builder builder, EconomyHelperProperties properties,
                               FmpQuotaGuard quota, Clock clock) {
+        Fmp fmp = properties.market().fmp();
         this.restClient = builder.build();
-        this.baseUrl = baseUrl;
-        this.apiKey = apiKey;
+        this.baseUrl = fmp.baseUrl();
+        this.apiKey = fmp.apiKey();
         this.quota = quota;
         this.clock = clock;
     }
@@ -100,7 +100,7 @@ public class FmpUsOutlookClient implements UsOutlookClient {
     // ⚠️ Optional을 돌려주지 않는다 — 빈 답이 캐시되지 않아 검색마다 FMP 한도를 다시 쓴다. 빈 값 객체를 담는다
     @Cacheable(cacheNames = CacheNames.US_OUTLOOK, key = "#symbol", unless = "#result == null")
     @RateLimiter(name = "fmp")
-    // ⚠️ 브레이커는 시세와 <b>따로</b>다. 리미터는 같이 쓴다 — 하루 250회가 한 예산이라
+    // ⚠️ 브레이커는 시세와 **따로**다. 리미터는 같이 쓴다 — 하루 250회가 한 예산이라
     //    초당 연타를 막는 일은 둘이 함께 해야 하지만, 「상대가 죽었나」는 갈린다:
     //    허용목록 밖 심볼(PATH·ORCL)의 전망은 언제나 402여서, 한 브레이커면 그 402가
     //    미국 시세의 2순위까지 끊는다. KIS를 kisFx·kisStock으로 나눈 것과 같은 판단이다
@@ -135,12 +135,9 @@ public class FmpUsOutlookClient implements UsOutlookClient {
         //    없다」(값)와 「못 물어봤다」(실패)가 같아지고, 그러면 브레이커가 실패를 못 본다.
         //
         // ⚠️⚠️ **하나라도 받았으면 그것으로 답하고 담는다 — 실패의 종류를 여기서 따지지 않는다.**
-        //    「일시 실패(500)가 섞이면 던진다」로 좁히면 아무것도 안 담겨 그 심볼을 볼 때마다 퍼밋을
-        //    다시 쓰고, 그 예산은 **미국 시세 2순위와 한 지갑**이다. 브레이커도 못 막는다 — 열려도
-        //    HALF_OPEN이 60초마다 3회를 허용해 하루 240이 **27분**에 마르고, 멀쩡한 심볼이 섞이면
-        //    실패율이 50%에 못 닿아 **아예 안 열린다.**
-        //    우선순위: **한도·폴백 보호 > 보충 한 줄의 신선도.** 치르는 값은 「500 한 번에 그 줄이
-        //    최대 반나절 안 보인다」이고 스스로 낫는다.
+        //    좁히면 아무것도 안 담겨 조회마다 퍼밋을 다시 쓰는데, 그 예산은 미국 시세 2순위와
+        //    한 지갑이고 브레이커로도 못 막는다. 한도 산수와 그때의 신고는 → ADR-0004.
+        //    우선순위: **한도·폴백 보호 > 보충 한 줄의 신선도.**
         if (!target.succeeded() && !schedule.succeeded()) {
             // ⚠️ **아무것도 못 받았다.** 전부 402·403이면 그 심볼에 **영영 없는 값**이므로 빈 값을
             //    담는다 — 안 담으면 허용목록 밖 심볼(ORCL·PATH)이 조회마다 퍼밋을 영영 쓴다.

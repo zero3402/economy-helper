@@ -3,6 +3,7 @@ package io.saiden.economyhelper.weather.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import io.saiden.economyhelper.testsupport.TestProperties;
 import io.saiden.economyhelper.testsupport.TestWeather;
 import io.saiden.economyhelper.weather.adapter.out.openmeteo.OpenMeteoHourlyClient;
 import io.saiden.economyhelper.weather.application.port.out.WeatherClient;
@@ -313,7 +314,8 @@ class WeatherServiceTest {
                         new BigDecimal("18.2"), new BigDecimal("29.6"), 20)), source());
             }
         };
-        OpenMeteoHourlyClient hourly = new OpenMeteoHourlyClient(RestClient.builder(), "https://example.invalid") {
+        OpenMeteoHourlyClient hourly = new OpenMeteoHourlyClient(
+                RestClient.builder(), TestProperties.offline()) {
             @Override
             public Map<LocalDate, List<HalfDay>> halves(GeoLocation place, WeatherPeriod period) {
                 bothStarted.countDown();
@@ -485,9 +487,9 @@ class WeatherServiceTest {
         }
     }
     @Test
-    @DisplayName("하루도 없는 날씨는 만들 수 없다 — from()이 days.get(0)을 무방비로 인덱싱한다")
+    @DisplayName("하루도 없는 날씨는 만들 수 없다 — from()이 days.getFirst()를 무방비로 부른다")
     void refusesAWeatherWithoutAnyDay() {
-        // 빈 목록이 통과하면 렌더 시점에 IndexOutOfBounds가 나고,
+        // 빈 목록이 통과하면 렌더 시점에 NoSuchElementException이 나고,
         // 웹훅에서는 그게 침묵이 된다 — 생산자에서 멀리 떨어진 자리에서 터지는 것이 가장 나쁘다
         assertThatThrownBy(() -> new io.saiden.economyhelper.weather.domain.Weather(
                 new GeoLocation("미금역", null, 37.35, 127.10889, java.time.ZoneId.of("Asia/Seoul")),

@@ -8,11 +8,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.github.tomakehurst.wiremock.client.WireMock;
-import io.saiden.economyhelper.config.EconomyHelperProperties.Digest;
 import io.saiden.economyhelper.config.EconomyHelperProperties.Index;
 import io.saiden.economyhelper.config.EconomyHelperProperties.KisIndex;
 import io.saiden.economyhelper.config.EconomyHelperProperties.UsSymbol;
-import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.infrastructure.kis.KisFixtures;
 import io.saiden.economyhelper.stock.domain.StockQuote;
 import io.saiden.economyhelper.stock.domain.StockSource;
@@ -99,9 +97,8 @@ class KisStockApiTest extends WireMockTest {
         tokens = new KisFixtures.FixedToken(clock);
         return new KisStockApi(KisFixtures.call(server.baseUrl(), tokens), clock,
                 TestProperties.builder()
-                        .digest(new Digest(null, null, indices, null, null, null))
-                        .market(new EconomyHelperProperties.Market(
-                                new EconomyHelperProperties.Kis(usIndices)))
+                        .indices(indices)
+                        .kisUsIndices(usIndices)
                         .build(),
                 // 간격을 지키는 문은 KisFixtures.call이 열어 둔다 — 규칙은 KisThrottleTest가 따로 본다
                 exchanges, caches);
@@ -240,9 +237,8 @@ class KisStockApiTest extends WireMockTest {
         KisStockApi atNight = new KisStockApi(KisFixtures.call(server.baseUrl(), new KisFixtures.FixedToken(seoulNight)),
                 seoulNight,
                 TestProperties.builder()
-                        .digest(new Digest(null, null, List.of(KOSPI), null, null, null))
-                        .market(new EconomyHelperProperties.Market(
-                                new EconomyHelperProperties.Kis(List.of(NASDAQ_KIS))))
+                        .indices(List.of(KOSPI))
+                        .kisUsIndices(List.of(NASDAQ_KIS))
                         .build(),
                 exchanges, null);
         stub(US_INDEX_PATH, """

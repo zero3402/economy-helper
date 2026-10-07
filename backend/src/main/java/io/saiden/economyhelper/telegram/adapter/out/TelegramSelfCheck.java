@@ -1,10 +1,11 @@
 package io.saiden.economyhelper.telegram.adapter.out;
 
+import io.saiden.economyhelper.config.EconomyHelperProperties.Telegram;
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.telegram.adapter.out.TelegramClient.ChatInfo;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -30,14 +31,12 @@ public class TelegramSelfCheck {
     private final Integer noticeTopicId;
     private final Integer searchTopicId;
 
-    public TelegramSelfCheck(TelegramClient client,
-                             @Value("${economy-helper.telegram.chat-id:}") String chatId,
-                             @Value("${economy-helper.telegram.notice-topic-id:}") String noticeTopicId,
-                             @Value("${economy-helper.telegram.search-topic-id:}") String searchTopicId) {
+    public TelegramSelfCheck(TelegramClient client, EconomyHelperProperties properties) {
+        Telegram telegram = properties.telegram();
         this.client = client;
-        this.chatId = chatId;
-        this.noticeTopicId = TelegramClient.topicId(noticeTopicId);
-        this.searchTopicId = TelegramClient.topicId(searchTopicId);
+        this.chatId = telegram.chatId();
+        this.noticeTopicId = TelegramClient.topicId(telegram.noticeTopicId());
+        this.searchTopicId = TelegramClient.topicId(telegram.searchTopicId());
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -74,7 +73,7 @@ public class TelegramSelfCheck {
         }
 
         // ⚠️ 검색 토픽도 양방향으로 본다. 포럼이 아닌 방에 이 값이 있으면 들어오는 명령의
-        //    message_thread_id가 언제나 null이라 컨트롤러가 <b>모든 명령을 조용히 버린다</b> —
+        //    message_thread_id가 언제나 null이라 컨트롤러가 **모든 명령을 조용히 버린다** —
         //    봇이 통째로 무음이 된다
         if (!forum && searchTopicId != null) {
             log.error("[telegram] 포럼이 아닌 방에 TELEGRAM_SEARCH_TOPIC_ID={}가 설정돼 있습니다 — "

@@ -2,6 +2,7 @@ package io.saiden.economyhelper.weather.adapter.out.kma;
 
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.saiden.economyhelper.config.CacheNames;
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.weather.application.port.out.WeatherClient;
 import io.saiden.economyhelper.weather.domain.GeoLocation;
 import io.saiden.economyhelper.weather.domain.Weather;
@@ -12,7 +13,6 @@ import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 
@@ -53,8 +53,8 @@ public class KmaWeatherClient implements WeatherClient {
     private final KmaVillageApi village;
     private final boolean configured;
 
-    public KmaWeatherClient(KmaVillageApi village,
-                            @Value("${economy-helper.weather.kma.api-key:}") String apiKey) {
+    public KmaWeatherClient(KmaVillageApi village, EconomyHelperProperties properties) {
+        String apiKey = properties.weather().kma().apiKey();
         this.village = village;
         this.configured = apiKey != null && !apiKey.isBlank();
     }

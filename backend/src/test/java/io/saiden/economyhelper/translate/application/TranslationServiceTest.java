@@ -3,6 +3,7 @@ package io.saiden.economyhelper.translate.application;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.saiden.economyhelper.infrastructure.llm.GeminiApi;
+import io.saiden.economyhelper.testsupport.TestProperties;
 import io.saiden.economyhelper.translate.adapter.out.cache.SpringTranslationCache;
 import io.saiden.economyhelper.translate.adapter.out.llm.GeminiTranslator;
 import io.saiden.economyhelper.translate.domain.Translation;
@@ -135,7 +136,7 @@ class TranslationServiceTest {
         private final RuntimeException failure;
 
         private FakeGemini(Translation result, RuntimeException failure) {
-            super(new GeminiApi(RestClient.builder(), "https://example.invalid", "unused", "unused"),
+            super(new GeminiApi(RestClient.builder(), TestProperties.offline()),
                     JsonMapper.builder().build());
             this.result = result;
             this.failure = failure;

@@ -11,8 +11,10 @@ import com.github.tomakehurst.wiremock.client.WireMock;
 import io.github.resilience4j.ratelimiter.RateLimiterConfig;
 import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
 import io.github.resilience4j.ratelimiter.RequestNotPermitted;
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.fx.domain.FxRate;
 import io.saiden.economyhelper.fx.domain.FxSource;
+import io.saiden.economyhelper.testsupport.TestProperties;
 import io.saiden.economyhelper.testsupport.WireMockTest;
 import java.time.Clock;
 import java.time.Duration;
@@ -42,7 +44,7 @@ class KeximFxClientTest extends WireMockTest {
     void resetAndBuild() {
         // 리미터는 null로 둔다 — 이 테스트가 보는 것은 되짚기·파싱·비밀 취급이고,
         // 퍼밋을 세는 것이 실제로 걸리는지는 ResilienceConfigTest가 컨텍스트에서 본다
-        client = new KeximFxClient(RestClient.builder(), server.baseUrl(), "test-key",
+        client = new KeximFxClient(RestClient.builder(), keyed("test-key"),
                 Clock.fixed(NOW, SEOUL), null);
     }
 
@@ -208,8 +210,8 @@ class KeximFxClientTest extends WireMockTest {
                 .build());
         assertThat(oneShot.rateLimiter("kexim").acquirePermission())
                 .as("그 하나를 테스트가 가져간다").isTrue();
-        KeximFxClient throttled = new KeximFxClient(RestClient.builder(), server.baseUrl(),
-                "test-key", Clock.fixed(NOW, SEOUL), oneShot);
+        KeximFxClient throttled = new KeximFxClient(RestClient.builder(), keyed("test-key"),
+                Clock.fixed(NOW, SEOUL), oneShot);
 
         assertThatThrownBy(throttled::usdToKrw)
                 .as("우리 스로틀이 막은 것이므로 상대 장애가 아니라 RequestNotPermitted다")
@@ -217,5 +219,9 @@ class KeximFxClientTest extends WireMockTest {
 
         server.verify(0, getRequestedFor(
                 urlPathEqualTo("/site/program/financial/exchangeJSON")));
+    }
+
+    private EconomyHelperProperties keyed(String apiKey) {
+        return TestProperties.builder().kexim(server.baseUrl(), apiKey).build();
     }
 }

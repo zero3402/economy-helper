@@ -7,14 +7,18 @@ import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.crypto.application.port.out.BinanceClient;
 import io.saiden.economyhelper.crypto.domain.BinancePrice;
+import io.saiden.economyhelper.testsupport.TestProperties;
 import io.saiden.economyhelper.testsupport.WireMockTest;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -32,11 +36,33 @@ class BinanceApiTest extends WireMockTest {
      */
     private BinanceBanGate gate;
 
+    /**
+     * 미러 주소(data-api). 1순위와 <b>따로</b> 필요해서 서버가 둘인 유일한 클래스다.
+     *
+     * <p>⚠️ <b>서버이므로 클래스당 하나다</b> — {@code WireMockTest}와 같은 규칙이다. 예전에는
+     * {@code @Test}마다 띄우고 내렸는데, 그것이 바로 {@code WireMockLifecycleTest}가 막으려던
+     * 포트 재활용 패턴이었다(앞 서버가 포트를 놓기 전에 다음 서버가 같은 포트를 받는다).
+     * {@code maxParallelForks}로 포크가 여럿이라 창이 더 자주 열렸다.
+     */
+    private static WireMockServer mirror;
+
     /** 밴 시각을 눈으로 검산하려고 고정한다 — 「지금부터 몇 초」가 아니라 「몇 시」를 단언한다. */
     private static final Instant NOW = Instant.parse("2026-08-20T05:00:00Z");
 
+    @BeforeAll
+    static void startMirror() {
+        mirror = new WireMockServer(options().dynamicPort().http2PlainDisabled(true));
+        mirror.start();
+    }
+
+    @AfterAll
+    static void stopMirror() {
+        mirror.stop();
+    }
+
     @BeforeEach
     void resetAndBuild() {
+        mirror.resetAll();
         gate = new BinanceBanGate(null, Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
@@ -47,41 +73,29 @@ class BinanceApiTest extends WireMockTest {
         // 연장한다**(2분~3일). 그리고 실측으로 두 호스트가 한 IP 예산을 공유한다 —
         // x-mbx-used-weight-1m이 api→data-api를 번갈아 물어도 2·4·6·8로 이어졌다.
         // 즉 우회는 아무 이득 없이 밴만 늘린다
-        WireMockServer mirror = new WireMockServer(options().dynamicPort().http2PlainDisabled(true));
-        mirror.start();
-        try {
-            server.stubFor(get(anyUrl()).willReturn(aResponse().withStatus(418)));
+        server.stubFor(get(anyUrl()).willReturn(aResponse().withStatus(418)));
 
-            org.assertj.core.api.Assertions.assertThatThrownBy(() -> new BinanceApi(
-                    RestClient.builder(), gate, server.baseUrl(), mirror.baseUrl())
-                    .prices(List.of("ETHUSDT")))
-                    .as("밴은 미상장이 아니다 — 좁은 타입으로 삼켜지면 브레이커가 안 열린다")
-                    .isNotInstanceOf(BinanceClient.UnknownSymbol.class);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> new BinanceApi(
+                RestClient.builder(), gate, mirrored())
+                .prices(List.of("ETHUSDT")))
+                .as("밴은 미상장이 아니다 — 좁은 타입으로 삼켜지면 브레이커가 안 열린다")
+                .isNotInstanceOf(BinanceClient.UnknownSymbol.class);
 
-            assertThat(mirror.getAllServeEvents())
-                    .as("미러를 부르면 그것이 밴을 연장한다").isEmpty();
-        } finally {
-            mirror.stop();
-        }
+        assertThat(mirror.getAllServeEvents())
+                .as("미러를 부르면 그것이 밴을 연장한다").isEmpty();
     }
 
     @Test
     @DisplayName("429에도 미러를 부르지 않는다 — 여기서 더 부르면 418로 굳는다")
     void neverBypassesARateLimitWarning() {
-        WireMockServer mirror = new WireMockServer(options().dynamicPort().http2PlainDisabled(true));
-        mirror.start();
-        try {
-            server.stubFor(get(anyUrl()).willReturn(aResponse().withStatus(429)));
+        server.stubFor(get(anyUrl()).willReturn(aResponse().withStatus(429)));
 
-            org.assertj.core.api.Assertions.assertThatThrownBy(() -> new BinanceApi(
-                    RestClient.builder(), gate, server.baseUrl(), mirror.baseUrl())
-                    .prices(List.of("ETHUSDT")))
-                    .isInstanceOf(RuntimeException.class);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> new BinanceApi(
+                RestClient.builder(), gate, mirrored())
+                .prices(List.of("ETHUSDT")))
+                .isInstanceOf(RuntimeException.class);
 
-            assertThat(mirror.getAllServeEvents()).isEmpty();
-        } finally {
-            mirror.stop();
-        }
+        assertThat(mirror.getAllServeEvents()).isEmpty();
     }
 
     @Test
@@ -90,25 +104,19 @@ class BinanceApiTest extends WireMockTest {
         // Render 미국 리전에서 api.binance.com이 이걸 준다. 재시도해도 같은 답이고
         // 브레이커도 4xx라 안 열린다 — 그래서 화면에 '조회 실패'만 영영 찍혔다.
         // 공개 데이터 미러는 같은 스키마를 주므로 우회하면 값이 그대로 나온다
-        WireMockServer mirror = new WireMockServer(options().dynamicPort().http2PlainDisabled(true));
-        mirror.start();
-        try {
-            server.stubFor(get(anyUrl()).willReturn(aResponse().withStatus(451)));
-            mirror.stubFor(get(anyUrl()).willReturn(aResponse().withStatus(200)
-                    .withHeader("Content-Type", "application/json")
-                    .withBody("""
-                            [{"symbol":"ETHUSDT","lastPrice":"2256.31","priceChangePercent":"18.06"}]""")));
+        server.stubFor(get(anyUrl()).willReturn(aResponse().withStatus(451)));
+        mirror.stubFor(get(anyUrl()).willReturn(aResponse().withStatus(200)
+                .withHeader("Content-Type", "application/json")
+                .withBody("""
+                        [{"symbol":"ETHUSDT","lastPrice":"2256.31","priceChangePercent":"18.06"}]""")));
 
-            List<BinancePrice> prices = new BinanceApi(
-                    RestClient.builder(), gate, server.baseUrl(), mirror.baseUrl())
-                    .prices(List.of("ETHUSDT"));
+        List<BinancePrice> prices = new BinanceApi(
+                RestClient.builder(), gate, mirrored())
+                .prices(List.of("ETHUSDT"));
 
-            assertThat(prices).singleElement()
-                    .satisfies(price -> assertThat(price.lastPrice().value())
-                            .isEqualByComparingTo(new BigDecimal("2256.31")));
-        } finally {
-            mirror.stop();
-        }
+        assertThat(prices).singleElement()
+                .satisfies(price -> assertThat(price.lastPrice().value())
+                        .isEqualByComparingTo(new BigDecimal("2256.31")));
     }
 
     @Test
@@ -116,23 +124,17 @@ class BinanceApiTest extends WireMockTest {
     void neverBypassesForAnUnknownSymbol() {
         // 400은 우리 잘못이다(실측: USDTUSDT → -1121 Invalid symbol). 미러에 한 번 더 물으면
         // 헛호출만 늘고 답은 같다 — CryptoService가 이걸 '미상장'으로 읽어야 한다
-        WireMockServer mirror = new WireMockServer(options().dynamicPort().http2PlainDisabled(true));
-        mirror.start();
-        try {
-            server.stubFor(get(anyUrl()).willReturn(aResponse().withStatus(400)
-                    .withBody("{\"code\":-1121,\"msg\":\"Invalid symbol.\"}")));
+        server.stubFor(get(anyUrl()).willReturn(aResponse().withStatus(400)
+                .withBody("{\"code\":-1121,\"msg\":\"Invalid symbol.\"}")));
 
-            org.assertj.core.api.Assertions.assertThatThrownBy(() -> new BinanceApi(
-                    RestClient.builder(), gate, server.baseUrl(), mirror.baseUrl())
-                    .prices(List.of("USDTUSDT")))
-                    .as("좁은 타입으로 던져야 브레이커가 이것만 무시할 수 있다")
-                    .isInstanceOf(BinanceClient.UnknownSymbol.class);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> new BinanceApi(
+                RestClient.builder(), gate, mirrored())
+                .prices(List.of("USDTUSDT")))
+                .as("좁은 타입으로 던져야 브레이커가 이것만 무시할 수 있다")
+                .isInstanceOf(BinanceClient.UnknownSymbol.class);
 
-            assertThat(mirror.getAllServeEvents())
-                    .as("미러를 부르지 않아야 한다 — 400은 호스트 문제가 아니다").isEmpty();
-        } finally {
-            mirror.stop();
-        }
+        assertThat(mirror.getAllServeEvents())
+                .as("미러를 부르지 않아야 한다 — 400은 호스트 문제가 아니다").isEmpty();
     }
 
     @Test
@@ -250,6 +252,12 @@ class BinanceApiTest extends WireMockTest {
                 .as("없는 심볼 하나가 멀쩡한 코인까지 막으면 안 된다").isNull();
     }
     private BinanceApi api() {
-        return new BinanceApi(RestClient.builder(), gate, server.baseUrl(), "");
+        return new BinanceApi(RestClient.builder(), gate,
+                TestProperties.builder().binance(server.baseUrl(), "").build());
+    }
+
+    /** 1순위와 2순위를 모두 든 설정 — 우회로가 실제로 불리는지 보는 테스트가 쓴다. */
+    private EconomyHelperProperties mirrored() {
+        return TestProperties.builder().binance(server.baseUrl(), mirror.baseUrl()).build();
     }
 }

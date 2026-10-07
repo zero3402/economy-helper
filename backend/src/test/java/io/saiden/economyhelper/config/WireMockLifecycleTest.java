@@ -84,12 +84,12 @@ class WireMockLifecycleTest {
             if (inherits) {
                 inheriting.add(path.getFileName().toString());
             }
-            // 상속하지 않는 파일은 서버를 전부 @Test 안에서 만들어야 한다 — BinanceApiTest의 미러가 그 모양이고,
-            // 거기서는 「이 테스트만의 서버」가 곧 단언의 일부다. 상속하는 파일도 수명주기 메서드 안에서는 안 만든다
+            // 서버를 만들어도 되는 자리는 @BeforeAll 하나다. 두 번째 서버가 필요한 클래스도
+            // (BinanceApiTest의 미러) 클래스당 하나로 띄우고 @BeforeEach에서 resetAll()만 한다
             Matcher server = SERVER.matcher(source);
             while (server.find()) {
                 String owner = ownerOf(source, server.start());
-                if (!"@Test".equals(owner)) {
+                if (!"@BeforeAll".equals(owner)) {
                     offenders.add(path.getFileName().toString() + " (" + owner + ")");
                 }
             }

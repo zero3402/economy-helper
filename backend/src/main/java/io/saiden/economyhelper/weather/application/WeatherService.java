@@ -12,6 +12,7 @@ import io.saiden.economyhelper.weather.domain.WeatherPeriod;
 import io.saiden.economyhelper.weather.domain.WeatherSource;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -171,12 +172,17 @@ public class WeatherService {
             return weather;
         }
 
-        List<Weather.Daily> days = weather.days().stream()
-                .map(day -> halves.containsKey(day.date())
-                        ? day.withHalves(halves.get(day.date()))
-                        : day)
-                .toList();
-        long replaced = weather.days().stream().filter(day -> halves.containsKey(day.date())).count();
+        List<Weather.Daily> days = new ArrayList<>(weather.days().size());
+        int replaced = 0;
+        for (Weather.Daily day : weather.days()) {
+            List<HalfDay> onThatDay = halves.get(day.date());
+            if (onThatDay == null) {
+                days.add(day);
+            } else {
+                days.add(day.withHalves(onThatDay));
+                replaced++;
+            }
+        }
         if (replaced == 0) {
             // 시각은 왔는데 물어본 날짜와 하나도 겹치지 않았다(날짜 창이 어긋난 경우). 그러면 화면의 강수 줄은
             // 여전히 일별 출처 것이므로 Open-Meteo를 출처로 적으면 안 된다 — 아래 규칙의 거울상이다

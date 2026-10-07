@@ -28,7 +28,7 @@ public final class TestWeather {
      * 시각 줄만 빠진다. 보충이 답을 죽이지 않는다는 계약이 이 가짜에 그대로 담겨 있다.
      */
     public static OpenMeteoHourlyClient noHourly() {
-        return new OpenMeteoHourlyClient(RestClient.builder(), "https://example.invalid") {
+        return new OpenMeteoHourlyClient(RestClient.builder(), TestProperties.offline()) {
             @Override
             public Map<LocalDate, List<HalfDay>> halves(GeoLocation place,
                                                                    WeatherPeriod period) {
@@ -39,7 +39,7 @@ public final class TestWeather {
 
     /** 날짜별로 정해진 토막을 주는 시간별 클라이언트 — 보충 경로 자체를 보는 테스트가 쓴다. */
     public static OpenMeteoHourlyClient hourly(Map<LocalDate, List<HalfDay>> halves) {
-        return new OpenMeteoHourlyClient(RestClient.builder(), "https://example.invalid") {
+        return new OpenMeteoHourlyClient(RestClient.builder(), TestProperties.offline()) {
             @Override
             public Map<LocalDate, List<HalfDay>> halves(GeoLocation place,
                                                                    WeatherPeriod period) {
@@ -56,7 +56,7 @@ public final class TestWeather {
      */
     public static OpenMeteoHourlyClient countingHourly(
             java.util.concurrent.atomic.AtomicInteger calls) {
-        return new OpenMeteoHourlyClient(RestClient.builder(), "https://example.invalid") {
+        return new OpenMeteoHourlyClient(RestClient.builder(), TestProperties.offline()) {
             @Override
             public Map<LocalDate, List<HalfDay>> halves(GeoLocation place,
                                                                    WeatherPeriod period) {
@@ -68,7 +68,7 @@ public final class TestWeather {
 
     /** 보충이 터지는 클라이언트 — 그래도 일일 예보는 나가야 한다. */
     public static OpenMeteoHourlyClient explodingHourly() {
-        return new OpenMeteoHourlyClient(RestClient.builder(), "https://example.invalid") {
+        return new OpenMeteoHourlyClient(RestClient.builder(), TestProperties.offline()) {
             @Override
             public Map<LocalDate, List<HalfDay>> halves(GeoLocation place,
                                                                    WeatherPeriod period) {

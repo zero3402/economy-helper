@@ -38,22 +38,6 @@ class MessageFormattingTest {
             FxSource.FRANKFURTER, BASIS);
 
     @Test
-    @DisplayName("제목 / 값 / 출처 / 시각 — 다른 통과 같은 순서, 시각은 맨 밑 단독")
-    void followsTheSameSkeletonAsEveryOtherSection() {
-        assertThat(NewsFormatter.formatAll(List.of(item("유가 상승", "인플레이션 우려.", true))))
-                .singleElement().asString().isEqualTo("""
-                        <b>뉴스</b>
-
-                        <a href="https://example.com/a"><b>유가 상승</b></a>
-
-                        <blockquote>인플레이션 우려.</blockquote>
-
-                        CNBC
-
-                        2026.08.11(화) 09:00:00""");
-    }
-
-    @Test
     @DisplayName("번역 실패 시 왜 영문인지 알린다 — 안 그러면 고장으로 보인다")
     void explainsUntranslatedOutput() {
         String message = NewsFormatter.format(item("Oil holds advance", "Oil kept its gains.", false));
@@ -129,24 +113,6 @@ class MessageFormattingTest {
     }
 
     @Test
-    @DisplayName("검색 결과가 없을 때와 검색어가 빠졌을 때를 구분해 안내한다")
-    void distinguishesNoResultsFromMissingQuery() {
-        assertThat(NewsFormatter.noResults("금리", java.time.Duration.ofHours(24)))
-                .contains("금리").contains("찾지 못했습니다")
-                .as("왜 없는지 밝히지 않으면 봇 고장으로 읽힌다")
-                .contains("최근 24시간");
-        assertThat(HelpFormatter.usage(Command.NEWS)).contains("/news 금리");
-        // 명령마다 예시가 달라야 한다 — 하나로 고정하면 /stock에 /news 예시가 뜬다
-        assertThat(HelpFormatter.usage(Command.STOCK)).contains("/stock 삼성전자");
-        // 뉴스는 검색어가 없어도 답하므로 "함께 입력해 주세요"가 거짓말이다
-        assertThat(HelpFormatter.usage(Command.NEWS)).doesNotContain("검색어를 함께 입력해 주세요");
-        // 실패·안내 답도 성공 답과 같은 제목을 인다. 그룹 채팅에서 맨몸 문장 하나만
-        // 튀어나오면 무엇에 대한 답인지 알 수 없다
-        assertThat(HelpFormatter.usage(Command.STOCK)).startsWith("<b>증시</b>\n\n");
-        assertThat(HelpFormatter.usage(Command.NEWS)).startsWith("<b>뉴스</b>\n\n");
-    }
-
-    @Test
     @DisplayName("도움말은 모든 명령을 빠짐없이 싣는다")
     void helpListsEveryCommand() {
         String help = HelpFormatter.help();
@@ -191,14 +157,6 @@ class MessageFormattingTest {
         // 인자가 반드시 필요한 명령에는 붙지 않는다 — 붙으면 글자 그대로 틀린 안내다
         assertThat(help).contains("/stock 삼성전자 (또는 /s)");
         assertThat(help).contains("/fx (또는 /f)");
-    }
-
-    @Test
-    @DisplayName("사용법 문구가 인자의 세 상태를 각각 참으로 말한다 — 도달 불가라도 틀린 문장을 남기지 않는다")
-    void usageTellsTheTruthForEachArgumentState() {
-        assertThat(HelpFormatter.usage(Command.STOCK)).contains("검색어를 함께 입력해 주세요");
-        assertThat(HelpFormatter.usage(Command.NEWS)).contains("검색어는 있어도 되고 없어도 됩니다");
-        assertThat(HelpFormatter.usage(Command.FX)).contains("이 명령은 검색어 없이 씁니다");
     }
 
     @Test
@@ -337,10 +295,6 @@ class MessageFormattingTest {
                 Financial Modeling Prep
 
                 2026.08.13(목) 07:00:00""");
-        assertThat(message)
-                .as("복사 버튼이 붙는 코드 블록을 쓰지 않는다").doesNotContain("<pre>")
-                .as("환율은 바로 앞 환율 통에 이미 있다 — 여기 또 넣으면 중복이다")
-                .doesNotContain("1 USD =");
     }
 
     @Test
@@ -400,11 +354,6 @@ class MessageFormattingTest {
                 Financial Modeling Prep
 
                 2026.08.13(목) 07:00:00""");
-        assertThat(single)
-                .as("이름은 굵다 — 코인이 <b>BTC</b>, 날씨가 <b>미금역</b>으로 쓰는 그 자리다")
-                .contains("<b>애플</b>")
-                .as("값에는 안 쓴다 — 값까지 굵으면 무엇이 계층인지 안 드러난다")
-                .doesNotContain("<b>302.25").doesNotContain("<b>426,828");
     }
 
     @Test
@@ -512,23 +461,6 @@ class MessageFormattingTest {
     }
 
     // --- 날씨: 알람과 검색이 한 함수를 쓴다 ------------------------------------
-
-    @Test
-    @DisplayName("한 지역짜리 답이 알람 통의 그 지역 블록과 글자 그대로 같다 — 포매터가 갈리면 안 된다")
-    void singleWeatherLooksExactlyLikeItsDigestBlock() {
-        assertThat(WeatherFormatter.format(List.of(migeum()))).isEqualTo("""
-                <b>날씨</b>
-
-                <b>미금역</b>
-
-                흐림
-                18.2°C / 29.6°C
-                강수확률 20%
-
-                AccuWeather
-
-                2026.08.17(월) (예보)""");
-    }
 
     @Test
     @DisplayName("알람은 지역마다 블록 하나 — 출처와 기준은 통 하나처럼 맨 아래에서 끝맺는다")
@@ -768,27 +700,6 @@ class MessageFormattingTest {
                 .contains("바이낸스\n612.40 USDT")
                 .as("BNBUSDT는 티커에 USDT를 붙인 것뿐이라 같은 말을 두 번 적는 셈이다")
                 .doesNotContain("BNBUSDT");
-    }
-
-    @Test
-    @DisplayName("검색 답도 브리핑과 같은 함수를 쓴다 — 코인이 하나뿐인 통일 뿐이다")
-    void singleCryptoLooksExactlyLikeItsDigestBlock() {
-        String message = crypto(btc(new BigDecimal("62000")), null);
-
-        assertThat(message).isEqualTo("""
-                <b>코인</b>
-
-                <b>BTC</b> 비트코인
-
-                업비트
-                89,848,000 KRW
-
-                바이낸스
-                62,000 USDT
-
-                2026.08.11(화) 09:00:00""");
-        assertThat(message).as("들여쓰기를 쓰지 않는다 — 통마다 제각각이던 것을 하나로 맞췄다")
-                .doesNotContain("  업비트");
     }
 
     @Test

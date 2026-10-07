@@ -2,6 +2,7 @@ package io.saiden.economyhelper.infrastructure.llm;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.saiden.economyhelper.testsupport.TestProperties;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
@@ -20,7 +21,7 @@ class LlmJsonTest {
 
     /** {@code generate}만 갈아 끼운다 — HTTP는 타지 않는다. {@code null}이면 던지는 LLM이다. */
     private static GeminiApi answering(String body) {
-        return new GeminiApi(RestClient.builder(), "https://example.invalid", "", "test-model") {
+        return new GeminiApi(RestClient.builder(), TestProperties.offline()) {
             @Override
             public String generate(String prompt) {
                 if (body == null) {

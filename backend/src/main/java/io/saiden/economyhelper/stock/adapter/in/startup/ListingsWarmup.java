@@ -1,10 +1,10 @@
 package io.saiden.economyhelper.stock.adapter.in.startup;
 
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.shared.support.FailureReason;
 import io.saiden.economyhelper.stock.application.StockListings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -23,10 +23,9 @@ public class ListingsWarmup {
     private final StockListings listings;
     private final boolean enabled;
 
-    public ListingsWarmup(StockListings listings,
-                          @Value("${economy-helper.warmup.enabled:true}") boolean enabled) {
+    public ListingsWarmup(StockListings listings, EconomyHelperProperties properties) {
         this.listings = listings;
-        this.enabled = enabled;
+        this.enabled = properties.warmup().enabled();
     }
 
     @EventListener(ApplicationReadyEvent.class)

@@ -5,6 +5,8 @@ import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import io.github.resilience4j.retry.annotation.Retry;
 import io.saiden.economyhelper.config.CacheNames;
+import io.saiden.economyhelper.config.EconomyHelperProperties.Binance;
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.crypto.application.port.out.BinanceClient;
 import io.saiden.economyhelper.crypto.domain.BinancePrice;
 import io.saiden.economyhelper.crypto.domain.BinanceSymbol;
@@ -23,7 +25,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
@@ -64,15 +65,15 @@ public class BinanceApi implements BinanceClient {
     /** 1순위와 2순위. 순서가 곧 우선순위다 — 앞의 것이 답하면 뒤는 부르지 않는다. */
     private final List<String> baseUrls;
 
-    public BinanceApi(RestClient.Builder builder,
-                      BinanceBanGate banGate,
-                      @Value("${economy-helper.market.binance.base-url}") String baseUrl,
-                      @Value("${economy-helper.market.binance.fallback-base-url:}") String fallbackUrl) {
+    public BinanceApi(RestClient.Builder builder, BinanceBanGate banGate,
+                      EconomyHelperProperties properties) {
+        Binance binance = properties.market().binance();
+        String fallbackUrl = binance.fallbackBaseUrl();
         this.restClient = builder.build();
         this.banGate = banGate;
         this.baseUrls = fallbackUrl == null || fallbackUrl.isBlank()
-                ? List.of(baseUrl)
-                : List.of(baseUrl, fallbackUrl);
+                ? List.of(binance.baseUrl())
+                : List.of(binance.baseUrl(), fallbackUrl);
     }
 
     /**

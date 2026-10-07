@@ -496,11 +496,11 @@ class DailyDigestJobTest {
 
     /** 바이낸스 값이 붙은 코인 하나. 원화 환산은 잡이 넘기는 환율이 정한다. */
     private static CryptoService cryptoWithBinance() {
-        return new CryptoService(new UpbitApi(RestClient.builder(), "https://example.invalid"),
+        return new CryptoService(new UpbitApi(RestClient.builder(), TestProperties.offline()),
                 new io.saiden.economyhelper.crypto.adapter.out.binance.BinanceApi(
                         RestClient.builder(),
                         new io.saiden.economyhelper.crypto.adapter.out.binance.BinanceBanGate(null, java.time.Clock.systemUTC()),
-                        "https://example.invalid", ""),
+                        TestProperties.offline()),
                 noCryptoResolver(), Clock.fixed(NOW, ZoneOffset.UTC)) {
             @Override
             public List<CryptoQuote> quotesOf(List<String> markets) {
@@ -510,11 +510,11 @@ class DailyDigestJobTest {
     }
 
     private static CryptoService crypto(boolean alive) {
-        return new CryptoService(new UpbitApi(RestClient.builder(), "https://example.invalid"),
+        return new CryptoService(new UpbitApi(RestClient.builder(), TestProperties.offline()),
                 new io.saiden.economyhelper.crypto.adapter.out.binance.BinanceApi(
                         RestClient.builder(),
                         new io.saiden.economyhelper.crypto.adapter.out.binance.BinanceBanGate(null, java.time.Clock.systemUTC()),
-                        "https://example.invalid", ""),
+                        TestProperties.offline()),
                 noCryptoResolver(), Clock.fixed(NOW, ZoneOffset.UTC)) {
             @Override
             public List<CryptoQuote> quotesOf(List<String> markets) {
@@ -587,10 +587,12 @@ class DailyDigestJobTest {
     static EconomyHelperProperties properties() {
         return TestProperties.builder()
                 .feeds(Map.of())
-                .digest(new EconomyHelperProperties.Digest(
-                        "Asia/Seoul", Duration.ofDays(3),
-                        List.of(new EconomyHelperProperties.Index("코스피", "0001")),
-                        List.of("005930"), List.of("KRW-BTC"), List.of()))
+                .digestZone("Asia/Seoul")
+                .sentHistoryTtl(Duration.ofDays(3))
+                .indices(List.of(new EconomyHelperProperties.Index("코스피", "0001")))
+                .stocks(List.of("005930"))
+                .cryptos(List.of("KRW-BTC"))
+                .usSymbols(List.of())
                 .build();
     }
 

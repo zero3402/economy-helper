@@ -1,5 +1,7 @@
 package io.saiden.economyhelper.infrastructure.kis;
 
+import io.saiden.economyhelper.config.EconomyHelperProperties.Kis;
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
@@ -10,7 +12,6 @@ import java.time.format.ResolverStyle;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientResponseException;
@@ -44,12 +45,16 @@ public class KisHeaders {
     private final String appKey;
     private final String appSecret;
 
-    public KisHeaders(@Value("${economy-helper.market.kis.app-key:}") String key,
-                      @Value("${economy-helper.market.kis.app-secret:}") String secret) {
+    public KisHeaders(EconomyHelperProperties properties) {
+        Kis kis = properties.market().kis();
         // ⚠️ **끝의 줄바꿈을 뗀다** — KisTokenStore와 같은 이유이고, 여기는 한 겹 더 나쁘다:
         //    이 값이 HTTP **헤더**로 실리므로 개행이 붙으면 헤더가 깨진다
-        this.appKey = key == null ? "" : key.trim();
-        this.appSecret = secret == null ? "" : secret.trim();
+        this.appKey = trimmed(kis.appKey());
+        this.appSecret = trimmed(kis.appSecret());
+    }
+
+    private static String trimmed(String key) {
+        return key == null ? "" : key.trim();
     }
 
     /**
@@ -191,11 +196,6 @@ public class KisHeaders {
         } catch (RuntimeException e) {
             return null;
         }
-    }
-
-    /** KST 오늘 — 국내 시장과 원/달러의 「오늘」이다. */
-    public static LocalDate todayDate(Clock clock) {
-        return LocalDate.ofInstant(clock.instant(), SEOUL);
     }
 
     /**

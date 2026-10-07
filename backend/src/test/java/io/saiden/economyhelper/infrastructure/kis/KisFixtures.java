@@ -1,5 +1,7 @@
 package io.saiden.economyhelper.infrastructure.kis;
 
+import io.saiden.economyhelper.config.EconomyHelperProperties;
+import io.saiden.economyhelper.testsupport.TestProperties;
 import java.time.Clock;
 import java.time.Duration;
 import org.springframework.web.client.RestClient;
@@ -25,7 +27,8 @@ public final class KisFixtures {
      * 규칙 자체는 {@code KisThrottleTest}가 본다. 테스트만 부르는 코드라 main에 두지 않는다.
      */
     public static KisThrottle unpaced() {
-        return new KisThrottle(Duration.ZERO, Duration.ZERO);
+        return new KisThrottle(TestProperties.builder()
+                .kisPacing(Duration.ZERO, Duration.ZERO).build());
     }
 
     /**
@@ -39,7 +42,7 @@ public final class KisFixtures {
         private boolean invalidated;
 
         public FixedToken(Clock clock) {
-            super(RestClient.builder(), "http://localhost:1", "key", "secret", null, clock,
+            super(RestClient.builder(), credentials("http://localhost:1"), null, clock,
                     KisFixtures.unpaced());
         }
 
@@ -70,8 +73,17 @@ public final class KisFixtures {
      *                 제 것을 넣는다
      */
     public static KisCall call(String baseUrl, KisTokenStore tokens, KisThrottle throttle) {
-        return new KisCall(RestClient.builder(), baseUrl, tokens,
-                new KisHeaders("key", "secret"), throttle);
+        var properties = credentials(baseUrl);
+        return new KisCall(RestClient.builder(), properties, tokens,
+                new KisHeaders(properties), throttle);
+    }
+
+    /** 주소와 앱키만 채운 설정 — KIS를 세우는 자리가 설정에서 보는 것이 그 셋뿐이다. */
+    public static EconomyHelperProperties credentials(String baseUrl) {
+        return TestProperties.builder()
+                .kisBaseUrl(baseUrl)
+                .kisCredentials("key", "secret")
+                .build();
     }
 
     /** 간격을 안 세는 판 — 대부분의 테스트가 이것을 쓴다. */

@@ -129,24 +129,10 @@ public class KisStockApi implements DomesticStockClient, UsStockClient, StockDai
     private static final String DAILY = "0";
 
     /**
-     * 수정주가로 받지 <b>않는다</b>({@code MODP=0}) — 국내 경로와 반대이고, 실측이 그렇게 시켰다.
+     * 수정주가로 받지 <b>않는다</b>({@code MODP=0}) — 국내 경로와 반대다.
      *
-     * <p>국내는 {@code FID_ORG_ADJ_PRC=0}으로 수정주가를 받는다. 여기서 같은 판단을 하려다
-     * 값을 맞춰 보고 뒤집었다 (2026-08-21, 같은 순간의 {@code price-detail}과 대조):
-     *
-     * <pre>
-     *        MODP=1     MODP=0     price-detail last
-     * PATH   15.9200    15.9200    15.9200
-     * ORCL   143.3600   143.3600   143.3600
-     * AAPL   311.9400   312.0600   312.0600   ← MODP=1만 어긋난다
-     * </pre>
-     *
-     * <b>{@code MODP=1}은 가장 최근 행까지 조정 단위로 스케일한다.</b> 그러면 차트의 오른쪽
-     * 끝이 «지금 얼마냐»가 아니게 되고, 바로 위 본문이 {@code 312.06 USD}인데 caption은
-     * {@code 311.94}가 되어 <b>한 종목의 값이 한 통에 두 개 찍힌다.</b>
-     *
-     * <p>대가는 안다 — 창 안에 액면분할이 들어오면 원주가는 절벽을 그린다. 그래도 열나흘에
-     * 한 번 있을까 한 일이고, 어긋난 끝값은 <b>매일</b> 틀린다. 드문 왜곡보다 상시 모순이 나쁘다.
+     * <p>{@code MODP=1}은 가장 최근 행까지 스케일해서 차트 끝값이 본문 시세와 어긋난다 —
+     * 한 종목 값이 한 통에 두 개 찍힌다. 실측과 그 대가(액면분할)는 → ADR-0007.
      */
     private static final String RAW_PRICE = "0";
 
@@ -313,19 +299,11 @@ public class KisStockApi implements DomesticStockClient, UsStockClient, StockDai
      * 미국 <b>종목</b> 일봉 — 거래소를 물어야 하는 대신 <b>종목을 안다.</b>
      *
      * <p>⚠️ <b>지수 경로({@code FHKST03030100})에 종목 심볼을 넣지 않는다</b> — 그 경로가 아는 종목은
-     * 일부뿐이다(실측 2026-08-21: {@code AAPL}·{@code NVDA}·{@code ORCL}은 되고 {@code PATH}는
-     * {@code rt_cd=0}에 {@code output2}가 빈 배열 — 주가는 나오는데 차트만 조용히 빠진다).
+     * 일부뿐이고, 모르는 종목은 에러가 아니라 {@code output2} 빈 배열로 온다(주가는 나오는데
+     * 차트만 조용히 빠진다) → ADR-0007.
      *
      * <p>이 경로가 요구하는 {@code EXCD}는 이미 손에 있다 — {@link #usStock}이 찾아
      * {@link KisExchangeCache}에 30일 담고, 차트는 시세 다음에 조회된다. 평상시 추가 호출이 <b>0</b>이다.
-     *
-     * <p>실측 2026-08-21(모의):
-     *
-     * <pre>
-     * PATH  EXCD=NYS  rsym=DNYSPATH  nrec=100  최근 15.9200
-     * ORCL  EXCD=NYS  rsym=DNYSORCL  nrec=100  최근 143.3600
-     * AAPL  EXCD=NAS  rsym=DNASAAPL  nrec=100  최근 312.0600
-     * </pre>
      *
      * <p><b>창을 우리가 정하지 않는다.</b> 이 경로는 {@code BYMD}(비우면 최신)에서 뒤로 100행을
      * 준다 — {@code DailySeries.recent}가 열나흘로 줄이므로 그대로 받는다. 응답이 무거워지는
@@ -533,19 +511,11 @@ public class KisStockApi implements DomesticStockClient, UsStockClient, StockDai
      *
      * <p>⚠️ <b>{@code AMS}를 빼지 않는다.</b> 「소형주 거래소」로만 보면 뺄 만하지만 KIS 분류에서
      * 그 칸은 <b>NYSE Arca 상장 ETF 전체</b>를 삼킨다 — 빼면 {@code /stock JEPI}·{@code SCHD}·
-     * {@code SOXL}이 통째로 빈손이다. 실측(2026-08-26, 모의계정 12/12 {@code rt_cd=0}):
-     *
-     * <pre>
-     * 심볼    NAS      NYS    AMS      rsym        etyp_nm
-     * AAPL    309.90   (빔)   (빔)     DNASAAPL
-     * SCHD    (빔)     (빔)    35.11   DAMSSCHD    ETF
-     * JEPI    (빔)     (빔)    58.14   DAMSJEPI    ETF
-     * SOXL    (빔)     (빔)   115.67   DAMSSOXL    ETF
-     * </pre>
+     * {@code SOXL}이 통째로 빈손이다. 거래소별 실측표는 → ADR-0001.
      *
      * <p><b>순서는 NAS → NYS → AMS다.</b> 흔한 것이 앞이라 평상시 비용은 그대로이고, 늘어나는
-     * 것은 <b>없는 심볼을 물었을 때의 2초 → 3초</b>뿐이다({@code min-interval} 1초). 찾은
-     * 거래소는 {@link KisExchangeCache}가 30일 기억하므로 <b>반복 검색 비용은 0</b>이다.
+     * 것은 없는 심볼을 물었을 때의 1초뿐이다({@code min-interval} 1초). 찾은 거래소는
+     * {@link KisExchangeCache}가 30일 기억하므로 <b>반복 검색 비용은 0</b>이다.
      */
     private StockQuote usStock(UsSymbol symbol) {
         return overExchanges(symbol.symbol(), "미국 종목 " + symbol.symbol(),
@@ -803,19 +773,10 @@ public class KisStockApi implements DomesticStockClient, UsStockClient, StockDai
      * 없는 심볼</b>(지수는 표가 유일한 길이고, 종목 일봉은 거래소를 다 훑어도 {@code output2}가
      * 빈 배열로 온다). 어느 쪽도 다시 물어서 낫지 않고, <b>같은 입력이면 영원히 같은 실패</b>다.
      *
-     * <p>⚠️ <b>타입을 따로 두는 이유는 브레이커다.</b> 이 실패가 {@code kisStock}에 쌓이면
-     * 열리는 순간 <b>멀쩡한 KIS 호출 전부</b>가 함께 막힌다 — 국내 시세는 전일 종가로 강등되고,
-     * 미국 시세는 2순위(FMP)가 대부분 402라 <b>통째로 빈손</b>이 된다. 설정이
-     * {@code fmpOutlook}을 시세와 가른 이유와 같은 자리이고, 지오코딩·바이낸스가 「없는 지명」·
-     * 「없는 심볼」의 4xx를 무시 목록에 넣은 것과 같은 판단이다.
-     *
-     * <p><b>더 나쁜 이유가 둘 있다.</b> 하나는 이 실패가 <b>HTTP 호출 없이</b> 난다는
-     * 것이다(표를 못 찾으면 그 자리에서 던진다) — 상대를 건드리지도 않고 상대의 브레이커를
-     * 태운다. 다른 하나는 캐시가 브레이커보다 <b>바깥</b>이라는 것이다
-     * ({@code ResilienceConfigTest.cacheSitsOutsideTheResilienceAspects}) — 성공한 일봉은
-     * 12시간 캐시에 들어가 브레이커에 다시 안 세어지는데 <b>실패는 캐시되지 않아 매번 세어진다.</b>
-     * 그래서 비율이 실패 쪽으로 기울고, 설정 표에 없는 지수를 다섯 번 물으면
-     * (시세 1 + 차트 1 = 조회당 실패 둘) 창 열 칸이 실패로 차 브레이커가 열린다.
+     * <p>⚠️ <b>타입을 따로 두는 이유는 브레이커다.</b> 이 실패가 {@code kisStock}에 쌓여 열리면
+     * 멀쩡한 KIS 호출 전부가 함께 막힌다. 게다가 이 실패는 <b>HTTP 호출 없이</b> 나고(표를 못
+     * 찾으면 그 자리에서 던진다) <b>캐시되지 않아 매번 세어지므로</b>, 비율이 금세 실패 쪽으로
+     * 기운다. 브레이커 산수는 → ADR-0001.
      *
      * <p><b>던지는 것은 그대로다.</b> 빈 값을 돌려주면 {@code StockService}가 폴백하지 못하고
      * 그대로 빈손이 나간다 — 바꾼 것은 <b>세는 방식</b>뿐이다.

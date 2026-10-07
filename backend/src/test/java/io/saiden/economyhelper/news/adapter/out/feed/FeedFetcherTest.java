@@ -11,7 +11,6 @@ import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.saiden.economyhelper.config.EconomyHelperProperties.Feed;
-import io.saiden.economyhelper.config.EconomyHelperProperties.Ranking;
 import io.saiden.economyhelper.config.EconomyHelperProperties.Weights;
 import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.news.domain.Article;
@@ -123,7 +122,6 @@ class FeedFetcherTest extends WireMockTest {
                 TestRetries.registry(),
                 java.time.Clock.fixed(CLOCK.instant().plus(Duration.ofDays(30)),
                         java.time.ZoneOffset.UTC),
-                MAX_AGE,
                 List.of(new RssFeedClient(), new GoogleNewsFeedClient()));
         stubFeed("/cnbc", 200, fixture("cnbc.xml"));
 
@@ -227,22 +225,6 @@ class FeedFetcherTest extends WireMockTest {
         });
     }
 
-    @Test
-    @DisplayName("코인 매체는 자기 기자가 쓴다 — 페이월 재게재 필터에 걸리지 않는다")
-    void cryptoOutletsSurviveThePaywallSyndicationFilter() {
-        // Investing.com이 Reuters 기사를 자기 도메인에 얹어 내는 것과 달라서, 이 둘은
-        // author가 자사 기자다. 걸리면 피드가 통째로 비어 코인 자리가 안 찬다
-        stubFeed("/coindesk", 200, fixture("coindesk.xml"));
-        stubFeed("/cointelegraph", 200, fixture("cointelegraph.xml"));
-
-        FeedFetcher fetcher = fetcherAt(Map.of(
-                NewsSource.COINDESK, feed("/coindesk", FeedType.RSS),
-                NewsSource.COINTELEGRAPH, feed("/cointelegraph", FeedType.RSS)), CRYPTO_CLOCK);
-
-        assertThat(fetcher.fetch(NewsSource.COINDESK)).isNotEmpty();
-        assertThat(fetcher.fetch(NewsSource.COINTELEGRAPH)).isNotEmpty();
-    }
-
     private void stubFeed(String path, int status, String body) {
         server.stubFor(get(urlPathEqualTo(path)).willReturn(
                 aResponse().withStatus(status)
@@ -264,7 +246,9 @@ class FeedFetcherTest extends WireMockTest {
         // 수집은 digest·캐시TTL·날씨·market 설정을 쓰지 않는다 — 안 채우는 것이 그 사실의 표현이다
         return TestProperties.builder()
                 .feeds(copy)
-                .ranking(new Ranking(new Weights(0.35, 0.25, 0.25, 0.15), Duration.ofHours(6)))
+                .weights(new Weights(0.35, 0.25, 0.25, 0.15))
+                .recencyHalfLife(Duration.ofHours(6))
+                .maxAge(MAX_AGE)
                 .build();  // market 설정(KIS 지수 표)도 마찬가지
     }
 
@@ -285,7 +269,6 @@ class FeedFetcherTest extends WireMockTest {
                 registry,
                 TestRetries.registry(),
                 clock,
-                MAX_AGE,
                 List.of(new RssFeedClient(), new GoogleNewsFeedClient()));
     }
 

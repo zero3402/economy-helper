@@ -2,11 +2,11 @@ package io.saiden.economyhelper.config;
 
 import io.saiden.economyhelper.news.domain.FeedType;
 import io.saiden.economyhelper.news.domain.NewsSource;
-import io.saiden.economyhelper.weather.domain.Weather;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.DefaultValue;
 
 /**
  * {@code application.yml}의 {@code economy-helper.*} 바인딩.
@@ -23,11 +23,29 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * 오류가 아니라 빈 Map이 되므로 런타임에야 드러난다.
  *
  * <p>아래 레코드들은 이 규칙을 되풀어 적지 않는다. 한 곳에서 오는 것이 요점이다.
+ *
+ * <h2>없을 때 무엇이 되는가</h2>
+ *
+ * <p>⚠️ <b>값 하나를 두 경로로 읽지 않는다.</b> 여기 있는 키를 {@code @Value}로 다시 읽으면
+ * 결측 의미가 갈린다({@code @Value}는 거기 적은 기본값, 레코드는 {@code null}) — 그러면
+ * 같은 설정이 자리마다 다른 값이 된다.
+ *
+ * <p>값이 설정에 없으면 성분은 {@code null}이다. {@code null}이 답이 아닌 자리에는
+ * {@link DefaultValue}로 <b>기본값을 적어 둔다</b> — 그 자리들은 전부 yml에도 값이 있으므로
+ * 기본값은 「yml에서 그 줄이 사라져도 전과 같이 돈다」는 보험이다.
+ *
+ * <p>기본값이 없는 것(각 출처의 {@code base-url}과 {@code gemini.model})은 <b>없으면 안 되는 값</b>이다.
+ * 빠지면 {@code null}이 그대로 흘러가 조용히 엉뚱한 요청이 나가므로,
+ * {@code EconomyHelperPropertiesTest}가 실제 바인딩에서 그것들이 차 있는지 본다 —
+ * {@code cache-ttl}을 {@code CacheConfigTest}로, 타임아웃 호스트를 {@code HttpTimeoutsTest}로
+ * 막은 것과 같은 함정이고 같은 대응이다.
  */
 @ConfigurationProperties(prefix = "economy-helper")
 public record EconomyHelperProperties(
         Map<NewsSource, Feed> feeds, Ranking ranking, Digest digest, CacheTtl cacheTtl,
-        Weather weather, Market market, List<HttpTimeout> httpTimeouts) {
+        Weather weather, Market market, List<HttpTimeout> httpTimeouts,
+        Telegram telegram, Translation translation, @DefaultValue KeepWarm keepWarm,
+        @DefaultValue Warmup warmup) {
 
     /**
      * 출처 하나의 타임아웃 — <b>키가 호스트다.</b>
@@ -54,20 +72,59 @@ public record EconomyHelperProperties(
      */
     public record HttpTimeout(String host, Duration connect, Duration read) {}
 
-    /**
-     * {@code market.*} 중 <b>구조가 있는 것만</b> 여기로 묶는다. 나머지(업비트·바이낸스·
-     * 공공데이터포털·FMP·수출입은행의 base-url·키)는 값 하나씩이라 {@code @Value}가 그대로 읽는다.
-     *
-     * <p>⚠️ 값 하나를 두 경로로 읽지 않는다 — 결측 의미가 다르다({@code @Value}는 {@code ""},
-     * 레코드는 {@code null}). KIS 키·base-url도 {@code @Value}로만 읽는다.
-     */
-    public record Market(Kis kis) {}
+    /** 시세·환율 출처들 — <b>출처 하나가 레코드 하나</b>다. */
+    public record Market(Kis kis, Upbit upbit, Binance binance, DataGo dataGo, Fmp fmp,
+                         Polygon polygon, Frankfurter frankfurter, Kexim kexim) {}
 
     /**
-     * @param usIndices 미국 지수의 KIS 심볼 표. <b>브리핑 목록과 갈라 둔다</b> — 겸하면 표에 없는
-     *                  심볼을 KIS가 통째로 거절한다. 목록은 "브리핑에 넣을 것", 이 표는 "KIS가 아는 이름"이다
+     * 한국투자증권 — 환율·국내 주식·미국 주식의 1순위. <b>셋이 같은 앱키·같은 호스트·같은 간격 문</b>이라
+     * 레코드도 하나다.
+     *
+     * @param masterBaseUrl 종목 마스터 파일이 있는 곳. 키가 없고 모의·실전 구분도 없어
+     *                      {@code base-url}과 다른 호스트다
+     * @param minInterval   호출 사이 최소 간격. 모의 계정이 초당 1건이라 기본 1초다 —
+     *                      실전 계정은 초당 20건이므로 낮춰 잡을 수 있다({@code base-url}과 함께 바꾼다)
+     * @param maxWait       줄 서는 것까지 이 시간을 넘기면 기다리지 않고 던진다
+     * @param usIndices     미국 지수의 KIS 심볼 표. <b>브리핑 목록과 갈라 둔다</b> — 겸하면 표에 없는
+     *                      심볼을 KIS가 통째로 거절한다. 목록은 "브리핑에 넣을 것", 이 표는 "KIS가 아는 이름"이다
      */
-    public record Kis(List<KisIndex> usIndices) {}
+    public record Kis(String baseUrl,
+                      @DefaultValue("") String appKey, @DefaultValue("") String appSecret,
+                      String masterBaseUrl,
+                      @DefaultValue("1s") Duration minInterval,
+                      @DefaultValue("20s") Duration maxWait,
+                      List<KisIndex> usIndices) {}
+
+    /** 업비트 — 국내 코인 시세. 인증이 없다. */
+    public record Upbit(String baseUrl) {}
+
+    /**
+     * 바이낸스 — 글로벌 코인 시세.
+     *
+     * @param fallbackBaseUrl 451(지역 차단) 전용 우회로. <b>비우면 우회 자체가 없다</b>
+     */
+    public record Binance(String baseUrl, @DefaultValue("") String fallbackBaseUrl) {}
+
+    /** 공공데이터포털 — 국내 주식·ETF의 2순위. 키는 기상청과 같은 {@code DATA_API_KEY}다. */
+    public record DataGo(String baseUrl, @DefaultValue("") String apiKey) {}
+
+    /**
+     * FMP — 미국 시세·전망의 2순위.
+     *
+     * @param dailyLimit 무료 한도가 하루 250회인데 응답에 레이트리밋 헤더가 없어 우리가 센다.
+     *                   여유를 두고 240에서 멈춘다
+     */
+    public record Fmp(String baseUrl, @DefaultValue("") String apiKey,
+                      @DefaultValue("240") int dailyLimit) {}
+
+    /** Polygon — 미국 배당의 1순위. 환경변수 이름이 {@code MASSIVE_API_KEY}다. */
+    public record Polygon(String baseUrl, @DefaultValue("") String apiKey) {}
+
+    /** Frankfurter — 유럽중앙은행 고시 환율. 인증도 IP 제한도 없다. */
+    public record Frankfurter(String baseUrl) {}
+
+    /** 수출입은행 — 환율 3순위. 하루 1,000회 한도가 있다. */
+    public record Kexim(String baseUrl, @DefaultValue("") String apiKey) {}
 
     /**
      * 지수 하나의 KIS 심볼.
@@ -80,7 +137,20 @@ public record EconomyHelperProperties(
     /** {@code type}이 어느 파서를 쓸지 정한다 — AP만 GOOGLE_NEWS다. */
     public record Feed(String url, FeedType type) {}
 
-    public record Ranking(Weights weights, Duration recencyHalfLife) {}
+    /**
+     * @param maxAge 이보다 오래된 기사는 수집 단계에서 버린다. 신선도 가중치는 랭킹 네 항 중
+     *               하나일 뿐이라 피드 앞자리에 놓인 옛 기사를 못 막는다
+     */
+    public record Ranking(Weights weights, Duration recencyHalfLife,
+                          @DefaultValue("3d") Duration maxAge, HackerNews hackerNews) {}
+
+    /**
+     * Hacker News — 매체가 조회수·댓글을 공개하지 않아 무료로 얻을 수 있는 유일한 실측 반응이다.
+     *
+     * @param window 이 기간 안의 글만 반응으로 센다
+     */
+    public record HackerNews(String baseUrl, @DefaultValue("7d") Duration window,
+                             @DefaultValue("100") int hitsPerPage) {}
 
     /** 합이 1일 필요는 없다. {@code PopularityScorer}가 합으로 나눠 정규화한다. */
     public record Weights(double feedRank, double recency, double keywordMatch, double buzz) {}
@@ -92,6 +162,13 @@ public record EconomyHelperProperties(
      *                        종목(NVDA·AAPL)이 같은 엔드포인트라 한 목록으로 둔다
      * @param indices         브리핑에 넣을 지수. 출처마다 조회 키가 달라 이름과 코드를 함께 든다
      *                        ({@link Index} 참조)
+     * @param window          뉴스 신선도 창 — 알람과 검색이 같은 값을 쓴다. 날짜(KST 달력)가
+     *                        아니라 경과 시간이다
+     * @param llmCandidates   매체별로 LLM에 넘길 후보 수
+     * @param relevanceThreshold 이 미만이면 재테크 뉴스가 아닌 것으로 보고 그 매체를 이번 발송에서 뺀다
+     * @param searchResults   {@code /news} 검색이 보여줄 건수
+     * @param cryptoResults   브리핑 뉴스의 코인 건수. 모자란 무리는 다른 무리로 메우지 않는다
+     * @param economyResults  브리핑 뉴스의 경제 건수
      *
      * <p><b>{@code cron}은 담지 않는다.</b> yml 키는 살아 있지만 {@code @Scheduled}의 SpEL
      * 문자열이 직접 읽으므로({@code "${economy-helper.digest.cron}"}) 자바 쪽에서 꺼내는 곳이
@@ -99,7 +176,13 @@ public record EconomyHelperProperties(
      */
     public record Digest(String zone, Duration sentHistoryTtl,
                          List<Index> indices, List<String> stocks, List<String> cryptos,
-                         List<UsSymbol> usSymbols) {}
+                         List<UsSymbol> usSymbols,
+                         @DefaultValue("24h") Duration window,
+                         @DefaultValue("8") int llmCandidates,
+                         @DefaultValue("0.4") double relevanceThreshold,
+                         @DefaultValue("5") int searchResults,
+                         @DefaultValue("5") int cryptoResults,
+                         @DefaultValue("5") int economyResults) {}
 
     /**
      * 브리핑에 넣을 국내 지수 하나.
@@ -185,9 +268,62 @@ public record EconomyHelperProperties(
      * 문자열이 직접 읽으므로({@code "${economy-helper.weather.cron}"}) 자바 쪽에서 꺼내는
      * 곳이 없다 — {@code Digest}와 같다.
      */
-    public record Weather(String zone, List<WeatherLocation> locations) {}
+    public record Weather(String zone, List<WeatherLocation> locations,
+                          Kma kma, AccuWeather accuWeather, OpenMeteo openMeteo) {}
 
     /** 알람에 넣을 지점 하나. */
     public record WeatherLocation(String name, double latitude, double longitude) {}
+
+    /** 기상청 동네예보 — 국내 1순위. 키는 공공데이터포털과 같은 {@code DATA_API_KEY}다. */
+    public record Kma(String baseUrl, @DefaultValue("") String apiKey) {}
+
+    /** AccuWeather — 국외 1순위이자 국내 2순위. 무료 등급이 하루 50회다. */
+    public record AccuWeather(String baseUrl, @DefaultValue("") String apiKey) {}
+
+    /**
+     * Open-Meteo — 2순위와 과거. <b>호스트가 셋이다</b>(예보·재분석·지명 검색).
+     *
+     * @param archiveBaseUrl   지나간 날(ERA5 재분석). 격자가 달라 출처 이름도 따로 적는다
+     * @param geocodingBaseUrl 지명 검색. 이중화 상대가 없다
+     */
+    public record OpenMeteo(String baseUrl, String archiveBaseUrl, String geocodingBaseUrl) {}
+
+    /**
+     * 텔레그램 — 정기 발송과 명령을 받는 유일한 창구.
+     *
+     * @param chatId         정기 발송 대상이자 명령을 받아 줄 유일한 채팅방. 다른 곳에서 온 명령은 무시한다
+     * @param noticeTopicId  브리핑을 보낼 포럼 토픽. 비우면 토픽을 지정하지 않는다
+     * @param searchTopicId  명령을 받을 포럼 토픽. 비우면 모든 토픽을 받는다
+     * @param webhookSecret  {@code setWebhook}에 준 것과 같은 값. 비어 있으면 검증하지 않는다
+     * @param minInterval    같은 방에 연달아 보낼 때 <b>발송 시작 사이</b>의 최소 간격
+     */
+    public record Telegram(String baseUrl,
+                           @DefaultValue("") String botToken, @DefaultValue("") String chatId,
+                           @DefaultValue("") String noticeTopicId,
+                           @DefaultValue("") String searchTopicId,
+                           @DefaultValue("") String webhookSecret,
+                           @DefaultValue("1s") Duration minInterval) {}
+
+    public record Translation(Gemini gemini) {}
+
+    /**
+     * Gemini — 검색어 해석·번역·관련도.
+     *
+     * @param model 버전을 고정하지 않고 별칭을 쓴다 — 무료 티어 모델은 조용히 은퇴한다
+     */
+    public record Gemini(String baseUrl, @DefaultValue("") String apiKey, String model) {}
+
+    /**
+     * 무활동으로 잠드는 호스트에서 깨어 있기 위한 자체 핑.
+     *
+     * <p><b>{@code cron}은 담지 않는다</b> — {@link Digest}와 같은 이유로 {@code @Scheduled}의
+     * SpEL 문자열이 직접 읽는다.
+     *
+     * @param url 비우면 이 기능은 없는 것과 같다. 반드시 공개 주소여야 한다
+     */
+    public record KeepWarm(@DefaultValue("") String url) {}
+
+    /** 기동 때 종목 색인 데우기. 테스트는 꺼 둔다 — 실제 파일 호스트를 부르지 않게. */
+    public record Warmup(@DefaultValue("true") boolean enabled) {}
 
 }

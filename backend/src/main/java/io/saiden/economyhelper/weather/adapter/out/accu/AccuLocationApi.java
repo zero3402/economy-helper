@@ -4,10 +4,11 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.saiden.economyhelper.config.CacheNames;
+import io.saiden.economyhelper.config.EconomyHelperProperties.AccuWeather;
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.weather.domain.GeoLocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -38,11 +39,10 @@ public class AccuLocationApi {
     private final RestClient restClient;
     private final String apiKey;
 
-    public AccuLocationApi(RestClient.Builder builder,
-                           @Value("${economy-helper.weather.accu-weather.base-url}") String baseUrl,
-                           @Value("${economy-helper.weather.accu-weather.api-key:}") String apiKey) {
-        this.restClient = builder.baseUrl(baseUrl).build();
-        this.apiKey = apiKey;
+    public AccuLocationApi(RestClient.Builder builder, EconomyHelperProperties properties) {
+        AccuWeather accu = properties.weather().accuWeather();
+        this.restClient = builder.baseUrl(accu.baseUrl()).build();
+        this.apiKey = accu.apiKey();
     }
 
     /**

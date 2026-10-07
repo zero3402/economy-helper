@@ -7,6 +7,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.github.tomakehurst.wiremock.client.WireMock;
+import io.saiden.economyhelper.testsupport.TestProperties;
 import io.saiden.economyhelper.testsupport.WireMockTest;
 import io.saiden.economyhelper.weather.domain.GeoLocation;
 import io.saiden.economyhelper.weather.domain.HalfDay;
@@ -41,7 +42,8 @@ class OpenMeteoHourlyClientTest extends WireMockTest {
 
     @BeforeEach
     void resetAndBuild() {
-        client = new OpenMeteoHourlyClient(RestClient.builder(), server.baseUrl());
+        client = new OpenMeteoHourlyClient(RestClient.builder(),
+                TestProperties.builder().openMeteo(server.baseUrl()).build());
     }
 
     private void stub(String body) {

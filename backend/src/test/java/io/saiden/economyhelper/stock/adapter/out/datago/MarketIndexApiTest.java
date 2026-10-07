@@ -8,7 +8,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.github.tomakehurst.wiremock.client.WireMock;
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.stock.adapter.out.datago.MarketIndexApi.MarketIndex;
+import io.saiden.economyhelper.testsupport.TestProperties;
 import io.saiden.economyhelper.testsupport.WireMockTest;
 import java.time.Clock;
 import java.time.Instant;
@@ -37,7 +39,7 @@ class MarketIndexApiTest extends WireMockTest {
 
     @BeforeEach
     void resetAndBuild() {
-        api = new MarketIndexApi(RestClient.builder(), server.baseUrl(), ENCODED_KEY,
+        api = new MarketIndexApi(RestClient.builder(), dataGo(),
                 Clock.fixed(NOW, ZoneId.of("Asia/Seoul")), null);
     }
 
@@ -120,5 +122,10 @@ class MarketIndexApiTest extends WireMockTest {
         return """
                 {"basDt":"%s","idxNm":%s,"clpr":"%s","fltRt":"%s"}
                 """.formatted(basDt, idxNm, close, change);
+    }
+
+    /** ⚠️ 키는 이미 인코딩된 모양 그대로 넣는다 — 다시 인코딩하면 403이다. */
+    private EconomyHelperProperties dataGo() {
+        return TestProperties.builder().dataGo(server.baseUrl(), ENCODED_KEY).build();
     }
 }

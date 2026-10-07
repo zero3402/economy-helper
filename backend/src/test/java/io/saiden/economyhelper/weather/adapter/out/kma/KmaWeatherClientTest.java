@@ -9,6 +9,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.github.tomakehurst.wiremock.client.WireMock;
 import io.saiden.economyhelper.testsupport.TestFixtures;
+import io.saiden.economyhelper.testsupport.TestProperties;
 import io.saiden.economyhelper.testsupport.WireMockTest;
 import io.saiden.economyhelper.weather.domain.GeoLocation;
 import io.saiden.economyhelper.weather.domain.HalfDay;
@@ -441,14 +442,18 @@ class KmaWeatherClientTest extends WireMockTest {
     // --- 도구 -------------------------------------------------------------
 
     private KmaWeatherClient clientWith(String apiKey) {
-        return new KmaWeatherClient(new KmaVillageApi(RestClient.builder(), server.baseUrl(),
-                apiKey, Clock.fixed(NOW, SEOUL)), apiKey);
+        return client(apiKey, Clock.fixed(NOW, SEOUL));
     }
 
     /** 시계만 갈아 끼운 클라이언트 — 증상이 시각에 딸려 있다. */
     private KmaWeatherClient clientAt(java.time.Instant at) {
-        return new KmaWeatherClient(new KmaVillageApi(RestClient.builder(), server.baseUrl(),
-                API_KEY, Clock.fixed(at, SEOUL)), API_KEY);
+        return client(API_KEY, Clock.fixed(at, SEOUL));
+    }
+
+    private KmaWeatherClient client(String apiKey, Clock clock) {
+        var properties = TestProperties.builder().kma(server.baseUrl(), apiKey).build();
+        return new KmaWeatherClient(
+                new KmaVillageApi(RestClient.builder(), properties, clock), properties);
     }
 
     private void stubAt(String baseTime, String fixture) {

@@ -2,6 +2,8 @@ package io.saiden.economyhelper.telegram.adapter.in.web;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.saiden.economyhelper.config.EconomyHelperProperties.Telegram;
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.crypto.application.CryptoService;
 import io.saiden.economyhelper.crypto.domain.CryptoQuote;
 import io.saiden.economyhelper.fx.application.FxService;
@@ -36,7 +38,6 @@ import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -102,9 +103,8 @@ public class TelegramWebhookController {
                                      TelegramClient telegramClient,
                                      @Qualifier("replyExecutor") Executor replyExecutor,
                                      ProcessedUpdates processedUpdates,
-                                     @Value("${economy-helper.telegram.webhook-secret:}") String webhookSecret,
-                                     @Value("${economy-helper.telegram.chat-id:}") String allowedChatId,
-                                     @Value("${economy-helper.telegram.search-topic-id:}") String searchTopicId) {
+                                     EconomyHelperProperties properties) {
+        Telegram telegram = properties.telegram();
         this.replyExecutor = replyExecutor;
         this.processedUpdates = processedUpdates;
         this.newsFacade = newsFacade;
@@ -115,9 +115,9 @@ public class TelegramWebhookController {
         this.telegramClient = telegramClient;
         // 다듬어 둔다. 대시보드에 붙여 넣은 값은 끝에 줄바꿈이나 공백이 붙기 쉽고,
         // 그러면 비교가 조용히 어긋나 모든 요청이 403이 된다
-        this.webhookSecret = webhookSecret == null ? "" : webhookSecret.trim();
-        this.allowedChatId = allowedChatId == null ? "" : allowedChatId.trim();
-        this.searchTopicId = TelegramClient.topicId(searchTopicId);
+        this.webhookSecret = trimmed(telegram.webhookSecret());
+        this.allowedChatId = trimmed(telegram.chatId());
+        this.searchTopicId = TelegramClient.topicId(telegram.searchTopicId());
 
         // 비어 있으면 열어 둔다 — 로컬 실행과 테스트가 설정 없이 돌아야 하기 때문이다.
         // 대신 열려 있다는 사실을 기동 로그에 남긴다. 조용히 무방비인 것보다 낫다
@@ -127,6 +127,11 @@ public class TelegramWebhookController {
         if (this.allowedChatId.isBlank()) {
             log.warn("[webhook] chat-id가 비어 있습니다 — 어느 채팅방에서든 명령이 동작합니다");
         }
+    }
+
+    /** 붙여 넣기가 남긴 개행·공백을 뗀다. {@code null}은 빈 문자열로 — 없는 것과 같다. */
+    private static String trimmed(String value) {
+        return value == null ? "" : value.trim();
     }
 
     @PostMapping("/webhook")
@@ -140,8 +145,6 @@ public class TelegramWebhookController {
             log.warn("[webhook] secret이 맞지 않는 요청을 거절했습니다");
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
-        // 답을 만드는 데 몇 초가 걸릴 수 있다. 여기서 기다리면 텔레그램이 타임아웃 후
-        // 같은 업데이트를 다시 보내 답이 두 번 나간다 — 받았다는 사실만 먼저 알린다
         // 텔레그램이 같은 업데이트를 다시 보낸 것이다(우리 200이 닿지 못했다). 200으로 끝내야 더 안 보낸다
         if (update != null && !processedUpdates.firstTime(update.updateId())) {
             log.info("[webhook] update_id {}는 이미 받았습니다 — 다시 답하지 않습니다", update.updateId());
@@ -218,7 +221,7 @@ public class TelegramWebhookController {
             reply = reply(command);
         } catch (RuntimeException e) {
             // ⚠️ 마지막 그물이다. 텔레그램은 이미 200을 받았으므로 재시도가 없고, 여기서
-            //    로그만 남기면 사용자에게는 <b>아무 답도 안 간다</b>(docs/design.md 3.2).
+            //    로그만 남기면 사용자에게는 **아무 답도 안 간다**(docs/design.md 3.2).
             //    도달 가능한 예외가 실제로 있다: 브레이커 열림(CallNotPermittedException),
             //    Redis 장애로 인한 캐시 계층 예외, 렌더 중의 상태 오류
             log.error("[webhook] 채팅 {} · {} 답 만들기 실패: {}",

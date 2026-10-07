@@ -55,7 +55,7 @@ public final class DailySeries {
         // 같은 날이 두 번 오면 뒤엣것만 남긴다 — 되짚기 루프가 겹쳐 부를 수 있다
         List<DailyBar> deduped = new ArrayList<>();
         for (DailyBar bar : usable) {
-            if (!deduped.isEmpty() && deduped.get(deduped.size() - 1).date().equals(bar.date())) {
+            if (!deduped.isEmpty() && deduped.getLast().date().equals(bar.date())) {
                 deduped.set(deduped.size() - 1, bar);
             } else {
                 deduped.add(bar);
@@ -85,10 +85,10 @@ public final class DailySeries {
         if (!drawable(bars)) {
             return null;
         }
-        BigDecimal first = bars.get(0).close();
+        BigDecimal first = bars.getFirst().close();
         if (first.signum() < 0) {
             return null;
         }
-        return PercentChange.between(bars.get(bars.size() - 1).close(), first).orElse(null);
+        return PercentChange.between(bars.getLast().close(), first).orElse(null);
     }
 }

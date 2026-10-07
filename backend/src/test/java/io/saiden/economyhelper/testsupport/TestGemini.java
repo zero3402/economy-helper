@@ -31,7 +31,7 @@ public final class TestGemini {
         private final String response;
 
         private Fixed(String response) {
-            super(RestClient.builder(), "https://example.invalid", "key", "model");
+            super(RestClient.builder(), TestProperties.offline());
             this.response = response;
         }
 
@@ -67,7 +67,7 @@ public final class TestGemini {
         private boolean called;
 
         private Failing() {
-            super(RestClient.builder(), "https://example.invalid", "key", "model");
+            super(RestClient.builder(), TestProperties.offline());
         }
 
         @Override

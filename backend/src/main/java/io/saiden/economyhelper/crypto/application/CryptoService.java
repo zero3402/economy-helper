@@ -82,10 +82,7 @@ public class CryptoService {
      * @return 두 거래소 시세. 어느 쪽에도 없으면 {@link Optional#empty()}
      */
     public Optional<CryptoQuote> quote(String query) {
-        // 업비트 이름 매칭이 먼저다. 마켓 목록은 이미 6시간 캐시돼 있고 매칭은 순수 계산이라
-        // 공짜인데, LLM을 앞에 두면 '비트코인'에도 Gemini가 나간다
-        Optional<CryptoQuote> byName = byUpbitName(query)
-                .map(quote -> withBinance(List.of(quote)).get(0));
+        Optional<CryptoQuote> byName = byUpbitName(query).map(this::withBinance);
         if (byName.isPresent()) {
             return byName;
         }
@@ -332,6 +329,11 @@ public class CryptoService {
                     ? Quote.NOT_LISTED
                     : binanceQuote(price));
         }).toList();
+    }
+
+    /** 하나짜리 — 목록 판을 그대로 쓴다. 한 건이 들어가면 반드시 한 건이 나온다. */
+    private CryptoQuote withBinance(CryptoQuote quote) {
+        return withBinance(List.of(quote)).getFirst();
     }
 
     private static CryptoQuote withBinanceState(CryptoQuote quote, Quote binance) {

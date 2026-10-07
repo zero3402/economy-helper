@@ -8,7 +8,9 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.stock.domain.StockOutlook;
+import io.saiden.economyhelper.testsupport.TestProperties;
 import io.saiden.economyhelper.testsupport.WireMockTest;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -46,7 +48,7 @@ class PolygonDividendClientTest extends WireMockTest {
              "status":"OK","next_url":"https://api.polygon.io/v3/reference/dividends?cursor=x"}""";
 
     private PolygonDividendClient client(Instant now) {
-        return new PolygonDividendClient(RestClient.builder(), server.baseUrl(), API_KEY,
+        return new PolygonDividendClient(RestClient.builder(), keyed(API_KEY),
                 Clock.fixed(now, ZoneOffset.UTC));
     }
 
@@ -150,7 +152,7 @@ class PolygonDividendClientTest extends WireMockTest {
     @DisplayName("키가 없으면 부르지 않는다")
     void skipsWithoutAKey() {
         PolygonDividendClient keyless = new PolygonDividendClient(RestClient.builder(),
-                server.baseUrl(), "", Clock.systemUTC());
+                keyed(""), Clock.systemUTC());
 
         assertThatThrownBy(() -> keyless.dividend("SCHD")).hasMessageContaining("키");
 
@@ -170,5 +172,9 @@ class PolygonDividendClientTest extends WireMockTest {
 
         assertThat(dividend.past()).as("현지로 아직 오늘이면 앞날이다").isFalse();
         assertThat(dividend.recordDate()).isEqualTo(LocalDate.of(2026, 9, 24));
+    }
+
+    private EconomyHelperProperties keyed(String apiKey) {
+        return TestProperties.builder().polygon(server.baseUrl(), apiKey).build();
     }
 }

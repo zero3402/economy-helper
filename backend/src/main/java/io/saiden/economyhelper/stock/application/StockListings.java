@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.stock.application;
 
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.shared.support.FailureReason;
 import io.saiden.economyhelper.shared.support.QueryNormalizer;
 import io.saiden.economyhelper.stock.application.port.out.ListingSource;
@@ -19,7 +20,6 @@ import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
@@ -39,7 +39,7 @@ import org.springframework.stereotype.Component;
  * 여기는 그 답({@code TIME 미국나스닥100액티브})을 코드로 바꾸는 일만 한다. 브랜드 대응표를
  * 두지 않는 이유는 ADR-0003에 있다.
  *
- * <p>{@link #agrees}는 LLM이 준 코드와 이름이 <b>서로 다른 종목을 가리키는지</b> 보는 데 쓴다 —
+ * <p>{@link #sameListing}은 LLM이 준 코드와 이름이 <b>서로 다른 종목을 가리키는지</b> 보는 데 쓴다 —
  * ETF는 이름이 비슷한 코드가 수십 개라 <b>존재하는 틀린 코드</b>가 흔하고, 그러면 KIS가 멀쩡히
  * 답해 다른 ETF가 나간다. 틀린 값이 빈손보다 나쁘다.
  *
@@ -70,10 +70,16 @@ public class StockListings {
     private final Clock clock;
     private volatile Index index;
 
+    /**
+     * 사본 수명은 <b>Redis 캐시와 같은 값</b>이다({@code cache-ttl.kr-listings}) — 두 수명이
+     * 어긋나면 한쪽이 비운 뒤에도 다른 쪽이 옛 목록을 답한다. 그래서 설정도 한 줄이다.
+     */
     @Autowired
-    public StockListings(ListingSource source,
-                         @Value("${economy-helper.cache-ttl.kr-listings:6h}") Duration keepFor,
-                         Clock clock) {
+    public StockListings(ListingSource source, EconomyHelperProperties properties, Clock clock) {
+        this(source, properties.cacheTtl().krListings(), clock);
+    }
+
+    public StockListings(ListingSource source, Duration keepFor, Clock clock) {
         this.source = source;
         this.keepFor = keepFor;
         this.clock = clock;
@@ -186,7 +192,7 @@ public class StockListings {
 
         static Index of(List<Listing> listings, Instant at) {
             List<Entry> entries = new ArrayList<>(listings.size());
-            Map<String, Listing> byCode = new HashMap<>(listings.size() * 2);
+            Map<String, Listing> byCode = HashMap.newHashMap(listings.size());
             for (Listing listing : listings) {
                 entries.add(new Entry(listing, QueryNormalizer.normalize(listing.name())));
                 byCode.putIfAbsent(listing.code().toUpperCase(Locale.ROOT), listing);

@@ -327,7 +327,8 @@ class KisDomesticOutlookClientTest extends WireMockTest {
     private static final class AlwaysCongested extends KisThrottle {
 
         private AlwaysCongested() {
-            super(java.time.Duration.ZERO, java.time.Duration.ZERO);
+            super(io.saiden.economyhelper.testsupport.TestProperties.builder()
+                    .kisPacing(java.time.Duration.ZERO, java.time.Duration.ZERO).build());
         }
 
         @Override

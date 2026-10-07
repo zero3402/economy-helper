@@ -2,6 +2,7 @@ package io.saiden.economyhelper.infrastructure.kis;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.saiden.economyhelper.testsupport.TestProperties;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
@@ -20,7 +21,7 @@ class KisCredentialsTest {
     void trimsCredentialsBeforePuttingThemInHeaders() {
         HttpHeaders headers = new HttpHeaders();
 
-        new KisHeaders("key-with-newline\n", "secret-with-spaces  \n")
+        kisHeaders("key-with-newline\n", "secret-with-spaces  \n")
                 .of("token", "TR0001").accept(headers);
 
         assertThat(headers.getFirst("appkey")).isEqualTo("key-with-newline");
@@ -33,10 +34,14 @@ class KisCredentialsTest {
     void treatsMissingCredentialsAsEmpty() {
         HttpHeaders headers = new HttpHeaders();
 
-        new KisHeaders(null, null).of("token", "TR0001").accept(headers);
+        kisHeaders(null, null).of("token", "TR0001").accept(headers);
 
         assertThat(headers.getFirst("appkey")).isEmpty();
         assertThat(headers.getFirst("appsecret")).isEmpty();
     }
 
+    private static KisHeaders kisHeaders(String appKey, String appSecret) {
+        return new KisHeaders(TestProperties.builder()
+                .kisCredentials(appKey, appSecret).build());
+    }
 }

@@ -1,10 +1,10 @@
 package io.saiden.economyhelper.infrastructure.kis;
 
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import java.net.URI;
 import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriBuilder;
@@ -47,10 +47,9 @@ public class KisCall {
     private final KisHeaders headers;
     private final KisThrottle throttle;
 
-    public KisCall(RestClient.Builder builder,
-            @Value("${economy-helper.market.kis.base-url}") String baseUrl,
+    public KisCall(RestClient.Builder builder, EconomyHelperProperties properties,
             KisTokenStore tokens, KisHeaders headers, KisThrottle throttle) {
-        this.restClient = builder.baseUrl(baseUrl).build();
+        this.restClient = builder.baseUrl(properties.market().kis().baseUrl()).build();
         this.tokens = tokens;
         this.headers = headers;
         this.throttle = throttle;

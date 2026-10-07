@@ -176,11 +176,12 @@ class WeatherDigestJobTest {
 
     private static EconomyHelperProperties properties() {
         return TestProperties.builder()
-                .weather(new EconomyHelperProperties.Weather("Asia/Seoul", List.of(
+                .weatherZone("Asia/Seoul")
+                .locations(List.of(
                         new WeatherLocation("미금역", 37.35, 127.10889),
                         new WeatherLocation("서현역", 37.3851167, 127.1232944),
                         new WeatherLocation("잠실역", 37.51325, 127.100111),
-                        new WeatherLocation("삼성중앙역", 37.512806, 127.052612))))
+                        new WeatherLocation("삼성중앙역", 37.512806, 127.052612)))
                 .build();
     }
 

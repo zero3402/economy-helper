@@ -6,6 +6,8 @@ import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.ratelimiter.RateLimiter;
 import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
 import io.saiden.economyhelper.config.CacheNames;
+import io.saiden.economyhelper.config.EconomyHelperProperties.Kexim;
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.fx.application.port.out.FxRateClient;
 import io.saiden.economyhelper.fx.domain.FxRate;
 import io.saiden.economyhelper.fx.domain.FxSource;
@@ -20,7 +22,6 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.ResolverStyle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -80,12 +81,12 @@ public class KeximFxClient implements FxRateClient {
     private final RateLimiter limiter;
 
     public KeximFxClient(RestClient.Builder builder,
-                         @Value("${economy-helper.market.kexim.base-url}") String baseUrl,
-                         @Value("${economy-helper.market.kexim.api-key:}") String authKey,
+                         EconomyHelperProperties properties,
                          Clock clock,
                          RateLimiterRegistry limiters) {
-        this.restClient = builder.baseUrl(baseUrl).build();
-        this.authKey = authKey;
+        Kexim kexim = properties.market().kexim();
+        this.restClient = builder.baseUrl(kexim.baseUrl()).build();
+        this.authKey = kexim.apiKey();
         this.clock = clock;
         this.limiter = Permit.of(limiters, "kexim");
     }

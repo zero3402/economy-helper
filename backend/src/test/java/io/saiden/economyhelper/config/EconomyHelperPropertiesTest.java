@@ -133,6 +133,64 @@ class EconomyHelperPropertiesTest {
     }
 
     @Test
+    @DisplayName("묶음과 base-url이 하나도 빠짐없이 붙는다 — 빠지면 null이 그대로 요청에 실린다")
+    void bindsEverySourceGroupAndBaseUrl() {
+        // base-url에는 기본값이 없다. 전에는 @Value의 플레이스홀더가 못 풀려 기동이 멈췄는데
+        // 레코드는 조용히 null이 된다 — 그 자리를 여기서 막는다. cache-ttl을
+        // bindsEveryCacheTtl이, 타임아웃 호스트를 HttpTimeoutsTest가 막는 것과 같은 그물이다.
+        assertEveryRecordIsBound(properties, "economy-helper");
+    }
+
+    /** 레코드 성분 중 <b>레코드인 것</b>은 전부 붙어 있어야 하고, {@code *base-url}은 비어 있으면 안 된다. */
+    private static void assertEveryRecordIsBound(Object record, String path) {
+        for (java.lang.reflect.RecordComponent component
+                : record.getClass().getRecordComponents()) {
+            Object value = org.springframework.util.ReflectionUtils.invokeMethod(
+                    component.getAccessor(), record);
+            String where = path + "." + component.getName();
+            if (component.getType().isRecord()) {
+                assertThat(value).as("%s 묶음이 통째로 안 붙었다", where).isNotNull();
+                assertEveryRecordIsBound(value, where);
+            } else if (component.getName().toLowerCase(java.util.Locale.ROOT).endsWith("baseurl")) {
+                assertThat((String) value)
+                        .as("%s가 없다 — 이 주소로는 아무 요청도 제대로 못 나간다", where)
+                        .isNotBlank();
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("건수·한도·간격이 0으로 떨어지지 않는다 — 안 붙은 숫자는 null이 아니라 0이다")
+    void bindsCountsAndLimits() {
+        // 값이 맞는지가 아니라 **도달했는지**를 본다(이 클래스의 규칙). 숫자는 안 붙어도
+        // null이 아니라 0이라 조용하다 — search-results가 0이면 /news가 늘 빈손이고,
+        // kis.min-interval이 0이면 간격 문이 열린 채로 KIS가 호출을 거절하기 시작한다
+        assertThat(properties.digest().window()).isPositive();
+        assertThat(properties.digest().llmCandidates()).isPositive();
+        assertThat(properties.digest().relevanceThreshold()).isPositive();
+        assertThat(properties.digest().searchResults()).isPositive();
+        assertThat(properties.digest().cryptoResults()).isPositive();
+        assertThat(properties.digest().economyResults()).isPositive();
+
+        assertThat(properties.ranking().maxAge()).isPositive();
+        assertThat(properties.ranking().hackerNews().window()).isPositive();
+        assertThat(properties.ranking().hackerNews().hitsPerPage()).isPositive();
+
+        assertThat(properties.market().fmp().dailyLimit()).isPositive();
+        assertThat(properties.market().kis().minInterval()).isPositive();
+        assertThat(properties.market().kis().maxWait()).isPositive();
+        assertThat(properties.telegram().minInterval()).isPositive();
+    }
+
+    @Test
+    @DisplayName("Gemini 모델 별칭이 붙는다 — 빠지면 URL에 null이 실려 404가 된다")
+    void bindsTheGeminiModelAlias() {
+        // 유일하게 base-url이 아니면서 기본값도 없는 값이다. 버전을 고정하지 않고 별칭을 쓰므로
+        // 값 자체는 바뀔 수 있다 — 있는지만 본다
+        assertThat(properties.translation().gemini().model()).isNotBlank();
+    }
+
+    @Test
     @DisplayName("랭킹 가중치 넷과 발송 목록이 붙는다")
     void bindsRankingAndDigestLists() {
         assertThat(properties.ranking().weights().feedRank()).isPositive();

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.saiden.economyhelper.infrastructure.llm.GeminiApi;
 import io.saiden.economyhelper.news.domain.Article;
 import io.saiden.economyhelper.news.domain.NewsSource;
+import io.saiden.economyhelper.testsupport.TestProperties;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -139,7 +140,7 @@ class RelevanceScorerTest {
         private final AtomicInteger calls = new AtomicInteger();
 
         RecordingApi(String response) {
-            super(RestClient.builder(), "https://example.invalid", "key", "model");
+            super(RestClient.builder(), TestProperties.offline());
             this.response = response;
         }
 

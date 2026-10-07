@@ -96,20 +96,25 @@ class QueryNormalizerTest {
     @DisplayName("/news 토큰 정규화 — 여기서만 조사를 뗀다")
     class ForSearchToken {
 
+        /** {@code QueryExpander.tokens}가 토큰마다 하는 두 걸음 그대로다. */
+        private static String stem(String token) {
+            return QueryNormalizer.stripParticle(QueryNormalizer.searchSurface(token));
+        }
+
         @Test
         @DisplayName("조사를 떼어 같은 개념이 한 캐시 키로 모인다")
         void stripsParticlesSoCacheHits() {
-            assertThat(QueryNormalizer.forSearchToken("금리는")).isEqualTo("금리");
-            assertThat(QueryNormalizer.forSearchToken("금리가")).isEqualTo("금리");
-            assertThat(QueryNormalizer.forSearchToken("환율의")).isEqualTo("환율");
-            assertThat(QueryNormalizer.forSearchToken("금리")).isEqualTo("금리");
+            assertThat(stem("금리는")).isEqualTo("금리");
+            assertThat(stem("금리가")).isEqualTo("금리");
+            assertThat(stem("환율의")).isEqualTo("환율");
+            assertThat(stem("금리")).isEqualTo("금리");
         }
 
         @Test
         @DisplayName("두 글자가 안 남으면 떼지 않는다 — '인도'를 '인'으로 만들면 다른 단어가 된다")
         void keepsShortWordsIntact() {
-            assertThat(QueryNormalizer.forSearchToken("인도")).isEqualTo("인도");
-            assertThat(QueryNormalizer.forSearchToken("제도")).isEqualTo("제도");
+            assertThat(stem("인도")).isEqualTo("인도");
+            assertThat(stem("제도")).isEqualTo("제도");
         }
     }
 }

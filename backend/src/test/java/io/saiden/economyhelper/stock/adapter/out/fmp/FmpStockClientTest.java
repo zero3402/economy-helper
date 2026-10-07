@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import io.saiden.economyhelper.config.EconomyHelperProperties.UsSymbol;
 import io.saiden.economyhelper.stock.adapter.out.fmp.FmpApi.FmpQuote;
 import io.saiden.economyhelper.stock.domain.StockQuote;
+import io.saiden.economyhelper.testsupport.TestProperties;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -67,7 +68,7 @@ class FmpStockClientTest {
         private final FmpQuote quote;
 
         private FixedApi(FmpQuote quote) {
-            super(RestClient.builder(), "http://localhost:1", "key", null);
+            super(RestClient.builder(), TestProperties.offline(), null);
             this.quote = quote;
         }
 

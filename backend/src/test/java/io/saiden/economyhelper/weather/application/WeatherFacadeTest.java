@@ -3,6 +3,7 @@ package io.saiden.economyhelper.weather.application;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.saiden.economyhelper.infrastructure.llm.GeminiApi;
+import io.saiden.economyhelper.testsupport.TestProperties;
 import io.saiden.economyhelper.testsupport.TestWeather;
 import io.saiden.economyhelper.weather.adapter.out.llm.WeatherResolver;
 import io.saiden.economyhelper.weather.adapter.out.openmeteo.GeocodingApi;
@@ -230,7 +231,7 @@ class WeatherFacadeTest {
         private final List<GeoLocation> answers = new ArrayList<>();
 
         private Geocoder() {
-            super(RestClient.builder(), "http://localhost");
+            super(RestClient.builder(), TestProperties.offline());
         }
 
         void answer(String query, String countryCode, GeoLocation answer) {
@@ -270,7 +271,7 @@ class WeatherFacadeTest {
     private static final class GeminiStub extends io.saiden.economyhelper.infrastructure.llm.GeminiApi {
 
         private GeminiStub() {
-            super(RestClient.builder(), "http://localhost", "", "stub");
+            super(RestClient.builder(), TestProperties.offline());
         }
     }
 }

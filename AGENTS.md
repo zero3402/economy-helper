@@ -19,8 +19,10 @@
 | `stock/` | `/stock` 시세·목표주가·실적발표일·배당, 국내 ETF |
 | `infrastructure/kis/` | 한국투자증권 토큰·호출 간격·재시도 |
 | `fx/` · `crypto/` · `news/` · `weather/` | 각 명령과 그 출처 |
-| `telegram/presentation/` | 메시지 글자 모양, 일봉 차트 그림 |
+| `telegram/` | 웹훅·발송, 그리고 `presentation/`이 글자 모양과 일봉 차트 그림 |
 | `digest/` | 아침 브리핑(오전 9시)·날씨 알람(오전 8시) 잡 |
+| `translate/` · `infrastructure/llm/` | Gemini 번역·해석 |
+| `shared/` · `config/` | 공통 값과 도구 · 스프링 조립(캐시·회복탄력성·타임아웃) |
 
 ## 명령
 

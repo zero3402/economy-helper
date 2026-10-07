@@ -3,6 +3,7 @@ package io.saiden.economyhelper.weather.adapter.out.openmeteo;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import io.saiden.economyhelper.config.CacheNames;
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.weather.application.port.out.HourlyPrecipitationClient;
 import io.saiden.economyhelper.weather.application.port.out.WeatherClient;
 import io.saiden.economyhelper.weather.domain.GeoLocation;
@@ -11,7 +12,6 @@ import io.saiden.economyhelper.weather.domain.WeatherPeriod;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -48,8 +48,8 @@ public class OpenMeteoHourlyClient implements HourlyPrecipitationClient {
     private final RestClient restClient;
 
     public OpenMeteoHourlyClient(RestClient.Builder builder,
-                                 @Value("${economy-helper.weather.open-meteo.base-url}") String baseUrl) {
-        this.restClient = builder.baseUrl(baseUrl).build();
+                                 EconomyHelperProperties properties) {
+        this.restClient = builder.baseUrl(properties.weather().openMeteo().baseUrl()).build();
     }
 
     /**
@@ -63,10 +63,7 @@ public class OpenMeteoHourlyClient implements HourlyPrecipitationClient {
     @Override
     @Cacheable(cacheNames = CacheNames.PRECIPITATION_HOURS,
             key = WeatherClient.PLACE_PERIOD, unless = "#result.isEmpty()")
-    // ⚠️ 브레이커·재시도 이름을 예보와 나눈다 — fmpOutlook을 시세와 가른 것과 같은 자리다.
-    //    보충은 AccuWeather가 답할 때마다 불리고 알람은 지역 넷을 겹쳐 물으므로 창을 이쪽이
-    //    거의 다 채운다. 한 이름이면 그 실패가 쌓여 열리는 순간 **2순위 폴백까지 함께 막히고**,
-    //    그때 AccuWeather가 한도를 넘긴 날은 날씨가 통째로 빈손이 된다
+    // ⚠️ 브레이커·재시도 이름을 예보와 나눈다 — 합치면 보충의 실패가 2순위 폴백까지 막는다 → ADR-0009
     @Retry(name = "weatherOpenMeteoHourly")
     @CircuitBreaker(name = "weatherOpenMeteoHourly")
     public Map<LocalDate, List<HalfDay>> halves(GeoLocation place, WeatherPeriod period) {

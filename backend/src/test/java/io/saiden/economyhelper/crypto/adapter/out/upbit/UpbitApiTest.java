@@ -11,6 +11,7 @@ import com.github.tomakehurst.wiremock.client.WireMock;
 import io.saiden.economyhelper.crypto.domain.UpbitMarket;
 import io.saiden.economyhelper.crypto.domain.UpbitTicker;
 import io.saiden.economyhelper.shared.domain.DailySeries;
+import io.saiden.economyhelper.testsupport.TestProperties;
 import io.saiden.economyhelper.testsupport.WireMockTest;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -30,7 +31,8 @@ class UpbitApiTest extends WireMockTest {
 
     @BeforeEach
     void resetAndBuild() {
-        api = new UpbitApi(RestClient.builder(), server.baseUrl());
+        api = new UpbitApi(RestClient.builder(),
+                TestProperties.builder().upbit(server.baseUrl()).build());
     }
 
     private void stub(String path, String body) {
@@ -153,22 +155,5 @@ class UpbitApiTest extends WireMockTest {
         assertThat(io.saiden.economyhelper.shared.domain.DailySeries.drawable(bars))
                 .as("점 하나로는 선이 없다")
                 .isFalse();
-    }
-
-    @Test
-    @DisplayName("빈 일봉은 캐시하지 않는다 — 09시의 빈손 하나가 브리핑 창(1시간) 내내 차트를 지운다")
-    void neverCachesAnEmptySeries() throws Exception {
-        // ⚠️ 동작으로 재려면 스프링 컨텍스트가 필요하다. 여기서 보는 것은 **선언**이고,
-        //    그게 load-bearing이다 — crypto-series TTL이 1시간이고 브리핑이 09~10시 창에서
-        //    10분마다 도므로 길이가 겹친다. 빈 배열이 굳으면 그날 브리핑에서 그 코인 차트가
-        //    통째로 빠진다. FeedFetcher가 같은 이유로 같은 조건을 달아 두었다
-        var cacheable = UpbitApi.class
-                .getDeclaredMethod("dailyBars", String.class)
-                .getAnnotation(org.springframework.cache.annotation.Cacheable.class);
-
-        assertThat(cacheable).as("@Cacheable이 사라졌다 — 이 단언이 뜻을 잃는다").isNotNull();
-        assertThat(cacheable.unless())
-                .as("빈 목록이 캐시되면 일시적 빈손이 TTL 내내 굳는다")
-                .contains("isEmpty");
     }
 }

@@ -144,8 +144,8 @@ public final class WeatherFormatter {
      */
     private static void appendHalves(StringBuilder message, Weather.Daily day) {
         for (HalfDay half : day.halves()) {
-            // ⚠️ 마른데 하늘까지 못 읽었으면 적을 것이 없다. 젖었으면 <b>이름이 없어도 줄은
-            //    낸다</b> — 시각과 확률이 이미 할 말을 하고, 여기서 건너뛰면 「반나절마다 반드시
+            // ⚠️ 마른데 하늘까지 못 읽었으면 적을 것이 없다. 젖었으면 **이름이 없어도 줄은
+            //    낸다** — 시각과 확률이 이미 할 말을 하고, 여기서 건너뛰면 「반나절마다 반드시
             //    한 줄」이 깨져 읽는 사람이 나머지 반나절을 짐작하게 된다
             if (!half.kind().known() && !half.wet()) {
                 continue;

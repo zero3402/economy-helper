@@ -1,6 +1,7 @@
 package io.saiden.economyhelper.shared.support;
 
 import java.text.Normalizer;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.regex.Pattern;
@@ -21,8 +22,9 @@ import java.util.regex.Pattern;
  *       하나 뗄 때마다 처음부터 다시 훑는다
  * </ol>
  *
- * <p>{@code /news} 토큰은 {@link #forSearchToken}이 조사까지 뗀다 — 안 떼면 {@code 금리}·{@code 금리는}·
- * {@code 금리가}가 각각 캐시돼 같은 개념에 Gemini를 세 번 태운다.
+ * <p>{@code /news} 토큰은 {@link #searchSurface}로 표기를 다듬고 {@link #stripParticle}로 조사를 뗀다 —
+ * 안 떼면 {@code 금리}·{@code 금리는}·{@code 금리가}가 각각 캐시돼 같은 개념에 Gemini를 세 번 태운다.
+ * 부르는 쪽({@code QueryExpander})이 표기와 어간을 <b>둘 다</b> 쓰므로 한 메서드로 합치지 않는다.
  */
 public final class QueryNormalizer {
 
@@ -82,11 +84,6 @@ public final class QueryNormalizer {
         }
         String trimmed = stripAffixes(base);
         return trimmed.equals(base) ? List.of(base) : List.of(base, trimmed);
-    }
-
-    /** {@code /news} 검색어 토큰용 — 표기를 다듬고({@link #searchSurface}) 조사까지 뗀다({@link #stripParticle}). */
-    public static String forSearchToken(String token) {
-        return stripParticle(searchSurface(token));
     }
 
     /**
@@ -160,7 +157,7 @@ public final class QueryNormalizer {
 
     private static List<String> sortedByLengthDesc(String... values) {
         return List.of(values).stream()
-                .sorted((a, b) -> Integer.compare(b.length(), a.length()))
+                .sorted(Comparator.comparingInt(String::length).reversed())
                 .toList();
     }
 }

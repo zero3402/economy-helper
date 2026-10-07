@@ -9,6 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.saiden.economyhelper.stock.domain.Listing;
+import io.saiden.economyhelper.testsupport.TestProperties;
 import io.saiden.economyhelper.testsupport.WireMockTest;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -35,7 +36,8 @@ class KisMasterClientTest extends WireMockTest {
 
     @BeforeEach
     void resetAndBuild() {
-        client = new KisMasterClient(RestClient.builder(), server.baseUrl());
+        client = new KisMasterClient(RestClient.builder(),
+                TestProperties.builder().kisMasterBaseUrl(server.baseUrl()).build());
     }
 
     @Test

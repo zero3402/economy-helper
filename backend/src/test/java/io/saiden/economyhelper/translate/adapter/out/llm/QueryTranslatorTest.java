@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.saiden.economyhelper.infrastructure.llm.GeminiApi;
+import io.saiden.economyhelper.testsupport.TestProperties;
 import io.saiden.economyhelper.testsupport.WireMockTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -86,7 +87,8 @@ class QueryTranslatorTest extends WireMockTest {
 
     private QueryTranslator translator() {
         return new QueryTranslator(
-                new GeminiApi(RestClient.builder(), server.baseUrl(), "test-key", "test-model"),
+                new GeminiApi(RestClient.builder(), TestProperties.builder()
+                        .gemini(server.baseUrl(), "test-key", "test-model").build()),
                 JsonMapper.builder().build());
     }
 }

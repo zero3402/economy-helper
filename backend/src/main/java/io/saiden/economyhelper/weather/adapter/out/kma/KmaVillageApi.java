@@ -1,6 +1,8 @@
 package io.saiden.economyhelper.weather.adapter.out.kma;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import io.saiden.economyhelper.config.EconomyHelperProperties.Kma;
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.shared.support.FailureReason;
 import io.saiden.economyhelper.weather.domain.HalfDay;
 import io.saiden.economyhelper.weather.domain.SkyCondition;
@@ -12,7 +14,6 @@ import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -60,13 +61,11 @@ class KmaVillageApi {
     private final String apiKey;
     private final Clock clock;
 
-    KmaVillageApi(RestClient.Builder builder,
-                  @Value("${economy-helper.weather.kma.base-url}") String baseUrl,
-                  @Value("${economy-helper.weather.kma.api-key:}") String apiKey,
-                  Clock clock) {
+    KmaVillageApi(RestClient.Builder builder, EconomyHelperProperties properties, Clock clock) {
+        Kma kma = properties.weather().kma();
         this.restClient = builder.build();
-        this.baseUrl = baseUrl;
-        this.apiKey = apiKey;
+        this.baseUrl = kma.baseUrl();
+        this.apiKey = kma.apiKey();
         this.clock = clock;
     }
 

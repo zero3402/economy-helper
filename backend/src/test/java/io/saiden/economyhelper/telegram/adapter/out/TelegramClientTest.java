@@ -10,6 +10,8 @@ import static com.github.tomakehurst.wiremock.stubbing.Scenario.STARTED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import io.saiden.economyhelper.config.EconomyHelperProperties;
+import io.saiden.economyhelper.testsupport.TestProperties;
 import io.saiden.economyhelper.testsupport.WireMockTest;
 import java.time.Duration;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,6 +47,24 @@ class TelegramClientTest extends WireMockTest {
         server.verify(postRequestedFor(urlPathEqualTo("/bottest-token/sendMessage"))
                 .withRequestBody(equalToJson("""
                         {"chat_id":"12345","text":"안녕하세요","parse_mode":"HTML","disable_web_page_preview":true}""")));
+    }
+
+    @Test
+    @DisplayName("붙여 넣은 값 끝의 개행을 뗀다 — 안 떼면 토큰이 경로에 %0A로 실려 모든 발송이 404다")
+    void trimsPastedWhitespaceFromTokenAndChatId() {
+        // .env·대시보드에서 복사한 값은 끝에 개행·공백이 붙기 쉽다. 토큰은 URI 경로에 그대로
+        // 들어가므로 한 글자가 봇 전체를 죽인다 — KIS가 같은 자리에서 403 EGW00105를 맞았고
+        // (KisTokenStore.trimmed), 웹훅 secret도 같은 이유로 다듬는다
+        new TelegramClient(RestClient.builder(), TestProperties.builder()
+                .telegramBaseUrl(server.baseUrl()).botToken("test-token\n")
+                .chatId(" default-chat ").telegramMinInterval(Duration.ZERO)
+                .build())
+                .send("안녕하세요", false);
+
+        server.verify(postRequestedFor(urlPathEqualTo("/bottest-token/sendMessage"))
+                .withRequestBody(equalToJson("""
+                        {"chat_id":"default-chat","text":"안녕하세요",\
+                        "parse_mode":"HTML","disable_web_page_preview":true}""")));
     }
 
     @Test
@@ -108,7 +128,7 @@ class TelegramClientTest extends WireMockTest {
     @DisplayName("토픽 ID가 숫자가 아니면 기동에서 실패한다 — 발송 때 터지면 그날 브리핑을 통째로 잃는다")
     void rejectsNonNumericTopicIdAtStartup() {
         assertThatThrownBy(() -> new TelegramClient(
-                RestClient.builder(), server.baseUrl(), "test-token", "default-chat", "토픽3", Duration.ZERO))
+                RestClient.builder(), properties("토픽3", Duration.ZERO)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("토픽3");
 
@@ -257,8 +277,16 @@ class TelegramClientTest extends WireMockTest {
     }
 
     private TelegramClient client(Duration minInterval) {
-        return new TelegramClient(
-                RestClient.builder(), server.baseUrl(), "test-token", "default-chat", "3", minInterval);
+        return new TelegramClient(RestClient.builder(), properties("3", minInterval));
+    }
+
+    private EconomyHelperProperties properties(
+            String noticeTopicId, Duration minInterval) {
+        return TestProperties.builder()
+                .telegramBaseUrl(server.baseUrl()).botToken("test-token")
+                .chatId("default-chat").noticeTopicId(noticeTopicId)
+                .telegramMinInterval(minInterval)
+                .build();
     }
 
     @Test

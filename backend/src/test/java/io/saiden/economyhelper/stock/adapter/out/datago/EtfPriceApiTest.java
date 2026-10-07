@@ -8,7 +8,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.github.tomakehurst.wiremock.client.WireMock;
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.stock.adapter.out.datago.StockPriceApi.StockPrice;
+import io.saiden.economyhelper.testsupport.TestProperties;
 import io.saiden.economyhelper.testsupport.WireMockTest;
 import java.time.Clock;
 import java.time.Instant;
@@ -47,7 +49,7 @@ class EtfPriceApiTest extends WireMockTest {
 
     @BeforeEach
     void resetAndBuild() {
-        api = new EtfPriceApi(RestClient.builder(), server.baseUrl(), ENCODED_KEY,
+        api = new EtfPriceApi(RestClient.builder(), dataGo(),
                 Clock.fixed(NOW, ZoneId.of("Asia/Seoul")), null);
     }
 
@@ -116,5 +118,10 @@ class EtfPriceApiTest extends WireMockTest {
 
     private static String empty() {
         return "{\"response\":{\"header\":{\"resultCode\":\"00\"},\"body\":{\"totalCount\":0}}}";
+    }
+
+    /** ⚠️ 키는 이미 인코딩된 모양 그대로 넣는다 — 다시 인코딩하면 403이다. */
+    private EconomyHelperProperties dataGo() {
+        return TestProperties.builder().dataGo(server.baseUrl(), ENCODED_KEY).build();
     }
 }

@@ -7,8 +7,10 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.stock.domain.StockOutlook;
 import io.saiden.economyhelper.stock.domain.StockSource;
+import io.saiden.economyhelper.testsupport.TestProperties;
 import io.saiden.economyhelper.testsupport.WireMockTest;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -38,7 +40,7 @@ class FmpUsOutlookClientTest extends WireMockTest {
     }
 
     private FmpUsOutlookClient client(Instant now) {
-        return new FmpUsOutlookClient(RestClient.builder(), server.baseUrl(), API_KEY,
+        return new FmpUsOutlookClient(RestClient.builder(), keyed(API_KEY),
                 new AlwaysAllow(), Clock.fixed(now, ZoneOffset.UTC));
     }
 
@@ -153,8 +155,8 @@ class FmpUsOutlookClientTest extends WireMockTest {
     @Test
     @DisplayName("한도를 소진했으면 부르지 않는다 — 어차피 FMP가 거절한다")
     void skipsTheCallWhenQuotaIsGone() {
-        FmpUsOutlookClient limited = new FmpUsOutlookClient(RestClient.builder(), server.baseUrl(),
-                API_KEY, new AlwaysDeny(),
+        FmpUsOutlookClient limited = new FmpUsOutlookClient(RestClient.builder(), keyed(API_KEY),
+                new AlwaysDeny(),
                 Clock.fixed(Instant.parse("2026-08-21T00:00:00Z"), ZoneOffset.UTC));
 
         assertThatThrownBy(() -> limited.outlook("AAPL")).hasMessageContaining("한도");
@@ -165,8 +167,8 @@ class FmpUsOutlookClientTest extends WireMockTest {
     @Test
     @DisplayName("키가 없으면 부르지 않는다 — 빈 키로 호출하면 한도만 축낸다")
     void skipsTheCallWithoutAKey() {
-        FmpUsOutlookClient keyless = new FmpUsOutlookClient(RestClient.builder(), server.baseUrl(),
-                "", new AlwaysAllow(),
+        FmpUsOutlookClient keyless = new FmpUsOutlookClient(RestClient.builder(), keyed(""),
+                new AlwaysAllow(),
                 Clock.fixed(Instant.parse("2026-08-21T00:00:00Z"), ZoneOffset.UTC));
 
         assertThatThrownBy(() -> keyless.outlook("AAPL")).hasMessageContaining("키");
@@ -239,8 +241,8 @@ class FmpUsOutlookClientTest extends WireMockTest {
     void cutsTodayByTheMarketCalendar() {
         // 2026-10-29T02:00Z는 뉴욕에서 10-28 22시이고 서울에서 10-29 11시다.
         // 10-28 발표 건은 미국 달력으로 「오늘」이라 아직 예정이고, KST로 자르면 지난 것이 된다
-        FmpUsOutlookClient client = new FmpUsOutlookClient(RestClient.builder(), server.baseUrl(),
-                API_KEY, new AlwaysAllow(),
+        FmpUsOutlookClient client = new FmpUsOutlookClient(RestClient.builder(), keyed(API_KEY),
+                new AlwaysAllow(),
                 Clock.fixed(Instant.parse("2026-10-29T02:00:00Z"), ZoneOffset.UTC));
         stub(TARGET, 200, "[]");
         stub(EARNINGS, 200, """
@@ -275,8 +277,8 @@ class FmpUsOutlookClientTest extends WireMockTest {
         //    던져 답이 통째로 없어진다
         stub(TARGET, 200, """
                 [{"symbol":"AAPL","targetHigh":400,"targetConsensus":340.72}]""");
-        FmpUsOutlookClient client = new FmpUsOutlookClient(RestClient.builder(), server.baseUrl(),
-                API_KEY, new Allows(1),
+        FmpUsOutlookClient client = new FmpUsOutlookClient(RestClient.builder(), keyed(API_KEY),
+                new Allows(1),
                 Clock.fixed(Instant.parse("2026-08-21T00:00:00Z"), ZoneOffset.UTC));
 
         StockOutlook outlook = client.outlook("AAPL");
@@ -295,8 +297,8 @@ class FmpUsOutlookClientTest extends WireMockTest {
     @DisplayName("한도가 둘째 호출 앞에서 끝나면 실적발표일만 빠진다 — 퍼밋은 목표가·실적발표일 순이다")
     void keepsTheTargetWhenQuotaRunsOutBeforeTheEarnings() {
         stubAll();
-        FmpUsOutlookClient client = new FmpUsOutlookClient(RestClient.builder(), server.baseUrl(),
-                API_KEY, new Allows(1),
+        FmpUsOutlookClient client = new FmpUsOutlookClient(RestClient.builder(), keyed(API_KEY),
+                new Allows(1),
                 Clock.fixed(Instant.parse("2026-08-21T00:00:00Z"), ZoneOffset.UTC));
 
         StockOutlook outlook = client.outlook("AAPL");
@@ -310,7 +312,7 @@ class FmpUsOutlookClientTest extends WireMockTest {
         private int remaining;
 
         private Allows(int permits) {
-            super(null, Clock.systemUTC(), 240);
+            super(null, Clock.systemUTC(), quotaOf(240));
             this.remaining = permits;
         }
 
@@ -327,7 +329,7 @@ class FmpUsOutlookClientTest extends WireMockTest {
     /** 한도를 세지 않는 가드 — 세는 규칙은 {@code FmpQuotaGuard}가 스스로 시험한다. */
     private static final class AlwaysAllow extends FmpQuotaGuard {
         private AlwaysAllow() {
-            super(null, Clock.systemUTC(), 240);
+            super(null, Clock.systemUTC(), quotaOf(240));
         }
 
         @Override
@@ -338,12 +340,21 @@ class FmpUsOutlookClientTest extends WireMockTest {
 
     private static final class AlwaysDeny extends FmpQuotaGuard {
         private AlwaysDeny() {
-            super(null, Clock.systemUTC(), 240);
+            super(null, Clock.systemUTC(), quotaOf(240));
         }
 
         @Override
         public boolean tryAcquire() {
             return false;
         }
+    }
+
+    private EconomyHelperProperties keyed(String apiKey) {
+        return TestProperties.builder().fmp(server.baseUrl(), apiKey, 240).build();
+    }
+
+    /** 가드는 한도만 보므로 주소·키는 안 쓴다. */
+    private static EconomyHelperProperties quotaOf(int dailyLimit) {
+        return TestProperties.builder().fmp(null, null, dailyLimit).build();
     }
 }

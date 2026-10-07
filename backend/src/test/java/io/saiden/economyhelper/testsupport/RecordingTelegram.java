@@ -36,7 +36,11 @@ public class RecordingTelegram extends TelegramClient {
     }
 
     public RecordingTelegram(String rejectContaining) {
-        super(RestClient.builder(), "https://example.invalid", "token", "default-chat", "", Duration.ZERO);
+        super(RestClient.builder(), TestProperties.builder()
+                .telegramBaseUrl("https://example.invalid").botToken("token")
+                .chatId("default-chat").noticeTopicId("")
+                .telegramMinInterval(Duration.ZERO)
+                .build());
         this.rejectContaining = rejectContaining;
     }
 

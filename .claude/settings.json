@@ -3,14 +3,20 @@
   "permissions": {
     "allow": [
       "Bash(./gradlew test)",
-      "Bash(./gradlew test *)",
+      "Bash(./gradlew test:*)",
       "Bash(./gradlew build)",
-      "Bash(./gradlew build *)",
-      "Bash(git status)",
-      "Bash(git status *)",
-      "Bash(git diff)",
-      "Bash(git diff *)",
-      "Bash(git log *)"
+      "Bash(./gradlew build:*)",
+      "Bash(cd backend && ./gradlew test)",
+      "Bash(cd backend && ./gradlew test:*)",
+      "Bash(cd backend && ./gradlew build)",
+      "Bash(cd backend && ./gradlew build:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git branch:*)",
+      "Bash(ls:*)",
+      "Bash(wc:*)"
     ],
     "deny": [
       "Read(**/.env)",
@@ -29,6 +35,10 @@
           {
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/block-env.sh\""
+          },
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/golden-reminder.sh\""
           }
         ]
       }

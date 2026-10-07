@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import io.saiden.economyhelper.config.CacheNames;
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.fx.application.port.out.FxDailyBarClient;
 import io.saiden.economyhelper.fx.application.port.out.FxRateClient;
 import io.saiden.economyhelper.fx.domain.FxRate;
@@ -19,7 +20,6 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -70,9 +70,9 @@ public class FrankfurterFxClient implements FxRateClient, FxDailyBarClient {
     private final Clock clock;
 
     public FrankfurterFxClient(RestClient.Builder builder,
-                               @Value("${economy-helper.market.frankfurter.base-url}") String baseUrl,
+                               EconomyHelperProperties properties,
                                Clock clock) {
-        this.restClient = builder.baseUrl(baseUrl).build();
+        this.restClient = builder.baseUrl(properties.market().frankfurter().baseUrl()).build();
         this.clock = clock;
     }
 
@@ -93,8 +93,8 @@ public class FrankfurterFxClient implements FxRateClient, FxDailyBarClient {
 
         // 날짜 문자열이 yyyy-MM-dd라 사전순이 곧 시간순이다
         List<String> dates = response.rates().keySet().stream().sorted().toList();
-        LocalDate latest = LocalDate.parse(dates.get(dates.size() - 1));
-        BigDecimal rate = rateOn(response, dates.get(dates.size() - 1));
+        LocalDate latest = LocalDate.parse(dates.getLast());
+        BigDecimal rate = rateOn(response, dates.getLast());
         if (rate == null) {
             throw new IllegalStateException("Frankfurter 응답에 KRW 환율이 없습니다");
         }
@@ -164,7 +164,7 @@ public class FrankfurterFxClient implements FxRateClient, FxDailyBarClient {
         if (dates.size() < 2) {
             return null;
         }
-        return PercentChange.between(rateOn(response, dates.get(dates.size() - 1)),
+        return PercentChange.between(rateOn(response, dates.getLast()),
                 rateOn(response, dates.get(dates.size() - 2))).orElse(null);
     }
 

@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -63,14 +62,13 @@ public class FeedFetcher implements ArticleFeed {
                        CircuitBreakerRegistry circuitBreakers,
                        RetryRegistry retries,
                        Clock clock,
-                       @Value("${economy-helper.ranking.max-age:3d}") Duration maxAge,
                        List<FeedClient> feedClients) {
         this.restClient = builder.defaultHeader("User-Agent", USER_AGENT).build();
         this.properties = properties;
         this.circuitBreakers = circuitBreakers;
         this.retries = retries;
         this.clock = clock;
-        this.maxAge = maxAge;
+        this.maxAge = properties.ranking().maxAge();
         for (FeedClient client : feedClients) {
             parsers.put(client.type(), client);
         }
