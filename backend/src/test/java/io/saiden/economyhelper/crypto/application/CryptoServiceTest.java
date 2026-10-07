@@ -13,6 +13,7 @@ import io.saiden.economyhelper.crypto.domain.ResolvedCoin;
 import io.saiden.economyhelper.crypto.domain.UpbitMarket;
 import io.saiden.economyhelper.crypto.domain.UpbitTicker;
 import io.saiden.economyhelper.shared.domain.Price;
+import io.saiden.economyhelper.testsupport.TestProperties;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -324,7 +325,7 @@ class CryptoServiceTest {
     void requeriesOneByOneWhenABatchHasAnUnknownSymbol() {
         BinanceApi strict = new BinanceApi(RestClient.builder(),
                 new io.saiden.economyhelper.crypto.adapter.out.binance.BinanceBanGate(null, java.time.Clock.systemUTC()),
-                "https://example.invalid", "") {
+                TestProperties.offline()) {
             @Override
             public List<BinancePrice> prices(List<String> symbols) {
                 if (symbols.contains("BCHUSDT")) {
@@ -373,7 +374,7 @@ class CryptoServiceTest {
     private static CryptoService cryptoService(UpbitApi upbit, Map<String, String> binancePrices,
                                                CryptoResolver resolver) {
         return new CryptoService(upbit, new BinanceApi(RestClient.builder(),
-                new io.saiden.economyhelper.crypto.adapter.out.binance.BinanceBanGate(null, java.time.Clock.systemUTC()), "https://example.invalid", "") {
+                new io.saiden.economyhelper.crypto.adapter.out.binance.BinanceBanGate(null, java.time.Clock.systemUTC()), TestProperties.offline()) {
             @Override
             public List<BinancePrice> prices(List<String> symbols) {
                 return symbols.stream()
@@ -392,7 +393,7 @@ class CryptoServiceTest {
 
     private static BinanceApi explodingBinance(RuntimeException failure) {
         return new BinanceApi(RestClient.builder(),
-                new io.saiden.economyhelper.crypto.adapter.out.binance.BinanceBanGate(null, java.time.Clock.systemUTC()), "https://example.invalid", "") {
+                new io.saiden.economyhelper.crypto.adapter.out.binance.BinanceBanGate(null, java.time.Clock.systemUTC()), TestProperties.offline()) {
             @Override
             public List<BinancePrice> prices(List<String> symbols) {
                 throw failure;
@@ -435,7 +436,7 @@ class CryptoServiceTest {
         private final List<List<String>> tickerCalls = new ArrayList<>();
 
         RecordingApi() {
-            super(RestClient.builder(), "https://example.invalid");
+            super(RestClient.builder(), TestProperties.offline());
         }
 
         @Override

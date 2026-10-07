@@ -8,6 +8,7 @@ import io.saiden.economyhelper.stock.adapter.out.datago.MarketIndexApi.MarketInd
 import io.saiden.economyhelper.stock.adapter.out.datago.StockPriceApi.StockPrice;
 import io.saiden.economyhelper.stock.domain.StockQuote;
 import io.saiden.economyhelper.stock.domain.StockSource;
+import io.saiden.economyhelper.testsupport.TestProperties;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -229,7 +230,7 @@ class DataGoStockClientTest {
         private final Map<String, List<StockPrice>> byQuery;
 
         private RecordingEtfApi(Map<String, List<StockPrice>> byQuery) {
-            super(RestClient.builder(), "https://example.invalid", "key", fixed(), null);
+            super(RestClient.builder(), TestProperties.offline(), fixed(), null);
             this.byQuery = byQuery;
         }
 
@@ -259,7 +260,7 @@ class DataGoStockClientTest {
         private final Map<String, List<StockPrice>> byQuery;
 
         private RecordingPriceApi(Map<String, List<StockPrice>> byQuery) {
-            super(RestClient.builder(), "https://example.invalid", "key", fixed(), null);
+            super(RestClient.builder(), TestProperties.offline(), fixed(), null);
             this.byQuery = byQuery;
         }
 
@@ -287,7 +288,7 @@ class DataGoStockClientTest {
         private final List<String> asked = new java.util.ArrayList<>();
 
         private RecordingIndexApi(MarketIndex answer) {
-            super(RestClient.builder(), "https://example.invalid", "key", fixed(), null);
+            super(RestClient.builder(), TestProperties.offline(), fixed(), null);
             this.answer = answer;
         }
 

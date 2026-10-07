@@ -98,7 +98,7 @@ public class StockService {
      * 미국 티커 <b>모양</b>. 영문 1~5자면 사용자가 티커를 직접 쳤을 수 있다.
      *
      * <p>⚠️ <b>이것은 「티커다」가 아니라 「티커일 수 있다」다.</b> 실재는 KIS가 확정한다 —
-     * {@link #KR_STOCK_CODE}가 6자리 숫자를 그렇게 쓰는 것과 같은 자리다. 다만 그쪽은 확실해서
+     * {@link #KR_STOCK_CODE}가 「첫 자가 숫자인 영숫자 여섯」을 그렇게 쓰는 것과 같은 자리다. 다만 그쪽은 확실해서
      * 바로 조회하고, 이쪽은 <b>다른 길이 다 막힌 뒤 마지막에</b> 쓴다: {@code KO}·{@code SO}처럼
      * 국내 종목명일 수도 있는 짧은 영문이 있어서, 앞세우면 이름 검색을 가로챈다.
      */
@@ -182,11 +182,11 @@ public class StockService {
         // 정규화한 형태는 한 번만 만든다 — 코드·티커·색인이 같은 목록을 본다
         List<String> forms = QueryNormalizer.forLookup(query);
 
-        // 6자리 숫자는 종목코드 그 자체다 — LLM에게 물어볼 것이 없다.
+        // 첫 자가 숫자인 영숫자 여섯은 종목코드 그 자체다 — LLM에게 물어볼 것이 없다.
         // 아침 브리핑이 quotesOf로 쓰는 경로와 같은 길이고, 결과도 같아야 한다
         Optional<String> code = directCode(forms);
         if (code.isPresent()) {
-            // 없는 코드라고 이름 검색으로 넘기지 않는다 — 6자리 숫자는 종목명일 수 없다
+            // 없는 코드라고 이름 검색으로 넘기지 않는다 — 그 모양은 종목명일 수 없다
             return stockAnswer(code.get());
         }
 
@@ -291,7 +291,7 @@ public class StockService {
                 log.info("[stock] LLM이 준 코드 {}가 시세에 없습니다 — 이름으로 다시 찾습니다", found.code());
             }
             if (found.hasName()) {
-                // ⚠️ 코드가 <b>일반 종목</b>을 가리키는데 이름과 어긋나면, 이름은 딱 맞을 때만 이긴다 —
+                // ⚠️ 코드가 **일반 종목**을 가리키는데 이름과 어긋나면, 이름은 딱 맞을 때만 이긴다 —
                 //    부분일치는 형제 회사를 집는다(「포스코」+005490 → 이름에 포스코가 든 시총 1위 포스코퓨처엠).
                 //    이름을 먼저 믿는 규칙은 ETF의 것이다: 이름이 비슷한 코드가 수십 개라 존재하는 틀린 코드가 흔하다
                 Optional<Answer> byName = trust == CodeTrust.DISAGREES_WITH_STOCK

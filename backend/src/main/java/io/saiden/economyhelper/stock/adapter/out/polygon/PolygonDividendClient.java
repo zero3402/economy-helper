@@ -5,6 +5,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import io.saiden.economyhelper.config.CacheNames;
+import io.saiden.economyhelper.config.EconomyHelperProperties.Polygon;
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.shared.support.FailureReason;
 import io.saiden.economyhelper.stock.application.port.out.UsDividendClient;
 import io.saiden.economyhelper.stock.domain.StockOutlook.Dividend;
@@ -19,7 +21,6 @@ import java.util.List;
 import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -70,12 +71,11 @@ public class PolygonDividendClient implements UsDividendClient {
     private final Clock clock;
 
     public PolygonDividendClient(RestClient.Builder builder,
-                                 @Value("${economy-helper.market.polygon.base-url}") String baseUrl,
-                                 @Value("${economy-helper.market.polygon.api-key:}") String apiKey,
-                                 Clock clock) {
+                                 EconomyHelperProperties properties, Clock clock) {
+        Polygon polygon = properties.market().polygon();
         this.restClient = builder.build();
-        this.baseUrl = baseUrl;
-        this.apiKey = apiKey;
+        this.baseUrl = polygon.baseUrl();
+        this.apiKey = polygon.apiKey();
         this.clock = clock;
     }
 

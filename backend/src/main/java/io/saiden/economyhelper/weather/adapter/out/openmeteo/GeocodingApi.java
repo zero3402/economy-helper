@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import io.saiden.economyhelper.config.CacheNames;
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.weather.application.port.out.Geocoder;
 import io.saiden.economyhelper.weather.domain.GeoLocation;
 import java.time.DateTimeException;
@@ -13,7 +14,6 @@ import java.util.List;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -53,9 +53,9 @@ public class GeocodingApi implements Geocoder {
 
     private final RestClient restClient;
 
-    public GeocodingApi(RestClient.Builder builder,
-                        @Value("${economy-helper.weather.open-meteo.geocoding-base-url}") String baseUrl) {
-        this.restClient = builder.baseUrl(baseUrl).build();
+    public GeocodingApi(RestClient.Builder builder, EconomyHelperProperties properties) {
+        this.restClient = builder
+                .baseUrl(properties.weather().openMeteo().geocodingBaseUrl()).build();
     }
 
     /**

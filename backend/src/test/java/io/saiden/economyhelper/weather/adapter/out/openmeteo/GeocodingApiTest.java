@@ -9,6 +9,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.saiden.economyhelper.testsupport.TestProperties;
 import io.saiden.economyhelper.testsupport.WireMockTest;
 import io.saiden.economyhelper.weather.domain.GeoLocation;
 import java.time.ZoneId;
@@ -30,7 +31,8 @@ class GeocodingApiTest extends WireMockTest {
 
     @BeforeEach
     void resetAndBuild() {
-        api = new GeocodingApi(RestClient.builder(), server.baseUrl());
+        api = new GeocodingApi(RestClient.builder(),
+                TestProperties.builder().openMeteo(server.baseUrl()).build());
     }
 
     private void stub(String body) {

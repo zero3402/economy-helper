@@ -5,11 +5,12 @@ import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.ratelimiter.RateLimiter;
 import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
 import io.saiden.economyhelper.config.CacheNames;
+import io.saiden.economyhelper.config.EconomyHelperProperties.DataGo;
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import java.net.URI;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
@@ -44,14 +45,12 @@ public class StockPriceApi {
     /** 되짚기 루프가 실제로 태우는 호출을 세는 자리. {@code null}이면 세지 않는다(테스트). */
     private final RateLimiter limiter;
 
-    public StockPriceApi(RestClient.Builder builder,
-                         @Value("${economy-helper.market.data-go.base-url}") String baseUrl,
-                         @Value("${economy-helper.market.data-go.api-key:}") String serviceKey,
-                         Clock clock,
-                         RateLimiterRegistry limiters) {
+    public StockPriceApi(RestClient.Builder builder, EconomyHelperProperties properties,
+                         Clock clock, RateLimiterRegistry limiters) {
+        DataGo dataGo = properties.market().dataGo();
         this.restClient = builder.build();
-        this.baseUrl = baseUrl;
-        this.serviceKey = serviceKey;
+        this.baseUrl = dataGo.baseUrl();
+        this.serviceKey = dataGo.apiKey();
         this.clock = clock;
         this.limiter = DataGoRequest.limiterOf(limiters);
     }

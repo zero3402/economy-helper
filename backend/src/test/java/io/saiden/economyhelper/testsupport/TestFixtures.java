@@ -2,8 +2,6 @@ package io.saiden.economyhelper.testsupport;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 
@@ -23,11 +21,6 @@ public final class TestFixtures {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-    }
-
-    /** 스트림으로 읽는 파서(SAX·XML)가 쓴다 — 닫는 것은 호출부 몫이다. */
-    public static Reader reader(String name) {
-        return new InputStreamReader(stream(name), StandardCharsets.UTF_8);
     }
 
     private static InputStream stream(String name) {

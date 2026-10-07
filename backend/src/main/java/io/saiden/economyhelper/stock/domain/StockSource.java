@@ -1,11 +1,9 @@
 package io.saiden.economyhelper.stock.domain;
 
-import io.saiden.economyhelper.fx.domain.FxSource;
-
 /**
  * 시세 출처 — <b>화면에 밝힌다.</b>
  *
- * <p>{@link FxSource}와 같은 자리, 같은 이유다. 모든 통이 <b>제목 / 값 / 출처 / 시각</b> 뼈대를
+ * <p>{@code FxSource}와 같은 자리, 같은 이유다. 모든 통이 <b>제목 / 값 / 출처 / 시각</b> 뼈대를
  * 쓴다 — 뉴스는 매체명이, 환율은 고시 주체가, 코인은 거래소 이름이 그 자리에 있다.
  *
  * <p><b>조회처가 곧 값의 성격이다.</b> 폴백이 일어나면 실시간이 전일 종가로 내려앉는다 —

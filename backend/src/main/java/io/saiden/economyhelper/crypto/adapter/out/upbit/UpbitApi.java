@@ -6,6 +6,7 @@ import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import io.github.resilience4j.retry.annotation.Retry;
 import io.saiden.economyhelper.config.CacheNames;
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.crypto.application.port.out.UpbitClient;
 import io.saiden.economyhelper.crypto.domain.UpbitMarket;
 import io.saiden.economyhelper.crypto.domain.UpbitMarketIndex;
@@ -20,7 +21,6 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -45,9 +45,8 @@ public class UpbitApi implements UpbitClient {
 
     private final RestClient restClient;
 
-    public UpbitApi(RestClient.Builder builder,
-                    @Value("${economy-helper.market.upbit.base-url}") String baseUrl) {
-        this.restClient = builder.baseUrl(baseUrl).build();
+    public UpbitApi(RestClient.Builder builder, EconomyHelperProperties properties) {
+        this.restClient = builder.baseUrl(properties.market().upbit().baseUrl()).build();
     }
 
     /**

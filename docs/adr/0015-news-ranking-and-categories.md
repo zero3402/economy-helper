@@ -4,7 +4,7 @@
 
 | 상태 | 범위 |
 |---|---|
-| 채택 | `news/**` · `digest/**` |
+| 채택 | `news/**` · `digest/**` · `translate/**` · `infrastructure/llm/**` · `telegram/**` |
 
 ## 맥락
 

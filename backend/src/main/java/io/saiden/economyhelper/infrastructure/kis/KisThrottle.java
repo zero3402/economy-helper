@@ -1,9 +1,10 @@
 package io.saiden.economyhelper.infrastructure.kis;
 
+import io.saiden.economyhelper.config.EconomyHelperProperties.Kis;
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
@@ -54,15 +55,11 @@ public class KisThrottle {
     /** 다음 호출이 허용되는 시점({@code System.nanoTime()} 기준). 벽시계는 뒤로 갈 수 있다. */
     private long nextAllowed = System.nanoTime();
 
-    /**
-     * @param interval 호출 사이 최소 간격. 모의 계정이 초당 1건이라 기본 1초다 —
-     *                 실전 계정은 초당 20건이므로 낮춰 잡을 수 있다({@code base-url}과 함께 바꾼다)
-     * @param maxWait  이 시간을 넘겨 기다려야 하면 기다리지 않고 던진다
-     */
-    public KisThrottle(@Value("${economy-helper.market.kis.min-interval:1s}") Duration interval,
-                       @Value("${economy-helper.market.kis.max-wait:20s}") Duration maxWait) {
-        this.intervalNanos = Math.max(0, interval.toNanos());
-        this.capNanos = Math.max(0, maxWait.toNanos());
+    /** 간격과 대기 한도는 {@link Kis#minInterval()} · {@link Kis#maxWait()}가 정한다. */
+    public KisThrottle(EconomyHelperProperties properties) {
+        Kis kis = properties.market().kis();
+        this.intervalNanos = Math.max(0, kis.minInterval().toNanos());
+        this.capNanos = Math.max(0, kis.maxWait().toNanos());
     }
 
     /**

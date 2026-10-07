@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import io.saiden.economyhelper.config.CacheNames;
+import io.saiden.economyhelper.config.EconomyHelperProperties.Fmp;
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.shared.support.FailureReason;
 import java.math.BigDecimal;
 import java.net.URI;
@@ -12,7 +14,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
@@ -51,13 +52,12 @@ public class FmpApi {
     private final String apiKey;
     private final FmpQuotaGuard quota;
 
-    public FmpApi(RestClient.Builder builder,
-                  @Value("${economy-helper.market.fmp.base-url}") String baseUrl,
-                  @Value("${economy-helper.market.fmp.api-key:}") String apiKey,
+    public FmpApi(RestClient.Builder builder, EconomyHelperProperties properties,
                   FmpQuotaGuard quota) {
+        Fmp fmp = properties.market().fmp();
         this.restClient = builder.build();
-        this.baseUrl = baseUrl;
-        this.apiKey = apiKey;
+        this.baseUrl = fmp.baseUrl();
+        this.apiKey = fmp.apiKey();
         this.quota = quota;
     }
 
@@ -87,7 +87,7 @@ public class FmpApi {
                 log.info("[fmp] '{}' 심볼이 없습니다", symbol);
                 return null;
             }
-            return found.get(0);
+            return found.getFirst();
         } catch (RuntimeException e) {
             // 원래 예외 메시지에는 apikey가 박힌 URL이 들어간다 — 그대로 흘리면 키가 유출된다.
             // 402/403은 요금제 문제라 재시도해도 소용없다는 것을 메시지로 구분해 둔다.

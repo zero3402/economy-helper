@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.github.tomakehurst.wiremock.client.WireMock;
+import io.saiden.economyhelper.testsupport.TestProperties;
 import io.saiden.economyhelper.testsupport.WireMockTest;
 import io.saiden.economyhelper.weather.domain.GeoLocation;
 import io.saiden.economyhelper.weather.domain.SkyCondition;
@@ -44,8 +45,7 @@ class AccuWeatherClientTest extends WireMockTest {
 
     @BeforeEach
     void resetAndBuild() {
-        client = new AccuWeatherClient(RestClient.builder(), server.baseUrl(), API_KEY,
-                new AccuLocationApi(RestClient.builder(), server.baseUrl(), API_KEY));
+        client = clientWith(API_KEY);
     }
 
     private void stubLocation() {
@@ -223,11 +223,16 @@ class AccuWeatherClientTest extends WireMockTest {
     @Test
     @DisplayName("키가 없으면 부르지 않는다 — 빈 키로 호출하면 한도만 축낸다")
     void skipsCallWithoutApiKey() {
-        AccuWeatherClient keyless = new AccuWeatherClient(RestClient.builder(), server.baseUrl(), "",
-                new AccuLocationApi(RestClient.builder(), server.baseUrl(), ""));
+        AccuWeatherClient keyless = clientWith("");
 
         assertThatThrownBy(() -> keyless.forecast(MIGEUM, days(1))).hasMessageContaining("키");
         server.verify(0, getRequestedFor(urlPathEqualTo(LOCATION_PATH)));
         server.verify(0, getRequestedFor(urlPathEqualTo(FORECAST_PATH)));
+    }
+
+    private AccuWeatherClient clientWith(String apiKey) {
+        var properties = TestProperties.builder().accuWeather(server.baseUrl(), apiKey).build();
+        return new AccuWeatherClient(RestClient.builder(), properties,
+                new AccuLocationApi(RestClient.builder(), properties));
     }
 }

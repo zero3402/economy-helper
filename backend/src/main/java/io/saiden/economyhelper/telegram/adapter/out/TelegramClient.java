@@ -5,6 +5,8 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
+import io.saiden.economyhelper.config.EconomyHelperProperties.Telegram;
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -17,7 +19,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
@@ -81,8 +82,8 @@ public class TelegramClient {
      * {@code retry_after}를 맞을 수 있는데, 간격을 지키는 편이 재시도에 기대는 것보다 단순하고 확실하다.
      *
      * <p>⚠️ <b>「통 사이에 1초를 잔다」가 아니다.</b> 그러면 앞 통의 HTTP(실측 764ms)와 <b>합산</b>돼
-     * 브리핑 24통에 18초를 그냥 잔다. 방마다 「마지막 발송 시작 + 간격」을 기억해 <b>남은 만큼만</b>
-     * 기다리고, 부르는 쪽은 쉴 필요가 없다.
+     * 브리핑 한 번이 18초를 그냥 잔다(통 수는 ADR-0015). 방마다 「마지막 발송 시작 + 간격」을 기억해
+     * <b>남은 만큼만</b> 기다리고, 부르는 쪽은 쉴 필요가 없다.
      *
      * <p>{@code KisThrottle}과 같은 모양(공평한 락 + {@code nextAllowed})이되 <b>방마다 하나</b>다 —
      * 권고가 방 단위라서다. 다른 방으로 가는 통은 서로 기다리지 않는다.
@@ -93,20 +94,21 @@ public class TelegramClient {
     /** {@link #botUsername()}가 한 번 받은 이름. */
     private volatile String botUsername;
 
-    /**
-     * @param minInterval 같은 방에 연달아 보낼 때 발송 시작 사이의 최소 간격. 테스트는 0으로 끈다
-     */
-    public TelegramClient(RestClient.Builder builder,
-                          @Value("${economy-helper.telegram.base-url}") String baseUrl,
-                          @Value("${economy-helper.telegram.bot-token:}") String botToken,
-                          @Value("${economy-helper.telegram.chat-id:}") String defaultChatId,
-                          @Value("${economy-helper.telegram.notice-topic-id:}") String noticeTopicId,
-                          @Value("${economy-helper.telegram.min-interval:1s}") Duration minInterval) {
-        this.restClient = builder.baseUrl(baseUrl).build();
-        this.botToken = botToken;
-        this.defaultChatId = defaultChatId;
-        this.noticeTopicId = topicId(noticeTopicId);
-        this.intervalNanos = Math.max(0, minInterval.toNanos());
+    /** 같은 방 발송 간격은 {@link Telegram#minInterval()}이 정한다 — 테스트는 0으로 끈다. */
+    public TelegramClient(RestClient.Builder builder, EconomyHelperProperties properties) {
+        Telegram telegram = properties.telegram();
+        this.restClient = builder.baseUrl(telegram.baseUrl()).build();
+        // ⚠️ **끝의 개행·공백을 뗀다.** .env나 BotFather에서 복사한 값에 붙기 쉬운데, 토큰은
+        //    URI 경로에 그대로 실려 `%0A`가 되므로 **모든 발송이 404**가 된다. KIS가 같은 자리에서
+        //    403 EGW00105를 맞았고(KisTokenStore), 웹훅 secret도 같은 이유로 다듬는다
+        this.botToken = trimmed(telegram.botToken());
+        this.defaultChatId = trimmed(telegram.chatId());
+        this.noticeTopicId = topicId(telegram.noticeTopicId());
+        this.intervalNanos = Math.max(0, telegram.minInterval().toNanos());
+    }
+
+    private static String trimmed(String value) {
+        return value == null ? "" : value.trim();
     }
 
     /** 그 방의 앞 통과 간격이 벌어질 때까지 기다린다 — 실제 HTTP 호출 직전에 부른다. */
@@ -331,8 +333,9 @@ public class TelegramClient {
         try {
             return exchangeOnce(method, responseType, body);
         } catch (TelegramRateLimited e) {
-            // 한 번만 다시 보낸다 — 두 번째 429는 그대로 올린다. 브리핑 25통이 그룹 한도(분당 20)를 넘으면
-            // 뒤쪽 통이 여기 걸린다. 기다리는 동안 이 방의 다음 통도 ChatGate에서 함께 밀린다
+            // 한 번만 다시 보낸다 — 두 번째 429는 그대로 올린다. 브리핑 한 번이 그룹 한도(분당 20)를
+            // 넘으면 뒤쪽 통이 여기 걸린다(통 수는 ADR-0015). 기다리는 동안 이 방의 다음 통도
+            // ChatGate에서 함께 밀린다
             if (e.retryAfter() == null || e.retryAfter().compareTo(MAX_RETRY_AFTER) > 0) {
                 throw e;
             }

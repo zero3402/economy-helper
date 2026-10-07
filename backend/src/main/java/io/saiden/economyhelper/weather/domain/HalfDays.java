@@ -164,7 +164,9 @@ public final class HalfDays {
             BigDecimal amount = series.amount(slot);
             SkyCondition sky = series.sky(slot);
             if (wet(chance, amount, sky, cut)) {
-                current = current == null ? new Stretch(slot) : current;
+                if (current == null) {
+                    current = new Stretch(slot);
+                }
                 current.extend(slot, chance, amount, sky);
             } else if (current != null) {
                 strongest = stronger(strongest, current);
@@ -356,23 +358,13 @@ public final class HalfDays {
     /**
      * 이 시간에 비가 오는가 — 그날 문턱을 넘길 만큼 확률이 높거나 양이 잡히면.
      *
-     * <p>⚠️ <b>다만 출처가 「안 온다」고 말한 시간은 아니다.</b> 확률·양·코드 셋 중
-     * <b>코드가 거부권</b>을 쥔다. 실측(2026-08-25 미금역)에서 10~12시가 <b>확률 88~100%인데
-     * 코드 {@code 1}(대체로 맑음)에 강수량 {@code 0.0mm}</b>였다 — 셋 중 둘이 「안 온다」고
-     * 말하는 시간이다. 그것을 비로 치면 화면에 <b>{@code ☁️ 오전 8시~11시 흐림 (최대 100%)}</b>가
-     * 찍힌다.
+     * <p>⚠️ 확률·양·코드 셋 중 <b>「안 온다」는 코드와 양이 함께 말해야</b> 선다. 코드 혼자서는
+     * 못 자르고(양이 잡힌 시간은 그 양이 이긴다), 확률 {@code 0%}도 그 자체로 「안 온다」다.
      *
-     * <p>⚠️ <b>{@code null}은 {@code 0}이 아니다.</b> 강수량이 <b>안 온 것</b>은 「0mm였다」가
-     * 아니라 「모른다」이므로 거부권을 세워 주지 않는다 — 세우면 강수량 배열이 없는 응답에서
-     * 확률 100%·코드 0인 시간이 전부 잘려 「맑음 / 강수확률 100% / ☀️ 오전 맑음」이 나온다.
+     * <p>⚠️ <b>{@code null}은 {@code 0}이 아니다.</b> 강수량이 안 온 것은 「0mm였다」가 아니라
+     * 「모른다」이므로 거부권을 세워 주지 않는다.
      *
-     * <p>⚠️ <b>코드 혼자서는 못 자른다.</b> 양이 잡힌 시간은 그 양이 이긴다 — 실측
-     * (2026-08-20 성남 17시)에 코드 {@code 3}(흐림)인데 {@code 0.2mm}가 함께 온 자리가 있었다.
-     * 「안 온다」고 말하려면 <b>코드와 양이 함께</b> 말해야 한다.
-     *
-     * <p>⚠️ <b>확률 {@code 0%}도 「안 온다」는 값이다.</b> 같은 실측의 20시가 확률 {@code 0%}에
-     * {@code 0.1mm}였는데, 양만 보고 비로 치면 화면이 <b>{@code (최대 0%)}</b>라고 적는다 —
-     * 우산 그림 옆에 0%를 적는 것은 제 말을 제가 뒤집는 일이다.
+     * <p>네 규칙 하나하나가 실제로 찍힌 틀린 화면에서 나왔다 — 날짜·장소별 실측은 → ADR-0011.
      */
     private static boolean wet(Integer chance, BigDecimal amount, SkyCondition sky,
                                Thresholds cut) {

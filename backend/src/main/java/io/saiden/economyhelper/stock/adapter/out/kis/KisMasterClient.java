@@ -2,6 +2,7 @@ package io.saiden.economyhelper.stock.adapter.out.kis;
 
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.saiden.economyhelper.config.CacheNames;
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.shared.support.Concurrently;
 import io.saiden.economyhelper.stock.application.port.out.ListingSource;
 import io.saiden.economyhelper.stock.domain.Listing;
@@ -16,7 +17,6 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -79,9 +79,9 @@ public class KisMasterClient implements ListingSource {
 
     private final RestClient restClient;
 
-    public KisMasterClient(RestClient.Builder builder,
-                           @Value("${economy-helper.market.kis.master-base-url}") String baseUrl) {
-        this.restClient = builder.baseUrl(baseUrl).build();
+    public KisMasterClient(RestClient.Builder builder, EconomyHelperProperties properties) {
+        this.restClient = builder
+                .baseUrl(properties.market().kis().masterBaseUrl()).build();
     }
 
     /**

@@ -9,6 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.saiden.economyhelper.infrastructure.llm.GeminiApi;
+import io.saiden.economyhelper.testsupport.TestProperties;
 import io.saiden.economyhelper.testsupport.WireMockTest;
 import io.saiden.economyhelper.translate.domain.Translation;
 import io.saiden.economyhelper.translate.domain.TranslationRequest;
@@ -171,8 +172,8 @@ class GeminiTranslatorTest extends WireMockTest {
 
     private GeminiTranslator translator() {
         return new GeminiTranslator(
-                new GeminiApi(RestClient.builder(), server.baseUrl(), "test-key",
-                        "gemini-flash-lite-latest"),
+                new GeminiApi(RestClient.builder(), TestProperties.builder()
+                        .gemini(server.baseUrl(), "test-key", "gemini-flash-lite-latest").build()),
                 JsonMapper.builder().build());
     }
 

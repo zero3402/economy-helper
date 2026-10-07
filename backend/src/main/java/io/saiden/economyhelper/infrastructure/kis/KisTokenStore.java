@@ -2,6 +2,8 @@ package io.saiden.economyhelper.infrastructure.kis;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.saiden.economyhelper.config.EconomyHelperProperties.Kis;
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -17,7 +19,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.script.RedisScript;
@@ -124,20 +125,19 @@ public class KisTokenStore {
     private final String lockOwner = UUID.randomUUID().toString();
 
     public KisTokenStore(RestClient.Builder builder,
-                         @Value("${economy-helper.market.kis.base-url}") String baseUrl,
-                         @Value("${economy-helper.market.kis.app-key:}") String appKey,
-                         @Value("${economy-helper.market.kis.app-secret:}") String appSecret,
+                         EconomyHelperProperties properties,
                          StringRedisTemplate redis,
                          Clock clock,
                          KisThrottle throttle) {
-        this.restClient = builder.baseUrl(baseUrl).build();
+        Kis kis = properties.market().kis();
+        this.restClient = builder.baseUrl(kis.baseUrl()).build();
         // ⚠️ **끝의 줄바꿈을 뗀다.** 대시보드나 .env에 붙여 넣은 값은 끝에 개행·공백이 붙기 쉽고,
         //    그대로 실으면 토큰 발급이 403 EGW00105(「유효하지 않은 AppSecret」)로 떨어진다 —
         //    그건 키가 틀렸다는 뜻이 아니라 **우리가 값을 잘못 실었다**는 뜻이라 진단이 어긋난다.
         //    KIS는 환율·국내 주식·미국 주식의 1순위라 이 한 글자가 셋을 함께 죽인다.
         //    TelegramWebhookController가 웹훅 secret에 같은 것을 하고 있다
-        this.appKey = trimmed(appKey);
-        this.appSecret = trimmed(appSecret);
+        this.appKey = trimmed(kis.appKey());
+        this.appSecret = trimmed(kis.appSecret());
         this.redis = redis;
         this.clock = clock;
         this.throttle = throttle;
@@ -300,12 +300,11 @@ public class KisTokenStore {
                 throw new IllegalStateException("KIS 토큰 응답에 접근토큰이 없습니다");
             }
             Cached fresh = new Cached(issued.accessToken(), expiryOf(issued, now), now);
-            // ⚠️ 만료가 **이미 지난** 토큰이 온다. 실측(2026-08-19)으로 응답의 만료 시각이
-            //    요청 시각보다 20분 일렀다 — 죽은 토큰을 돌려줄 때의 모양이다. 이걸 그냥
-            //    담으면 usableAt()이 즉시 거짓이 되어 **호출마다 발급을 시도**하고, 그건
-            //    1분 1회 제한을 우리가 어기는 길이다(알림톡도 그만큼 간다). 창을 세우고 던진다.
-            //    ⚠️ MARGIN(10분)으로 재지 않는다 — 5분 남은 토큰은 5분 동안 진짜로 쓸 수 있고,
-            //    그걸 죽었다고 하면 수명 끝에 걸린 정상 발급까지 막는다. 재는 것은 '지났는가'다
+            // ⚠️ 만료가 **이미 지난** 토큰이 온다 — 죽은 토큰을 돌려줄 때의 모양이다(→ ADR-0001).
+            //    담으면 usableAt()이 즉시 거짓이 되어 **호출마다 발급을 시도**하고, 그건 1분 1회
+            //    제한을 우리가 어기는 길이다. 창을 세우고 던진다.
+            //    ⚠️ MARGIN(10분)이 아니라 '지났는가'로 잰다 — 5분 남은 토큰은 5분 동안 진짜로 쓸 수
+            //    있고, 그걸 죽었다고 하면 수명 끝에 걸린 정상 발급까지 막는다
             if (!fresh.expiresAt().isAfter(now)) {
                 markReissueAfter(now.plus(SAME_TOKEN_WINDOW), now);
                 throw new IllegalStateException(
@@ -382,7 +381,7 @@ public class KisTokenStore {
 
     private void writeShared(Cached fresh, Instant now) {
         Duration ttl = Duration.between(now, fresh.expiresAt());
-        if (ttl.isNegative() || ttl.isZero()) {
+        if (!ttl.isPositive()) {
             return;
         }
         try {

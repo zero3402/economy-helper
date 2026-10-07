@@ -3,8 +3,9 @@ package io.saiden.economyhelper.infrastructure.llm;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
+import io.saiden.economyhelper.config.EconomyHelperProperties.Gemini;
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import java.util.List;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -27,13 +28,12 @@ public class GeminiApi {
     private final RestClient restClient;
     private final String model;
 
-    public GeminiApi(RestClient.Builder builder,
-                     @Value("${economy-helper.translation.gemini.base-url}") String baseUrl,
-                     @Value("${economy-helper.translation.gemini.api-key:}") String apiKey,
-                     @Value("${economy-helper.translation.gemini.model}") String model) {
+    public GeminiApi(RestClient.Builder builder, EconomyHelperProperties properties) {
+        Gemini gemini = properties.translation().gemini();
         // 키를 쿼리 파라미터가 아니라 헤더로 보낸다 — URL은 로그·프록시에 그대로 남는다.
-        this.restClient = builder.baseUrl(baseUrl).defaultHeader("x-goog-api-key", apiKey).build();
-        this.model = model;
+        this.restClient = builder.baseUrl(gemini.baseUrl())
+                .defaultHeader("x-goog-api-key", gemini.apiKey()).build();
+        this.model = gemini.model();
     }
 
     /**
@@ -56,12 +56,12 @@ public class GeminiApi {
         if (response == null || response.candidates() == null || response.candidates().isEmpty()) {
             throw new IllegalStateException("Gemini 응답에 candidates가 없습니다");
         }
-        Candidate candidate = response.candidates().get(0);
+        Candidate candidate = response.candidates().getFirst();
         if (candidate == null || candidate.content() == null
                 || candidate.content().parts() == null || candidate.content().parts().isEmpty()) {
             throw new IllegalStateException("Gemini 응답에 content.parts가 없습니다");
         }
-        String text = candidate.content().parts().get(0).text();
+        String text = candidate.content().parts().getFirst().text();
         if (text == null || text.isBlank()) {
             throw new IllegalStateException("Gemini 응답 본문이 비어 있습니다");
         }

@@ -156,12 +156,10 @@ class RenderedOutputTest {
                 usIndex("S&P 500", "6481.40")), null));
         // 전망이 붙은 것 — 이름표와 값이 빈 줄로 벌어진다.
         // ⚠️ 국내 목표가에는 환산 줄이 없어야 한다. 이미 원화이므로 환산할 것이 없다
-        cases.put("stock/with-outlook", withOutlook(
-                new StockOutlook(null, new Price(new BigDecimal("466667")), null, StockSource.KIS, BASIS)));
         // ⚠️ 둘이 따로 논다 — 국내는 목표가만 있고 실적발표일이 없다(무료 출처가 없다).
         //    없는 것은 줄이 아예 없다. 「-」나 0으로 찍으면 그건 모른다는 뜻이 아니라 값이다
-        cases.put("stock/outlook-target-only", withOutlook(
-                new StockOutlook(null, new Price(new BigDecimal("350000")), null, StockSource.KIS, BASIS)));
+        cases.put("stock/with-outlook", withOutlook(
+                new StockOutlook(null, new Price(new BigDecimal("466667")), null, StockSource.KIS, BASIS)));
         // ⚠️ **실적발표일은 미국에만 있다.** FMP의 /stable/earnings가 유일한 무료 출처이고
         //    국내(KIS invest-opinion)에는 그 필드가 아예 없다 — 그래서 이 케이스만 세 줄이 다 찬다.
         //    달러 목표가에는 **원화 환산이 한 줄 따라붙는다** — 값 줄과 같은 규칙이다

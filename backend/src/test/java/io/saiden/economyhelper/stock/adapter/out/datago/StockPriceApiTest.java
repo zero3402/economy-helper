@@ -11,7 +11,9 @@ import com.github.tomakehurst.wiremock.client.WireMock;
 import io.github.resilience4j.ratelimiter.RateLimiterConfig;
 import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
 import io.github.resilience4j.ratelimiter.RequestNotPermitted;
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.stock.adapter.out.datago.StockPriceApi.StockPrice;
+import io.saiden.economyhelper.testsupport.TestProperties;
 import io.saiden.economyhelper.testsupport.WireMockTest;
 import java.time.Clock;
 import java.time.Duration;
@@ -43,7 +45,7 @@ class StockPriceApiTest extends WireMockTest {
 
     @BeforeEach
     void resetAndBuild() {
-        api = new StockPriceApi(RestClient.builder(), server.baseUrl(), ENCODED_KEY,
+        api = new StockPriceApi(RestClient.builder(), dataGo(),
                 Clock.fixed(NOW, ZoneId.of("Asia/Seoul")), null);
     }
 
@@ -192,8 +194,8 @@ class StockPriceApiTest extends WireMockTest {
                 .build());
         assertThat(oneShot.rateLimiter("dataGo").acquirePermission())
                 .as("그 하나를 테스트가 가져간다").isTrue();
-        StockPriceApi throttled = new StockPriceApi(RestClient.builder(), server.baseUrl(),
-                ENCODED_KEY, Clock.fixed(NOW, ZoneId.of("Asia/Seoul")), oneShot);
+        StockPriceApi throttled = new StockPriceApi(RestClient.builder(), dataGo(),
+                Clock.fixed(NOW, ZoneId.of("Asia/Seoul")), oneShot);
         stub("20260817", body(row("20260817", "005930", "삼성전자", "239500", "1")));
 
         assertThatThrownBy(() -> throttled.searchByCode("005930"))
@@ -203,4 +205,9 @@ class StockPriceApiTest extends WireMockTest {
         server.verify(0, getRequestedFor(urlPathEqualTo(PATH)));
     }
 
+
+    /** ⚠️ 키는 이미 인코딩된 모양 그대로 넣는다 — 다시 인코딩하면 403이다. */
+    private EconomyHelperProperties dataGo() {
+        return TestProperties.builder().dataGo(server.baseUrl(), ENCODED_KEY).build();
+    }
 }

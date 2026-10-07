@@ -3,13 +3,13 @@ package io.saiden.economyhelper.weather.adapter.out.openmeteo;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import io.saiden.economyhelper.config.CacheNames;
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.weather.application.port.out.WeatherClient;
 import io.saiden.economyhelper.weather.domain.GeoLocation;
 import io.saiden.economyhelper.weather.domain.Weather;
 import io.saiden.economyhelper.weather.domain.WeatherPeriod;
 import io.saiden.economyhelper.weather.domain.WeatherSource;
 import java.time.LocalDate;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -40,10 +40,9 @@ public class OpenMeteoForecastClient implements WeatherClient {
 
     private final RestClient restClient;
 
-    public OpenMeteoForecastClient(
-            RestClient.Builder builder,
-            @Value("${economy-helper.weather.open-meteo.base-url}") String baseUrl) {
-        this.restClient = builder.baseUrl(baseUrl).build();
+    public OpenMeteoForecastClient(RestClient.Builder builder,
+            EconomyHelperProperties properties) {
+        this.restClient = builder.baseUrl(properties.weather().openMeteo().baseUrl()).build();
     }
 
     /**

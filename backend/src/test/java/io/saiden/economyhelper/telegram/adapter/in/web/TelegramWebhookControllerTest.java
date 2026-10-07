@@ -2,6 +2,7 @@ package io.saiden.economyhelper.telegram.adapter.in.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.crypto.adapter.out.binance.BinanceApi;
 import io.saiden.economyhelper.crypto.adapter.out.binance.BinanceBanGate;
 import io.saiden.economyhelper.crypto.adapter.out.llm.CryptoResolver;
@@ -29,6 +30,7 @@ import io.saiden.economyhelper.telegram.adapter.in.web.TelegramWebhookController
 import io.saiden.economyhelper.telegram.adapter.out.TelegramClient;
 import io.saiden.economyhelper.telegram.presentation.WeatherFormatter;
 import io.saiden.economyhelper.testsupport.RecordingTelegram;
+import io.saiden.economyhelper.testsupport.TestProperties;
 import io.saiden.economyhelper.weather.application.WeatherFacade;
 import io.saiden.economyhelper.weather.domain.GeoLocation;
 import io.saiden.economyhelper.weather.domain.SkyCondition;
@@ -89,7 +91,8 @@ class TelegramWebhookControllerTest {
             }
         };
         var controller = new TelegramWebhookController(facade(Optional.empty()), crypto(Optional.empty()),
-                fx(Optional.empty()), stock(Optional.empty()), weather(), client, SAME_THREAD, memory, "", "", "");
+                fx(Optional.empty()), stock(Optional.empty()), weather(), client, SAME_THREAD, memory,
+                webhook("", "", ""));
         Message help = new Message(new Chat(1), "/help", MESSAGE_ID, null);
 
         assertThat(controller.onUpdate(null, new Update(777L, help)).getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -673,7 +676,7 @@ class TelegramWebhookControllerTest {
             RecordingTelegram client = new RecordingTelegram();
             new TelegramWebhookController(facade(Optional.empty()), crypto(Optional.empty()),
                     fx(Optional.empty()), stock(Optional.empty()), weather(reason), client,
-                    SAME_THREAD, new ProcessedUpdates(null), "", "", "")
+                    SAME_THREAD, new ProcessedUpdates(null), webhook("", "", ""))
                     .onUpdate(null, update(1, "/weather 성남"));
 
             assertThat(client.messages).as("%s에도 답이 나간다", reason).hasSize(1);
@@ -711,7 +714,8 @@ class TelegramWebhookControllerTest {
         };
 
         new TelegramWebhookController(exploding, crypto(Optional.empty()), fx(Optional.empty()),
-                stock(Optional.empty()), weather(), client, SAME_THREAD, new ProcessedUpdates(null), "", "", "")
+                stock(Optional.empty()), weather(), client, SAME_THREAD, new ProcessedUpdates(null),
+                webhook("", "", ""))
                 .onUpdate(null, update(1, "/news 금리"));
 
         assertThat(client.messages).as("침묵하면 사용자에게는 봇이 죽은 것과 구분되지 않는다").hasSize(1);
@@ -746,7 +750,7 @@ class TelegramWebhookControllerTest {
                                                                TelegramClient telegramClient) {
         return new TelegramWebhookController(
                 newsFacade, cryptoService, fxService, stockService, weather(), telegramClient,
-                SAME_THREAD, new ProcessedUpdates(null), "", "", "");
+                SAME_THREAD, new ProcessedUpdates(null), webhook("", "", ""));
     }
 
     /**
@@ -789,8 +793,8 @@ class TelegramWebhookControllerTest {
             String secret, String allowedChatId, String searchTopicId, TelegramClient client) {
         return new TelegramWebhookController(
                 facade(Optional.of(item("유가 상승"))), crypto(Optional.empty()), fx(Optional.empty()),
-                stock(Optional.empty()), weather(), client, SAME_THREAD, new ProcessedUpdates(null), secret, allowedChatId,
-                searchTopicId);
+                stock(Optional.empty()), weather(), client, SAME_THREAD, new ProcessedUpdates(null),
+                webhook(secret, allowedChatId, searchTopicId));
     }
 
     /** 토픽 없는 메시지 — 포럼이 아닌 방과 General 토픽이 이 모양이다. */
@@ -912,12 +916,12 @@ class TelegramWebhookControllerTest {
 
     /** 일봉까지 주는 코인 페이크. */
     private static CryptoService cryptoWithSeries(CryptoQuote quote, List<DailyBar> series) {
-        return new CryptoService(new UpbitApi(RestClient.builder(), "https://example.invalid"),
+        return new CryptoService(new UpbitApi(RestClient.builder(), TestProperties.offline()),
                 new io.saiden.economyhelper.crypto.adapter.out.binance.BinanceApi(
                         RestClient.builder(),
                         new io.saiden.economyhelper.crypto.adapter.out.binance.BinanceBanGate(
                                 null, java.time.Clock.systemUTC()),
-                        "https://example.invalid", ""),
+                        TestProperties.offline()),
                 new io.saiden.economyhelper.crypto.adapter.out.llm.CryptoResolver(null, null), FIXED_CLOCK) {
             @Override
             public Optional<CryptoQuote> quote(String query) {
@@ -933,11 +937,11 @@ class TelegramWebhookControllerTest {
 
     /** 해석 규칙은 {@code CryptoServiceTest}가 본다. 여기서는 라우팅만 본다. */
     private static CryptoService crypto(Optional<CryptoQuote> result) {
-        return new CryptoService(new UpbitApi(RestClient.builder(), "https://example.invalid"),
+        return new CryptoService(new UpbitApi(RestClient.builder(), TestProperties.offline()),
                 new io.saiden.economyhelper.crypto.adapter.out.binance.BinanceApi(
                         RestClient.builder(),
                         new io.saiden.economyhelper.crypto.adapter.out.binance.BinanceBanGate(null, java.time.Clock.systemUTC()),
-                        "https://example.invalid", ""),
+                        TestProperties.offline()),
                 new io.saiden.economyhelper.crypto.adapter.out.llm.CryptoResolver(null, null), FIXED_CLOCK) {
             @Override
             public Optional<CryptoQuote> quote(String query) {
@@ -978,4 +982,12 @@ class TelegramWebhookControllerTest {
         };
     }
 
+
+    /** 웹훅이 설정에서 보는 것은 이 셋뿐이다. */
+    private static EconomyHelperProperties webhook(
+            String secret, String allowedChatId, String searchTopicId) {
+        return TestProperties.builder()
+                .webhookSecret(secret).chatId(allowedChatId).searchTopicId(searchTopicId)
+                .build();
+    }
 }

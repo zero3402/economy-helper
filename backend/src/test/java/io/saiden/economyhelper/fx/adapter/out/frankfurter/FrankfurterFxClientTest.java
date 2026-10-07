@@ -10,6 +10,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.saiden.economyhelper.fx.domain.FxRate;
 import io.saiden.economyhelper.fx.domain.FxSource;
+import io.saiden.economyhelper.testsupport.TestProperties;
 import io.saiden.economyhelper.testsupport.WireMockTest;
 import java.time.Clock;
 import java.time.Instant;
@@ -37,7 +38,8 @@ class FrankfurterFxClientTest extends WireMockTest {
 
     @BeforeEach
     void resetAndBuild() {
-        client = new FrankfurterFxClient(RestClient.builder(), server.baseUrl(),
+        client = new FrankfurterFxClient(RestClient.builder(),
+                TestProperties.builder().frankfurter(server.baseUrl()).build(),
                 Clock.fixed(NOW, SEOUL));
     }
 

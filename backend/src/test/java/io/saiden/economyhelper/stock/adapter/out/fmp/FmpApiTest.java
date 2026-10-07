@@ -8,7 +8,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.github.tomakehurst.wiremock.client.WireMock;
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.stock.adapter.out.fmp.FmpApi.FmpQuote;
+import io.saiden.economyhelper.testsupport.TestProperties;
 import io.saiden.economyhelper.testsupport.WireMockTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -32,7 +34,7 @@ class FmpApiTest extends WireMockTest {
     @BeforeEach
     void resetAndBuild() {
         guard = new CountingGuard(true);
-        api = new FmpApi(RestClient.builder(), server.baseUrl(), API_KEY, guard);
+        api = new FmpApi(RestClient.builder(), keyed(API_KEY), guard);
     }
 
     private void stub(String body) {
@@ -103,7 +105,7 @@ class FmpApiTest extends WireMockTest {
     @DisplayName("일일 한도를 넘기면 호출조차 하지 않는다 — 어차피 FMP가 거절한다")
     void skipsCallWhenQuotaExhausted() {
         stub("[{\"symbol\":\"AAPL\",\"price\":302.25}]");
-        FmpApi limited = new FmpApi(RestClient.builder(), server.baseUrl(), API_KEY,
+        FmpApi limited = new FmpApi(RestClient.builder(), keyed(API_KEY),
                 new CountingGuard(false));
 
         assertThatThrownBy(() -> limited.quote("AAPL")).hasMessageContaining("한도");
@@ -113,7 +115,7 @@ class FmpApiTest extends WireMockTest {
     @Test
     @DisplayName("키가 없으면 부르지 않는다 — 빈 키로 호출하면 한도만 축낸다")
     void skipsCallWithoutApiKey() {
-        FmpApi keyless = new FmpApi(RestClient.builder(), server.baseUrl(), "", guard);
+        FmpApi keyless = new FmpApi(RestClient.builder(), keyed(""), guard);
 
         assertThatThrownBy(() -> keyless.quote("AAPL")).hasMessageContaining("키");
         assertThat(guard.calls).as("키가 없으면 쿼터도 소모하지 않는다").isZero();
@@ -126,7 +128,7 @@ class FmpApiTest extends WireMockTest {
         private int calls;
 
         private CountingGuard(boolean allow) {
-            super(null, null, 240);
+            super(null, null, quotaOf(240));
             this.allow = allow;
         }
 
@@ -135,5 +137,14 @@ class FmpApiTest extends WireMockTest {
             calls++;
             return allow;
         }
+    }
+
+    private EconomyHelperProperties keyed(String apiKey) {
+        return TestProperties.builder().fmp(server.baseUrl(), apiKey, 240).build();
+    }
+
+    /** 가드는 한도만 보므로 주소·키는 안 쓴다. */
+    private static EconomyHelperProperties quotaOf(int dailyLimit) {
+        return TestProperties.builder().fmp(null, null, dailyLimit).build();
     }
 }

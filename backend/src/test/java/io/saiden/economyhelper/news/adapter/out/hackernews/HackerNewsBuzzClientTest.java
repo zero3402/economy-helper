@@ -6,7 +6,7 @@ import io.saiden.economyhelper.news.adapter.out.hackernews.HackerNewsApi.Hit;
 import io.saiden.economyhelper.news.adapter.out.hackernews.HackerNewsApi.SearchResponse;
 import io.saiden.economyhelper.news.domain.Article;
 import io.saiden.economyhelper.news.domain.NewsSource;
-import java.time.Duration;
+import io.saiden.economyhelper.testsupport.TestProperties;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
@@ -118,7 +118,7 @@ class HackerNewsBuzzClientTest {
             Article notOnHn = article("https://www.reuters.com/markets/gold");
 
             CountingApi api = new CountingApi(Map.of("reuters.com/markets/oil", 930));
-            HackerNewsBuzzClient client = new HackerNewsBuzzClient(api, Duration.ofDays(7));
+            HackerNewsBuzzClient client = buzzClient(api);
 
             Map<String, Integer> buzz = client.buzzByLink(List.of(onHn, notOnHn), NOW);
 
@@ -134,7 +134,7 @@ class HackerNewsBuzzClientTest {
             Article ap = new Article(NewsSource.AP, "제목", null,
                     "https://news.google.com/rss/articles/CBMiK2h0dHBz", NOW, 0);
             CountingApi api = new CountingApi(Map.of());
-            HackerNewsBuzzClient client = new HackerNewsBuzzClient(api, Duration.ofDays(7));
+            HackerNewsBuzzClient client = buzzClient(api);
 
             assertThat(client.buzzByLink(List.of(ap), NOW)).isEmpty();
             assertThat(api.calls).as("맞힐 수 없는 조회는 아예 나가지 않는다").isZero();
@@ -145,8 +145,7 @@ class HackerNewsBuzzClientTest {
         void survivesHackerNewsOutage() {
             // ⚠️ API가 스스로 삼키면 @CircuitBreaker가 정상 반환을 성공으로 세어 절대 안 열린다.
             //    API는 던지고 강등은 이 클래스가 한다 — 사용자에게 보이는 결과는 똑같이 빈손이다
-            HackerNewsBuzzClient client =
-                    new HackerNewsBuzzClient(new ExplodingApi(), Duration.ofDays(7));
+            HackerNewsBuzzClient client = buzzClient(new ExplodingApi());
 
             assertThat(client.buzzByLink(List.of(article("https://ft.com/c")), NOW)).isEmpty();
         }
@@ -157,8 +156,8 @@ class HackerNewsBuzzClientTest {
             // 루프 **안**에서 잡는 이유다. 밖에서 한 번만 잡으면 첫 실패가 뒤의 매체를 통째로 버린다
             Article good = article("https://cnbc.com/a");
             Article bad = article("https://ft.com/b");
-            HackerNewsBuzzClient client = new HackerNewsBuzzClient(
-                    new FailingDomainApi("ft.com", Map.of("cnbc.com/a", 12)), Duration.ofDays(7));
+            HackerNewsBuzzClient client =
+                    buzzClient(new FailingDomainApi("ft.com", Map.of("cnbc.com/a", 12)));
 
             assertThat(client.buzzByLink(List.of(good, bad), NOW))
                     .containsExactly(Map.entry(good.link(), 12));
@@ -168,7 +167,7 @@ class HackerNewsBuzzClientTest {
         @DisplayName("기사가 없으면 조회조차 하지 않는다")
         void skipsLookupWhenNoArticles() {
             CountingApi api = new CountingApi(Map.of());
-            HackerNewsBuzzClient client = new HackerNewsBuzzClient(api, Duration.ofDays(7));
+            HackerNewsBuzzClient client = buzzClient(api);
 
             assertThat(client.buzzByLink(List.of(), NOW)).isEmpty();
             assertThat(api.calls).isZero();
@@ -192,7 +191,7 @@ class HackerNewsBuzzClientTest {
     /** 실패를 던지는 API — 강등이 {@link HackerNewsBuzzClient}에 있음을 보인다. */
     private static final class ExplodingApi extends HackerNewsApi {
         private ExplodingApi() {
-            super(RestClient.builder(), "https://example.invalid", 100);
+            super(RestClient.builder(), TestProperties.offline());
         }
 
         @Override
@@ -207,7 +206,7 @@ class HackerNewsBuzzClientTest {
         private final Map<String, Integer> canned;
 
         private FailingDomainApi(String failing, Map<String, Integer> canned) {
-            super(RestClient.builder(), "https://example.invalid", 100);
+            super(RestClient.builder(), TestProperties.offline());
             this.failing = failing;
             this.canned = canned;
         }
@@ -227,7 +226,7 @@ class HackerNewsBuzzClientTest {
         private int calls;
 
         private CountingApi(Map<String, Integer> canned) {
-            super(RestClient.builder(), "https://example.invalid", 100);
+            super(RestClient.builder(), TestProperties.offline());
             this.canned = canned;
         }
 
@@ -236,5 +235,10 @@ class HackerNewsBuzzClientTest {
             calls++;
             return canned;
         }
+    }
+
+    /** 창은 {@code offline()}이 든 7일이다 — 이 클래스가 보는 것은 창 길이가 아니라 강등이다. */
+    private static HackerNewsBuzzClient buzzClient(HackerNewsApi api) {
+        return new HackerNewsBuzzClient(api, TestProperties.offline());
     }
 }

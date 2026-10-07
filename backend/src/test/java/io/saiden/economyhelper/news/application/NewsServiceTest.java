@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.saiden.economyhelper.config.EconomyHelperProperties.Feed;
-import io.saiden.economyhelper.config.EconomyHelperProperties.Ranking;
 import io.saiden.economyhelper.config.EconomyHelperProperties.Weights;
 import io.saiden.economyhelper.news.adapter.out.feed.FeedFetcher;
 import io.saiden.economyhelper.news.adapter.out.hackernews.HackerNewsApi;
@@ -332,12 +331,14 @@ class NewsServiceTest {
                 new PopularityScorer(new RankingWeights(0.35, 0.25, 0.25, 0.15), Duration.ofHours(6)),
                 relevance,
                 CLOCK,
-                WINDOW,
-                8,
-                RELEVANCE_THRESHOLD,
-                SEARCH_RESULTS,
-                CRYPTO_RESULTS,
-                ECONOMY_RESULTS);
+                TestProperties.builder()
+                        .newsWindow(WINDOW)
+                        .llmCandidates(8)
+                        .relevanceThreshold(RELEVANCE_THRESHOLD)
+                        .searchResults(SEARCH_RESULTS)
+                        .cryptoResults(CRYPTO_RESULTS)
+                        .economyResults(ECONOMY_RESULTS)
+                        .build());
     }
 
     /**
@@ -375,13 +376,14 @@ class NewsServiceTest {
         private StubFetcher(Map<NewsSource, List<Article>> bySource) {
             super(RestClient.builder(),
                     TestProperties.builder()
-                        .feeds(new EnumMap<NewsSource, Feed>(NewsSource.class))
-                        .ranking(new Ranking(new Weights(1, 1, 1, 1), Duration.ofHours(6)))
-                        .build(),
+                            .feeds(new EnumMap<NewsSource, Feed>(NewsSource.class))
+                            .weights(new Weights(1, 1, 1, 1))
+                            .recencyHalfLife(Duration.ofHours(6))
+                            .maxAge(Duration.ofDays(3))
+                            .build(),
                     CircuitBreakerRegistry.ofDefaults(),
-                TestRetries.registry(),
+                    TestRetries.registry(),
                     Clock.systemUTC(),
-                    Duration.ofDays(3),
                     List.of());
             this.bySource = bySource;
         }
@@ -395,8 +397,8 @@ class NewsServiceTest {
     /** HN을 타지 않는다 — buzz가 0이어도 랭킹이 성립하는지 함께 확인하는 셈이다. */
     private static final class StubBuzzClient extends HackerNewsBuzzClient {
         private StubBuzzClient() {
-            super(new HackerNewsApi(RestClient.builder(), "https://example.invalid", 100),
-                    Duration.ofDays(7));
+            super(new HackerNewsApi(RestClient.builder(), TestProperties.offline()),
+                    TestProperties.offline());
         }
 
         @Override

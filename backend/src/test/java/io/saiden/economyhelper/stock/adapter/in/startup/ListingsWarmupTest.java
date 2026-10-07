@@ -3,8 +3,10 @@ package io.saiden.economyhelper.stock.adapter.in.startup;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.stock.application.StockListings;
 import io.saiden.economyhelper.stock.domain.Listing;
+import io.saiden.economyhelper.testsupport.TestProperties;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.DisplayName;
@@ -21,7 +23,7 @@ class ListingsWarmupTest {
             return List.of(new Listing("005930", "삼성전자", "ST", 1));
         });
 
-        new ListingsWarmup(listings, true).preload();
+        new ListingsWarmup(listings, enabled(true)).preload();
 
         assertThat(reads).hasValue(1);
     }
@@ -33,6 +35,10 @@ class ListingsWarmupTest {
             throw new IllegalStateException("마스터가 비었다");
         });
 
-        assertThatCode(() -> new ListingsWarmup(dead, true).preload()).doesNotThrowAnyException();
+        assertThatCode(() -> new ListingsWarmup(dead, enabled(true)).preload()).doesNotThrowAnyException();
+    }
+
+    private static EconomyHelperProperties enabled(boolean on) {
+        return TestProperties.builder().warmup(on).build();
     }
 }

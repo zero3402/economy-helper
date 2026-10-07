@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.github.tomakehurst.wiremock.client.WireMock;
+import io.saiden.economyhelper.testsupport.TestProperties;
 import io.saiden.economyhelper.testsupport.WireMockTest;
 import io.saiden.economyhelper.weather.domain.GeoLocation;
 import io.saiden.economyhelper.weather.domain.SkyCondition;
@@ -32,7 +33,8 @@ class OpenMeteoForecastClientTest extends WireMockTest {
 
     @BeforeEach
     void resetAndBuild() {
-        client = new OpenMeteoForecastClient(RestClient.builder(), server.baseUrl());
+        client = new OpenMeteoForecastClient(RestClient.builder(),
+                TestProperties.builder().openMeteo(server.baseUrl()).build());
     }
 
     private void stub(String body) {

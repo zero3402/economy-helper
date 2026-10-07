@@ -7,6 +7,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
+import io.saiden.economyhelper.testsupport.TestProperties;
 import io.saiden.economyhelper.testsupport.WireMockTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,7 +25,7 @@ class SelfPingTest extends WireMockTest {
     void pingsConfiguredUrl() {
         server.stubFor(get(anyUrl()).willReturn(aResponse().withStatus(200).withBody("{}")));
 
-        new SelfPing(RestClient.builder(), server.baseUrl() + "/actuator/health/liveness").ping();
+        new SelfPing(RestClient.builder(), keepWarm(server.baseUrl() + "/actuator/health/liveness")).ping();
 
         server.verify(getRequestedFor(urlPathEqualTo("/actuator/health/liveness")));
     }
@@ -32,8 +33,8 @@ class SelfPingTest extends WireMockTest {
     @Test
     @DisplayName("주소가 비면 요청조차 하지 않는다 — 잠들지 않는 호스트에서는 없는 기능이다")
     void doesNothingWithoutUrl() {
-        new SelfPing(RestClient.builder(), "  ").ping();
-        new SelfPing(RestClient.builder(), null).ping();
+        new SelfPing(RestClient.builder(), keepWarm("  ")).ping();
+        new SelfPing(RestClient.builder(), keepWarm(null)).ping();
 
         server.verify(0, getRequestedFor(anyUrl()));
     }
@@ -44,7 +45,7 @@ class SelfPingTest extends WireMockTest {
         for (int status : new int[] {404, 500}) {
             server.stubFor(get(anyUrl()).willReturn(aResponse().withStatus(status)));
 
-            assertThatCode(() -> new SelfPing(RestClient.builder(), server.baseUrl()).ping())
+            assertThatCode(() -> new SelfPing(RestClient.builder(), keepWarm(server.baseUrl())).ping())
                     .as("상태 %d", status)
                     .doesNotThrowAnyException();
         }
@@ -53,7 +54,11 @@ class SelfPingTest extends WireMockTest {
     @Test
     @DisplayName("호스트가 죽어 있어도 예외를 밖으로 내보내지 않는다 — 스케줄러가 멈추면 안 된다")
     void survivesUnreachableHost() {
-        assertThatCode(() -> new SelfPing(RestClient.builder(), "http://localhost:1").ping())
+        assertThatCode(() -> new SelfPing(RestClient.builder(), keepWarm("http://localhost:1")).ping())
                 .doesNotThrowAnyException();
+    }
+
+    private static EconomyHelperProperties keepWarm(String url) {
+        return TestProperties.builder().keepWarmUrl(url).build();
     }
 }

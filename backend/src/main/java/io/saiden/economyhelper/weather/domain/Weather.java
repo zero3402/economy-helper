@@ -39,8 +39,9 @@ public record Weather(GeoLocation place, List<Daily> days, WeatherSource source,
 
     public Weather {
         days = List.copyOf(days);
-        // ⚠️ from()/to()가 days.get(0)을 인덱싱하므로 빈 목록은 렌더 시점에 터지고, 웹훅에서는
-        //    그게 침묵이 된다 — 생산자에서 멀리 떨어진 자리에서 터지지 않게 여기서 막는다
+        // ⚠️ from()/to()가 days.getFirst()를 부르므로 빈 목록은 렌더 시점에 NoSuchElementException으로
+        //    터지고, 웹훅에서는 그게 침묵이 된다 — 생산자에서 멀리 떨어진 자리에서 터지지 않게
+        //    여기서 막는다
         if (days.isEmpty()) {
             throw new IllegalArgumentException(
                     "날씨에 하루도 담기지 않았습니다 — 값이 없으면 조회 자체가 실패여야 합니다");
@@ -49,12 +50,12 @@ public record Weather(GeoLocation place, List<Daily> days, WeatherSource source,
 
     /** 목록의 첫날. 기준 줄에 쓴다. */
     public LocalDate from() {
-        return days.get(0).date();
+        return days.getFirst().date();
     }
 
     /** 목록의 마지막 날. {@link #from()}과 같으면 기준 줄에 날짜를 하나만 적는다. */
     public LocalDate to() {
-        return days.get(days.size() - 1).date();
+        return days.getLast().date();
     }
 
     /**

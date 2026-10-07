@@ -1,5 +1,7 @@
 package io.saiden.economyhelper.news.application;
 
+import io.saiden.economyhelper.config.EconomyHelperProperties.Digest;
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.news.application.port.out.ArticleBuzz;
 import io.saiden.economyhelper.news.application.port.out.ArticleFeed;
 import io.saiden.economyhelper.news.application.port.out.RelevanceJudge;
@@ -25,7 +27,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
@@ -56,23 +57,19 @@ public class NewsService {
                        PopularityScorer scorer,
                        RelevanceJudge relevanceScorer,
                        Clock clock,
-                       @Value("${economy-helper.digest.window:24h}") Duration window,
-                       @Value("${economy-helper.digest.llm-candidates:8}") int llmCandidates,
-                       @Value("${economy-helper.digest.relevance-threshold:0.4}") double relevanceThreshold,
-                       @Value("${economy-helper.digest.search-results:5}") int searchResults,
-                       @Value("${economy-helper.digest.crypto-results:5}") int cryptoResults,
-                       @Value("${economy-helper.digest.economy-results:5}") int economyResults) {
+                       EconomyHelperProperties properties) {
+        Digest digest = properties.digest();
         this.fetcher = fetcher;
         this.buzzClient = buzzClient;
         this.scorer = scorer;
         this.relevanceScorer = relevanceScorer;
         this.clock = clock;
-        this.window = window;
-        this.llmCandidates = llmCandidates;
-        this.relevanceThreshold = relevanceThreshold;
-        this.searchResults = searchResults;
-        this.cryptoResults = cryptoResults;
-        this.economyResults = economyResults;
+        this.window = digest.window();
+        this.llmCandidates = digest.llmCandidates();
+        this.relevanceThreshold = digest.relevanceThreshold();
+        this.searchResults = digest.searchResults();
+        this.cryptoResults = digest.cryptoResults();
+        this.economyResults = digest.economyResults();
     }
 
     /** 신선도 창 — 화면이 "최근 몇 시간"이라고 말하려면 같은 값을 봐야 한다. */
@@ -107,7 +104,7 @@ public class NewsService {
                 .flatMap(List::stream)
                 .sorted(Comparator.comparingDouble(ScoredArticle::score).reversed())
                 .toList();
-        // ⚠️ 코인 섹션에 <b>한 사본이라도</b> 실렸으면 코인이다 — 중복 제거는 점수 높은 사본만 남기므로,
+        // ⚠️ 코인 섹션에 **한 사본이라도** 실렸으면 코인이다 — 중복 제거는 점수 높은 사본만 남기므로,
         //    남은 사본의 매체로 가르면 같은 기사가 날마다 코인·경제를 오가며 경제 자리를 먹는다
         Set<String> inCryptoSection = all.stream()
                 .filter(scored -> scored.article().source().cryptoSection())

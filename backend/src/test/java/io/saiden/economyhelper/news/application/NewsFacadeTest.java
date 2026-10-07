@@ -6,6 +6,7 @@ import io.saiden.economyhelper.news.domain.Article;
 import io.saiden.economyhelper.news.domain.NewsItem;
 import io.saiden.economyhelper.news.domain.NewsSource;
 import io.saiden.economyhelper.news.domain.ScoredArticle;
+import io.saiden.economyhelper.testsupport.TestProperties;
 import io.saiden.economyhelper.translate.application.TranslationService;
 import io.saiden.economyhelper.translate.domain.Translation;
 import io.saiden.economyhelper.translate.domain.TranslationRequest;
@@ -77,7 +78,11 @@ class NewsFacadeTest {
                                      java.util.function.Function<List<TranslationRequest>, List<Translation>> translate) {
         NewsService news = new NewsService(null, null, null, null,
                 java.time.Clock.fixed(NOW, java.time.ZoneOffset.UTC),
-                java.time.Duration.ofHours(24), 8, 0.4, 5, 5, 5) {
+                TestProperties.builder()
+                        .newsWindow(java.time.Duration.ofHours(24))
+                        .llmCandidates(8).relevanceThreshold(0.4)
+                        .searchResults(5).cryptoResults(5).economyResults(5)
+                        .build()) {
             @Override
             public List<ScoredArticle> digest() {
                 return ordered;

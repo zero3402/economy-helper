@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.stock.adapter.out.fmp;
 
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
@@ -8,7 +9,6 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.ResolverStyle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
@@ -46,11 +46,10 @@ public class FmpQuotaGuard {
     private final int dailyLimit;
 
     public FmpQuotaGuard(StringRedisTemplate redis, Clock clock,
-                         @Value(
-                                 "${economy-helper.market.fmp.daily-limit:240}") int dailyLimit) {
+                         EconomyHelperProperties properties) {
         this.redis = redis;
         this.clock = clock;
-        this.dailyLimit = dailyLimit;
+        this.dailyLimit = properties.market().fmp().dailyLimit();
     }
 
     /**

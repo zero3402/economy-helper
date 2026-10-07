@@ -7,7 +7,9 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import io.saiden.economyhelper.testsupport.TestProperties;
 import io.saiden.economyhelper.testsupport.WireMockTest;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
@@ -30,7 +32,8 @@ class HackerNewsApiTest extends WireMockTest {
     private static final String PATH = "/api/v1/search";
 
     private HackerNewsApi api() {
-        return new HackerNewsApi(RestClient.builder(), server.baseUrl(), 100);
+        return new HackerNewsApi(RestClient.builder(), TestProperties.builder()
+                .hackerNews(server.baseUrl(), Duration.ofDays(7), 100).build());
     }
 
     @Test

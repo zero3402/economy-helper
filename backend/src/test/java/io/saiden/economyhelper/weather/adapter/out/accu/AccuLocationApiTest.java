@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.github.tomakehurst.wiremock.client.WireMock;
+import io.saiden.economyhelper.testsupport.TestProperties;
 import io.saiden.economyhelper.testsupport.WireMockTest;
 import io.saiden.economyhelper.weather.domain.GeoLocation;
 import java.time.ZoneId;
@@ -34,7 +35,7 @@ class AccuLocationApiTest extends WireMockTest {
 
     @BeforeEach
     void resetAndBuild() {
-        api = new AccuLocationApi(RestClient.builder(), server.baseUrl(), API_KEY);
+        api = apiWith(API_KEY);
     }
 
     private void stub(String body) {
@@ -106,9 +107,14 @@ class AccuLocationApiTest extends WireMockTest {
     @Test
     @DisplayName("키가 없으면 부르지 않는다 — 빈 키로 호출하면 한도만 축낸다")
     void skipsCallWithoutApiKey() {
-        AccuLocationApi keyless = new AccuLocationApi(RestClient.builder(), server.baseUrl(), "");
+        AccuLocationApi keyless = apiWith("");
 
         assertThatThrownBy(() -> keyless.keyOf(MIGEUM)).hasMessageContaining("키");
         server.verify(0, getRequestedFor(urlPathEqualTo(PATH)));
+    }
+
+    private AccuLocationApi apiWith(String apiKey) {
+        return new AccuLocationApi(RestClient.builder(),
+                TestProperties.builder().accuWeather(server.baseUrl(), apiKey).build());
     }
 }

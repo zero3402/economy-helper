@@ -14,6 +14,7 @@ import io.saiden.economyhelper.weather.adapter.out.openmeteo.OpenMeteoHourlyClie
 import io.saiden.economyhelper.weather.domain.GeoLocation;
 import io.saiden.economyhelper.weather.domain.WeatherPeriod;
 import java.util.Set;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,6 +42,20 @@ class ResilienceConfigTest {
     @Autowired org.springframework.context.ApplicationContext context;
     @Autowired io.github.resilience4j.ratelimiter.RateLimiterRegistry limiters;
     @Autowired io.github.resilience4j.retry.RetryRegistry retries;
+
+    /**
+     * <b>레지스트리는 {@code @SpringBootTest} 컨텍스트와 함께 공유된다</b> — 이 클래스가
+     * {@code transitionToOpenState()}·{@code onError(…)}로 브레이커를 더럽히는데 되돌리지
+     * 않으면, 그 상태가 같은 컨텍스트를 쓰는 다음 테스트로 새어 실행 순서에 따라 결과가 바뀐다.
+     *
+     * <p><b>이름을 적지 않고 전부 되돌린다</b> — 손으로 적은 목록은 반드시 낡는다
+     * (docs/testing.md 「구조 검사 테스트의 원칙」). 테스트가 브레이커를 하나 더 건드리기
+     * 시작해도 여기를 고칠 일이 없다.
+     */
+    @BeforeEach
+    void resetEveryBreaker() {
+        registry.getAllCircuitBreakers().forEach(CircuitBreaker::reset);
+    }
 
     @Test
     @DisplayName("선언한 리미터가 실제로 스로틀이다 — 이름만 애너테이션에 있으면 조용히 무력해진다")

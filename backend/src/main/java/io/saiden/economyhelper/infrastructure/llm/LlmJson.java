@@ -51,7 +51,7 @@ public final class LlmJson {
             return Optional.of(parsed);
         } catch (Exception e) {
             // 호출자가 다음 수를 갖고 있다 — 여기서 던지면 그 폴백이 무의미해진다
-            // 받은 글의 <b>모양</b>만 남긴다 — 한 번씩 다른 모양이 오는데(2026-09-29 '다음 주말 부산') 예외
+            // 받은 글의 **모양**만 남긴다 — 한 번씩 다른 모양이 오는데(2026-09-29 '다음 주말 부산') 예외
             // 이름만으로는 무엇이 왔는지 알 길이 없다. ⚠️ 본문은 안 적는다 — 모델이 사용자 입력을 되풀이할 수 있다
             log.error("[{}] '{}' LLM 해석 실패: {} — 받은 글: {}", tag, query, FailureReason.of(e),
                     shapeOf(mapper, reply));

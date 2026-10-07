@@ -3,7 +3,6 @@ package io.saiden.economyhelper.config;
 import io.saiden.economyhelper.shared.support.FailureReason;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -37,8 +36,8 @@ public class SelfPing {
     private final RestClient restClient;
     private final String url;
 
-    public SelfPing(RestClient.Builder builder,
-                    @Value("${economy-helper.keep-warm.url:}") String url) {
+    public SelfPing(RestClient.Builder builder, EconomyHelperProperties properties) {
+        String url = properties.keepWarm().url();
         this.restClient = builder.build();
         // 대시보드에 붙여 넣은 값은 끝에 공백이나 줄바꿈이 붙기 쉽다
         this.url = url == null ? "" : url.trim();

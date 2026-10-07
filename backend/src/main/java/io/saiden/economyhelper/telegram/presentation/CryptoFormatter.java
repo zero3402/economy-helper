@@ -76,7 +76,7 @@ public final class CryptoFormatter {
         // 출처 자리는 비운다 — 코인은 출처가 거래소이고 그건 코인마다 둘씩이라 값 줄에
         // 이름으로 이미 적혀 있다. 맨 아래에 남는 것은 기준 시각뿐이다.
         //
-        // ⚠️ 첫 코인의 시각이 아니라 <b>가장 최근 값</b>을 쓴다(증시의 basisOf와 같은 규칙).
+        // ⚠️ 첫 코인의 시각이 아니라 **가장 최근 값**을 쓴다(증시의 basisOf와 같은 규칙).
         // at은 코인마다 제 업비트 체결 시각이고 미상장 코인은 Instant.now()로 채워지는데,
         // 첫 코인이 그런 경우면 조회 시각이 나머지 전부의 체결 시각인 척 맨 아래에 앉는다.
         quotes.stream().map(CryptoQuote::at).max(Comparator.naturalOrder()).ifPresent(basis ->

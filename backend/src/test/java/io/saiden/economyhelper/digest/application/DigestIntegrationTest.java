@@ -27,6 +27,7 @@ import io.saiden.economyhelper.stock.domain.StockOutlook;
 import io.saiden.economyhelper.telegram.adapter.out.TelegramClient;
 import io.saiden.economyhelper.telegram.adapter.out.TelegramDigestNotifier;
 import io.saiden.economyhelper.testsupport.RecordingTelegram;
+import io.saiden.economyhelper.testsupport.TestProperties;
 import io.saiden.economyhelper.translate.adapter.out.llm.GeminiTranslator;
 import io.saiden.economyhelper.translate.application.TranslationService;
 import io.saiden.economyhelper.translate.domain.Translation;
@@ -272,11 +273,11 @@ class DigestIntegrationTest {
     private static io.saiden.economyhelper.crypto.application.CryptoService deadCrypto() {
         return new io.saiden.economyhelper.crypto.application.CryptoService(
                 new io.saiden.economyhelper.crypto.adapter.out.upbit.UpbitApi(
-                        RestClient.builder(), "https://example.invalid"),
+                        RestClient.builder(), TestProperties.offline()),
                 new io.saiden.economyhelper.crypto.adapter.out.binance.BinanceApi(
                         RestClient.builder(),
                         new io.saiden.economyhelper.crypto.adapter.out.binance.BinanceBanGate(null, java.time.Clock.systemUTC()),
-                        "https://example.invalid", ""),
+                        TestProperties.offline()),
                 new io.saiden.economyhelper.crypto.adapter.out.llm.CryptoResolver(null, null), Clock.fixed(NOW, ZoneOffset.UTC)) {
             @Override
             public List<io.saiden.economyhelper.crypto.domain.CryptoQuote> quotesOf(List<String> markets) {
@@ -309,7 +310,7 @@ class DigestIntegrationTest {
         @Primary
         GeminiTranslator countingTranslator() {
             return new GeminiTranslator(
-                    new GeminiApi(RestClient.builder(), "http://localhost:1", "test-key", "test-model"),
+                    new GeminiApi(RestClient.builder(), TestProperties.offline()),
                     JsonMapper.builder().build()) {
                 @Override
                 public Translation translate(TranslationRequest article) {

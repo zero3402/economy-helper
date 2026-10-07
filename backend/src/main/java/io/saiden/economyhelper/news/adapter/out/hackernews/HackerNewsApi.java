@@ -4,11 +4,12 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.saiden.economyhelper.config.CacheNames;
+import io.saiden.economyhelper.config.EconomyHelperProperties.HackerNews;
+import io.saiden.economyhelper.config.EconomyHelperProperties;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -29,11 +30,10 @@ public class HackerNewsApi {
     private final RestClient restClient;
     private final int hitsPerPage;
 
-    public HackerNewsApi(RestClient.Builder builder,
-                         @Value("${economy-helper.ranking.hacker-news.base-url}") String baseUrl,
-                         @Value("${economy-helper.ranking.hacker-news.hits-per-page:100}") int hitsPerPage) {
-        this.restClient = builder.baseUrl(baseUrl).build();
-        this.hitsPerPage = hitsPerPage;
+    public HackerNewsApi(RestClient.Builder builder, EconomyHelperProperties properties) {
+        HackerNews hackerNews = properties.ranking().hackerNews();
+        this.restClient = builder.baseUrl(hackerNews.baseUrl()).build();
+        this.hitsPerPage = hackerNews.hitsPerPage();
     }
 
     /**

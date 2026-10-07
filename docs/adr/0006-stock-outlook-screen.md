@@ -4,7 +4,7 @@
 
 | 상태 | 범위 |
 |---|---|
-| 채택 | `telegram/presentation/**` · `stock/domain/**` |
+| 채택 | `telegram/presentation/**` · `stock/domain/**` · `digest/**` |
 
 ## 맥락
 

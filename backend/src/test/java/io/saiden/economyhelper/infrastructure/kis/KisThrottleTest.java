@@ -3,6 +3,7 @@ package io.saiden.economyhelper.infrastructure.kis;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import io.saiden.economyhelper.testsupport.TestProperties;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -21,7 +22,7 @@ class KisThrottleTest {
     @Test
     @DisplayName("연달아 부르면 사이가 벌어진다 — 이것이 리미터가 못 하던 일이다")
     void keepsAGapBetweenConsecutiveCalls() {
-        KisThrottle throttle = new KisThrottle(Duration.ofMillis(300), Duration.ofSeconds(5));
+        KisThrottle throttle = throttle(Duration.ofMillis(300), Duration.ofSeconds(5));
 
         long started = System.nanoTime();
         throttle.pace();
@@ -34,7 +35,7 @@ class KisThrottleTest {
     @Test
     @DisplayName("첫 호출은 기다리지 않는다 — 켜고 나서 첫 조회가 느려질 이유가 없다")
     void doesNotMakeTheFirstCallWait() {
-        KisThrottle throttle = new KisThrottle(Duration.ofSeconds(30), Duration.ofSeconds(5));
+        KisThrottle throttle = throttle(Duration.ofSeconds(30), Duration.ofSeconds(5));
 
         long started = System.nanoTime();
         throttle.pace();
@@ -47,7 +48,7 @@ class KisThrottleTest {
     @DisplayName("줄이 너무 길면 기다리지 않고 던진다 — 예전 timeoutDuration이 하던 몫이다")
     void throwsWhenTheQueueIsLongerThanTheLimit() throws Exception {
         // 던져야 상위 서비스가 다음 출처로 넘어간다. 무한히 기다리면 사용자는 답을 못 받는다
-        KisThrottle throttle = new KisThrottle(Duration.ofSeconds(2), Duration.ofMillis(50));
+        KisThrottle throttle = throttle(Duration.ofSeconds(2), Duration.ofMillis(50));
         throttle.pace();
 
         CountDownLatch waiting = new CountDownLatch(1);
@@ -76,5 +77,10 @@ class KisThrottleTest {
 
         assertThat(Duration.ofNanos(System.nanoTime() - started))
                 .isLessThan(Duration.ofMillis(500));
+    }
+
+    private static KisThrottle throttle(Duration minInterval, Duration maxWait) {
+        return new KisThrottle(TestProperties.builder()
+                .kisPacing(minInterval, maxWait).build());
     }
 }

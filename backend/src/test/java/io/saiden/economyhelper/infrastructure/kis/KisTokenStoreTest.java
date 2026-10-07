@@ -8,11 +8,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.github.tomakehurst.wiremock.client.WireMock;
+import com.github.tomakehurst.wiremock.matching.MatchResult;
+import io.saiden.economyhelper.config.EconomyHelperProperties;
+import io.saiden.economyhelper.testsupport.TestProperties;
 import io.saiden.economyhelper.testsupport.WireMockTest;
 import java.lang.reflect.Proxy;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -51,7 +56,7 @@ class KisTokenStoreTest extends WireMockTest {
                 .withBody("{\"access_token\":\"" + KisFixtures.TOKEN
                         + "\",\"access_token_token_expired\":\"2026-08-26 12:00:00\"}")));
 
-        new KisTokenStore(RestClient.builder(), server.baseUrl(), "key\n", "secret  \n",
+        new KisTokenStore(RestClient.builder(), credentials("key\n", "secret  \n"),
                 null, Clock.fixed(NOW, ZoneOffset.UTC), KisFixtures.unpaced()).token();
 
         server.verify(postRequestedFor(urlPathEqualTo("/oauth2/tokenP"))
@@ -60,12 +65,12 @@ class KisTokenStoreTest extends WireMockTest {
     }
 
     private KisTokenStore store(Instant now) {
-        return new KisTokenStore(RestClient.builder(), server.baseUrl(), "key", "secret",
+        return new KisTokenStore(RestClient.builder(), credentials("key", "secret"),
                 null, Clock.fixed(now, ZoneOffset.UTC), KisFixtures.unpaced());
     }
 
     private KisTokenStore store(Instant now, FakeRedis redis) {
-        return new KisTokenStore(RestClient.builder(), server.baseUrl(), "key", "secret",
+        return new KisTokenStore(RestClient.builder(), credentials("key", "secret"),
                 redis.template(), Clock.fixed(now, ZoneOffset.UTC), KisFixtures.unpaced());
     }
 
@@ -236,16 +241,30 @@ class KisTokenStoreTest extends WireMockTest {
     @Test
     @DisplayName("발급 락은 제 것일 때만 푼다 — TTL이 지나 남이 잡은 락을 지우면 동시 발급이 열린다")
     void releasesOnlyItsOwnIssuingLock() throws Exception {
-        server.stubFor(post(urlPathEqualTo(PATH)).willReturn(aResponse().withStatus(200)
-                .withFixedDelay(500)
-                .withHeader("Content-Type", "application/json")
-                .withBody("{\"access_token\":\"tok-1\",\"access_token_token_expired\":\"2026-08-19 16:56:34\"}")));
+        // ⚠️ 락을 덮어쓰는 시점이 **발급이 도는 중**이어야 뜻이 있다. 시계로 재서 그 창에
+        //    들어가면(예전의 sleep(200)) 바쁜 기계에서 창을 지나쳐 버린다 — 스텁 매칭은
+        //    지연 **전**에 도므로, 요청이 닿는 순간 걸쇠를 풀어 기다림이 아니라 사실로 창에 선다
+        CountDownLatch issuingStarted = new CountDownLatch(1);
+        server.stubFor(post(urlPathEqualTo(PATH))
+                .andMatching(request -> {
+                    issuingStarted.countDown();
+                    return MatchResult.exactMatch();
+                })
+                .willReturn(aResponse().withStatus(200)
+                        .withFixedDelay(500)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"access_token\":\"tok-1\",\"access_token_token_expired\":\"2026-08-19 16:56:34\"}")));
         FakeRedis redis = new FakeRedis();
         KisTokenStore store = store(NOW, redis);
 
         try (var pool = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
             var issuing = pool.submit(store::token);
-            Thread.sleep(200);
+            assertThat(issuingStarted.await(5, TimeUnit.SECONDS))
+                    .as("발급 요청이 닿지 않았다 — 창 안에 서지 못했으니 이 테스트는 아무것도 못 본다")
+                    .isTrue();
+            // 발급이 아직 안 끝났어야 덮어쓰기가 뜻을 가진다. 끝난 뒤에 덮어쓰면 제 락을
+            // 이미 지운 뒤라 마지막 단언이 저절로 참이 된다 — 조용히 빈 테스트가 되는 자리다
+            assertThat(issuing.isDone()).as("창을 지나쳤다 — 덮어쓰기가 아무것도 재지 못한다").isFalse();
             // 우리 락의 TTL이 지나 다른 인스턴스가 잡았다
             redis.values.put("kis:token:issuing", "other-instance");
             assertThat(issuing.get()).isEqualTo("tok-1");
@@ -325,7 +344,7 @@ class KisTokenStoreTest extends WireMockTest {
     @Test
     @DisplayName("키가 없으면 발급조차 안 한다 — 1분에 한 번뿐인 발급을 헛되이 쓰지 않는다")
     void skipsIssuingWithoutKeys() {
-        KisTokenStore keyless = new KisTokenStore(RestClient.builder(), server.baseUrl(), "", "",
+        KisTokenStore keyless = new KisTokenStore(RestClient.builder(), credentials("", ""),
                 null, Clock.fixed(NOW, ZoneOffset.UTC), KisFixtures.unpaced());
 
         assertThatThrownBy(keyless::token).hasMessageContaining("앱키");
@@ -342,5 +361,13 @@ class KisTokenStoreTest extends WireMockTest {
                 .hasMessageNotContaining("leaked-token")
                 .as("연타하면 여기로 떨어지므로 그 사실이 메시지에 드러나야 한다")
                 .hasMessageContaining("1분에 한 번");
+    }
+
+    private EconomyHelperProperties credentials(
+            String appKey, String appSecret) {
+        return TestProperties.builder()
+                .kisBaseUrl(server.baseUrl())
+                .kisCredentials(appKey, appSecret)
+                .build();
     }
 }
