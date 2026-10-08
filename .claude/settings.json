@@ -22,9 +22,17 @@
       "Read(**/.env)",
       "Read(**/.env.local)",
       "Read(**/.env.*.local)",
+      "Read(**/.env.production)",
+      "Read(**/.env.prod)",
+      "Read(**/.env.development)",
+      "Read(**/.env.dev)",
       "Edit(**/.env)",
       "Edit(**/.env.local)",
-      "Edit(**/.env.*.local)"
+      "Edit(**/.env.*.local)",
+      "Edit(**/.env.production)",
+      "Edit(**/.env.prod)",
+      "Edit(**/.env.development)",
+      "Edit(**/.env.dev)"
     ]
   },
   "hooks": {

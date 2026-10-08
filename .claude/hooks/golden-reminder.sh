@@ -11,15 +11,18 @@
 # jq 없이 돈다(Git Bash·macOS 기본 도구만) — block-env.sh와 같은 이유다.
 input=$(cat)
 
-# git commit 이 아니면 아무 말도 하지 않는다
-printf '%s' "$input" | grep -q 'git commit' || exit 0
+# git commit 이 아니면 아무 말도 하지 않는다 — `git -C backend commit`·`git -c k=v commit`도 커밋이다
+printf '%s' "$input" | grep -Eq 'git( +-[Cc] +[^ "]+)* +commit([ "]|$)' || exit 0
 
 golden="backend/src/test/resources/golden/messages.txt"
 root="${CLAUDE_PROJECT_DIR:-.}"
 cd "$root" 2>/dev/null || exit 0
 
-# 스테이지에 올랐든 아니든, HEAD와 다르면 이번 커밋에 실릴 수 있다
-git diff --quiet HEAD -- "$golden" 2>/dev/null && exit 0
+# 이번 커밋에 실리는 것만 본다 — 스테이지에 올랐거나, -a/--all(-am 포함)로 워킹트리까지 싣는 경우
+if git diff --cached --quiet -- "$golden" 2>/dev/null; then
+  printf '%s' "$input" | grep -Eq 'commit[^"]* (--all|-[A-Za-z]*a[A-Za-z]*)([ "]|$)' || exit 0
+  git diff --quiet -- "$golden" 2>/dev/null && exit 0
+fi
 
 printf '%s' '{"systemMessage":"골든 파일(golden/messages.txt)이 바뀌었다. 커밋 전에 diff를 눈으로 읽고 그 차이가 의도한 것인지 확인할 것 — 안 읽고 굳히면 그때 있던 버그가 정답이 된다(docs/testing.md).","hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"golden/messages.txt changed. Read `git diff HEAD -- backend/src/test/resources/golden/messages.txt` and confirm every changed line is intended before committing."}}'
 exit 0

@@ -5,7 +5,7 @@
 
 ## 검증
 
-- `cd backend && ./gradlew test --tests 'io.saiden.economyhelper.shared.*'`
+- `cd backend && ./gradlew test --tests 'io.saiden.economyhelper.shared.*' --tests '*ArchitectureTest'`
 - 경계는 `ArchitectureTest`가 본다 — 여기 무엇을 올리든 그 테스트가 정본이다.
 
 ## 규칙

@@ -5,7 +5,7 @@
 
 ## 검증
 
-- `cd backend && ./gradlew test --tests 'io.saiden.economyhelper.weather.*'`
+- `cd backend && ./gradlew test --tests 'io.saiden.economyhelper.weather.*' --tests '*WeatherDigestJobTest'`
 - 알람과 검색 결과는 글자까지 같아야 한다 — `WeatherDigestJobTest.rendersExactlyLikeSearch` → ADR-0013
 
 ## 규칙
@@ -13,6 +13,7 @@
 **출처**
 
 - 한 답은 한 출처가 낸다. 출처마다 맡는 기간이 다르다(`supports()`) → ADR-0009
+- 기온 없는 날은 버리되, 버린 뒤 **앞이나 가운데가 비면 그 출처는 실패다**(`Weather.requireNoGap`) — 반쪽 답이 이중화를 멈추고 캐시에 굳는다. 뒤가 짧은 것은 계약대로 받은 만큼이다(기상청만 그것도 실패). 대가: 그 지점은 캐시에 안 담겨 물을 때마다 그 출처의 한도를 쓰고 브레이커에 실패가 쌓인다 → ADR-0009(2026-10-08 코드 검토로 넣은 규칙, 실측 사례 없음)
 - AccuWeather 호출에서 `details=true`를 빼지 않는다 → ADR-0009
 - 시간별 강수 보충은 브레이커·재시도 이름을 예보와 나눠 둔다. 합치면 보충의 실패가 2순위 폴백까지 막는다 → ADR-0009
 - 기상청 키를 다시 인코딩하지 않는다. 에러는 HTTP 200에 다른 JSON 모양으로 온다. 기상청은 3일 뒤까지만 맡는다 → ADR-0010
