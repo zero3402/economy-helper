@@ -4,14 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.saiden.economyhelper.config.EconomyHelperProperties;
-import io.saiden.economyhelper.crypto.adapter.out.binance.BinanceApi;
-import io.saiden.economyhelper.crypto.adapter.out.binance.BinanceBanGate;
-import io.saiden.economyhelper.crypto.adapter.out.llm.CryptoResolver;
-import io.saiden.economyhelper.crypto.adapter.out.upbit.UpbitApi;
 import io.saiden.economyhelper.crypto.application.CryptoService;
 import io.saiden.economyhelper.crypto.domain.CryptoQuote.Quote;
 import io.saiden.economyhelper.crypto.domain.CryptoQuote;
-import io.saiden.economyhelper.crypto.domain.ResolvedCoin;
 import io.saiden.economyhelper.digest.application.port.out.SendHistory;
 import io.saiden.economyhelper.digest.domain.DigestResult;
 import io.saiden.economyhelper.fx.application.FxService;
@@ -21,16 +16,15 @@ import io.saiden.economyhelper.news.application.NewsFacade;
 import io.saiden.economyhelper.news.domain.NewsItem;
 import io.saiden.economyhelper.shared.domain.DailyBar;
 import io.saiden.economyhelper.shared.domain.Price;
-import io.saiden.economyhelper.stock.adapter.out.datago.DataGoStockClient;
-import io.saiden.economyhelper.stock.application.StockListings;
 import io.saiden.economyhelper.stock.application.StockService.Answer;
 import io.saiden.economyhelper.stock.application.StockService;
-import io.saiden.economyhelper.stock.domain.StockOutlook;
 import io.saiden.economyhelper.stock.domain.StockQuote;
 import io.saiden.economyhelper.stock.domain.StockSource;
 import io.saiden.economyhelper.telegram.adapter.out.TelegramClient;
 import io.saiden.economyhelper.telegram.adapter.out.TelegramDigestNotifier;
 import io.saiden.economyhelper.testsupport.RecordingTelegram;
+import io.saiden.economyhelper.testsupport.ServiceStubs.StockStub;
+import io.saiden.economyhelper.testsupport.ServiceStubs;
 import io.saiden.economyhelper.testsupport.TestProperties;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -45,7 +39,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.web.client.RestClient;
 
 /**
  * 발송 잡의 분기를 Redis 없이 고정한다.
@@ -368,24 +361,14 @@ class DailyDigestJobTest {
     }
 
     private static FxService fx(boolean alive) {
-        return new FxService(List.of(), null) {
-            @Override
-            public Optional<FxRate> usdToKrw() {
-                return alive
-                        ? Optional.of(new FxRate("USD", "KRW", new Price(new BigDecimal("1415")), FxSource.KEXIM, NOW))
-                        : Optional.empty();
-            }
-        };
+        return ServiceStubs.fx(alive
+                ? Optional.of(new FxRate("USD", "KRW", new Price(new BigDecimal("1415")), FxSource.KEXIM, NOW))
+                : Optional.empty());
     }
 
     /** {@code answersOf}가 몇 번 불렸는지 센다 — 글과 차트가 조회를 나눠 쓰는지 보는 자리. */
-    private static final class CountingStock extends StockService {
+    private static final class CountingStock extends StockStub {
         private int answerCalls;
-
-        private CountingStock() {
-            super(List.of(), List.of(), noNames(), new StockListings(List::of), null,
-                    (code, fund) -> io.saiden.economyhelper.stock.domain.StockOutlook.NONE, symbol -> io.saiden.economyhelper.stock.domain.StockOutlook.NONE, symbol -> null, null);
-        }
 
         @Override
         public List<StockQuote> indicesOf(List<EconomyHelperProperties.Index> indices) {
@@ -427,7 +410,7 @@ class DailyDigestJobTest {
     }
 
     private static StockService stock(boolean indicesAlive, boolean stocksAlive) {
-        return new StockService(List.of(), List.of(), noNames(), new StockListings(List::of), null, (code, fund) -> io.saiden.economyhelper.stock.domain.StockOutlook.NONE, symbol -> io.saiden.economyhelper.stock.domain.StockOutlook.NONE, symbol -> null, null) {
+        return new StockStub() {
             @Override
             public List<StockQuote> indicesOf(List<EconomyHelperProperties.Index> indices) {
                 return indicesAlive
@@ -496,33 +479,11 @@ class DailyDigestJobTest {
 
     /** 바이낸스 값이 붙은 코인 하나. 원화 환산은 잡이 넘기는 환율이 정한다. */
     private static CryptoService cryptoWithBinance() {
-        return new CryptoService(new UpbitApi(RestClient.builder(), TestProperties.offline()),
-                new io.saiden.economyhelper.crypto.adapter.out.binance.BinanceApi(
-                        RestClient.builder(),
-                        new io.saiden.economyhelper.crypto.adapter.out.binance.BinanceBanGate(null, java.time.Clock.systemUTC()),
-                        TestProperties.offline()),
-                noCryptoResolver(), Clock.fixed(NOW, ZoneOffset.UTC)) {
-            @Override
-            public List<CryptoQuote> quotesOf(List<String> markets) {
-                return List.of(btc(new BigDecimal("63703.69")));
-            }
-        };
+        return ServiceStubs.cryptoQuotes(List.of(btc(new BigDecimal("63703.69"))));
     }
 
     private static CryptoService crypto(boolean alive) {
-        return new CryptoService(new UpbitApi(RestClient.builder(), TestProperties.offline()),
-                new io.saiden.economyhelper.crypto.adapter.out.binance.BinanceApi(
-                        RestClient.builder(),
-                        new io.saiden.economyhelper.crypto.adapter.out.binance.BinanceBanGate(null, java.time.Clock.systemUTC()),
-                        TestProperties.offline()),
-                noCryptoResolver(), Clock.fixed(NOW, ZoneOffset.UTC)) {
-            @Override
-            public List<CryptoQuote> quotesOf(List<String> markets) {
-                return alive
-                        ? List.of(btc(null))
-                        : List.of();
-            }
-        };
+        return ServiceStubs.cryptoQuotes(alive ? List.of(btc(null)) : List.of());
     }
 
     /** 업비트 값은 항상 있고, 바이낸스는 인자로 준다({@code null}이면 미상장). */
@@ -530,26 +491,6 @@ class DailyDigestJobTest {
         return new CryptoQuote("비트코인", "KRW-BTC", NOW,
                 Quote.of(new Price(new BigDecimal("89848000")), null),
                 binanceUsdt == null ? Quote.NOT_LISTED : Quote.of(new Price(binanceUsdt), null));
-    }
-
-    /** 브리핑은 마켓 코드로 조회하므로 LLM 경로를 타지 않는다 — 실수로 타면 여기서 드러난다. */
-    private static CryptoResolver noCryptoResolver() {
-        return new CryptoResolver(null, null) {
-            @Override
-            public java.util.Optional<ResolvedCoin> resolve(String query) {
-                throw new AssertionError("브리핑이 LLM 해석을 불렀습니다: " + query);
-            }
-        };
-    }
-
-    /** 이름 검색 스텁 — 브리핑은 코드로만 조회한다. 실수로 나가면 바로 드러나게 한다. */
-    private static DataGoStockClient noNames() {
-        return new DataGoStockClient(null, null, null) {
-            @Override
-            public java.util.Optional<StockQuote> byName(String name) {
-                throw new AssertionError("브리핑이 이름 검색을 불렀습니다: " + name);
-            }
-        };
     }
 
     @Test

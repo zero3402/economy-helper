@@ -109,12 +109,18 @@ public class KisCall {
         return response;
     }
 
-    /** 호출 하나에 간격 하나 — KIS의 제약은 "초당 몇 건"이 아니라 "호출 사이 얼마"다. 재시도도 문을 지난다. */
+    /**
+     * 호출 하나에 간격 하나 — KIS의 제약은 "초당 몇 건"이 아니라 "호출 사이 얼마"다. 재시도도 문을 지난다.
+     *
+     * <p>⚠️ <b>토큰을 먼저 받고 나서 문을 지난다.</b> 토큰 발급 POST도 제 차례에 문을 지나므로,
+     * 거꾸로 하면 이 GET의 차례가 POST보다 앞서 소진돼 발급 직후 간격 없이 붙어 나간다(EGW00201).
+     */
     private <T> T send(Class<T> type, String trId, Function<UriBuilder, URI> uri) {
+        String token = tokens.token();
         throttle.pace();
         return restClient.get()
                 .uri(uri)
-                .headers(headers.of(tokens.token(), trId))
+                .headers(headers.of(token, trId))
                 .retrieve()
                 .body(type);
     }

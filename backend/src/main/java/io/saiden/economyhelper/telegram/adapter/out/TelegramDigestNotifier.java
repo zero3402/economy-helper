@@ -53,6 +53,11 @@ public class TelegramDigestNotifier implements DigestNotifier {
                 delivered = true;
                 onDelivered.run();
             }
+            // ⚠️ 글이 하나도 안 나갔으면 사진도 보내지 않는다 — 무엇의 그림인지 모르고, 잡이 슬롯을 풀어
+            //    다음 틱에 통째로 다시 보내면 사진만 두 번 간다
+            if (!delivered) {
+                return new Delivery(false, failure);
+            }
             // 사진은 글 다음에 종목마다 한 장씩. 못 그린 것은 그 한 장만 빠진다 — 보충이지 폴백이 아니다
             for (DigestMessage.Chart chart : charts) {
                 Charts.of(CHART_TAG, chart.subject(), chart.unit(), chart.bars())

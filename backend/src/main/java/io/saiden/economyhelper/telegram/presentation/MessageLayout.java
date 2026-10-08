@@ -12,6 +12,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.ResolverStyle;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -253,10 +254,7 @@ public final class MessageLayout {
      * <p>소수점 이하는 있을 때만 남긴다 — {@code 89848000.00000000}을 그대로 내보내면 안 된다.
      */
     static String money(BigDecimal amount) {
-        if (amount == null) {
-            return "-";
-        }
-        BigDecimal trimmed = amount.stripTrailingZeros();
+        BigDecimal trimmed = Objects.requireNonNull(amount, "모르는 값은 줄째 빼야 한다 — 「-」도 값으로 읽힌다").stripTrailingZeros();
         int scale = Math.max(trimmed.scale(), 0);
         // ⚠️ 소수점이 남았으면 최소 두 자리로 맞춘다. 뒤 0을 그냥 떼면 **같은 칸의 정밀도가
         //    출처에 따라 갈린다** — 환율이 1,412.17과 1,389.4로, 지수가 3,182.44와 6,481.4로
@@ -285,9 +283,7 @@ public final class MessageLayout {
      * {@code change()}가 등락률을 둘째 자리로 맞추는 것과 같은 판단이다.
      */
     static String oneDecimal(BigDecimal amount) {
-        if (amount == null) {
-            return "-";
-        }
+        Objects.requireNonNull(amount, "모르는 값은 줄째 빼야 한다 — 「-」도 값으로 읽힌다");
         // ⚠️ 반올림을 명시한다. NumberFormat 기본값은 HALF_EVEN인데 이 클래스의 나머지
         //    (change·krw·premium)는 전부 HALF_UP이라, 강수량 0.25가 0.2로 나가고 있었다 —
         //    한 화면 안에 반올림 규칙이 둘 있을 이유가 없다

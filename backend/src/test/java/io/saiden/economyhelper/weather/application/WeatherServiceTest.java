@@ -289,8 +289,8 @@ class WeatherServiceTest {
     }
 
     @Test
-    @DisplayName("후보 중 시간별을 주는 출처가 없으면 예보와 보충을 겹친다 — 국외 /weather가 912ms를 줄줄이 기다렸다")
-    void overlapsTheSupplementWhenNoCandidateCarriesHours() {
+    @DisplayName("맨 앞 후보가 시간별을 못 주면 예보와 보충을 겹친다 — 국외 /weather가 912ms를 줄줄이 기다렸다")
+    void overlapsTheSupplementWhenTheFirstCandidateCannotCarryHours() {
         LocalDate day = LocalDate.ofInstant(NOW, ZoneId.of("Asia/Seoul"));
         HalfDay spell = HalfDay.withChance(LocalTime.of(13, 0), LocalTime.of(19, 0), SkyCondition.RAIN, 80);
         // 둘이 서로를 기다리게 해 둔다 — 순차면 예보가 보충을 영영 기다려 실패한다(시간 단언은 CI에서 흔들린다)
@@ -323,7 +323,9 @@ class WeatherServiceTest {
                 return Map.of(day, List.of(spell));
             }
         };
-        WeatherService service = new WeatherService(List.of(forecaster), fixedClock(), hourly);
+        // 실물 구성 그대로 — 뒤에 시간별을 주는 Open-Meteo가 있어도 답하는 것은 대개 앞의 AccuWeather다
+        WeatherService service = new WeatherService(
+                List.of(forecaster, new FakeClient(WeatherSource.OPEN_METEO, false)), fixedClock(), hourly);
 
         Weather weather = service.forecast(SEOUL, WeatherPeriod.of(day, null, null, null)).orElseThrow();
 

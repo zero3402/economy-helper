@@ -12,7 +12,6 @@ import java.io.UncheckedIOException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import org.slf4j.Logger;
@@ -74,8 +73,6 @@ public class KisMasterClient implements ListingSource {
     private static final int MARKET_CAP_FROM_END = 15;
     private static final int MARKET_CAP_LENGTH = 9;
 
-    /** KIS 국내 시세가 받는 코드 모양. 첫 자가 숫자라 미국 티커(영문 1~5자)와 겹치지 않는다. */
-    private static final Pattern LISTED_CODE = Pattern.compile("[0-9][0-9A-Z]{5}");
 
     private final RestClient restClient;
 
@@ -123,13 +120,13 @@ public class KisMasterClient implements ListingSource {
      */
     static List<Listing> parse(byte[] zip, int tailLength) {
         List<Listing> listings = new ArrayList<>();
-        for (String line : unzip(zip).split("\\r?\\n")) {
+        for (String line : unzip(zip).lines().toList()) {
             int split = line.length() - tailLength;
             if (split <= NAME_START) {
                 continue;
             }
             String code = line.substring(0, CODE_END).strip();
-            if (!LISTED_CODE.matcher(code).matches()) {
+            if (!Listing.codeShaped(code)) {
                 continue;
             }
             String tail = line.substring(split);

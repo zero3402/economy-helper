@@ -16,18 +16,18 @@ import io.saiden.economyhelper.stock.application.port.out.StockQueryResolver;
 import io.saiden.economyhelper.stock.application.port.out.UsDividendClient;
 import io.saiden.economyhelper.stock.application.port.out.UsOutlookClient;
 import io.saiden.economyhelper.stock.application.port.out.UsStockClient;
+import io.saiden.economyhelper.stock.domain.ClassShare;
 import io.saiden.economyhelper.stock.domain.Listing;
 import io.saiden.economyhelper.stock.domain.ResolvedStock;
 import io.saiden.economyhelper.stock.domain.StockOutlook;
 import io.saiden.economyhelper.stock.domain.StockQuote;
 import io.saiden.economyhelper.stock.domain.StockSource;
 import java.text.Normalizer;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.function.Function;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -85,30 +85,22 @@ public class StockService {
             List.of(StockSource.KIS, StockSource.FMP);
 
     /**
-     * 한국 종목코드. 이 형태면 해석할 것이 없으므로 LLM을 건너뛴다.
-     *
-     * <p>숫자 여섯이 아니라 <b>「첫 자가 숫자인 영숫자 여섯」</b>이다 — 2025년부터 KRX 단축코드에
-     * 영숫자가 있다(마스터 실측 {@code 0019K0 TIME 미국나스닥100채권혼합50액티브}, KIS 시세도
-     * 받는다). 정규화가 소문자로 내리므로 소문자를 받고 보낼 때 올린다. 첫 자가 숫자라
-     * 미국 티커(영문 1~5자)와 겹치지 않는다.
-     */
-    private static final Pattern KR_STOCK_CODE = Pattern.compile("[0-9][0-9a-z]{5}");
-
-    /**
      * 미국 티커 <b>모양</b>. 영문 1~5자면 사용자가 티커를 직접 쳤을 수 있다.
      *
      * <p>⚠️ <b>이것은 「티커다」가 아니라 「티커일 수 있다」다.</b> 실재는 KIS가 확정한다 —
-     * {@link #KR_STOCK_CODE}가 「첫 자가 숫자인 영숫자 여섯」을 그렇게 쓰는 것과 같은 자리다. 다만 그쪽은 확실해서
+     * {@link Listing#codeShaped}가 「첫 자가 숫자인 영숫자 여섯」을 그렇게 쓰는 것과 같은 자리다. 다만 그쪽은 확실해서
      * 바로 조회하고, 이쪽은 <b>다른 길이 다 막힌 뒤 마지막에</b> 쓴다: {@code KO}·{@code SO}처럼
      * 국내 종목명일 수도 있는 짧은 영문이 있어서, 앞세우면 이름 검색을 가로챈다.
      */
-    private static final Pattern US_TICKER = Pattern.compile("[A-Za-z]{1,5}");
-
-    /** 클래스 주식 — 티커 + 구분자 + 클래스 1~2자. 끝에 붙은 물음표 같은 군더더기는 허용한다. */
-    private static final Pattern CLASS_SHARE = Pattern.compile("([A-Z]{1,5})[./-]([A-Z]{1,2})[?!.,]?");
+    private static boolean looksLikeUsTicker(String candidate) {
+        return !candidate.isEmpty() && candidate.length() <= 5
+                && candidate.chars().allMatch(c -> (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'));
+    }
 
     /** 한글이 한 자라도 있으면 화면에 그대로 쓴다 — {@link #displayName}. */
-    private static final Pattern HANGUL = Pattern.compile("[가-힣]");
+    private static boolean containsHangul(String name) {
+        return name.chars().anyMatch(c -> c >= '가' && c <= '힣');
+    }
 
     private final List<DomesticStockClient> domestic;
     private final List<UsStockClient> us;
@@ -183,7 +175,7 @@ public class StockService {
         List<String> forms = QueryNormalizer.forLookup(query);
 
         // 첫 자가 숫자인 영숫자 여섯은 종목코드 그 자체다 — LLM에게 물어볼 것이 없다.
-        // 아침 브리핑이 quotesOf로 쓰는 경로와 같은 길이고, 결과도 같아야 한다
+        // 아침 브리핑이 answersOf로 쓰는 경로와 같은 길이고, 결과도 같아야 한다
         Optional<String> code = directCode(forms);
         if (code.isPresent()) {
             // 없는 코드라고 이름 검색으로 넘기지 않는다 — 그 모양은 종목명일 수 없다
@@ -252,7 +244,7 @@ public class StockService {
      */
     private static Optional<String> directCode(List<String> forms) {
         return forms.stream()
-                .filter(form -> KR_STOCK_CODE.matcher(form).matches())
+                .filter(Listing::codeShaped)
                 .map(form -> form.toUpperCase(Locale.ROOT))
                 .findFirst();
     }
@@ -416,13 +408,8 @@ public class StockService {
         return usQuote(new UsSymbol(resolved.code(), displayName(resolved)));
     }
 
-    /** 종목코드를 이미 아는 경우 — 아침 브리핑처럼 설정에 박힌 종목들이 여기로 온다. */
-    public List<StockQuote> quotesOf(List<String> codes) {
-        return codes.stream().map(this::stock).flatMap(Optional::stream).toList();
-    }
-
     /**
-     * 브리핑의 국내 종목 — 시세와 전망을 함께. {@link #quotesOf}와 같은 모양으로
+     * 브리핑의 국내 종목 — 종목코드를 이미 안다(설정에 박혀 있다). 시세와 전망을 함께,
      * <b>종목마다 따로 실패한다.</b>
      */
     public List<Answer> answersOf(List<String> codes) {
@@ -432,7 +419,7 @@ public class StockService {
     /**
      * 지수를 이미 아는 경우 — 아침 브리핑처럼 설정에 박힌 지수들이 여기로 온다.
      *
-     * <p>{@link #quotesOf}와 같은 모양으로 <b>지수마다 따로 실패한다</b> —
+     * <p>{@link #answersOf}와 같은 모양으로 <b>지수마다 따로 실패한다</b> —
      * 코스닥이 안 나온다고 코스피까지 빠질 이유가 없다.
      */
     public List<StockQuote> indicesOf(List<Index> indices) {
@@ -448,9 +435,12 @@ public class StockService {
      * <p>대가는 브리핑의 미국 <b>종목</b> 수 × FMP <b>2회</b>({@code price-target-consensus}·
      * {@code earnings}) + Polygon 1회(배당). 실측 설정은 둘(엔비디아·애플)이고 FMP 한도가 250회다.
      * 12시간 캐시라 그 사이 검색은 호출을 나눠 쓴다.
+     *
+     * <p>심볼마다 겹쳐 묻는다 — KIS 시세는 간격 문이 어차피 줄 세우고, 그사이 앞 종목의 FMP·Polygon
+     * 전망 대기(실측 ~1.7초)가 뒤 종목의 KIS 차례와 겹친다. 결과 순서는 {@code symbols} 그대로다.
      */
     public List<Answer> usAnswersOf(List<UsSymbol> symbols) {
-        return symbols.stream().map(this::usAnswer).flatMap(Optional::stream).toList();
+        return Concurrently.map(symbols, this::usAnswer).stream().flatMap(Optional::stream).toList();
     }
 
     /**
@@ -542,13 +532,12 @@ public class StockService {
         if (query == null) {
             return Optional.empty();
         }
-        for (String token : Normalizer.normalize(query, Normalizer.Form.NFKC).strip().split("\s+")) {
-            Matcher matcher = CLASS_SHARE.matcher(token.toUpperCase(Locale.ROOT));
-            if (matcher.matches()) {
-                return Optional.of(matcher.group(1) + "." + matcher.group(2));
-            }
-        }
-        return Optional.empty();
+        // ⚠️ "\\s+"다 — 자바 문자열의 "\s+"는 공백 한 칸뿐이라 줄바꿈·탭으로 띄운 「brk.b\n주가」를 놓쳤다
+        return Arrays.stream(Normalizer.normalize(query, Normalizer.Form.NFKC).strip().split("\\s+"))
+                .map(ClassShare::of)
+                .flatMap(Optional::stream)
+                .findFirst()
+                .map(ClassShare::dotted);
     }
 
     /**
@@ -563,7 +552,7 @@ public class StockService {
      */
     private static Optional<String> tickerShaped(List<String> forms) {
         return forms.stream()
-                .filter(candidate -> US_TICKER.matcher(candidate).matches())
+                .filter(StockService::looksLikeUsTicker)
                 .findFirst()
                 .map(candidate -> candidate.toUpperCase(Locale.ROOT));
     }
@@ -584,7 +573,7 @@ public class StockService {
         if (name == null || name.isBlank()) {
             return resolved.code();
         }
-        if (HANGUL.matcher(name).find()) {
+        if (containsHangul(name)) {
             return name;
         }
         // ⚠️ 지수는 예외다 — 티커({@code ^GSPC})는 짧지도 읽히지도 않는다. 「S&P 500」이 그 지수의 이름이다

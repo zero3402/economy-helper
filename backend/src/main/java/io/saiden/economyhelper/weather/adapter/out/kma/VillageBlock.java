@@ -157,7 +157,7 @@ record VillageBlock(Items items) {
      *
      * @return 못 읽으면 {@code null} — 「모른다」다
      */
-    private static BigDecimal amountOf(String value) {
+    static BigDecimal amountOf(String value) {
         if (value == null || value.isBlank()) {
             return null;
         }

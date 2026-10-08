@@ -88,11 +88,12 @@ public class WeatherService {
             return Optional.empty();
         }
 
-        // 후보 중 시간별을 주는 출처가 하나도 없으면(국외가 그렇다 — AccuWeather·Open-Meteo 예보) 누가
-        // 답하든 보충이 필요하다. 그때는 예보와 보충을 **겹친다** — 순차면 국외 /weather마다 Open-Meteo
-        // 시간별(실측 912ms)을 예보 뒤에 따로 기다렸다. 국내(기상청이 후보)는 답한 출처를 봐야 하므로 순차다
+        // 맨 앞 후보가 시간별을 못 주면(국외 — AccuWeather) 답은 대개 그것이 내고 보충이 필요하다.
+        // 그때는 예보와 보충을 **겹친다** — 순차면 국외 /weather마다 Open-Meteo 시간별(실측 912ms)을
+        // 예보 뒤에 따로 기다렸다. 앞 후보가 실패해 시간별을 주는 출처가 답하면 보충 한 번이 헛돈다(실패 때만).
+        // 국내는 맨 앞이 기상청(시간별을 준다)이라 순차다 — 답한 출처를 보고 정한다
         boolean supplementCertain = !period.past(today)
-                && eligible.stream().noneMatch(WeatherClient::providesPrecipitationHours);
+                && !eligible.getFirst().providesPrecipitationHours();
         Optional<Weather> found;
         Optional<Map<LocalDate, List<HalfDay>>> halves = Optional.empty();
         if (supplementCertain) {

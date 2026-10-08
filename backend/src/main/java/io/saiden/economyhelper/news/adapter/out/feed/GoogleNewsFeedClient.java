@@ -2,7 +2,6 @@ package io.saiden.economyhelper.news.adapter.out.feed;
 
 import com.rometools.rome.feed.synd.SyndEntry;
 import io.saiden.economyhelper.news.domain.FeedType;
-import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
 
 /**
@@ -20,20 +19,28 @@ import org.springframework.stereotype.Component;
 @Component
 public class GoogleNewsFeedClient extends RssFeedClient {
 
-    /**
-     * 꼬리의 {@code " - 매체명"}. 매체명 자체에는 하이픈이 없다고 보고 마지막 구분자만 자른다
-     * — 헤드라인 중간의 하이픈(예: "US-China")을 건드리지 않기 위해서다.
-     */
-    private static final Pattern OUTLET_SUFFIX = Pattern.compile("\\s+-\\s+[^-]{1,40}$");
+    /** 매체명 꼬리의 최대 길이 — 이보다 길면 매체명이 아니라 헤드라인의 일부로 본다. */
+    private static final int MAX_OUTLET_LENGTH = 40;
 
     @Override
     public FeedType type() {
         return FeedType.GOOGLE_NEWS;
     }
 
+    /**
+     * 꼬리의 {@code " - 매체명"}을 뗀다. 매체명 자체에는 하이픈이 없다고 보고 마지막 구분자만 자른다
+     * — 헤드라인 중간의 하이픈(예: "US-China")을 건드리지 않기 위해서다. 공백은 {@code clean}이 이미 접었다.
+     */
     @Override
     protected String normalizeTitle(String title) {
-        return OUTLET_SUFFIX.matcher(title).replaceFirst("").trim();
+        int cut = title.lastIndexOf(" - ");
+        if (cut < 0) {
+            return title.trim();
+        }
+        String outlet = title.substring(cut + 3).trim();
+        boolean looksLikeOutlet = !outlet.isEmpty() && outlet.length() <= MAX_OUTLET_LENGTH
+                && outlet.indexOf('-') < 0;
+        return (looksLikeOutlet ? title.substring(0, cut) : title).trim();
     }
 
     @Override

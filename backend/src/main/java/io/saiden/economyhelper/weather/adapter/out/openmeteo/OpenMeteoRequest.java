@@ -56,7 +56,7 @@ final class OpenMeteoRequest {
         if (days.isEmpty()) {
             throw new IllegalStateException(source.displayName() + " 응답에 기온이 있는 날이 없습니다");
         }
-        return new Weather(place, days, source);
+        return new Weather(place, Weather.requireNoGap(source, period, days), source);
     }
 
     /**

@@ -103,7 +103,7 @@ public final class NewsFormatter {
      * 손대지 않는다: REST 응답과 로그에는 깨끗한 이름이 나가야 한다.
      */
     private static String unlinkable(String escaped) {
-        return TLD.matcher(escaped).replaceAll("⁠$0");
+        return TLD.matcher(escaped).replaceAll("\u2060$0");
     }
 
     /**

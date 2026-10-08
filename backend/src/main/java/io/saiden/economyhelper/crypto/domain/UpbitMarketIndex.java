@@ -2,7 +2,6 @@ package io.saiden.economyhelper.crypto.domain;
 
 import io.saiden.economyhelper.shared.support.QueryNormalizer;
 import java.util.List;
-import java.util.regex.Pattern;
 
 /**
  * 검색어에 해당하는 마켓 후보를 고른다 — <b>I/O를 모르는 순수 클래스</b>다
@@ -22,8 +21,11 @@ import java.util.regex.Pattern;
  */
 public final class UpbitMarketIndex {
 
-    /** 사용자가 티커를 쳤을 모양 — 정규화 뒤라 소문자다. */
-    private static final Pattern TICKER_SHAPED = Pattern.compile("[a-z0-9]{1,5}");
+    /** 사용자가 티커를 쳤을 모양 — 영소문자·숫자 1~5자. 정규화 뒤라 소문자다. */
+    private static boolean tickerShaped(String query) {
+        return !query.isEmpty() && query.length() <= 5
+                && query.chars().allMatch(c -> (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'));
+    }
 
     private UpbitMarketIndex() {
     }
@@ -53,7 +55,7 @@ public final class UpbitMarketIndex {
             // ⚠️ 티커 모양(영숫자 1~5자)은 부분일치로 받지 않는다 — 「ai」는 영문명에 ai가 든 아무 코인
             //    (체인링크…)에 걸려 거래대금 1위가 답이 된다. 업비트에 그 티커가 없으면 LLM에게 넘긴다
             //    (업비트에 없는 코인만 LLM에게 묻는다는 규칙이 그 자리다)
-            if (TICKER_SHAPED.matcher(query).matches()) {
+            if (tickerShaped(query)) {
                 continue;
             }
             List<UpbitMarket> partial = markets.stream()

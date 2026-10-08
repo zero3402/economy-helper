@@ -134,6 +134,15 @@ class CryptoServiceTest {
     }
 
     @Test
+    @DisplayName("설정에 같은 마켓이 두 번 있어도 한 번만 적는다 — 코인 통 전체가 빠지면 안 된다")
+    void quotesADuplicatedMarketOnce() {
+        List<CryptoQuote> quotes =
+                cryptoService(new RecordingApi()).quotesOf(List.of("KRW-BTC", "KRW-ETH", "KRW-BTC"));
+
+        assertThat(quotes).extracting(CryptoQuote::market).containsExactly("KRW-BTC", "KRW-ETH");
+    }
+
+    @Test
     @DisplayName("업비트에 없는 마켓 코드는 조용히 버린다 — 설정 오타가 발송 전체를 막으면 안 된다")
     void skipsUnknownConfiguredMarkets() {
         RecordingApi api = new RecordingApi();

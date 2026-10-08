@@ -98,18 +98,13 @@ public class TelegramClient {
     public TelegramClient(RestClient.Builder builder, EconomyHelperProperties properties) {
         Telegram telegram = properties.telegram();
         this.restClient = builder.baseUrl(telegram.baseUrl()).build();
-        // ⚠️ **끝의 개행·공백을 뗀다.** .env나 BotFather에서 복사한 값에 붙기 쉬운데, 토큰은
-        //    URI 경로에 그대로 실려 `%0A`가 되므로 **모든 발송이 404**가 된다. KIS가 같은 자리에서
-        //    403 EGW00105를 맞았고(KisTokenStore), 웹훅 secret도 같은 이유로 다듬는다
-        this.botToken = trimmed(telegram.botToken());
-        this.defaultChatId = trimmed(telegram.chatId());
+        // 끝의 개행·공백은 설정이 이미 뗐다(EconomyHelperProperties.secret)
+        this.botToken = telegram.botToken();
+        this.defaultChatId = telegram.chatId();
         this.noticeTopicId = topicId(telegram.noticeTopicId());
         this.intervalNanos = Math.max(0, telegram.minInterval().toNanos());
     }
 
-    private static String trimmed(String value) {
-        return value == null ? "" : value.trim();
-    }
 
     /** 그 방의 앞 통과 간격이 벌어질 때까지 기다린다 — 실제 HTTP 호출 직전에 부른다. */
     private void pace(String chatId) {

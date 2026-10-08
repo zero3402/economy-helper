@@ -10,17 +10,21 @@ import io.saiden.economyhelper.news.domain.NewsSource;
 import java.io.StringReader;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.time.format.ResolverStyle;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.web.util.HtmlUtils;
 
 /**
  * 표준 RSS 2.0 파서 — AP(구글 뉴스 프록시)를 뺀 매체 전부.
@@ -46,7 +50,11 @@ public class RssFeedClient implements FeedClient {
      * 사라진다</b> — 그래서 넘기기 전에 되돌린다.
      */
     private static final Pattern BARE_PUB_DATE = Pattern.compile(
-            "<pubDate>\\s*(\\d{4})-(\\d{2})-(\\d{2})[ T](\\d{2}):(\\d{2}):(\\d{2})\\s*</pubDate>");
+            "<pubDate>\\s*(\\d{4}-\\d{2}-\\d{2}[ T]\\d{2}:\\d{2}:\\d{2})\\s*</pubDate>");
+
+    /** {@link #BARE_PUB_DATE}가 잡은 값. STRICT라 {@code 02-30}·{@code 24:00}을 날짜로 만들어 내지 않는다. */
+    private static final DateTimeFormatter BARE = DateTimeFormatter
+            .ofPattern("uuuu-MM-dd[ ]['T']HH:mm:ss").withResolverStyle(ResolverStyle.STRICT);
 
     @Override
     public FeedType type() {
@@ -154,39 +162,13 @@ public class RssFeedClient implements FeedClient {
         return WHITESPACE.matcher(stripped).replaceAll(" ").trim();
     }
 
-    private static final Pattern ENTITY = Pattern.compile("&(#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6}|[a-zA-Z]{2,6});");
-
-    /** 흔한 이름 엔티티와 숫자 엔티티를 푼다. 모르는 이름은 그대로 둔다 — 지어 넣지 않는다. */
+    /**
+     * 이름·숫자 엔티티를 푼다({@link HtmlUtils} — HTML 4 이름 전부). 모르는 것은 그대로 둔다 — 지어 넣지 않는다.
+     *
+     * <p>{@code &nbsp;}는 보통 공백으로 바꾼다 — 그대로 두면 {@code \s}가 못 접어 낱말 매칭이 갈린다.
+     */
     static String decodeEntities(String text) {
-        Matcher matcher = ENTITY.matcher(text);
-        StringBuilder out = new StringBuilder(text.length());
-        while (matcher.find()) {
-            matcher.appendReplacement(out, Matcher.quoteReplacement(entity(matcher.group(1), matcher.group())));
-        }
-        matcher.appendTail(out);
-        return out.toString();
-    }
-
-    private static String entity(String body, String whole) {
-        try {
-            if (body.startsWith("#x") || body.startsWith("#X")) {
-                return new String(Character.toChars(Integer.parseInt(body.substring(2), 16)));
-            }
-            if (body.startsWith("#")) {
-                return new String(Character.toChars(Integer.parseInt(body.substring(1))));
-            }
-        } catch (IllegalArgumentException e) {
-            return whole;
-        }
-        return switch (body) {
-            case "amp" -> "&";
-            case "lt" -> "<";
-            case "gt" -> ">";
-            case "quot" -> "\"";
-            case "apos" -> "'";
-            case "nbsp" -> " ";
-            default -> whole;
-        };
+        return HtmlUtils.htmlUnescape(text).replace('\u00A0', ' ');
     }
 
     private static Instant toInstant(Date date) {
@@ -209,17 +191,19 @@ public class RssFeedClient implements FeedClient {
      * <p>정규식은 <b>정확히 이 모양일 때만</b> 문다. 규격을 지킨 pubDate는 손대지 않는다.
      */
     static String normalizePubDates(String xml) {
-        Matcher matcher = BARE_PUB_DATE.matcher(xml);
-        StringBuilder normalized = new StringBuilder();
-        while (matcher.find()) {
-            ZonedDateTime at = ZonedDateTime.of(
-                    Integer.parseInt(matcher.group(1)), Integer.parseInt(matcher.group(2)),
-                    Integer.parseInt(matcher.group(3)), Integer.parseInt(matcher.group(4)),
-                    Integer.parseInt(matcher.group(5)), Integer.parseInt(matcher.group(6)),
-                    0, ZoneOffset.UTC);
-            matcher.appendReplacement(normalized, Matcher.quoteReplacement(
-                    "<pubDate>" + DateTimeFormatter.RFC_1123_DATE_TIME.format(at) + "</pubDate>"));
+        return BARE_PUB_DATE.matcher(xml).replaceAll(match -> Matcher.quoteReplacement(rfc1123(match)));
+    }
+
+    /**
+     * 잡은 pubDate 하나를 RFC 1123으로. <b>있을 수 없는 날짜면 원문 그대로 둔다</b> — Rome이 그 항목의
+     * 날짜만 버리고({@link #toArticle}이 그 기사를 뺀다) 피드의 나머지는 산다.
+     */
+    private static String rfc1123(MatchResult match) {
+        try {
+            LocalDateTime at = LocalDateTime.parse(match.group(1), BARE);
+            return "<pubDate>" + DateTimeFormatter.RFC_1123_DATE_TIME.format(at.atOffset(ZoneOffset.UTC)) + "</pubDate>";
+        } catch (DateTimeParseException e) {
+            return match.group();
         }
-        return matcher.appendTail(normalized).toString();
     }
 }
