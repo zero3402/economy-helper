@@ -107,6 +107,19 @@ class OpenMeteoForecastClientTest extends WireMockTest {
     }
 
     @Test
+    @DisplayName("첫날 기온이 빠지면 던진다 — 뒤가 짧은 것은 받은 만큼이지만, 앞이 빈 답은 물은 것의 답이 아니다")
+    void throwsWhenTheFirstDayIsMissing() {
+        stub("""
+                {"daily":{"time":["2026-08-20","2026-08-21"],"weather_code":[3,3],
+                 "temperature_2m_max":[null,25.9],"temperature_2m_min":[null,22.5],
+                 "precipitation_probability_max":[10,10]}}""");
+
+        assertThatThrownBy(() -> client.forecast(SEONGNAM, new WeatherPeriod(DAY, DAY.plusDays(1))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(DAY.toString());
+    }
+
+    @Test
     @DisplayName("기온이 있는 날이 하나도 없으면 던진다 — 다음 출처로 넘어가야 한다")
     void throwsWhenNoDayHasTemperature() {
         stub("""

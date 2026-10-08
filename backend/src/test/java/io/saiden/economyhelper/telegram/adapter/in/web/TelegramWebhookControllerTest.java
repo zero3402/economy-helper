@@ -1,12 +1,9 @@
 package io.saiden.economyhelper.telegram.adapter.in.web;
 
+import static io.saiden.economyhelper.testsupport.ServiceStubs.fx;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.saiden.economyhelper.config.EconomyHelperProperties;
-import io.saiden.economyhelper.crypto.adapter.out.binance.BinanceApi;
-import io.saiden.economyhelper.crypto.adapter.out.binance.BinanceBanGate;
-import io.saiden.economyhelper.crypto.adapter.out.llm.CryptoResolver;
-import io.saiden.economyhelper.crypto.adapter.out.upbit.UpbitApi;
 import io.saiden.economyhelper.crypto.application.CryptoService;
 import io.saiden.economyhelper.crypto.domain.CryptoQuote;
 import io.saiden.economyhelper.fx.application.FxService;
@@ -16,12 +13,8 @@ import io.saiden.economyhelper.news.application.NewsFacade;
 import io.saiden.economyhelper.news.domain.NewsItem;
 import io.saiden.economyhelper.shared.domain.DailyBar;
 import io.saiden.economyhelper.shared.domain.Price;
-import io.saiden.economyhelper.stock.adapter.out.datago.DataGoStockClient;
-import io.saiden.economyhelper.stock.adapter.out.llm.StockResolver;
-import io.saiden.economyhelper.stock.application.StockListings;
 import io.saiden.economyhelper.stock.application.StockService.Answer;
 import io.saiden.economyhelper.stock.application.StockService;
-import io.saiden.economyhelper.stock.domain.StockOutlook;
 import io.saiden.economyhelper.stock.domain.StockQuote;
 import io.saiden.economyhelper.stock.domain.StockSource;
 import io.saiden.economyhelper.telegram.adapter.in.web.TelegramWebhookController.Chat;
@@ -30,6 +23,9 @@ import io.saiden.economyhelper.telegram.adapter.in.web.TelegramWebhookController
 import io.saiden.economyhelper.telegram.adapter.out.TelegramClient;
 import io.saiden.economyhelper.telegram.presentation.WeatherFormatter;
 import io.saiden.economyhelper.testsupport.RecordingTelegram;
+import io.saiden.economyhelper.testsupport.ServiceStubs.CryptoStub;
+import io.saiden.economyhelper.testsupport.ServiceStubs.StockStub;
+import io.saiden.economyhelper.testsupport.ServiceStubs;
 import io.saiden.economyhelper.testsupport.TestProperties;
 import io.saiden.economyhelper.weather.application.WeatherFacade;
 import io.saiden.economyhelper.weather.domain.GeoLocation;
@@ -45,7 +41,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.client.RestClient;
 
 /**
  * 웹훅의 응답 규약과 분기를 고정한다.
@@ -54,10 +49,6 @@ import org.springframework.web.client.RestClient;
  * 같은 업데이트를 계속 재전송한다.
  */
 class TelegramWebhookControllerTest {
-
-    /** 업비트가 시각을 안 줄 때 CryptoService가 쓰는 시계 — 얼려 둔다. */
-    private static final java.time.Clock FIXED_CLOCK = java.time.Clock.fixed(
-            java.time.Instant.parse("2026-08-25T00:00:00Z"), java.time.ZoneOffset.UTC);
 
     private static final Instant NOW = Instant.parse("2026-08-11T00:00:00Z");
     /**
@@ -278,10 +269,7 @@ class TelegramWebhookControllerTest {
         StockQuote match = new StockQuote("삼성전자", new Price(new BigDecimal("239500")), null,
                 StockQuote.Money.KRW, StockQuote.Market.DOMESTIC,
                 io.saiden.economyhelper.stock.domain.StockSource.KIS, NOW, true);
-        StockService stock = new StockService(List.of(), List.of(), new DataGoStockClient(null, null, null),
-                new StockListings(List::of), new StockResolver(null, null),
-                (code, fund) -> io.saiden.economyhelper.stock.domain.StockOutlook.NONE,
-                symbol -> io.saiden.economyhelper.stock.domain.StockOutlook.NONE, symbol -> null, null) {
+        StockService stock = new StockStub() {
             @Override
             public Optional<Answer> answer(String query) {
                 return Optional.of(new Answer(match, null, StockService.Series.domesticStock("005930")));
@@ -393,7 +381,7 @@ class TelegramWebhookControllerTest {
         // 파서는 CommandParserTest가, 문구는 골든이 본다 — 여기서는 컨트롤러가 digest()를 부르는지 본다
         RecordingTelegram client = new RecordingTelegram();
         var controller = defaultController(
-                facade(List.of(item("검색 결과")),
+                ServiceStubs.news(List.of(item("검색 결과")),
                         List.of(item("코인 1"), item("코인 2"), item("경제 1"))),
                 crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
 
@@ -413,7 +401,7 @@ class TelegramWebhookControllerTest {
     void bareShortNewsTokenAnswersWithTheDigest() {
         RecordingTelegram client = new RecordingTelegram();
         var controller = defaultController(
-                facade(List.of(), List.of(item("코인 1"))),
+                ServiceStubs.news(List.of(), List.of(item("코인 1"))),
                 crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
 
         controller.onUpdate(null, update(1, "/n"));
@@ -428,7 +416,7 @@ class TelegramWebhookControllerTest {
         // "''에 해당하는 최근 24시간 뉴스를 찾지 못했습니다"는 검색어가 없는 자리에서
         // 빈 인용부호만 남는 거짓말이 된다
         RecordingTelegram client = new RecordingTelegram();
-        var controller = defaultController(facade(List.of(), List.of()),
+        var controller = defaultController(ServiceStubs.news(List.of(), List.of()),
                 crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), client);
 
         controller.onUpdate(null, update(1, "/news"));
@@ -816,8 +804,7 @@ class TelegramWebhookControllerTest {
 
     /** 해석 규칙은 {@code StockServiceTest}가 본다. 여기서는 라우팅만 본다. */
     private static StockService stock(Optional<StockQuote> result) {
-        return new StockService(List.of(), List.of(), new DataGoStockClient(null, null, null), new StockListings(List::of),
-                new StockResolver(null, null), (code, fund) -> io.saiden.economyhelper.stock.domain.StockOutlook.NONE, symbol -> io.saiden.economyhelper.stock.domain.StockOutlook.NONE, symbol -> null, null) {
+        return new StockStub() {
             // ⚠️ quote가 아니라 answer를 덮는다 — 컨트롤러가 부르는 것이 answer라 quote를 덮으면
             //    페이크가 가로채지 못한다
             @Override
@@ -845,15 +832,6 @@ class TelegramWebhookControllerTest {
             return Optional.of(new FxRate("USD", "KRW", new Price(new BigDecimal("1412.17")),
                     io.saiden.economyhelper.fx.domain.FxSource.KIS, NOW));
         }
-    }
-
-    private static FxService fx(Optional<FxRate> result) {
-        return new FxService(List.of(), null) {
-            @Override
-            public Optional<FxRate> usdToKrw() {
-                return result;
-            }
-        };
     }
 
     /**
@@ -898,9 +876,7 @@ class TelegramWebhookControllerTest {
 
     /** 일봉까지 주는 종목 페이크 — {@code Series}가 있어야 차트가 붙는다. */
     private static StockService stockWithSeries(StockQuote quote, List<DailyBar> series) {
-        return new StockService(List.of(), List.of(), new DataGoStockClient(null, null, null), new StockListings(List::of),
-                new StockResolver(null, null), (code, fund) -> io.saiden.economyhelper.stock.domain.StockOutlook.NONE,
-                symbol -> io.saiden.economyhelper.stock.domain.StockOutlook.NONE, symbol -> null, null) {
+        return new StockStub() {
             @Override
             public Optional<Answer> answer(String query) {
                 return Optional.of(new Answer(quote, null,
@@ -916,13 +892,7 @@ class TelegramWebhookControllerTest {
 
     /** 일봉까지 주는 코인 페이크. */
     private static CryptoService cryptoWithSeries(CryptoQuote quote, List<DailyBar> series) {
-        return new CryptoService(new UpbitApi(RestClient.builder(), TestProperties.offline()),
-                new io.saiden.economyhelper.crypto.adapter.out.binance.BinanceApi(
-                        RestClient.builder(),
-                        new io.saiden.economyhelper.crypto.adapter.out.binance.BinanceBanGate(
-                                null, java.time.Clock.systemUTC()),
-                        TestProperties.offline()),
-                new io.saiden.economyhelper.crypto.adapter.out.llm.CryptoResolver(null, null), FIXED_CLOCK) {
+        return new CryptoStub() {
             @Override
             public Optional<CryptoQuote> quote(String query) {
                 return Optional.of(quote);
@@ -937,12 +907,7 @@ class TelegramWebhookControllerTest {
 
     /** 해석 규칙은 {@code CryptoServiceTest}가 본다. 여기서는 라우팅만 본다. */
     private static CryptoService crypto(Optional<CryptoQuote> result) {
-        return new CryptoService(new UpbitApi(RestClient.builder(), TestProperties.offline()),
-                new io.saiden.economyhelper.crypto.adapter.out.binance.BinanceApi(
-                        RestClient.builder(),
-                        new io.saiden.economyhelper.crypto.adapter.out.binance.BinanceBanGate(null, java.time.Clock.systemUTC()),
-                        TestProperties.offline()),
-                new io.saiden.economyhelper.crypto.adapter.out.llm.CryptoResolver(null, null), FIXED_CLOCK) {
+        return new CryptoStub() {
             @Override
             public Optional<CryptoQuote> quote(String query) {
                 return result;
@@ -955,31 +920,7 @@ class TelegramWebhookControllerTest {
     }
 
     private static NewsFacade facade(List<NewsItem> results) {
-        return facade(results, List.of());
-    }
-
-    /**
-     * 검색 답과 <b>검색어 없는 답</b>을 따로 준다 — 컨트롤러가 갈래를 고르는지 보려면
-     * 두 경로가 서로 다른 값을 돌려줘야 한다. 같은 목록을 주면 어느 쪽을 불렀는지 알 수 없다.
-     */
-    private static NewsFacade facade(List<NewsItem> searchResults, List<NewsItem> digestResults) {
-        return new NewsFacade(null, null, null) {
-            @Override
-            public List<NewsItem> search(String query) {
-                return searchResults;
-            }
-
-            @Override
-            public List<NewsItem> digest() {
-                return digestResults;
-            }
-
-            /** 못 찾음 안내가 "최근 몇 시간"을 말하려면 이 값이 필요하다 — 운영 기본값과 같게 둔다. */
-            @Override
-            public java.time.Duration window() {
-                return java.time.Duration.ofHours(24);
-            }
-        };
+        return ServiceStubs.news(results, List.of());
     }
 
 

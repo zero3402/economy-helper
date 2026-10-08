@@ -1,6 +1,7 @@
 package io.saiden.economyhelper.telegram.presentation;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
 import io.saiden.economyhelper.fx.domain.FxRate;
 import io.saiden.economyhelper.fx.domain.FxSource;
@@ -30,7 +31,8 @@ class MessageLayoutTest {
         assertThat(MessageLayout.oneDecimal(new BigDecimal("0.35"))).isEqualTo("0.4");
         assertThat(MessageLayout.oneDecimal(new BigDecimal("21"))).as("정수도 한 자리를 채운다")
                 .isEqualTo("21.0");
-        assertThat(MessageLayout.oneDecimal(null)).isEqualTo("-");
+        assertThatNullPointerException().as("「-」를 지어내지 않는다 — 호출부가 줄째 뺀다")
+                .isThrownBy(() -> MessageLayout.oneDecimal(null));
     }
 
     @Test
@@ -39,7 +41,8 @@ class MessageLayoutTest {
         assertThat(MessageLayout.money(new BigDecimal("89848000.00000000")))
                 .as("떼지 않으면 0이 여덟 개 붙는다").isEqualTo("89,848,000");
         assertThat(MessageLayout.money(new BigDecimal("239500"))).isEqualTo("239,500");
-        assertThat(MessageLayout.money(null)).isEqualTo("-");
+        assertThatNullPointerException().as("「-」를 지어내지 않는다 — 호출부가 줄째 뺀다")
+                .isThrownBy(() -> MessageLayout.money(null));
     }
 
     @Test

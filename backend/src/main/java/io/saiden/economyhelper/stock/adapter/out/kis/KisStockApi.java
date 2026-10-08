@@ -22,6 +22,7 @@ import io.saiden.economyhelper.shared.support.FailureReason;
 import io.saiden.economyhelper.stock.application.port.out.DomesticStockClient;
 import io.saiden.economyhelper.stock.application.port.out.StockDailyBarClient;
 import io.saiden.economyhelper.stock.application.port.out.UsStockClient;
+import io.saiden.economyhelper.stock.domain.ClassShare;
 import io.saiden.economyhelper.stock.domain.StockQuote;
 import io.saiden.economyhelper.stock.domain.StockSource;
 import java.math.BigDecimal;
@@ -36,8 +37,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -98,9 +99,6 @@ public class KisStockApi implements DomesticStockClient, UsStockClient, StockDai
 
     /** 국내 시장 달력 — 일봉 날짜가 KST다. */
     private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
-
-    /** 클래스 주식 — 티커 1~5자 + 구분자 + 클래스 1~2자({@code BRK.B}·{@code BF-B}·{@code BRK/B}). */
-    private static final Pattern CLASS_SHARE = Pattern.compile("^([A-Z]{1,5})[./-]([A-Z]{1,2})$");
 
     /** 미국 시장 달력 — 해외 일봉 날짜가 미국 날짜다. */
     private static final ZoneId NEW_YORK = ZoneId.of("America/New_York");
@@ -574,7 +572,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient, StockDai
                                    BiFunction<String, String, T> call,
                                    Function<T, Optional<R>> read) {
         RuntimeException failure = null;
-        // 기억해 둔 거래소가 있으면 그 하나뿐이다 — 목록을 두 곳에 적지 않는다
+        // 기억해 둔 거래소가 있으면 그것부터 — 목록을 두 곳에 적지 않는다
         for (String exchange : exchangesToTry(symbol)) {
             T response;
             try {
@@ -605,20 +603,25 @@ public class KisStockApi implements DomesticStockClient, UsStockClient, StockDai
      * 사용자·LLM이 쓰는 점·하이픈 표기로 물으면 어느 거래소에도 없다. 그 밖의 심볼은 그대로다.
      */
     static String kisSymbol(String symbol) {
-        return CLASS_SHARE.matcher(symbol).replaceFirst("$1/$2");
+        return ClassShare.of(symbol).map(ClassShare::kis).orElse(symbol);
     }
 
     /**
      * 물어볼 거래소 순서.
      *
-     * <p><b>지난번에 찾아 기억해 둔 것이 있으면 그것 하나뿐이다</b> — 그때는 탐색 비용이 없다.
-     * 거래소는 바뀌지 않으므로 그 기억은 30일 간다({@link KisExchangeCache}).
+     * <p><b>지난번에 찾아 기억해 둔 것이 있으면 그것부터다</b> — 거기서 찾으면 탐색 비용이 없다.
+     * 그 기억은 30일 간다({@link KisExchangeCache}). ⚠️ 나머지를 뒤에 남겨 두는 것은 상장을 옮긴
+     * 종목 때문이다 — 기억한 곳만 물으면 빈손이 30일 굳는다. 다른 곳에서 찾으면 그쪽으로 다시 기억한다.
      *
      * <p>모르면 나스닥부터 본다. 사용자가 물을 법한 미국 종목이 그쪽에 더 많다.
      */
     private List<String> exchangesToTry(String symbol) {
+        List<String> all = List.of(NASDAQ, NYSE, AMEX);
         String remembered = exchanges.of(symbol);
-        return remembered == null ? List.of(NASDAQ, NYSE, AMEX) : List.of(remembered);
+        if (remembered == null) {
+            return all;
+        }
+        return Stream.concat(Stream.of(remembered), all.stream().filter(e -> !e.equals(remembered))).toList();
     }
 
     /** 일자별 차트 셋(국내 종목·국내 지수·해외지수)이 쓰는 공통 파라미터. */

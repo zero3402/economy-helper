@@ -11,6 +11,17 @@ package io.saiden.economyhelper.stock.domain;
 public record Listing(String code, String name, String group, long marketCap) {
 
     /**
+     * 국내 종목코드 모양 — 숫자 여섯이 아니라 <b>「첫 자가 숫자인 영숫자 여섯」</b>이다. 2025년부터 KRX 단축코드에
+     * 영숫자가 있다(마스터 실측 {@code 0019K0 TIME 미국나스닥100채권혼합50액티브}, KIS 시세도 받는다).
+     * 첫 자가 숫자라 미국 티커(영문 1~5자)와 겹치지 않는다. 대소문자는 가리지 않는다 — 검색어는 정규화가
+     * 소문자로 내린다.
+     */
+    public static boolean codeShaped(String code) {
+        return code.length() == 6 && Character.isDigit(code.charAt(0))
+                && code.chars().allMatch(c -> (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'));
+    }
+
+    /**
      * ETF·ETN인가 — 증권사가 <b>목표주가</b>를 내지 않는 것들이다. {@code invest-opinion}에 물어도
      * 늘 0행이다(실측 426030).
      *

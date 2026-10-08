@@ -125,6 +125,31 @@ class RssFeedClientTest {
     }
 
     @Test
+    @DisplayName("있을 수 없는 pubDate 하나가 피드 전체를 버리지 않는다 — 그 기사만 빠진다")
+    void oneImpossiblePubDateDropsOnlyThatArticle() {
+        String xml = """
+                <?xml version="1.0" encoding="utf-8"?>
+                <rss version="2.0"><channel><title>t</title><link>https://x</link>
+                <item><title>멀쩡한 기사</title><link>https://x/a</link>
+                <pubDate>2026-08-14 07:54:20</pubDate></item>
+                <item><title>없는 날짜</title><link>https://x/b</link>
+                <pubDate>2026-02-30 24:00:00</pubDate></item>
+                </channel></rss>""";
+
+        assertThat(client.parse(NewsSource.INVESTING, xml))
+                .extracting(Article::title).containsExactly("멀쩡한 기사");
+    }
+
+    @Test
+    @DisplayName("이름 엔티티를 푼다 — 「&mdash;」·「&rsquo;」가 글자 그대로 남으면 화면이 한 번 더 이스케이프한다")
+    void decodesNamedEntities() {
+        assertThat(RssFeedClient.decodeEntities("A&mdash;B it&rsquo;s S&amp;P&nbsp;500 &#8212; &#x2014;"))
+                .isEqualTo("A—B it’s S&P 500 — —");
+        assertThat(RssFeedClient.decodeEntities("&unknownthing; &#xZZ;"))
+                .as("모르는 것은 그대로 둔다 — 지어 넣지 않는다").isEqualTo("&unknownthing; &#xZZ;");
+    }
+
+    @Test
     @DisplayName("규격을 지킨 pubDate는 손대지 않는다")
     void leavesCompliantPubDateAlone() {
         String compliant = "<pubDate>Fri, 14 Aug 2026 07:45:51 GMT</pubDate>";

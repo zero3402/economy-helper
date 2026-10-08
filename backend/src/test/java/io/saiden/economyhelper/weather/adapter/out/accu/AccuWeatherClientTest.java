@@ -198,6 +198,27 @@ class AccuWeatherClientTest extends WireMockTest {
     }
 
     @Test
+    @DisplayName("가운데 날의 기온이 빠지면 던진다 — 빈칸 난 답이 성공으로 10분 캐시에 굳고 다음 출처가 안 불린다")
+    void throwsWhenADayInTheMiddleIsMissing() {
+        stubLocation();
+        stub(FORECAST_PATH, """
+                {"DailyForecasts":[
+                  {"Date":"2026-08-18T07:00:00+09:00",
+                   "Temperature":{"Minimum":{"Value":22.0,"Unit":"C"},"Maximum":{"Value":31.0,"Unit":"C"}},
+                   "Day":{"Icon":4,"PrecipitationProbability":55}},
+                  {"Date":"2026-08-19T07:00:00+09:00",
+                   "Day":{"Icon":4,"PrecipitationProbability":25}},
+                  {"Date":"2026-08-20T07:00:00+09:00",
+                   "Temperature":{"Minimum":{"Value":24.3,"Unit":"C"},"Maximum":{"Value":29.0,"Unit":"C"}},
+                   "Day":{"Icon":12,"PrecipitationProbability":70}}
+                ]}""");
+
+        assertThatThrownBy(() -> client.forecast(MIGEUM, days(3)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("2026-08-19");
+    }
+
+    @Test
     @DisplayName("예외 메시지에 API 키가 새지 않는다 — 이 API는 키를 쿼리에 싣는다")
     void neverLeaksApiKey() {
         stubLocation();

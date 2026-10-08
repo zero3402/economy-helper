@@ -107,7 +107,7 @@ public class AccuWeatherClient implements WeatherClient {
         if (days.isEmpty()) {
             throw new IllegalStateException("AccuWeather 예보에 요청한 날짜가 없습니다");
         }
-        return new Weather(place, days, source());
+        return new Weather(place, Weather.requireNoGap(source(), period, days), source());
     }
 
     /** 받은 닷새 중 요청한 범위만 남긴다. {@code supports}가 걸러 주지만 응답이 짧을 수도 있다. */
@@ -121,7 +121,7 @@ public class AccuWeatherClient implements WeatherClient {
             // ⚠️ 기온이 없으면 그 날은 값이 아니다. 담으면 화면에 '-°C / -°C'가 성공으로 찍히고
             //    폴백도 돌지 않는다
             if (daily.low() == null || daily.high() == null) {
-                log.warn("[weather] AccuWeather가 {}의 기온을 주지 않았습니다 — 다음 출처로 넘깁니다", date);
+                log.warn("[weather] AccuWeather가 {}의 기온을 주지 않았습니다 — 그 날을 뺍니다", date);
                 continue;
             }
             // 확률이 없으면 강수 줄이 빠진다 — 그게 맞다. 이 응답에는 대신 쓸 강수량이 아예

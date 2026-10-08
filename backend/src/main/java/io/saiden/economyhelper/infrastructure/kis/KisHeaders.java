@@ -10,11 +10,12 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.ResolverStyle;
 import java.util.function.Consumer;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientResponseException;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * KIS 호출에 공통으로 붙는 것들 — <b>헤더와 {@code rt_cd} 검사.</b>
@@ -39,23 +40,18 @@ public class KisHeaders {
     private static final String INVALID_TOKEN = "EGW00121";
     private static final String RATE_LIMITED = "EGW00201";
 
-    private static final Pattern MESSAGE = Pattern.compile("\"msg1\"\\s*:\\s*\"([^\"]*)\"");
-    private static final Pattern CODE = Pattern.compile("\"msg_cd\"\\s*:\\s*\"([^\"]*)\"");
+    private static final ObjectMapper JSON = new ObjectMapper();
 
     private final String appKey;
     private final String appSecret;
 
     public KisHeaders(EconomyHelperProperties properties) {
         Kis kis = properties.market().kis();
-        // ⚠️ **끝의 줄바꿈을 뗀다** — KisTokenStore와 같은 이유이고, 여기는 한 겹 더 나쁘다:
-        //    이 값이 HTTP **헤더**로 실리므로 개행이 붙으면 헤더가 깨진다
-        this.appKey = trimmed(kis.appKey());
-        this.appSecret = trimmed(kis.appSecret());
+        // 끝의 개행·공백은 설정이 이미 뗐다(EconomyHelperProperties.secret)
+        this.appKey = kis.appKey();
+        this.appSecret = kis.appSecret();
     }
 
-    private static String trimmed(String key) {
-        return key == null ? "" : key.trim();
-    }
 
     /**
      * <b>{@code custtype}이 빠지면 이유 없이 실패한다.</b> KIS 자체 예제도 무조건 넣는다 —
@@ -113,8 +109,8 @@ public class KisHeaders {
      * 우리가 정하지 않기 때문이다. 같은 이유로 <b>토큰 발급 응답에는 이 메서드를 쓰지 않는다</b>
      * (그 본문에 접근토큰이 들어 있다 — {@code KisTokenStore.request}가 예외 이름만 남기는 이유다).
      *
-     * <p>매퍼가 아니라 정규식인 이유는, 여기가 {@code catch} 안이라 <b>절대 던지지 않아야</b>
-     * 하고 본문이 JSON이 아닐 수도 있어서다(게이트웨이가 HTML을 주는 일이 있다).
+     * <p>⚠️ 여기는 {@code catch} 안이라 <b>절대 던지지 않아야</b> 하고 본문이 JSON이 아닐 수도 있다
+     * (게이트웨이가 HTML을 주는 일이 있다) — {@link #field}가 못 읽으면 {@code null}로 삼킨다.
      */
     static String reasonOf(RuntimeException e) {
         String name = e.getClass().getSimpleName();
@@ -123,11 +119,11 @@ public class KisHeaders {
         }
         // 폴백 문자셋을 UTF-8로 준다 — 안 주면 ISO-8859-1로 읽혀 한글 이유가 깨진다
         String body = failure.getResponseBodyAsString(StandardCharsets.UTF_8);
-        String message = group(MESSAGE, body);
+        String message = field(body, "msg1");
         if (message == null) {
             return name;
         }
-        String code = group(CODE, body);
+        String code = field(body, "msg_cd");
         if (code == null) {
             return name + " — " + message;
         }
@@ -171,15 +167,21 @@ public class KisHeaders {
         if (!(e instanceof RestClientResponseException failure)) {
             return null;
         }
-        return group(CODE, failure.getResponseBodyAsString(StandardCharsets.UTF_8));
+        return field(failure.getResponseBodyAsString(StandardCharsets.UTF_8), "msg_cd");
     }
 
-    private static String group(Pattern pattern, String body) {
+    /** 에러 본문의 문자열 필드 하나. 비었거나 JSON이 아니거나 없으면 {@code null} — 던지지 않는다. */
+    private static String field(String body, String name) {
         if (body == null || body.isBlank()) {
             return null;
         }
-        Matcher matcher = pattern.matcher(body);
-        return matcher.find() && !matcher.group(1).isBlank() ? matcher.group(1).trim() : null;
+        try {
+            JsonNode value = JSON.readTree(body).findValue(name);
+            String text = value == null || !value.isValueNode() ? "" : value.asString().strip();
+            return text.isEmpty() ? null : text;
+        } catch (JacksonException notJson) {
+            return null;
+        }
     }
 
     /**

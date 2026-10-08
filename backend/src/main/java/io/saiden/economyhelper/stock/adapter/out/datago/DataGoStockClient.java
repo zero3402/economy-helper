@@ -3,6 +3,7 @@ package io.saiden.economyhelper.stock.adapter.out.datago;
 import io.saiden.economyhelper.config.EconomyHelperProperties.Index;
 import io.saiden.economyhelper.shared.domain.PercentChange;
 import io.saiden.economyhelper.shared.domain.Price;
+import io.saiden.economyhelper.shared.support.Concurrently;
 import io.saiden.economyhelper.shared.support.FailureReason;
 import io.saiden.economyhelper.stock.adapter.out.datago.MarketIndexApi.MarketIndex;
 import io.saiden.economyhelper.stock.adapter.out.datago.StockPriceApi.StockPrice;
@@ -113,9 +114,12 @@ public class DataGoStockClient implements DomesticStockClient, StockNameSearch {
         // 여유가 크다
         // ⚠️ 기준일은 API마다 따로 자른다 — 두 API가 같은 날 갱신되지 않는다. 합친 뒤 자르면 ETF가 하루 먼저
         //    올라온 날 주식 후보가 전부 떨어져 「삼성」이 KODEX 삼성그룹이 된다
-        List<StockPrice> candidates = new ArrayList<>(
-                onlyLatestDate(quietly("주식", name, () -> stocks.searchByName(name))));
-        candidates.addAll(onlyLatestDate(quietly("ETF", name, () -> etfs.searchByName(name))));
+        // 두 API는 서로 기다릴 까닭이 없어 겹쳐 묻는다 — 둘 다 삼키므로(quietly) 한쪽 실패가 다른 쪽을 버리지 않는다
+        Concurrently.Pair<List<StockPrice>, List<StockPrice>> found = Concurrently.both(
+                () -> quietly("주식", name, () -> stocks.searchByName(name)),
+                () -> quietly("ETF", name, () -> etfs.searchByName(name)));
+        List<StockPrice> candidates = new ArrayList<>(onlyLatestDate(found.first()));
+        candidates.addAll(onlyLatestDate(found.second()));
         return largest(candidates);
     }
 

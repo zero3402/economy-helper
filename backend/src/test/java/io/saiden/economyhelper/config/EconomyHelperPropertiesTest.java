@@ -202,4 +202,17 @@ class EconomyHelperPropertiesTest {
         assertThat(properties.digest().zone()).isEqualTo("Asia/Seoul");
         assertThat(properties.digest().sentHistoryTtl()).isEqualTo(Duration.ofDays(3));
     }
+
+    @Test
+    @DisplayName("비밀값·방 번호는 설정에서 다듬는다 — 붙여 넣은 값 끝의 개행이 404·403을 만든다")
+    void stripsPastedSecrets() {
+        assertThat(new EconomyHelperProperties.Gemini("https://g", " key\n", "m").apiKey()).isEqualTo("key");
+        assertThat(new EconomyHelperProperties.DataGo("https://d", "key\r\n").apiKey()).isEqualTo("key");
+        assertThat(new EconomyHelperProperties.Kma("https://k", null).apiKey()).as("없으면 빈 문자열").isEmpty();
+        var telegram = new EconomyHelperProperties.Telegram("https://t", "tok\n", " -100\n", "", "", "s \n",
+                Duration.ofSeconds(1));
+        assertThat(telegram.botToken()).isEqualTo("tok");
+        assertThat(telegram.chatId()).isEqualTo("-100");
+        assertThat(telegram.webhookSecret()).isEqualTo("s");
+    }
 }

@@ -48,6 +48,28 @@ public record Weather(GeoLocation place, List<Daily> days, WeatherSource source,
         }
     }
 
+    /**
+     * 받은 날이 <b>물은 첫날부터 빈칸 없이 이어지는지</b> — 출처가 기온 없는 날을 버린 뒤에 부른다.
+     *
+     * <p>뒤가 짧은 것은 실패가 아니다({@link WeatherClient#forecast} 계약 — 출처마다 예보 길이가 다르다).
+     * 하지만 <b>앞이나 가운데가 빈 답</b>을 성공으로 주면 이중화가 거기서 멈춰 온전한 출처가 안 불리고,
+     * 그 반쪽이 캐시에 굳는다. 기상청은 이보다 엄해서 뒤가 짧은 것도 실패로 본다.
+     *
+     * @return 그대로의 {@code days}
+     * @throws IllegalStateException 첫 빈 날짜를 실어서 — 던져야 다음 출처로 넘어간다
+     */
+    public static List<Daily> requireNoGap(WeatherSource source, WeatherPeriod period, List<Daily> days) {
+        LocalDate expected = period.from();
+        for (Daily day : days) {
+            if (!day.date().equals(expected)) {
+                throw new IllegalStateException(
+                        source.displayName() + " 응답에 " + expected + "의 기온이 없습니다 — 다음 출처로 넘깁니다");
+            }
+            expected = expected.plusDays(1);
+        }
+        return days;
+    }
+
     /** 목록의 첫날. 기준 줄에 쓴다. */
     public LocalDate from() {
         return days.getFirst().date();
@@ -80,6 +102,9 @@ public record Weather(GeoLocation place, List<Daily> days, WeatherSource source,
                         List<HalfDay> halves) {
 
         public Daily {
+            // 기온 없는 날은 값이 아니다 — 출처가 그 날을 버린다. 여기 들어오면 화면에 「-°C」가 성공으로 찍힌다
+            Objects.requireNonNull(low, "low");
+            Objects.requireNonNull(high, "high");
             // null을 안쪽에서 흡수한다 — 호출자 한 곳만 빠뜨려도 렌더에서 NPE가 난다
             halves = halves == null ? List.of() : List.copyOf(halves);
         }

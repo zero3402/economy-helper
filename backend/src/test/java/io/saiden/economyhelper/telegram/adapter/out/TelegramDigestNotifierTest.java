@@ -69,6 +69,21 @@ class TelegramDigestNotifierTest {
         assertThat(delivery.failure()).as("나간 것과 빠진 것을 함께 알린다").isNotNull();
     }
 
+    @Test
+    @DisplayName("글이 하나도 안 나갔으면 차트도 보내지 않는다 — 무엇의 그림인지 모를 사진만 가고, 재발송 때 또 간다")
+    void sendsNoChartsWhenNoTextWentOut() {
+        RecordingTelegram telegram = new RecordingTelegram("USD");
+        DigestMessage message = new DigestMessage.Fx(
+                new FxRate("USD", "KRW", new Price(new BigDecimal("1415")), FxSource.KEXIM, NOW));
+        List<DigestMessage.Chart> charts = List.of(new DigestMessage.Chart("첫째", null, () -> BARS));
+
+        Delivery delivery = new TelegramDigestNotifier(telegram).send(message, charts, () -> { });
+
+        assertThat(delivery.delivered()).isFalse();
+        assertThat(delivery.failure()).isNotNull();
+        assertThat(telegram.captions).isEmpty();
+    }
+
     private static NewsItem news(String title) {
         return new NewsItem("CNBC", title, "본문", "https://example.com/" + title.hashCode(), NOW, true);
     }

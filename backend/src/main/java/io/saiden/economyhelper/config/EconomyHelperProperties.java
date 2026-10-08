@@ -93,7 +93,12 @@ public record EconomyHelperProperties(
                       String masterBaseUrl,
                       @DefaultValue("1s") Duration minInterval,
                       @DefaultValue("20s") Duration maxWait,
-                      List<KisIndex> usIndices) {}
+                      List<KisIndex> usIndices) {
+        public Kis {
+            appKey = secret(appKey);
+            appSecret = secret(appSecret);
+        }
+    }
 
     /** 업비트 — 국내 코인 시세. 인증이 없다. */
     public record Upbit(String baseUrl) {}
@@ -106,7 +111,11 @@ public record EconomyHelperProperties(
     public record Binance(String baseUrl, @DefaultValue("") String fallbackBaseUrl) {}
 
     /** 공공데이터포털 — 국내 주식·ETF의 2순위. 키는 기상청과 같은 {@code DATA_API_KEY}다. */
-    public record DataGo(String baseUrl, @DefaultValue("") String apiKey) {}
+    public record DataGo(String baseUrl, @DefaultValue("") String apiKey) {
+        public DataGo {
+            apiKey = secret(apiKey);
+        }
+    }
 
     /**
      * FMP — 미국 시세·전망의 2순위.
@@ -115,16 +124,28 @@ public record EconomyHelperProperties(
      *                   여유를 두고 240에서 멈춘다
      */
     public record Fmp(String baseUrl, @DefaultValue("") String apiKey,
-                      @DefaultValue("240") int dailyLimit) {}
+                      @DefaultValue("240") int dailyLimit) {
+        public Fmp {
+            apiKey = secret(apiKey);
+        }
+    }
 
     /** Polygon — 미국 배당의 1순위. 환경변수 이름이 {@code MASSIVE_API_KEY}다. */
-    public record Polygon(String baseUrl, @DefaultValue("") String apiKey) {}
+    public record Polygon(String baseUrl, @DefaultValue("") String apiKey) {
+        public Polygon {
+            apiKey = secret(apiKey);
+        }
+    }
 
     /** Frankfurter — 유럽중앙은행 고시 환율. 인증도 IP 제한도 없다. */
     public record Frankfurter(String baseUrl) {}
 
     /** 수출입은행 — 환율 3순위. 하루 1,000회 한도가 있다. */
-    public record Kexim(String baseUrl, @DefaultValue("") String apiKey) {}
+    public record Kexim(String baseUrl, @DefaultValue("") String apiKey) {
+        public Kexim {
+            apiKey = secret(apiKey);
+        }
+    }
 
     /**
      * 지수 하나의 KIS 심볼.
@@ -275,10 +296,18 @@ public record EconomyHelperProperties(
     public record WeatherLocation(String name, double latitude, double longitude) {}
 
     /** 기상청 동네예보 — 국내 1순위. 키는 공공데이터포털과 같은 {@code DATA_API_KEY}다. */
-    public record Kma(String baseUrl, @DefaultValue("") String apiKey) {}
+    public record Kma(String baseUrl, @DefaultValue("") String apiKey) {
+        public Kma {
+            apiKey = secret(apiKey);
+        }
+    }
 
     /** AccuWeather — 국외 1순위이자 국내 2순위. 무료 등급이 하루 50회다. */
-    public record AccuWeather(String baseUrl, @DefaultValue("") String apiKey) {}
+    public record AccuWeather(String baseUrl, @DefaultValue("") String apiKey) {
+        public AccuWeather {
+            apiKey = secret(apiKey);
+        }
+    }
 
     /**
      * Open-Meteo — 2순위와 과거. <b>호스트가 셋이다</b>(예보·재분석·지명 검색).
@@ -302,7 +331,15 @@ public record EconomyHelperProperties(
                            @DefaultValue("") String noticeTopicId,
                            @DefaultValue("") String searchTopicId,
                            @DefaultValue("") String webhookSecret,
-                           @DefaultValue("1s") Duration minInterval) {}
+                           @DefaultValue("1s") Duration minInterval) {
+        public Telegram {
+            botToken = secret(botToken);
+            chatId = secret(chatId);
+            noticeTopicId = secret(noticeTopicId);
+            searchTopicId = secret(searchTopicId);
+            webhookSecret = secret(webhookSecret);
+        }
+    }
 
     public record Translation(Gemini gemini) {}
 
@@ -311,7 +348,11 @@ public record EconomyHelperProperties(
      *
      * @param model 버전을 고정하지 않고 별칭을 쓴다 — 무료 티어 모델은 조용히 은퇴한다
      */
-    public record Gemini(String baseUrl, @DefaultValue("") String apiKey, String model) {}
+    public record Gemini(String baseUrl, @DefaultValue("") String apiKey, String model) {
+        public Gemini {
+            apiKey = secret(apiKey);
+        }
+    }
 
     /**
      * 무활동으로 잠드는 호스트에서 깨어 있기 위한 자체 핑.
@@ -326,4 +367,13 @@ public record EconomyHelperProperties(
     /** 기동 때 종목 색인 데우기. 테스트는 꺼 둔다 — 실제 파일 호스트를 부르지 않게. */
     public record Warmup(@DefaultValue("true") boolean enabled) {}
 
+
+    /**
+     * 비밀값·방 번호의 앞뒤 공백을 다듬는다 — <b>여기 한 곳에서.</b> 붙여 넣은 값 끝의 개행이 토큰이면 경로에
+     * {@code %0A}로 실려 텔레그램 발송이 전부 404, secret이면 비교가 어긋나 전부 403, KIS 앱키면 403
+     * {@code EGW00105}가 됐다. 쓰는 쪽 네 곳이 저마다 다듬던 것을 모았고, 안 다듬던 나머지 키도 함께 덮는다.
+     */
+    private static String secret(String value) {
+        return value == null ? "" : value.strip();
+    }
 }

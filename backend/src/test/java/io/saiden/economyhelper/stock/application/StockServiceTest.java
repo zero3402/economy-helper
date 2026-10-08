@@ -102,7 +102,7 @@ class StockServiceTest {
                 domestic(StockSource.DATA_GO, Map.of())), List.of(), noResolver());
 
         assertThat(service.quote("005930")).isEmpty();
-        assertThat(service.quotesOf(List.of("005930"))).isEmpty();
+        assertThat(service.answersOf(List.of("005930"))).isEmpty();
         assertThat(service.indicesOf(List.of(KOSPI))).isEmpty();
     }
 
@@ -284,6 +284,13 @@ class StockServiceTest {
     }
 
     @Test
+    @DisplayName("줄바꿈·탭으로 띄어 쓴 클래스 주식도 찾는다 — 문자열의 \"\\s+\"는 공백 하나뿐이라 놓쳤다")
+    void findsAClassShareSeparatedByANewline() {
+        assertThat(StockService.classShare("brk.b\n주가")).contains("BRK.B");
+        assertThat(StockService.classShare("주가\tbf-b")).contains("BF.B");
+    }
+
+    @Test
     @DisplayName("⚠️ 해석기가 이미 준 티커를 다시 묻지 않는다 — 거래소 셋을 두 번 훑는다")
     void neverRepeatsTheSameTickerLookup() {
         // KIS는 심볼당 거래소 셋을 1초 간격으로 훑는다. 같은 심볼을 두 번 물으면 3초가
@@ -356,8 +363,8 @@ class StockServiceTest {
                         "AAPL", usQuote("애플", StockSource.KIS)));
         StockService service = service(List.of(kis), List.of(kisUs), noResolver());
 
-        assertThat(service.quotesOf(List.of("005930", "000660")))
-                .extracting(StockQuote::name).containsExactly("삼성전자", "SK하이닉스");
+        assertThat(service.answersOf(List.of("005930", "000660")))
+                .extracting(answer -> answer.quote().name()).containsExactly("삼성전자", "SK하이닉스");
         assertThat(service.indicesOf(List.of(KOSPI, new Index("코스닥", "1001"))))
                 .extracting(StockQuote::name).containsExactly("코스피", "코스닥");
         assertThat(service.usAnswersOf(List.of(
@@ -374,8 +381,8 @@ class StockServiceTest {
         FakeUs kisUs = us(StockSource.KIS, Map.of("AAPL", usQuote("애플", StockSource.KIS)));
         StockService service = service(List.of(kis), List.of(kisUs), noResolver());
 
-        assertThat(service.quotesOf(List.of("005930", "999999")))
-                .extracting(StockQuote::name).containsExactly("삼성전자");
+        assertThat(service.answersOf(List.of("005930", "999999")))
+                .extracting(answer -> answer.quote().name()).containsExactly("삼성전자");
         assertThat(service.indicesOf(List.of(KOSPI, new Index("없는지수", "9999"))))
                 .extracting(StockQuote::name).containsExactly("코스피");
         assertThat(service.usAnswersOf(List.of(

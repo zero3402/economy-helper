@@ -113,10 +113,9 @@ public class TelegramWebhookController {
         this.stockService = stockService;
         this.weatherFacade = weatherFacade;
         this.telegramClient = telegramClient;
-        // 다듬어 둔다. 대시보드에 붙여 넣은 값은 끝에 줄바꿈이나 공백이 붙기 쉽고,
-        // 그러면 비교가 조용히 어긋나 모든 요청이 403이 된다
-        this.webhookSecret = trimmed(telegram.webhookSecret());
-        this.allowedChatId = trimmed(telegram.chatId());
+        // 끝의 개행·공백은 설정이 이미 뗐다(EconomyHelperProperties.secret)
+        this.webhookSecret = telegram.webhookSecret();
+        this.allowedChatId = telegram.chatId();
         this.searchTopicId = TelegramClient.topicId(telegram.searchTopicId());
 
         // 비어 있으면 열어 둔다 — 로컬 실행과 테스트가 설정 없이 돌아야 하기 때문이다.
@@ -129,10 +128,6 @@ public class TelegramWebhookController {
         }
     }
 
-    /** 붙여 넣기가 남긴 개행·공백을 뗀다. {@code null}은 빈 문자열로 — 없는 것과 같다. */
-    private static String trimmed(String value) {
-        return value == null ? "" : value.trim();
-    }
 
     @PostMapping("/webhook")
     public ResponseEntity<Void> onUpdate(

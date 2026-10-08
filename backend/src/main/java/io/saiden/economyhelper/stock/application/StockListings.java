@@ -187,29 +187,32 @@ public class StockListings {
     /** 이름을 한 번 정규화해 둔 상장 — 조회마다 4천 번 정규화하지 않기 위해서다. */
     private record Entry(Listing listing, String normalizedName) {}
 
-    /** 목록 한 판의 색인. 만든 시각을 들고 있어 수명을 잰다. */
-    private record Index(Instant loadedAt, List<Entry> entries, Map<String, Listing> byCode) {
+    /**
+     * 목록 한 판의 색인. 만든 시각을 들고 있어 수명을 잰다.
+     *
+     * @param byName 정규화한 이름 → 그 이름의 상장 중 시가총액 1위. {@code /stock} 한 번에 여러 번 묻는 자리라
+     *               4천 행을 매번 훑지 않게 미리 만든다
+     */
+    private record Index(Instant loadedAt, List<Entry> entries, Map<String, Listing> byCode,
+                         Map<String, Listing> byName) {
 
         static Index of(List<Listing> listings, Instant at) {
             List<Entry> entries = new ArrayList<>(listings.size());
             Map<String, Listing> byCode = HashMap.newHashMap(listings.size());
+            Map<String, Listing> byName = HashMap.newHashMap(listings.size());
             for (Listing listing : listings) {
-                entries.add(new Entry(listing, QueryNormalizer.normalize(listing.name())));
+                String name = QueryNormalizer.normalize(listing.name());
+                entries.add(new Entry(listing, name));
                 byCode.putIfAbsent(listing.code().toUpperCase(Locale.ROOT), listing);
+                byName.merge(name, listing, (kept, next) -> next.marketCap() > kept.marketCap() ? next : kept);
             }
-            return new Index(at, List.copyOf(entries), Map.copyOf(byCode));
+            return new Index(at, List.copyOf(entries), Map.copyOf(byCode), Map.copyOf(byName));
         }
 
         /** 정규화한 이름이 <b>똑같은</b> 상장 중 시가총액 1위. */
         Optional<Listing> exact(String query) {
             String wanted = QueryNormalizer.normalize(query);
-            if (wanted.isEmpty()) {
-                return Optional.empty();
-            }
-            return entries.stream()
-                    .filter(entry -> entry.normalizedName().equals(wanted))
-                    .map(Entry::listing)
-                    .max(Comparator.comparingLong(Listing::marketCap));
+            return wanted.isEmpty() ? Optional.empty() : Optional.ofNullable(byName.get(wanted));
         }
 
         Optional<Listing> find(String query) {

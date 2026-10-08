@@ -14,7 +14,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -32,9 +31,6 @@ public class HackerNewsBuzzClient implements ArticleBuzz {
 
     private static final Logger log = LoggerFactory.getLogger(HackerNewsBuzzClient.class);
 
-    /** {@code normalizeUrl}이 기사마다·HN 결과마다 불린다(검색당 수백 번) — 식을 한 번만 컴파일한다. */
-    private static final Pattern SCHEME = Pattern.compile("^https?://");
-    private static final Pattern WWW = Pattern.compile("^www\\.");
 
     private final HackerNewsApi api;
     private final Duration window;
@@ -122,11 +118,16 @@ public class HackerNewsBuzzClient implements ArticleBuzz {
             s = s.substring(0, query);
         }
 
-        s = WWW.matcher(SCHEME.matcher(s).replaceFirst("")).replaceFirst("");
+        s = withoutPrefix(withoutPrefix(withoutPrefix(s, "https://"), "http://"), "www.");
         while (s.endsWith("/")) {
             s = s.substring(0, s.length() - 1);
         }
         return s;
+    }
+
+    /** 앞에 붙은 {@code prefix}를 뗀다. 없으면 그대로다. */
+    private static String withoutPrefix(String s, String prefix) {
+        return s.startsWith(prefix) ? s.substring(prefix.length()) : s;
     }
 
     /** 정규화한 URL에서 호스트만 뽑는다. HN 조회 단위다. */

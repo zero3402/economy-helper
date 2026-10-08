@@ -259,7 +259,8 @@ public class CryptoService {
         }
         try {
             Map<String, UpbitMarket> byCode = byCode(upbit.krwMarkets());
-            List<String> known = markets.stream().filter(byCode::containsKey).toList();
+            // 같은 마켓이 두 번 적혀도 한 번만 묻는다 — 겹친 시세가 바이낸스 붙이기(toMap)에서 터져 통 전체가 빠졌다
+            List<String> known = markets.stream().distinct().filter(byCode::containsKey).toList();
             if (known.isEmpty()) {
                 log.warn("[crypto] 설정된 마켓이 업비트 목록에 없습니다: {}", markets);
                 return List.of();

@@ -15,13 +15,14 @@ import java.time.format.ResolverStyle;
 import java.util.List;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * 공공데이터포털에 <b>묻는 방법</b> — 시세와 지수 두 클라이언트가 나눠 쓴다.
@@ -56,7 +57,7 @@ final class DataGoRequest {
             .withResolverStyle(ResolverStyle.STRICT);
 
     /** 에러 봉투의 사유 칸. 정상 봉투({@code response})와 모양이 달라 레코드로 안 읽고 글자로 찾는다. */
-    private static final Pattern ERROR_MESSAGE = Pattern.compile("\"errMsg\"\\s*:\\s*\"([^\"]*)\"");
+    private static final ObjectMapper JSON = new ObjectMapper();
 
     private DataGoRequest() {
     }
@@ -161,11 +162,15 @@ final class DataGoRequest {
 
     /** 에러 봉투({@code OpenAPI_ServiceResponse.cmmMsgHeader.errMsg})의 사유. 없으면 빈 문자열. */
     static String errorMessageOf(String body) {
-        if (body == null) {
+        if (body == null || body.isBlank()) {
             return "";
         }
-        Matcher matcher = ERROR_MESSAGE.matcher(body);
-        return matcher.find() ? matcher.group(1) : "";
+        try {
+            JsonNode value = JSON.readTree(body).findValue("errMsg");
+            return value == null || !value.isValueNode() ? "" : value.asString();
+        } catch (JacksonException notJson) {
+            return "";
+        }
     }
 
     /**

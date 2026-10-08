@@ -587,6 +587,38 @@ class KisStockApiTest extends WireMockTest {
     }
 
     @Test
+    @DisplayName("기억한 거래소가 빈손이면 나머지를 다시 훑고 새로 기억한다 — 상장을 옮긴 종목이 30일 빈손이면 안 된다")
+    void searchesAgainWhenTheRememberedExchangeIsEmpty() {
+        exchanges.remember("PATH", "NAS");
+        server.stubFor(get(urlPathEqualTo(US_STOCK_PATH))
+                .withQueryParam("EXCD", WireMock.equalTo("NAS"))
+                .willReturn(aResponse().withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("""
+                                {"rt_cd":"0","output":{"rsym":"","last":"","base":""}}""")));
+        server.stubFor(get(urlPathEqualTo(US_STOCK_PATH))
+                .withQueryParam("EXCD", WireMock.equalTo("NYS"))
+                .willReturn(aResponse().withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("""
+                                {"rt_cd":"0","output":{"rsym":"DNYSPATH",
+                                 "last":"15.5800","base":"15.9900"}}""")));
+
+        StockQuote quote = api.quote(new UsSymbol("PATH", "유아이패스"));
+
+        assertThat(quote.price().value()).isEqualByComparingTo("15.5800");
+        assertThat(exchanges.remembered).containsEntry("PATH", "NYS");
+    }
+
+    @Test
+    @DisplayName("소문자 클래스 주식도 KIS 표기로 바꾼다 — LLM이 brk.b로 넘기면 어느 거래소에도 없다")
+    void convertsALowercaseClassShare() {
+        assertThat(KisStockApi.kisSymbol("brk.b")).isEqualTo("BRK/B");
+        assertThat(KisStockApi.kisSymbol("BF-B")).isEqualTo("BF/B");
+        assertThat(KisStockApi.kisSymbol("AAPL")).as("나머지는 그대로").isEqualTo("AAPL");
+    }
+
+    @Test
     @DisplayName("현재가가 0이면 던진다 — 지수 심볼이 틀리면 에러가 아니라 0.00이 온다")
     void rejectsZeroAsAPrice() {
         // 실측: FID_INPUT_ISCD=DJI·DJIA가 rt_cd=0에 ovrs_nmix_prpr=0.00으로 왔다.

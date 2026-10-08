@@ -4,29 +4,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
-import io.saiden.economyhelper.crypto.adapter.out.binance.BinanceApi;
-import io.saiden.economyhelper.crypto.adapter.out.binance.BinanceBanGate;
-import io.saiden.economyhelper.crypto.adapter.out.llm.CryptoResolver;
-import io.saiden.economyhelper.crypto.adapter.out.upbit.UpbitApi;
-import io.saiden.economyhelper.crypto.application.CryptoService;
-import io.saiden.economyhelper.crypto.domain.CryptoQuote;
 import io.saiden.economyhelper.digest.adapter.out.redis.RedisSendHistory;
 import io.saiden.economyhelper.digest.application.port.out.SendHistory;
 import io.saiden.economyhelper.digest.domain.DigestResult;
-import io.saiden.economyhelper.fx.application.FxService;
-import io.saiden.economyhelper.fx.domain.FxRate;
 import io.saiden.economyhelper.infrastructure.llm.GeminiApi;
 import io.saiden.economyhelper.news.application.NewsFacade;
 import io.saiden.economyhelper.news.domain.Article;
-import io.saiden.economyhelper.news.domain.NewsItem;
 import io.saiden.economyhelper.news.domain.NewsSource;
-import io.saiden.economyhelper.stock.adapter.out.datago.DataGoStockClient;
-import io.saiden.economyhelper.stock.application.StockListings;
-import io.saiden.economyhelper.stock.application.StockService;
-import io.saiden.economyhelper.stock.domain.StockOutlook;
 import io.saiden.economyhelper.telegram.adapter.out.TelegramClient;
 import io.saiden.economyhelper.telegram.adapter.out.TelegramDigestNotifier;
 import io.saiden.economyhelper.testsupport.RecordingTelegram;
+import io.saiden.economyhelper.testsupport.ServiceStubs;
 import io.saiden.economyhelper.testsupport.TestProperties;
 import io.saiden.economyhelper.translate.adapter.out.llm.GeminiTranslator;
 import io.saiden.economyhelper.translate.application.TranslationService;
@@ -242,57 +230,12 @@ class DigestIntegrationTest {
             throw new IllegalStateException(e);
         }
         SendHistory history = new RedisSendHistory(redisTemplate, DailyDigestJobTest.properties());
+        NewsFacade news = ServiceStubs.news(List.of(), List.of(DailyDigestJobTest.item("동시 실행 테스트")));
         // 시세 셋은 죽여 둔다 — 이 테스트의 관심사는 "동시 실행해도 한 번만 나가는가"다
-        return new DailyDigestJob(fixedFacade(), deadFx(), deadStock(), deadCrypto(),
+        return new DailyDigestJob(news, ServiceStubs.fx(Optional.empty()), ServiceStubs.deadStock(),
+                ServiceStubs.cryptoQuotes(List.of()),
                 new TelegramDigestNotifier(telegram), history, Clock.fixed(NOW, ZoneOffset.UTC),
                 DailyDigestJobTest.properties()).run(false);
-    }
-
-    private static io.saiden.economyhelper.fx.application.FxService deadFx() {
-        return new io.saiden.economyhelper.fx.application.FxService(List.of(), null) {
-            @Override
-            public java.util.Optional<io.saiden.economyhelper.fx.domain.FxRate> usdToKrw() {
-                return java.util.Optional.empty();
-            }
-        };
-    }
-
-    private static io.saiden.economyhelper.stock.application.StockService deadStock() {
-        return new io.saiden.economyhelper.stock.application.StockService(List.of(), List.of(),
-                new io.saiden.economyhelper.stock.adapter.out.datago.DataGoStockClient(null, null, null),
-                new io.saiden.economyhelper.stock.application.StockListings(List::of), null,
-                (code, fund) -> io.saiden.economyhelper.stock.domain.StockOutlook.NONE, symbol -> io.saiden.economyhelper.stock.domain.StockOutlook.NONE, symbol -> null, null) {
-            @Override
-            public List<io.saiden.economyhelper.stock.application.StockService.Answer> answersOf(
-                    List<String> codes) {
-                return List.of();
-            }
-        };
-    }
-
-    private static io.saiden.economyhelper.crypto.application.CryptoService deadCrypto() {
-        return new io.saiden.economyhelper.crypto.application.CryptoService(
-                new io.saiden.economyhelper.crypto.adapter.out.upbit.UpbitApi(
-                        RestClient.builder(), TestProperties.offline()),
-                new io.saiden.economyhelper.crypto.adapter.out.binance.BinanceApi(
-                        RestClient.builder(),
-                        new io.saiden.economyhelper.crypto.adapter.out.binance.BinanceBanGate(null, java.time.Clock.systemUTC()),
-                        TestProperties.offline()),
-                new io.saiden.economyhelper.crypto.adapter.out.llm.CryptoResolver(null, null), Clock.fixed(NOW, ZoneOffset.UTC)) {
-            @Override
-            public List<io.saiden.economyhelper.crypto.domain.CryptoQuote> quotesOf(List<String> markets) {
-                return List.of();
-            }
-        };
-    }
-
-    private static NewsFacade fixedFacade() {
-        return new NewsFacade(null, null, null) {
-            @Override
-            public List<NewsItem> digest() {
-                return List.of(DailyDigestJobTest.item("동시 실행 테스트"));
-            }
-        };
     }
 
     /** 뉴스가 번역에 넘기는 모양 그대로 — 캐시 키는 기사 링크다. */
