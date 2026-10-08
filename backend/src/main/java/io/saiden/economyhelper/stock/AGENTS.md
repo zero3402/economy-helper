@@ -13,7 +13,8 @@
 
 - 국내 ETF·종목은 KIS 종목 마스터 색인(`StockListings`)이 확정한다. 코드와 이름이 서로 다른 종목을 가리키면 이름을 믿는다 → ADR-0003
 - 화면에 쓰는 이름은 프롬프트가 아니라 `StockService.displayName`이 정한다 → ADR-0003
-- 미국 거래소는 NAS → NYS → AMS 순으로 찾는다. 프롬프트로 시장을 좁히지 않고, 셋 다 비면 `Unsupported`를 던진다 → ADR-0001
+- 미국 거래소는 NAS → NYS → AMS 순으로 찾는다(기억한 거래소가 있으면 그것부터, 비면 나머지도). 프롬프트로 시장을 좁히지 않고, 셋 다 비면 `Unsupported`를 던진다 → ADR-0001
+- 클래스 주식 표기(`BRK.B`↔`BRK/B`)는 `ClassShare` 한 곳에서 판정한다 → ADR-0001
 
 **시세**
 

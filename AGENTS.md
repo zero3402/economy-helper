@@ -28,7 +28,7 @@
 
 ```bash
 cd backend && ./gradlew test                                   # 전체 — JDK 21 필요, DigestIntegrationTest는 Docker 필요
-./gradlew test --tests 'io.saiden.economyhelper.<패키지>.*'     # 패키지 하나 — 하위 AGENTS.md의 「검증」 참고
+cd backend && ./gradlew test --tests 'io.saiden.economyhelper.<패키지>.*'  # 패키지 하나 — 하위 AGENTS.md의 「검증」 참고
 ```
 
 - 골든 파일 `backend/src/test/resources/golden/messages.txt`는 줄 끝 문자까지 비교한다(LF 고정). 화면을 바꿨다면 차이가 의도한 것인지 확인한다.

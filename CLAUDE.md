@@ -7,5 +7,6 @@
 - ⚠️ **셸 검색 명령(`grep`·`rg`·`find`)을 허용목록에 넣지 않는다.** 훅은 명령 글자에서 `.env`를 찾는데,
   `grep -rn KIS_API backend/`에는 그 글자가 없어 그냥 통과한다 — 허용목록에 있으면 묻지도 않고 비밀키가 찍힌다.
   트리 검색은 `Grep`·`Glob` 도구를 쓴다(권한 거부 규칙이 그쪽에는 걸린다).
+- 훅을 고치면 `bash .claude/hooks/test-hooks.sh`로 막을 것·통과시킬 것을 확인한다.
 - 골든 파일이 바뀐 채 커밋하려 하면 `.claude/hooks/golden-reminder.sh`가 **경고한다**(막지는 않는다 — 읽었는지는 사람만 안다).
 - 스킬: `/real-audit`(실물 감사) · `/add-source`(새 외부 출처 점검). 에이전트: `domain-reviewer`(도메인 원칙으로 diff 검토).

@@ -4,12 +4,12 @@
 
 ## 검증
 
-- `cd backend && ./gradlew test --tests 'io.saiden.economyhelper.telegram.*'`
+- `cd backend && ./gradlew test --tests 'io.saiden.economyhelper.telegram.presentation.*'`
 - 글자가 바뀌면 골든 파일(`backend/src/test/resources/golden/messages.txt`)의 차이가 의도한 것인지 확인한다.
 
 ## 규칙
 
-- 없는 값은 줄을 적지 않는다 — `0`이나 「-」로 채우지 않는다.
+- 없는 값은 줄째 뺀다(루트 원칙). `MessageLayout.money`·`oneDecimal`은 `null`을 받지 않는다 — 「-」를 지어내지 않는다.
 - 차트 그림 안에 글자를 그리지 않는다. 글자·숫자는 사진 설명(caption)에 쓴다. 폰트를 설치해서 해결하지 않는다 → ADR-0007
 - 그림의 모든 선은 실제 데이터에 있는 값이어야 한다. 값 범위가 0이면(가격 변동 없음) 고가·저가 표시를 찍지 않는다 → ADR-0007
 - caption은 1024자 이내다. 넘으면 사진이 아예 안 나간다 → ADR-0007

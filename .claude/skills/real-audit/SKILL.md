@@ -37,7 +37,9 @@ ECONOMY_HELPER_DIGEST_CRON=- ECONOMY_HELPER_WEATHER_CRON=- ECONOMY_HELPER_KEEP_W
 - **크론을 끈다** — 켜 두면 브리핑이 돌아 KIS 20회 · Gemini 9회를 쓴다.
 - **포트를 옮긴다** — 8080 충돌로 재시작을 반복하면 KIS 토큰이 죽는다(1분에 1회만 발급).
 
-`curl -s localhost:18081/actuator/health`가 `UP`이 될 때까지 기다린다(Monitor로 조건 대기, sleep 반복 금지).
+`curl -s localhost:18081/actuator/health`가 `UP`이 될 때까지 기다린다 — 명령 한 번으로(`timeout 120 bash -c 'until curl -sf localhost:18081/actuator/health | grep -q UP; do sleep 2; done'`). 도구 호출을 sleep으로 여러 번 반복하지 않는다.
+
+`SERVER_PORT`·`MANAGEMENT_SERVER_PORT`는 스프링 표준 이름이라 `application.yml`의 `PORT`·`MANAGEMENT_PORT` 자리표시자보다 앞선다 — 운영 설정(runbook 「환경변수」)과 이름이 달라도 이대로 맞다. 크론 끄기(`ECONOMY_HELPER_*_CRON=-`)도 같은 완화 바인딩이다.
 
 ## 3. 명령을 넣는다
 
