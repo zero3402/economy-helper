@@ -69,6 +69,17 @@ public final class QueryNormalizer {
     }
 
     /**
+     * 한글이 한 글자라도 있는가 — 섞여 와도({@code s&p500 지수}) 참이다. {@code null}은 거짓.
+     *
+     * <p>검색어 번역 대상 고르기({@code QueryExpander}), 낱말 맞추기 방식 고르기({@code KeywordGroup}),
+     * 지명 표기 고르기({@code GeoLocation})가 같은 판별을 쓴다.
+     */
+    public static boolean hasHangul(String text) {
+        return text != null && text.codePoints()
+                .anyMatch(point -> Character.UnicodeScript.of(point) == Character.UnicodeScript.HANGUL);
+    }
+
+    /**
      * 종목·코인 조회용. 군더더기를 걷어낸 형태를 <b>원형과 함께</b> 돌려준다.
      *
      * <p>둘 다 주는 이유는 어느 쪽이 맞을지 미리 알 수 없어서다. {@code 현대차}는 원형이 정답이고

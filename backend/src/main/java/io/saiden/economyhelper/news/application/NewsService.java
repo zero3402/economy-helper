@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -98,9 +99,18 @@ public class NewsService {
      * 이게 "한 소스가 죽어도 발송은 계속된다"의 실제 구현이다.
      */
     public List<ScoredArticle> digest() {
+        Instant now = clock.instant();
+        List<NewsSource> sources = List.of(NewsSource.values());
         // 매체끼리는 서로를 기다릴 이유가 없어 겹쳐 돈다 — 가장 느린 매체 하나 만큼만 걸린다.
-        // 매체 안에서는 순차다: 피드가 있어야 후보가 나오고 후보가 있어야 관련도를 잰다
-        List<ScoredArticle> all = Concurrently.map(List.of(NewsSource.values()), this::relevantOf).stream()
+        // 최근 창 안의 발행분만 남긴다 — 묵은 기사로 자리를 채우지 않는다
+        List<List<Article>> recentBySource = Concurrently.map(sources, source -> recent(fetcher.fetch(source), now));
+        // HN 반응은 전 매체 기사를 모아 **한 번에** 묻는다(rank()와 같다) — 매체마다 물으면 한 매체의 두 피드
+        // (Investing.com 본 섹션·암호화폐 섹션)가 같은 도메인을 동시에 묻는다. 캐시가 비어 있으면 둘 다 나간다
+        Map<String, Integer> buzz = buzzClient.buzzByLink(
+                recentBySource.stream().flatMap(List::stream).toList(), now);
+        // 매체 안에서는 순차다: 후보가 있어야 관련도를 잰다
+        List<ScoredArticle> all = Concurrently.map(IntStream.range(0, sources.size()).boxed().toList(),
+                        i -> relevantOf(sources.get(i), recentBySource.get(i), buzz, now)).stream()
                 .flatMap(List::stream)
                 .sorted(Comparator.comparingDouble(ScoredArticle::score).reversed())
                 .toList();
@@ -148,17 +158,16 @@ public class NewsService {
     /**
      * 매체 하나에서 최근 창 안의 재테크 기사들을 점수순으로. 그 매체가 죽거나 그 사이 재테크 기사가
      * 없으면 비어 있다. 상위 몇 건을 고르는 것은 {@link #digest()}가 전 매체를 모아 한다.
+     *
+     * @param articles 그 매체의 최근 창 안 발행분
+     * @param buzz     전 매체를 모아 한 번에 물은 HN 반응
      */
-    private List<ScoredArticle> relevantOf(NewsSource source) {
-        Instant now = clock.instant();
-        // 최근 창 안의 발행분만 남긴다 — 묵은 기사로 자리를 채우지 않는다
-        List<Article> articles = recent(fetcher.fetch(source), now);
+    private List<ScoredArticle> relevantOf(NewsSource source, List<Article> articles,
+                                           Map<String, Integer> buzz, Instant now) {
         if (articles.isEmpty()) {
             log.warn("[{}] 최근 {} 발행분이 없어 이번 발송에서 제외합니다", source, window);
             return List.of();
         }
-
-        Map<String, Integer> buzz = buzzClient.buzzByLink(articles, now);
 
         // 1) 관련도 없이 먼저 줄을 세워 상위 몇 건만 남긴다 — LLM에 전부 넣으면 무료 티어를 태운다.
         //    이 단계의 점수는 주제를 모르지만(노출 순서·최신성·반응) 후보를 좁히는 데는 충분하다
@@ -206,15 +215,6 @@ public class NewsService {
     }
 
     /**
-     * @param query 사용자가 친 원문. 주면 상위 후보를 <b>LLM으로 한 번 더 검증</b>한다 —
-     *              문자열 매칭은 "본문에 한 번 스친" 기사도 통과시켜, 환율 기사가
-     *              {@code /news 금리}의 1위가 되곤 했다. {@code null}이면 검증을 건너뛴다
-     */
-    public List<ScoredArticle> search(Collection<KeywordGroup> keywords, String query) {
-        return usable(keywords).isEmpty() ? List.of() : search(keywords, query, fetchAll());
-    }
-
-    /**
      * 매체 전부를 동시에 긁는다 — 검색은 사용자가 화면을 보고 기다리는 자리라 순차로 도는 시간이
      * 그대로 체감된다. 검색어와 무관하므로 부르는 쪽이 검색어 확장(Gemini)과 <b>겹쳐</b> 부를 수 있다.
      */
@@ -224,7 +224,13 @@ public class NewsService {
                 .toList();
     }
 
-    /** {@link #search(Collection, String)}와 같되 이미 긁은 기사({@link #fetchAll})를 받는다. */
+    /**
+     * 이미 긁은 기사({@link #fetchAll}) 중 검색어에 걸린 것.
+     *
+     * @param query 사용자가 친 원문. 주면 상위 후보를 <b>LLM으로 한 번 더 검증</b>한다 —
+     *              문자열 매칭은 "본문에 한 번 스친" 기사도 통과시켜, 환율 기사가
+     *              {@code /news 금리}의 1위가 되곤 했다. {@code null}이면 검증을 건너뛴다
+     */
     public List<ScoredArticle> search(Collection<KeywordGroup> keywords, String query, List<Article> fetched) {
         List<KeywordGroup> groups = usable(keywords);
         if (groups.isEmpty()) {

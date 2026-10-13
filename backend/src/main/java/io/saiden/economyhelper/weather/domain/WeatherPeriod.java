@@ -77,28 +77,30 @@ public record WeatherPeriod(LocalDate from, LocalDate to) {
     public static WeatherPeriod weekend(LocalDate today, Integer offsetDays) {
         int offset = offsetDays == null ? 0 : offsetDays;
         LocalDate base = today.plusDays(offset);
-        LocalDate saturday = base.getDayOfWeek() == DayOfWeek.SUNDAY
+        // 첫날 — 대개 토요일이지만 오늘이 일요일이면 일요일이다
+        LocalDate first = base.getDayOfWeek() == DayOfWeek.SUNDAY
                 ? (offset == 0 ? base : base.minusDays(1))
                 : base.with(TemporalAdjusters.nextOrSame(DayOfWeek.SATURDAY));
-        LocalDate sunday = saturday.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
+        LocalDate sunday = first.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
         LocalDate limit = today.plusDays(MAX_FORECAST_DAYS - 1L);
-        if (!saturday.isAfter(limit) && sunday.isAfter(limit)) {
+        if (!first.isAfter(limit) && sunday.isAfter(limit)) {
             sunday = limit;
         }
-        return new WeatherPeriod(saturday, sunday);
+        return new WeatherPeriod(first, sunday);
     }
 
     /**
      * 요일 하루 — {@code 일요일}은 <b>다가오는</b> 일요일이다(오늘이 그 요일이면 오늘).
      * {@code weekOffset}이 있으면 그만큼 뒤 주(월~일)의 그 요일이다 — 화요일의 「다음 주 금요일」은
-     * 이번 주 금요일이 아니라 다음 주 금요일이다.
+     * 이번 주 금요일이 아니라 다음 주 금요일이다. 음수면 그만큼 앞 주다 — 「지난주 금요일」은 지난주의 금요일이고,
+     * 다가오는 금요일로 바꿔 답하면 틀린 값이다({@link #weekend}에 음수 offset이 오는 것과 같은 규칙).
      *
      * @param weekday    {@code 1}=월 … {@code 7}=일
      * @param weekOffset {@code null}·0이면 다가오는 그 요일
      */
     public static WeatherPeriod weekday(LocalDate today, int weekday, Integer weekOffset) {
         DayOfWeek target = DayOfWeek.of(weekday);
-        LocalDate date = weekOffset == null || weekOffset <= 0
+        LocalDate date = weekOffset == null || weekOffset == 0
                 ? today.with(TemporalAdjusters.nextOrSame(target))
                 : today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
                         .plusWeeks(weekOffset).with(TemporalAdjusters.nextOrSame(target));

@@ -20,6 +20,7 @@ import io.saiden.economyhelper.shared.domain.PercentChange;
 import io.saiden.economyhelper.shared.domain.Price;
 import io.saiden.economyhelper.shared.support.FailureReason;
 import io.saiden.economyhelper.stock.application.port.out.DomesticStockClient;
+import io.saiden.economyhelper.stock.application.port.out.StockClient;
 import io.saiden.economyhelper.stock.application.port.out.StockDailyBarClient;
 import io.saiden.economyhelper.stock.application.port.out.UsStockClient;
 import io.saiden.economyhelper.stock.domain.ClassShare;
@@ -389,10 +390,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient, StockDai
         }
         try {
             List<Bar> parsed = BAR_ROWS.readValue(rows);
-            return parsed.stream().filter(Objects::nonNull)
-                    .map(bar -> KisHeaders.dateOf(bar.on()))
-                    .filter(Objects::nonNull)
-                    .max(LocalDate::compareTo).orElse(null);
+            return KisHeaders.latestOf(parsed.stream().filter(Objects::nonNull).map(Bar::on));
         } catch (RuntimeException e) {
             return null;
         }
@@ -782,9 +780,10 @@ public class KisStockApi implements DomesticStockClient, UsStockClient, StockDai
      * 기운다. 브레이커 산수는 → ADR-0001.
      *
      * <p><b>던지는 것은 그대로다.</b> 빈 값을 돌려주면 {@code StockService}가 폴백하지 못하고
-     * 그대로 빈손이 나간다 — 바꾼 것은 <b>세는 방식</b>뿐이다.
+     * 그대로 빈손이 나간다 — 바꾼 것은 <b>세는 방식</b>뿐이다. 「모른다」({@link StockClient.NotFound})이므로
+     * 출처가 전부 이것으로 끝나면 {@code /stock}은 「잠시 후 다시」가 아니라 「못 찾음」으로 답한다.
      */
-    public static final class Unsupported extends IllegalStateException {
+    public static final class Unsupported extends StockClient.NotFound {
 
         public Unsupported(String message) {
             super(message);

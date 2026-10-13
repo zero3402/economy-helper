@@ -196,7 +196,7 @@ class BinanceApiTest extends WireMockTest {
                 .isInstanceOf(BinanceClient.Banned.class);
 
         assertThat(server.getAllServeEvents())
-                .as("브레이커에 맡기면 열릴 때까지 다섯 번을 더 부른다 — 그 다섯 번이 밴을 늘린다")
+                .as("브레이커에 맡기면 열릴 때까지 몇 번을 더 부른다 — 그 몇 번이 밴을 늘린다")
                 .hasSize(1);
     }
 

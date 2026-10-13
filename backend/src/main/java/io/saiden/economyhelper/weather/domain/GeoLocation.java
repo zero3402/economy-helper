@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.weather.domain;
 
+import io.saiden.economyhelper.shared.support.QueryNormalizer;
 import java.time.ZoneId;
 
 /**
@@ -50,15 +51,10 @@ public record GeoLocation(String name, String country,
      * @param queried 지오코딩에 넘긴 지명. 비어 있으면 바꾸지 않는다
      */
     public GeoLocation labelledFor(String queried) {
-        if (hasHangul(name) || queried == null || queried.isBlank()) {
+        // 한글이 한 글자라도 있으면 한글 표기로 본다 — 섞여 와도 그렇다
+        if (QueryNormalizer.hasHangul(name) || queried == null || queried.isBlank()) {
             return this;
         }
         return new GeoLocation(queried.strip(), country, latitude, longitude, zone);
-    }
-
-    /** 한글이 한 글자라도 있는가. 섞여 와도 한글 표기로 본다. */
-    private static boolean hasHangul(String text) {
-        return text != null && text.codePoints()
-                .anyMatch(point -> Character.UnicodeScript.of(point) == Character.UnicodeScript.HANGUL);
     }
 }

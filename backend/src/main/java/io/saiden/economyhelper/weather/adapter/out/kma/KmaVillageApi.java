@@ -78,16 +78,13 @@ class KmaVillageApi {
     List<VillageDay> days(KmaGrid grid, LocalDate from) {
         LocalDateTime now = LocalDateTime.ofInstant(clock.instant(), KmaRequest.SEOUL);
         LocalDate today = now.toLocalDate();
-        VillageBlock latest = fetch(grid, latestPublication(now), "단기예보");
+        // 발표마다 축을 한 번만 세운다 — 이른 발표가 필요한지 묻는 것과 접는 것이 같이 쓴다
+        VillageBlock.Axis latest = fetch(grid, latestPublication(now), "단기예보").axis();
 
         // ⚠️ 오늘을 안 묻는 조회(`내일 서현`)에는 보충을 부르지 않는다 — 이른 발표가 메우는
         //    것은 오늘의 오전과 오늘의 일 극값뿐이라 그 조회에는 헛호출이 된다
-        VillageBlock earlier = from.isAfter(today) ? null : earlierFor(grid, today, latest);
-        VillageBlock.Extremes extremes = latest.extremes();
-        if (earlier != null) {
-            extremes = extremes.filledFrom(earlier.extremes());
-        }
-        return latest.toDays(extremes, earlier);
+        VillageBlock.Axis earlier = from.isAfter(today) ? null : earlierFor(grid, today, latest);
+        return latest.under(earlier).toDays();
     }
 
     /**
@@ -108,10 +105,10 @@ class KmaVillageApi {
      * <p>그 02시 판은 <b>오후에도 그대로 조회된다</b>(14:29·15:27 확인, 944행).
      *
      * <p>⚠️ <b>「반나절 둘이 다 있나」와 「일 극값이 있나」를 함께 묻는다</b> — 극값만 보면 그것이
-     * 11시·14시 창을 덮는 것이 우연이다({@code VillageBlock.hasBothHalves}).
+     * 11시·14시 창을 덮는 것이 우연이다({@code VillageBlock.Axis.hasBothHalves}).
      *
      * <p>⚠️ <b>보충이라 실패를 삼킨다.</b> 실패하면 오늘이 반나절 하나로 남고
-     * {@code VillageBlock.toDays}가 그 날을 버려 <b>폴백이 일어난다</b> — AccuWeather와
+     * {@code VillageBlock.Axis.toDays}가 그 날을 버려 <b>폴백이 일어난다</b> — AccuWeather와
      * Open-Meteo 시간별이 두 줄을 온전히 주므로 반쪽을 내보내는 것보다 낫다.
      *
      * <p><b>호출은 필요할 때만 늘어난다.</b> 최신 발표가 오늘을 온전히 들고 있으면(어제 23시·
@@ -119,12 +116,12 @@ class KmaVillageApi {
      *
      * @return 이른 발표. 받을 필요가 없거나 못 받았으면 {@code null}
      */
-    private VillageBlock earlierFor(KmaGrid grid, LocalDate today, VillageBlock latest) {
+    private VillageBlock.Axis earlierFor(KmaGrid grid, LocalDate today, VillageBlock.Axis latest) {
         if (latest.hasBothHalves(today) && latest.extremes().has(today)) {
             return null;
         }
         try {
-            return fetch(grid, today.atTime(BASE_HOURS[0], 0), "단기예보(이른 발표)");
+            return fetch(grid, today.atTime(BASE_HOURS[0], 0), "단기예보(이른 발표)").axis();
         } catch (RuntimeException e) {
             log.warn("[weather] 기상청 {} 이른 발표를 못 받았습니다 — 오늘이 빠져 폴백합니다: {}",
                     today, FailureReason.of(e));

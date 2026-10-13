@@ -1,6 +1,7 @@
 package io.saiden.economyhelper.stock.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.saiden.economyhelper.config.EconomyHelperProperties.Index;
 import io.saiden.economyhelper.config.EconomyHelperProperties.UsSymbol;
@@ -8,6 +9,7 @@ import io.saiden.economyhelper.shared.domain.Price;
 import io.saiden.economyhelper.stock.adapter.out.datago.DataGoStockClient;
 import io.saiden.economyhelper.stock.adapter.out.llm.StockResolver;
 import io.saiden.economyhelper.stock.application.port.out.DomesticStockClient;
+import io.saiden.economyhelper.stock.application.port.out.StockClient;
 import io.saiden.economyhelper.stock.application.port.out.UsStockClient;
 import io.saiden.economyhelper.stock.domain.Listing;
 import io.saiden.economyhelper.stock.domain.ResolvedStock;
@@ -96,14 +98,85 @@ class StockServiceTest {
     }
 
     @Test
-    @DisplayName("모든 출처가 죽어도 예외를 밖으로 내보내지 않는다 — 웹훅은 어떤 경우에도 200이어야 한다")
-    void degradesWhenEverySourceFails() {
-        StockService service = service(List.of(domestic(StockSource.KIS, Map.of()),
-                domestic(StockSource.DATA_GO, Map.of())), List.of(), noResolver());
+    @DisplayName("모든 출처가 장애면 「못 찾음」이 아니라 장애로 알린다 — 웹훅이 「잠시 후 다시」로 답한다")
+    void signalsAnOutageWhenEverySourceIsDown() {
+        // 200은 웹훅이 먼저 준다(TelegramWebhookControllerTest). 여기서 빈손을 주면 「찾지 못했습니다」가 나가
+        // 사용자가 다시 묻지 않는다 — stock/AGENTS.md「출처가 전부 실패하면 … 잠시 후 다시」
+        StockService service = service(List.of(down(StockSource.KIS), down(StockSource.DATA_GO)),
+                List.of(), noResolver());
 
-        assertThat(service.quote("005930")).isEmpty();
+        assertThatThrownBy(() -> service.answer("005930")).isInstanceOf(StockService.Unavailable.class);
+    }
+
+    @Test
+    @DisplayName("종목 색인과 이름 검색이 다 죽었으면 이름으로 물어도 「못 찾음」이 아니라 장애다")
+    void signalsAnOutageWhenNameLookupsAreDown() {
+        RecordingNames deadNames = new RecordingNames(Map.of()) {
+            @Override
+            public Optional<StockQuote> byName(String name) {
+                throw new IllegalStateException("공공데이터포털 503");
+            }
+        };
+        StockListings deadIndex = new StockListings(() -> {
+            throw new IllegalStateException("종목 마스터 다운로드 실패");
+        });
+        StockService service = service(List.of(domestic(StockSource.KIS, Map.of())), List.of(), noResolver(),
+                deadNames, deadIndex);
+
+        assertThatThrownBy(() -> service.answer("삼성전자")).isInstanceOf(StockService.Unavailable.class);
+    }
+
+    @Test
+    @DisplayName("색인이 죽어도 이름 검색이 찾으면 그 답을 낸다 — 장애는 다른 길을 다 해 본 뒤에야 알린다")
+    void answersByNameWhileTheIndexIsDown() {
+        RecordingNames names = new RecordingNames(Map.of("삼성전자", krStock("삼성전자", "268500", StockSource.DATA_GO)));
+        StockListings deadIndex = new StockListings(() -> {
+            throw new IllegalStateException("종목 마스터 다운로드 실패");
+        });
+        StockService service = service(List.of(), List.of(), noResolver(), names, deadIndex);
+
+        assertThat(service.answer("삼성전자")).isPresent();
+    }
+
+    @Test
+    @DisplayName("브리핑 경로는 장애에도 던지지 않는다 — 종목마다 따로 실패하고 그 줄만 빠진다")
+    void briefingPathsDropTheLineOnAnOutage() {
+        StockService service = service(List.of(down(StockSource.KIS), down(StockSource.DATA_GO)),
+                List.of(downUs(StockSource.KIS)), noResolver());
+
         assertThat(service.answersOf(List.of("005930"))).isEmpty();
         assertThat(service.indicesOf(List.of(KOSPI))).isEmpty();
+        assertThat(service.usAnswersOf(List.of(new UsSymbol("AAPL", "애플")))).isEmpty();
+    }
+
+    @Test
+    @DisplayName("한 출처라도 장애였으면 「못 찾음」이라 단정하지 않는다 — 그 출처는 알았을 수 있다")
+    void anOutageOnOneSourceIsStillAnOutage() {
+        StockService service = service(List.of(down(StockSource.KIS), domestic(StockSource.DATA_GO, Map.of())),
+                List.of(), noResolver());
+
+        assertThatThrownBy(() -> service.answer("005930")).isInstanceOf(StockService.Unavailable.class);
+    }
+
+    @Test
+    @DisplayName("미국도 같다 — 출처가 전부 장애면 장애로 알린다")
+    void signalsAnOutageForUsToo() {
+        StockService service = service(List.of(), List.of(downUs(StockSource.KIS), downUs(StockSource.FMP)),
+                resolver(new ResolvedStock("US", "STOCK", "AAPL", "애플")));
+
+        assertThatThrownBy(() -> service.answer("애플")).isInstanceOf(StockService.Unavailable.class);
+    }
+
+    @Test
+    @DisplayName("한 길이 장애여도 다른 길로 찾으면 답한다 — 장애는 전부 빈손일 때만 알린다")
+    void triesTheOtherPathsBeforeReportingAnOutage() {
+        RecordingNames names = new RecordingNames(Map.of("삼성전자",
+                krStock("삼성전자", "274500", StockSource.DATA_GO)));
+        StockService service = service(List.of(down(StockSource.KIS), down(StockSource.DATA_GO)), List.of(),
+                resolver(new ResolvedStock("KR", "STOCK", "005930", "삼성전자")), names);
+
+        assertThat(service.answer("삼전")).get()
+                .extracting(answer -> answer.quote().source()).isEqualTo(StockSource.DATA_GO);
     }
 
     // --- 라우팅 ---
@@ -686,7 +759,42 @@ class StockServiceTest {
         return new FakeUs(source, quotes);
     }
 
-    /** 모르는 것은 <b>던진다</b> — SPI 계약이 그렇고, 그래야 이중화가 폴백한다. */
+    /** 무엇을 물어도 장애로 던지는 출처 — 「모른다」({@link StockClient.NotFound})가 아니다. */
+    private static DomesticStockClient down(StockSource source) {
+        return new DomesticStockClient() {
+            @Override
+            public StockSource source() {
+                return source;
+            }
+
+            @Override
+            public StockQuote stock(String code) {
+                throw new IllegalStateException("연결 거부");
+            }
+
+            @Override
+            public StockQuote index(Index index) {
+                throw new IllegalStateException("연결 거부");
+            }
+        };
+    }
+
+    /** {@link #down(StockSource)}의 미국판. */
+    private static UsStockClient downUs(StockSource source) {
+        return new UsStockClient() {
+            @Override
+            public StockSource source() {
+                return source;
+            }
+
+            @Override
+            public StockQuote quote(UsSymbol symbol) {
+                throw new IllegalStateException("연결 거부");
+            }
+        };
+    }
+
+    /** 모르는 것은 <b>{@link StockClient.NotFound}로 던진다</b> — SPI 계약이 그렇고, 그래야 이중화가 폴백한다. */
     private static final class FakeDomestic implements DomesticStockClient {
         private final StockSource source;
         private final Map<String, StockQuote> stocks;
@@ -725,7 +833,7 @@ class StockServiceTest {
 
         private static StockQuote require(StockQuote quote, String what) {
             if (quote == null) {
-                throw new IllegalStateException("'" + what + "' 시세가 없습니다");
+                throw new StockClient.NotFound("'" + what + "' 시세가 없습니다");
             }
             return quote;
         }
@@ -753,7 +861,7 @@ class StockServiceTest {
             askedSymbols.add(symbol);
             StockQuote found = quotes.get(symbol.symbol());
             if (found == null) {
-                throw new IllegalStateException("'" + symbol.symbol() + "' 심볼이 없습니다");
+                throw new StockClient.NotFound("'" + symbol.symbol() + "' 심볼이 없습니다");
             }
             return found;
         }
@@ -763,7 +871,7 @@ class StockServiceTest {
      * 이름 검색은 이중화되지 않으므로 SPI가 아니다 — 없으면 빈손이지 예외가 아니다
      * (그 구분은 {@code DataGoStockClientTest}가 본다).
      */
-    private static final class RecordingNames extends DataGoStockClient {
+    private static class RecordingNames extends DataGoStockClient {
         private final Map<String, StockQuote> answers;
         private final List<String> asked = new ArrayList<>();
 

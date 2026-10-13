@@ -27,18 +27,6 @@ public record ResolvedPlace(String query, String country, String date,
                             Integer offsetDays, Integer days, Boolean weekend,
                             Integer weekday, Integer weekOffset) {
 
-    /** 주말·요일을 묻지 않은 해석. */
-    public ResolvedPlace(String query, String country, String date,
-                         Integer month, Integer day, Integer offsetDays, Integer days) {
-        this(query, country, date, month, day, offsetDays, days, null, null, null);
-    }
-
-    /** 요일을 묻지 않은 해석. */
-    public ResolvedPlace(String query, String country, String date,
-                         Integer month, Integer day, Integer offsetDays, Integer days, Boolean weekend) {
-        this(query, country, date, month, day, offsetDays, days, weekend, null, null);
-    }
-
     /** 요일을 물었나 — 1~7 밖은 못 읽은 것이다. */
     public boolean asksWeekday() {
         return weekday != null && weekday >= 1 && weekday <= 7;
@@ -53,10 +41,11 @@ public record ResolvedPlace(String query, String country, String date,
      *
      * <p>적었는데 우리가 못 편 경우를 <b>조용히 오늘로 만들지 않기 위해</b> 있다.
      * {@code 2025년 8월}처럼 일자 없이 연·월만 적으면 펼 날이 없는데, 그때 오늘 날씨를
-     * 답하면 사용자는 자기가 적은 날짜가 무시된 줄 모른다.
+     * 답하면 사용자는 자기가 적은 날짜가 무시된 줄 모른다. 그래서 편 결과가 아니라 <b>원문 {@code date}가
+     * 있는지</b>를 본다 — {@code 2025-02-30}처럼 못 펴는 날짜도 적은 것이다.
      */
     public boolean mentionsDate() {
-        return absoluteDate() != null || month != null || day != null;
+        return (date != null && !date.isBlank()) || month != null || day != null;
     }
 
     public boolean hasPlace() {

@@ -10,6 +10,7 @@ import io.saiden.economyhelper.fx.application.FxService;
 import io.saiden.economyhelper.fx.domain.FxRate;
 import io.saiden.economyhelper.news.application.NewsFacade;
 import io.saiden.economyhelper.news.domain.NewsItem;
+import io.saiden.economyhelper.shared.support.Concurrently;
 import io.saiden.economyhelper.shared.support.FailureReason;
 import io.saiden.economyhelper.stock.application.StockService;
 import io.saiden.economyhelper.stock.domain.StockOutlook;
@@ -198,15 +199,14 @@ public class TelegramWebhookController {
         if (parsed.isEmpty()) {
             // '/'로 시작하는 오타에만 안내한다. 일반 대화는 조용히 무시해 그룹 채팅을 오염시키지 않는다
             if (CommandParser.isUnknownCommand(inbound.text())) {
-                telegramClient.send(inbound.chatId(), inbound.topicId(), inbound.replyTo(),
-                        HelpFormatter.unknownCommand());
+                sendQuietly(inbound, HelpFormatter.unknownCommand(), false);
             }
             return;
         }
         ParsedCommand command = parsed.get();
         if (command.needsUsage()) {
-            telegramClient.send(inbound.chatId(), inbound.topicId(), inbound.replyTo(),
-                    HelpFormatter.usage(command.command()));
+            // 다른 답과 같은 자리에서 실패를 삼킨다 — 여기서 던지면 맨 바깥 그물이 「웹훅 처리 실패」로만 남긴다
+            sendQuietly(inbound, HelpFormatter.usage(command.command()), false);
             return;
         }
 
@@ -219,16 +219,18 @@ public class TelegramWebhookController {
             //    로그만 남기면 사용자에게는 **아무 답도 안 간다**(docs/design.md 3.2).
             //    도달 가능한 예외가 실제로 있다: 브레이커 열림(CallNotPermittedException),
             //    Redis 장애로 인한 캐시 계층 예외, 렌더 중의 상태 오류
-            log.error("[webhook] 채팅 {} · {} 답 만들기 실패: {}",
-                    inbound.chatId(), inbound.text(), e.toString(), e);
+            log.error("[webhook] 채팅 {} · {}({}자) 답 만들기 실패: {}",
+                    inbound.chatId(), command.command().token(), inbound.text().length(), e.toString(), e);
             sendQuietly(inbound, MessageLayout.unavailable(command.command()), false);
             return;
         }
         deliver(inbound, reply);
 
         // 성공 경로에 유일하게 남는 줄이다 — 토픽 번호(SEARCH_TOPIC_ID가 비었을 때 여기서만
-        // 보인다)·소요 시간·명령. 답 본문은 남기지 않는다 — 그룹 대화가 로그로 흘러드는 것과 다름없다
-        log.info("[webhook] 채팅 {} 토픽 {} · {} → {}초", inbound.chatId(), inbound.topicId(), inbound.text(),
+        // 보인다)·소요 시간·명령. 사용자 원문도 답 본문도 남기지 않는다 — 검색어가 곧 그룹 대화라
+        // (CacheErrorConfig가 키를 안 남기는 것과 같은 이유) 명령 이름과 글자 수만 적는다
+        log.info("[webhook] 채팅 {} 토픽 {} · {}({}자) → {}초", inbound.chatId(), inbound.topicId(),
+                command.command().token(), inbound.text().length(),
                 String.format("%.1f", (System.nanoTime() - startedAt) / 1_000_000_000.0));
     }
 
@@ -409,16 +411,23 @@ public class TelegramWebhookController {
     private Reply reply(ParsedCommand command) {
         return switch (command.command()) {
             case NEWS -> newsReply(command);
-            case CRYPTO -> cryptoService.quote(command.argument())
-                    .map(this::cryptoReply)
-                    .orElseGet(() -> Reply.plain(CryptoFormatter.notFound(command.argument())));
+            case CRYPTO -> cryptoReply(command);
             case FX -> fxService.usdToKrw()
                     // 차트는 보충이다 — 일봉을 못 받아도 환율은 그대로 나간다
                     .map(rate -> Reply.plain(FxFormatter.format(rate), fxChart()))
                     .orElseGet(() -> Reply.plain(FxFormatter.unavailable()));
-            case STOCK -> stockService.answer(command.argument())
-                    .map(this::stockReply)
-                    .orElseGet(() -> Reply.plain(StockFormatter.notFound(command.argument())));
+            case STOCK -> {
+                try {
+                    yield stockService.answer(command.argument())
+                            .map(this::stockReply)
+                            .orElseGet(() -> Reply.plain(StockFormatter.notFound(command.argument())));
+                } catch (StockService.Unavailable e) {
+                    // 출처가 전부 장애다 — 「못 찾음」으로 답하면 사용자가 다시 묻지 않는다(stock/AGENTS.md).
+                    // 예상한 실패라 마지막 그물(ERROR·스택)까지 올리지 않는다
+                    log.warn("[webhook] /stock 답 없음 — {}", e.getMessage());
+                    yield Reply.plain(MessageLayout.unavailable(command.command()));
+                }
+            }
             case WEATHER -> weatherReply(command.argument());
             case HELP -> Reply.plain(HelpFormatter.help());
         };
@@ -439,10 +448,21 @@ public class TelegramWebhookController {
                 : new Reply(NewsFormatter.formatAll(found), true, null);
     }
 
-    /** 브리핑 코인 통과 같은 함수다. 바이낸스가 붙었을 때만 환율을 묻는다 — 안 쓸 값을 미리 부르지 않는다. */
-    private Reply cryptoReply(CryptoQuote quote) {
-        FxRate fx = quote.binance().hasPrice() ? fxService.orNull() : null;
-        return Reply.plain(CryptoFormatter.format(List.of(quote), fx), cryptoChart(quote));
+    /**
+     * 시세와 환율을 <b>겹쳐</b> 묻는다 — 환율은 바이낸스 값의 원화 환산과 김프에만 쓰지만, 시세가
+     * 끝난 뒤에 묻기 시작하면 그 왕복이 답 시간에 통째로 얹힌다.
+     *
+     * <p>대가: 못 찾은 코인·바이낸스 미상장 코인에도 환율을 한 번 묻는다. 환율은 1분 캐시라 같은 분의
+     * 다음 질문은 공짜이고, {@code orNull}은 던지지 않아 겹친 쪽의 실패가 시세를 막지 않는다.
+     * 쓰는 것은 바이낸스가 붙었을 때뿐이다 — 브리핑 코인 통과 같은 함수다.
+     */
+    private Reply cryptoReply(ParsedCommand command) {
+        Concurrently.Pair<Optional<CryptoQuote>, FxRate> both =
+                Concurrently.both(() -> cryptoService.quote(command.argument()), fxService::orNull);
+        return both.first()
+                .map(quote -> Reply.plain(CryptoFormatter.format(List.of(quote),
+                        quote.binance().hasPrice() ? both.second() : null), cryptoChart(quote)))
+                .orElseGet(() -> Reply.plain(CryptoFormatter.notFound(command.argument())));
     }
 
     /**

@@ -19,7 +19,7 @@ import org.springframework.stereotype.Component;
  * <p><b>토큰 하나가 개념 하나다.</b> 검색어 전체를 한 번에 번역하면 결과 단어들을 원래 토큰에
  * 되붙일 수 없어 개념 경계가 무너진다. {@code 비트코인 금리}는 두 개념이므로
  * {@code [비트코인, bitcoin, btc]}와 {@code [금리, interest rate, rates]} 두 묶음이 된다.
- * 그래야 {@code keywordScore}의 분모가 검색어 개수로 유지된다.
+ * 그래야 {@code PopularityScorer}의 keywordMatch 분모가 검색어 개수로 유지된다.
  */
 @Component
 public class QueryExpander {
@@ -49,7 +49,7 @@ public class QueryExpander {
 
     private KeywordGroup groupFor(Token token) {
         // 영어 검색어는 번역할 게 없다. 무료 티어를 태우지 않고 지연도 붙지 않는다
-        if (!hasHangul(token.surface())) {
+        if (!QueryNormalizer.hasHangul(token.surface())) {
             return KeywordGroup.of(token.stem());
         }
 
@@ -65,13 +65,6 @@ public class QueryExpander {
             log.error("[news] '{}' 검색어 번역 실패 — 원문 토큰으로 검색합니다: {}", token.surface(), FailureReason.of(e));
             return KeywordGroup.of(token.stem());
         }
-    }
-
-    /** 한글이 한 자라도 있으면 번역 대상이다. */
-    static boolean hasHangul(String text) {
-        return text.codePoints()
-                .anyMatch(codePoint ->
-                        Character.UnicodeScript.of(codePoint) == Character.UnicodeScript.HANGUL);
     }
 
     /**

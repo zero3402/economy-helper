@@ -85,6 +85,24 @@ class ChartRendererTest {
     }
 
     @Test
+    @DisplayName("선 색은 캡션의 등락률과 같은 부호다 — 1000→1000.04가 붉은 선에 「0.00%」로 나가던 것")
+    void colorFollowsTheRoundedCaptionChange() {
+        // 캡션은 PercentChange(소수 둘째 자리 반올림)로 0.00%인데 선 색은 원값을 견줘 붉었다.
+        // 끝점(마지막 값, 오른쪽 위 끝)의 한가운데는 안티앨리어싱이 닿지 않아 선 색 그대로다
+        BufferedImage barelyUp = decode(ChartRenderer.render(bars(1000, 1000.04)));
+        BufferedImage up = decode(ChartRenderer.render(bars(100, 200)));
+        int x = xOf(1, 2);
+        int top = 18;
+
+        assertThat(barelyUp.getRGB(x, top) & 0xFFFFFF)
+                .as("캡션이 보합이면 선도 보합 색이어야 한다")
+                .isEqualTo(ChartRenderer.FLAT.getRGB() & 0xFFFFFF);
+        assertThat(up.getRGB(x, top) & 0xFFFFFF)
+                .as("끝점을 제대로 짚고 있는지 — 오른 계열은 붉다")
+                .isEqualTo(ChartRenderer.UP.getRGB() & 0xFFFFFF);
+    }
+
+    @Test
     @DisplayName("높은 값이 위에 그려진다 — 좌표가 뒤집히면 차트가 거꾸로 나간다")
     void drawsHigherValuesHigher() {
         // 화면 좌표는 아래로 갈수록 커지므로 뒤집기 실수가 나기 쉽다.

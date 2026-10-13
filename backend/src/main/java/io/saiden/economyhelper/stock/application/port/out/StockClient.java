@@ -13,4 +13,19 @@ public interface StockClient {
 
     /** 화면에 밝히는 출처. {@code StockService}가 이 값으로 이중화 순서를 정한다. */
     StockSource source();
+
+    /**
+     * <b>이 출처는 그 종목을 모른다</b> — 장애가 아니다.
+     *
+     * <p>던지는 것은 다른 실패와 같다(그래야 다음 출처로 넘어간다). 타입을 따로 두는 이유는
+     * {@code StockService}가 <b>전부 실패한 뒤</b> 「못 찾음」과 「잠시 후 다시」를 가르기 때문이다 —
+     * 출처가 전부 이것으로 끝났을 때만 「못 찾음」이다. 장애를 「못 찾음」으로 답하면 사용자는
+     * 다시 묻지 않는다.
+     */
+    class NotFound extends IllegalStateException {
+
+        public NotFound(String message) {
+            super(message);
+        }
+    }
 }

@@ -68,44 +68,12 @@ record VillageBlock(Items items) {
     }
 
     /**
-     * 하루치 목록 — <b>오전·오후가 다 있는 날만.</b>
-     *
-     * @param earlier 오늘 오전을 메울 이른 발표({@code Axis.under}). 없으면 {@code null}
-     * @throws IllegalStateException 행이 하나도 없을 때
+     * 이 발표를 <b>시각 축</b>으로 세운다 — <b>발표마다 한 번만</b> 편다. 이른 발표가 필요한지 묻는 것
+     * ({@link Axis#hasBothHalves}·{@link Axis#extremes})과 하루로 접는 것({@link Axis#toDays})이
+     * 이 하나를 같이 쓴다.
      */
-    List<KmaVillageApi.VillageDay> toDays(Extremes published,
-                                         VillageBlock earlier) {
-        List<Item> rows = rows();
-        if (rows.isEmpty() && (earlier == null || earlier.rows().isEmpty())) {
-            throw new IllegalStateException("기상청 단기예보 응답에 시각이 없습니다");
-        }
-        Axis axis = axisOf(rows).under(earlier).with(published);
-        Columns columns = axis.columns();
-        Map<LocalDate, List<HalfDay>> halvesByDay = HalfDays.byDay(
-                columns.times(), columns.chances(), columns.amounts(), columns.skies());
-
-        List<KmaVillageApi.VillageDay> days = new ArrayList<>();
-        halvesByDay.forEach((date, halves) -> {
-            // ⚠️ **반나절 하나뿐인 날은 버린다 — 오늘도 예외가 아니다.**
-            //    요구는 「두 줄은 언제나 나온다」이고, 반쪽을 내보내면 읽는 사람이 나머지
-            //    반나절을 짐작하게 된다. 여기서 버리면 requireEveryDay가 던져 폴백이
-            //    일어나고, AccuWeather + Open-Meteo 시간별이 두 줄을 온전히 준다.
-            //    오늘의 오전은 이른 발표에서 메운다(Axis.under)
-            if (halves.size() < 2) {
-                log.debug("[weather] 기상청 단기예보 {}는 반나절이 하나뿐이라 뺍니다", date);
-                return;
-            }
-            BigDecimal low = axis.lowOf(date);
-            BigDecimal high = axis.highOf(date);
-            if (low == null || high == null) {
-                // 기온 없는 날은 값이 아니다 — AccuWeatherClient가 세운 규칙과 같다
-                log.warn("[weather] 기상청 단기예보 {}에 기온이 없어 뺍니다", date);
-                return;
-            }
-            days.add(new KmaVillageApi.VillageDay(date,
-                    HalfDays.commonestSky(axis.skiesOf(date)), low, high, halves));
-        });
-        return List.copyOf(days);
+    Axis axis() {
+        return axisOf(rows());
     }
 
     /** 평평한 행을 <b>시각 축</b>으로 세운다. 일 최저·최고만 축 밖으로 뺀다. */
@@ -169,41 +137,8 @@ record VillageBlock(Items items) {
         return first.find() ? new BigDecimal(first.group()) : null;
     }
 
-    /**
-     * 이 발표에 실린 <b>일 최저·최고</b>({@code TMN}·{@code TMX}).
-     *
-     * <p>따로 꺼내는 이유는 <b>오늘 것이 이른 발표에만 남기 때문</b>이다 — 실측(2026-08-26):
-     * 02시 발표에는 오늘 {@code TMN=24.0}·{@code TMX=32.0}이 있고, 05·11시에는 {@code TMN}이,
-     * 14시에는 <b>둘 다</b> 없다. 그 02시 발표는 <b>오후에도 그대로 조회된다</b>(14:29 확인).
-     */
-    Extremes extremes() {
-        return axisOf(rows()).extremes();
-    }
-
-    /**
-     * <b>그 날의 반나절 둘이 다 채워지는가</b> — 이른 발표를 받아 와야 할지 정하는 값이다.
-     *
-     * <p>⚠️ <b>일 극값이 있는지로 갈라서는 안 된다.</b> 지금은 그 둘이 같은 시각대에 함께
-     * 없어져서 우연히 맞지만, 기상청이 14시 판에 {@code TMN}을 싣기 시작하면 보충이 멈추고
-     * <b>오전이 조용히 다시 사라진다.</b> 물어야 하는 것은 「슬롯이 있나」다.
-     */
-    boolean hasBothHalves(LocalDate date) {
-        Set<HalfDay.Half> halves = EnumSet.noneOf(HalfDay.Half.class);
-        for (Item row : rows()) {
-            LocalDateTime at = row.at();
-            if (at != null && at.toLocalDate().equals(date)) {
-                halves.add(HalfDay.Half.of(at.toLocalTime()));
-            }
-        }
-        return halves.size() == HalfDay.Half.values().length;
-    }
-
     /** 날짜별 일 최저·최고. <b>둘 다 있어야</b> 그 날을 안다고 본다. */
     record Extremes(Map<LocalDate, BigDecimal> lows, Map<LocalDate, BigDecimal> highs) {
-
-        static Extremes none() {
-            return new Extremes(Map.of(), Map.of());
-        }
 
         boolean has(LocalDate date) {
             return lows.get(date) != null && highs.get(date) != null;
@@ -226,12 +161,81 @@ record VillageBlock(Items items) {
     }
 
     /** 시각을 축으로 세운 것 + 하루에 붙는 값 둘. */
-    private record Axis(Map<LocalDateTime, Map<String, String>> byMoment,
-                        Map<LocalDate, BigDecimal> lows,
-                        Map<LocalDate, BigDecimal> highs) {
+    record Axis(Map<LocalDateTime, Map<String, String>> byMoment,
+                Map<LocalDate, BigDecimal> lows,
+                Map<LocalDate, BigDecimal> highs) {
+
+        private Axis(Map<LocalDateTime, Map<String, String>> byMoment, Extremes extremes) {
+            this(byMoment, extremes.lows(), extremes.highs());
+        }
+
+        /**
+         * 하루치 목록 — <b>오전·오후가 다 있는 날만.</b>
+         *
+         * @throws IllegalStateException 시각도 일 극값도 하나 없을 때
+         */
+        List<KmaVillageApi.VillageDay> toDays() {
+            if (byMoment.isEmpty() && lows.isEmpty() && highs.isEmpty()) {
+                throw new IllegalStateException("기상청 단기예보 응답에 시각이 없습니다");
+            }
+            Columns columns = columns();
+            Map<LocalDate, List<HalfDay>> halvesByDay = HalfDays.byDay(
+                    columns.times(), columns.chances(), columns.amounts(), columns.skies());
+
+            List<KmaVillageApi.VillageDay> days = new ArrayList<>();
+            halvesByDay.forEach((date, halves) -> {
+                // ⚠️ **반나절 하나뿐인 날은 버린다 — 오늘도 예외가 아니다.**
+                //    요구는 「두 줄은 언제나 나온다」이고, 반쪽을 내보내면 읽는 사람이 나머지
+                //    반나절을 짐작하게 된다. 여기서 버리면 requireEveryDay가 던져 폴백이
+                //    일어나고, AccuWeather + Open-Meteo 시간별이 두 줄을 온전히 준다.
+                //    오늘의 오전은 이른 발표에서 메운다(under)
+                if (halves.size() < 2) {
+                    log.debug("[weather] 기상청 단기예보 {}는 반나절이 하나뿐이라 뺍니다", date);
+                    return;
+                }
+                BigDecimal low = lowOf(date);
+                BigDecimal high = highOf(date);
+                if (low == null || high == null) {
+                    // 기온 없는 날은 값이 아니다 — AccuWeatherClient가 세운 규칙과 같다
+                    log.warn("[weather] 기상청 단기예보 {}에 기온이 없어 뺍니다", date);
+                    return;
+                }
+                days.add(new KmaVillageApi.VillageDay(date,
+                        HalfDays.commonestSky(skiesOf(date)), low, high, halves));
+            });
+            return List.copyOf(days);
+        }
+
+        /**
+         * <b>그 날의 반나절 둘이 다 채워지는가</b> — 이른 발표를 받아 와야 할지 정하는 값이다.
+         *
+         * <p>⚠️ <b>일 극값이 있는지로 갈라서는 안 된다.</b> 지금은 그 둘이 같은 시각대에 함께
+         * 없어져서 우연히 맞지만, 기상청이 14시 판에 {@code TMN}을 싣기 시작하면 보충이 멈추고
+         * <b>오전이 조용히 다시 사라진다.</b> 물어야 하는 것은 「슬롯이 있나」다.
+         */
+        boolean hasBothHalves(LocalDate date) {
+            Set<HalfDay.Half> halves = EnumSet.noneOf(HalfDay.Half.class);
+            for (LocalDateTime at : byMoment.keySet()) {
+                if (at.toLocalDate().equals(date)) {
+                    halves.add(HalfDay.Half.of(at.toLocalTime()));
+                }
+            }
+            return halves.size() == HalfDay.Half.values().length;
+        }
+
+        /**
+         * 이 발표에 실린 <b>일 최저·최고</b>({@code TMN}·{@code TMX}).
+         *
+         * <p>따로 꺼내는 이유는 <b>오늘 것이 이른 발표에만 남기 때문</b>이다 — 실측(2026-08-26):
+         * 02시 발표에는 오늘 {@code TMN=24.0}·{@code TMX=32.0}이 있고, 05·11시에는 {@code TMN}이,
+         * 14시에는 <b>둘 다</b> 없다. 그 02시 발표는 <b>오후에도 그대로 조회된다</b>(14:29 확인).
+         */
+        Extremes extremes() {
+            return new Extremes(lows, highs);
+        }
 
         /** {@code HalfDays.byDay}가 요구하는 병렬 배열 넷으로 편다. */
-        Columns columns() {
+        private Columns columns() {
             List<LocalDateTime> times = new ArrayList<>(byMoment.size());
             List<Integer> chances = new ArrayList<>(byMoment.size());
             List<BigDecimal> amounts = new ArrayList<>(byMoment.size());
@@ -245,7 +249,7 @@ record VillageBlock(Items items) {
             return new Columns(times, chances, amounts, skies);
         }
 
-        List<SkyCondition> skiesOf(LocalDate date) {
+        private List<SkyCondition> skiesOf(LocalDate date) {
             List<SkyCondition> skies = new ArrayList<>();
             byMoment.forEach((at, row) -> {
                 if (at.toLocalDate().equals(date)) {
@@ -267,34 +271,20 @@ record VillageBlock(Items items) {
          * 마지막 예보다. 초단기실황(관측)을 쓰면 더 정확하지만 시각마다 호출이 늘고,
          * 「지난 날은 실측으로 적는다」는 규칙은 지난 <b>날</b>의 것이다.
          */
-        Axis under(VillageBlock earlier) {
+        Axis under(Axis earlier) {
             if (earlier == null) {
                 return this;
             }
-            Axis base = axisOf(earlier.rows());
-            Map<LocalDateTime, Map<String, String>> merged = new TreeMap<>(base.byMoment);
+            Map<LocalDateTime, Map<String, String>> merged = new TreeMap<>(earlier.byMoment);
             merged.putAll(byMoment);
-            return new Axis(merged, extremes().filledFrom(base.extremes()));
-        }
-
-        /** 바깥에서 받은 일 극값을 얹은 사본 — <b>그쪽이 이긴다.</b> */
-        Axis with(Extremes published) {
-            return new Axis(byMoment, published.filledFrom(extremes()));
-        }
-
-        private Axis(Map<LocalDateTime, Map<String, String>> byMoment, Extremes extremes) {
-            this(byMoment, extremes.lows(), extremes.highs());
-        }
-
-        Extremes extremes() {
-            return new Extremes(lows, highs);
+            return new Axis(merged, extremes().filledFrom(earlier.extremes()));
         }
 
         /**
          * 최저·최고 — <b>둘을 같은 창에서 낸다.</b>
          *
          * <p>{@code KmaVillageApi}가 오늘 것을 <b>02시 발표에서 따로 받아</b> 얹으므로 평상시엔
-         * 온종일 값이다({@link #with}). 그 보충이 실패한 날만 시간별로 낸다.
+         * 온종일 값이다({@link #under}). 그 보충이 실패한 날만 시간별로 낸다.
          *
          * <p>⚠️ <b>그때는 하나만 갈아 끼우지 않고 둘 다 시간별로 낸다.</b> 섞으면 앞뒤가 안
          * 맞는다 — 최고는 온종일의 {@code TMX}, 최저는 <b>남은 시간</b>의 최저가 되어 한 줄에

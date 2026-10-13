@@ -85,7 +85,7 @@ public class WeatherFacade {
             // 빈손으로 두지 않고 며칠까지 되는지 밝힌다
             return Lookup.tooFarAhead();
         }
-        return weatherService.forecast(place.get(), period)
+        return weatherService.forecast(place.get(), period, today)
                 .map(weather -> Lookup.found(List.of(weather)))
                 .orElseGet(Lookup::unavailable);
     }
@@ -149,13 +149,14 @@ public class WeatherFacade {
     /**
      * 몇 주 뒤인가 — {@code weekOffset}이 있으면 그것, 없으면 <b>7의 배수인</b> {@code offsetDays}를 주로 읽는다
      * (「다음 주 화요일」을 {@code offsetDays: 7}로 준 경우). 둘 다 아니면 {@code null}(이번 주).
+     * 음수는 지난 주다 — 「지난주 금요일」을 다가오는 금요일로 답하지 않는다. 지난 날은 재분석이 맡는다.
      */
     private static Integer weeksAhead(ResolvedPlace resolved) {
         if (resolved.weekOffset() != null && resolved.weekOffset() != 0) {
             return resolved.weekOffset();
         }
         Integer days = resolved.offsetDays();
-        return days != null && days > 0 && days % 7 == 0 ? days / 7 : null;
+        return days != null && days != 0 && days % 7 == 0 ? days / 7 : null;
     }
 
     /**

@@ -11,9 +11,9 @@ import org.springframework.stereotype.Component;
 /**
  * 바이낸스가 우리 IP를 밴한 동안 <b>호출을 한 번도 내지 않게</b> 막는 문.
  *
- * <p><b>왜 브레이커로는 부족한가.</b> {@code binance} 브레이커는 기본값
- * ({@code slidingWindowSize 10} · {@code failureRateThreshold 50})을 물려받으므로
- * 418 하나로는 열리지 않는다 — <b>다섯 번을 더 맞아야</b> 열린다. 그런데 바이낸스는
+ * <p><b>왜 브레이커로는 부족한가.</b> {@code binance} 브레이커는 60초 창에 최소 네 건이 차야
+ * 비율을 보므로({@code application.yml}) 418 하나로는 열리지 않는다 — <b>몇 번을 더 맞아야</b>
+ * 열린다. 그런데 바이낸스는
  * <b>밴 중의 호출이 밴을 연장한다.</b> 즉 브레이커가 열릴 때까지 우리가 스스로 밴을 늘린다.
  * 게다가 반열림이 150초마다 <b>세 번</b>을 더 찔러 보는데, 밴은 2분에서 3일까지 간다.
  *
@@ -61,10 +61,19 @@ public class BinanceBanGate {
         this.clock = clock;
     }
 
-    /** @return 아직 밴 중이면 풀리는 시각. 아니면 {@code null} */
+    /**
+     * @return 아직 밴 중이면 풀리는 시각. 아니면 {@code null}. 프로세스 사본이 이미 밴 중이면 Redis를
+     *         읽지 않는다 — 어차피 막히고, 캐시 미스마다 왕복을 쓸 까닭이 없다. 대가는 다른 인스턴스가 더
+     *         늘린 밴을 사본이 풀린 뒤에야 본다는 것인데, 그때 읽으므로 호출은 나가지 않는다
+     */
     Instant bannedUntil() {
-        Instant until = later(localUntil, fromRedis());
-        return until.isAfter(clock.instant()) ? until : null;
+        Instant now = clock.instant();
+        Instant local = localUntil;
+        if (local.isAfter(now)) {
+            return local;
+        }
+        Instant until = later(local, fromRedis());
+        return until.isAfter(now) ? until : null;
     }
 
     /**

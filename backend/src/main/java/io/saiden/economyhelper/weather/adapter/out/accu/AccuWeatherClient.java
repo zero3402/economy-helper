@@ -77,12 +77,16 @@ public class AccuWeatherClient implements WeatherClient {
      * <p>무료 등급이 5일까지다. 넘는 기간을 물어 봐야 뒷부분이 통째로 비는데, 그건 실패로도
      * 안 잡혀 조용히 짧은 답이 나간다 — 그럴 바에 부르지 않고 16일까지 주는 Open-Meteo에
      * 넘긴다. 하루 50회짜리 한도를 헛되이 쓰지 않는 효과도 있다.
+     *
+     * <p><b>키가 없으면 아무것도 맡지 않는다</b>({@code KmaWeatherClient.supports}와 같다) — 부른 뒤
+     * {@link #forecast}가 던지면 조회마다 실패 경고가 남고 브레이커에 실패가 쌓인다.
      */
     @Override
     public boolean supports(GeoLocation place, WeatherPeriod period, LocalDate today) {
         // ⚠️ 시작이 어제인 기간도 받지 않는다 — past()는 끝날만 본다. 닷새 예보에 어제가 없어 그 날이
         //    조용히 빠진 답이 나간다(기상청 supports와 같은 거름). 그런 기간은 Open-Meteo가 맡는다
-        return !period.from().isBefore(today) && !period.to().isAfter(today.plusDays(MAX_DAYS - 1L));
+        return !apiKey.isBlank()
+                && !period.from().isBefore(today) && !period.to().isAfter(today.plusDays(MAX_DAYS - 1L));
     }
 
     @Override

@@ -27,7 +27,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -154,8 +156,8 @@ public class StockService {
     }
 
     /**
-     * @return 시가총액 1위 후보의 시세. 걸리는 종목이 없거나 모든 출처가 실패하면
-     *         {@link Optional#empty()}
+     * @return 시가총액 1위 후보의 시세. 걸리는 종목이 없으면 {@link Optional#empty()}
+     * @throws Unavailable 출처가 장애로 실패해 찾지 못했을 때({@link #answer})
      */
     public Optional<StockQuote> quote(String query) {
         return answer(query).map(Answer::quote);
@@ -165,6 +167,9 @@ public class StockService {
      * 시세와 <b>전망</b>을 함께 — {@code /stock} 검색이 쓴다.
      *
      * <p>전망을 여기서 붙이는 이유는 <b>종목코드가 여기까지만 있기 때문</b>이다({@link Answer} 참고).
+     *
+     * @return 찾은 답. 어느 길로도 못 찾았고 출처가 「모른다」고만 했으면 {@link Optional#empty()}
+     * @throws Unavailable 어느 길로도 못 찾았는데 그 사이 출처 장애가 있었을 때 — 「못 찾음」이라 단정할 수 없다
      */
     public Optional<Answer> answer(String query) {
         String key = QueryNormalizer.normalize(query);
@@ -183,17 +188,18 @@ public class StockService {
         }
 
         Optional<ResolvedStock> resolved = resolve(key);
+        Outages outages = new Outages();
 
         if (resolved.filter(ResolvedStock::isUs).isPresent()) {
-            Optional<Answer> found = usAnswer(resolved.get());
+            Optional<Answer> found = outages.attempt(() -> usAnswer(resolved.get()));
             if (found.isPresent()) {
                 return found;
             }
             // LLM이 US라고는 했는데 티커를 못 냈거나 그 티커가 시세에 없다.
             // 국내가 코드 → 이름 → 원문으로 세 번 시도하는 것과 같은 자리다.
             // ⚠️ 국내 상장을 US로 잘못 읽었을 수도 있다 — 이름이 딱 맞는 국내 상장만 받는다
-            return usByTicker(query, forms, resolved.get().code())
-                    .or(() -> byExactListing(resolved.get().name(), forms));
+            return outages.settle(outages.attempt(() -> usByTicker(query, forms, resolved.get().code()))
+                    .or(() -> outages.attempt(() -> byExactListing(resolved.get().name(), forms))));
         }
         // 국내 지수는 조회가 통째로 다르다 — 종목코드가 없고 시가총액도 없다
         if (resolved.filter(ResolvedStock::isIndex).isPresent()) {
@@ -203,16 +209,49 @@ public class StockService {
             // ⚠️ 이름 없는 지수 해석은 조회할 열쇠가 없다. 그대로 넘기면 KIS 표 조회가 null 키로
             //    NPE를 kisStock 브레이커 안에서 던져 HTTP 없이 실패가 쌓인다(Unsupported가 막으려던 모양)
             String name = resolved.get().name();
-            Optional<Answer> byIndex = resolved.get().hasName() ? indexAnswer(name) : Optional.empty();
+            Optional<Answer> byIndex = resolved.get().hasName()
+                    ? outages.attempt(() -> indexAnswer(name))
+                    : Optional.empty();
             // ⚠️ 여기서 무조건 돌려주면 한 방향 문이 된다 — LLM이 ETF를 INDEX로 잘못 읽으면(「코덱스 코스피」)
             //    국내 지수 조회가 빈손인 채로 끝난다. 다만 부분일치로는 받지 않는다: 지수 장애 중에
             //    「코스피」가 「KODEX 코스피」 ETF로 바뀌어 나가면 틀린 값이다
-            return byIndex.or(() -> byExactListing(name, forms)).or(() -> usByTicker(query, forms, null));
+            return outages.settle(byIndex
+                    .or(() -> outages.attempt(() -> byExactListing(name, forms)))
+                    .or(() -> outages.attempt(() -> usByTicker(query, forms, null))));
         }
-        Optional<Answer> found = search(resolved, forms, query);
+        Optional<Answer> found = search(resolved, forms, query, outages);
         // ⚠️ 국내 이름 검색까지 다 빈손이다. 원문이 미국 티커 모양이면 한 번 더 —
         //    LLM이 죽거나 거절해도 사용자가 친 글자로 찾을 수 있어야 한다
-        return found.isPresent() ? found : usByTicker(query, forms, null);
+        return outages.settle(found.isPresent() ? found : outages.attempt(() -> usByTicker(query, forms, null)));
+    }
+
+    /**
+     * 한 번의 {@link #answer}가 만난 장애 — <b>다른 길을 다 해 본 뒤에야</b> 알린다.
+     *
+     * <p>코드로 묻다 장애가 났어도 이름 검색(공공데이터포털)이 답할 수 있다. 그래서 장애를 만나면
+     * 기억만 하고 다음 길로 가고, <b>전부 빈손일 때만</b> 던진다 — 그때는 「못 찾음」이라 단정할 수 없다.
+     */
+    private static final class Outages {
+
+        private Unavailable first;
+
+        Optional<Answer> attempt(Supplier<Optional<Answer>> lookup) {
+            try {
+                return lookup.get();
+            } catch (Unavailable e) {
+                if (first == null) {
+                    first = e;
+                }
+                return Optional.empty();
+            }
+        }
+
+        Optional<Answer> settle(Optional<Answer> found) {
+            if (found.isEmpty() && first != null) {
+                throw first;
+            }
+            return found;
+        }
     }
 
     /**
@@ -270,13 +309,14 @@ public class StockService {
      * Gemini가 죽었다고 {@code /stock} 전체가 멈추면 안 된다. {@code 타임나스닥100}은 LLM 없이는
      * 빈손이다({@code 타임} ≠ {@code TIME}) — 그 소리를 맞추는 것이 LLM의 몫이다.
      */
-    private Optional<Answer> search(Optional<ResolvedStock> resolved, List<String> forms, String query) {
+    private Optional<Answer> search(Optional<ResolvedStock> resolved, List<String> forms, String query,
+                                    Outages outages) {
         if (resolved.isPresent()) {
             ResolvedStock found = resolved.get();
             CodeTrust trust = codeTrust(found);
             boolean codeFirst = trust == CodeTrust.AGREES;
             if (codeFirst && found.hasCode()) {
-                Optional<Answer> byCode = stockAnswer(found.code());
+                Optional<Answer> byCode = outages.attempt(() -> stockAnswer(found.code()));
                 if (byCode.isPresent()) {
                     return byCode;
                 }
@@ -287,15 +327,16 @@ public class StockService {
                 //    부분일치는 형제 회사를 집는다(「포스코」+005490 → 이름에 포스코가 든 시총 1위 포스코퓨처엠).
                 //    이름을 먼저 믿는 규칙은 ETF의 것이다: 이름이 비슷한 코드가 수십 개라 존재하는 틀린 코드가 흔하다
                 Optional<Answer> byName = trust == CodeTrust.DISAGREES_WITH_STOCK
-                        ? byExactListing(found.name(), List.of())
-                        : byListing(found.name()).or(() -> byName(found.name()).map(Answer::of));
+                        ? outages.attempt(() -> byExactListing(found.name(), List.of()))
+                        : outages.attempt(() -> byListing(found.name()))
+                                .or(() -> outages.attempt(() -> byName(found.name()).map(Answer::of)));
                 if (byName.isPresent()) {
                     return byName;
                 }
             }
             if (!codeFirst) {
                 // 이름으로는 못 찾았다 — 상장명이 영문인 종목(NAVER·POSCO홀딩스)이 여기다. 코드를 믿는다
-                Optional<Answer> byCode = stockAnswer(found.code());
+                Optional<Answer> byCode = outages.attempt(() -> stockAnswer(found.code()));
                 if (byCode.isPresent()) {
                     return byCode;
                 }
@@ -306,18 +347,18 @@ public class StockService {
         Optional<Answer> asIndex = forms.stream()
                 .filter(form -> domestic.stream().anyMatch(client -> client.knowsIndex(form)))
                 .findFirst()
-                .flatMap(this::indexAnswer);
+                .flatMap(form -> outages.attempt(() -> indexAnswer(form)));
         if (asIndex.isPresent()) {
             return asIndex;
         }
         // 원문이 그대로 종목명일 수 있다 — 군더더기를 뗀 형태까지 색인에 대 본다(「타임나스닥100 etf」의 etf)
         for (String form : forms) {
-            Optional<Answer> byListing = byListing(form);
+            Optional<Answer> byListing = outages.attempt(() -> byListing(form));
             if (byListing.isPresent()) {
                 return byListing;
             }
         }
-        return byNames(query, forms);
+        return outages.attempt(() -> byNames(query, forms));
     }
 
     /** LLM이 준 코드를 이름과 견준 결과. */
@@ -354,7 +395,8 @@ public class StockService {
 
     /**
      * 이름이 <b>딱 맞는</b> 국내 상장 — 부분일치를 받으면 틀린 값이 나가는 자리가 쓴다(해석이 지수·미국으로
-     * 잘못 갔을 때, 코드가 일반 종목을 가리키는데 이름이 어긋날 때). 색인 실패는 빈손이다.
+     * 잘못 갔을 때, 코드가 일반 종목을 가리키는데 이름이 어긋날 때). 색인 실패는 장애다 — 빈손으로 삼키면
+     * 다른 길까지 빈손일 때 「못 찾음」이 된다({@link Outages}가 다른 길을 다 해 본 뒤에 알린다).
      */
     private Optional<Answer> byExactListing(String name, List<String> forms) {
         try {
@@ -363,9 +405,12 @@ public class StockService {
                     .flatMap(Optional::stream)
                     .findFirst()
                     .flatMap(listing -> stockAnswer(listing.code(), listing.fund()));
+        } catch (Unavailable e) {
+            // 색인은 찾았고 시세 출처가 장애다 — 「색인 실패」로 삼키면 「못 찾음」이 된다
+            throw e;
         } catch (RuntimeException e) {
             log.warn("[stock] '{}' 색인 검색 실패: {}", name, FailureReason.of(e));
-            return Optional.empty();
+            throw new Unavailable("종목 색인 '" + name + "'", e);
         }
     }
 
@@ -376,24 +421,28 @@ public class StockService {
      * {@code TIGER 미국나스닥100}) 정규화는 소문자로 내리고 공백을 지운다. 조회는 1시간 캐시라 되풀이 비용이 작다.
      */
     private Optional<Answer> byNames(String query, List<String> forms) {
-        return Stream.concat(Stream.of(query.strip()), forms.stream())
+        // 한 형태의 실패로 나머지 형태를 버리지 않는다 — 장애는 기억했다가 전부 빈손일 때만 던진다
+        Outages outages = new Outages();
+        Optional<Answer> found = Stream.concat(Stream.of(query.strip()), forms.stream())
                 .distinct()
-                .map(this::byName)
+                .map(name -> outages.attempt(() -> byName(name).map(Answer::of)))
                 .flatMap(Optional::stream)
-                .findFirst()
-                .map(Answer::of);
+                .findFirst();
+        return outages.settle(found);
     }
 
     /**
      * 색인에서 이름으로 코드를 찾아 <b>1순위 경로</b>로 조회한다 — 실시간 시세에 전망·차트까지 붙는다.
-     * 색인 실패는 {@link #byName}과 같은 이유로 삼킨다: 다음 수(공공데이터포털)가 있다.
+     * 색인 실패는 장애로 던진다 — {@link Outages}가 기억하고 다음 수(공공데이터포털)로 넘어간다.
      */
     private Optional<Answer> byListing(String name) {
         try {
             return listings.find(name).flatMap(listing -> stockAnswer(listing.code(), listing.fund()));
+        } catch (Unavailable e) {
+            throw e;
         } catch (RuntimeException e) {
             log.warn("[stock] '{}' 색인 검색 실패 — 공공데이터포털로 넘어갑니다: {}", name, FailureReason.of(e));
-            return Optional.empty();
+            throw new Unavailable("종목 색인 '" + name + "'", e);
         }
     }
 
@@ -413,7 +462,7 @@ public class StockService {
      * <b>종목마다 따로 실패한다.</b>
      */
     public List<Answer> answersOf(List<String> codes) {
-        return codes.stream().map(this::stockAnswer).flatMap(Optional::stream).toList();
+        return codes.stream().map(code -> orEmpty(() -> stockAnswer(code))).flatMap(Optional::stream).toList();
     }
 
     /**
@@ -423,7 +472,7 @@ public class StockService {
      * 코스닥이 안 나온다고 코스피까지 빠질 이유가 없다.
      */
     public List<StockQuote> indicesOf(List<Index> indices) {
-        return indices.stream().map(this::index).flatMap(Optional::stream).toList();
+        return indices.stream().map(index -> orEmpty(() -> index(index))).flatMap(Optional::stream).toList();
     }
 
     /**
@@ -440,7 +489,17 @@ public class StockService {
      * 전망 대기(실측 ~1.7초)가 뒤 종목의 KIS 차례와 겹친다. 결과 순서는 {@code symbols} 그대로다.
      */
     public List<Answer> usAnswersOf(List<UsSymbol> symbols) {
-        return Concurrently.map(symbols, this::usAnswer).stream().flatMap(Optional::stream).toList();
+        return Concurrently.map(symbols, symbol -> orEmpty(() -> usAnswer(symbol)))
+                .stream().flatMap(Optional::stream).toList();
+    }
+
+    /** 브리핑 경로 — 장애도 그 줄만 빠진다. 로그는 {@link #first}가 이미 남겼다. */
+    private static <T> Optional<T> orEmpty(Supplier<Optional<T>> lookup) {
+        try {
+            return lookup.get();
+        } catch (Unavailable e) {
+            return Optional.empty();
+        }
     }
 
     /**
@@ -462,6 +521,20 @@ public class StockService {
          */
         public static Answer of(StockQuote quote) {
             return new Answer(quote, null, null);
+        }
+    }
+
+    /**
+     * <b>출처가 전부 장애로 실패했다</b> — 「그런 종목이 없다」가 아니다.
+     *
+     * <p>{@link #answer}만 던진다. 웹훅이 이것을 받아 「잠시 후 다시」로 답한다(stock/AGENTS.md).
+     * 브리핑 경로({@link #answersOf}·{@link #indicesOf}·{@link #usAnswersOf})는 던지지 않는다 —
+     * 종목마다 따로 실패하고 그 줄만 빠진다.
+     */
+    public static final class Unavailable extends RuntimeException {
+
+        public Unavailable(String what, RuntimeException cause) {
+            super(what + "를 어느 출처에서도 가져오지 못했습니다 (장애): " + FailureReason.of(cause), cause);
         }
     }
 
@@ -733,15 +806,15 @@ public class StockService {
     }
 
     /**
-     * 이름 검색 — <b>이중화 상대가 없다.</b> 실패는 "그런 종목이 없다"와 구분되지 않으므로
-     * 여기서 삼키고 빈손으로 돌려준다. 부르는 쪽은 이미 그 다음 수를 갖고 있다.
+     * 이름 검색 — <b>이중화 상대가 없다.</b> 실패는 「그런 종목이 없다」가 아니므로 장애로 던진다 —
+     * 부르는 쪽({@link Outages})이 기억하고 다음 수로 넘어가며, 전부 빈손일 때만 알린다.
      */
     private Optional<StockQuote> byName(String name) {
         try {
             return names.byName(name);
         } catch (RuntimeException e) {
             log.warn("[stock] '{}' 이름 검색 실패: {}", name, FailureReason.of(e));
-            return Optional.empty();
+            throw new Unavailable("이름 검색 '" + name + "'", e);
         }
     }
 
@@ -750,15 +823,26 @@ public class StockService {
      *
      * <p>성공하면 즉시 돌아가므로 <b>1순위가 살아 있는 한 2순위는 호출조차 되지 않는다.</b>
      * FMP 하루 250회를 헛되이 태우지 않는 것이 이 한 줄이다.
+     *
+     * @return 처음 성공한 값. 출처가 전부 「모른다」({@link StockClient.NotFound})였으면 빈 값
+     * @throws Unavailable 전부 실패했는데 그중 하나라도 장애였을 때 — 그 출처는 알았을 수 있다
      */
     private static <T extends StockClient> Optional<StockQuote> first(
             List<T> clients, Function<T, StockQuote> call, String what) {
-        Optional<StockQuote> found = Failover.first(clients, call,
-                // 다음 출처가 있으면 조용히 넘어간다. 이게 이중화가 하는 일이다
-                (client, e) -> log.warn("[stock] {} — {} 조회 실패, 다음 출처로 넘어갑니다: {}",
-                        what, client.source().displayName(), FailureReason.of(e)));
+        AtomicReference<RuntimeException> outage = new AtomicReference<>();
+        Optional<StockQuote> found = Failover.first(clients, call, (client, e) -> {
+            // 다음 출처가 있으면 조용히 넘어간다. 이게 이중화가 하는 일이다
+            log.warn("[stock] {} — {} 조회 실패, 다음 출처로 넘어갑니다: {}",
+                    what, client.source().displayName(), FailureReason.of(e));
+            if (!(e instanceof StockClient.NotFound)) {
+                outage.compareAndSet(null, e);
+            }
+        });
         if (found.isEmpty()) {
             log.info("[stock] {}를 어느 출처에서도 가져오지 못했습니다", what);
+            if (outage.get() != null) {
+                throw new Unavailable(what, outage.get());
+            }
         }
         return found;
     }

@@ -47,6 +47,9 @@ class RedisConnectionLogTest {
         assertThatCode(() -> new RedisConnectionLog(factory).check()).doesNotThrowAnyException();
 
         assertThat(output).contains("[redis] 연결 실패").doesNotContain("[redis] 연결됨");
+        assertThat(output)
+                .as("캐시만 꺼지는 것이 아니다 — 웹훅 중복 가리기와 정기 발송도 Redis에 기댄다")
+                .contains("캐시").contains("update_id").contains("정기 발송");
     }
 
     @Test

@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import io.saiden.economyhelper.config.EconomyHelperProperties.Index;
 import io.saiden.economyhelper.stock.adapter.out.datago.MarketIndexApi.MarketIndex;
 import io.saiden.economyhelper.stock.adapter.out.datago.StockPriceApi.StockPrice;
+import io.saiden.economyhelper.stock.application.port.out.StockClient;
 import io.saiden.economyhelper.stock.domain.StockQuote;
 import io.saiden.economyhelper.stock.domain.StockSource;
 import io.saiden.economyhelper.testsupport.TestProperties;
@@ -92,9 +93,10 @@ class DataGoStockClientTest {
     void throwsSoThatFailoverCanHappen() {
         DataGoStockClient client = client(Map.of(), null);
 
-        assertThatThrownBy(() -> client.stock("999999")).isInstanceOf(IllegalStateException.class);
+        // 「모른다」는 장애와 타입이 갈린다 — StockService가 전부 실패한 뒤 「못 찾음」과 「잠시 후 다시」를 가른다
+        assertThatThrownBy(() -> client.stock("999999")).isInstanceOf(StockClient.NotFound.class);
         assertThatThrownBy(() -> client.index(new Index("없는지수", null)))
-                .isInstanceOf(IllegalStateException.class);
+                .isInstanceOf(StockClient.NotFound.class);
     }
 
     @Test
@@ -207,7 +209,10 @@ class DataGoStockClientTest {
     @Test
     @DisplayName("둘 다 죽었으면 던진다 — 빈손을 값으로 주면 이중화가 다음 출처로 못 넘어간다")
     void throwsWhenBothApisAreDown() {
-        assertThatThrownBy(() -> client(null, null, null).stock("005930")).isInstanceOf(RuntimeException.class);
+        assertThatThrownBy(() -> client(null, null, null).stock("005930"))
+                .isInstanceOf(RuntimeException.class)
+                .as("둘 다 죽었으면 「모른다」가 아니다 — 1순위도 죽었을 때 「못 찾음」으로 답하게 된다")
+                .isNotInstanceOf(StockClient.NotFound.class);
         assertThat(client(null, null, null).byName("삼성")).as("이름 검색은 「없다」가 값이라 던지지 않는다").isEmpty();
     }
 

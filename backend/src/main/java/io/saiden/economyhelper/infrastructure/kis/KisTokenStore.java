@@ -46,13 +46,14 @@ import org.springframework.web.client.RestClient;
  * <p><b>Redis에 두는 이유는 인스턴스가 늘어도 토큰이 하나여야 하기 때문이다</b>
  * ({@code FmpQuotaGuard}가 쿼터 카운터를 Redis에 두는 것과 같다).
  *
- * <p><b>KIS가 토큰을 거절하면 버린다</b>({@link #invalidate()}). 무효 토큰에 401이 아니라
+ * <p><b>KIS가 토큰을 거절하면 버린다</b>({@link #invalidate(String)}). 무효 토큰에 401이 아니라
  * HTTP 500이 오므로 호출자가 그걸 알아보고 불러 준다({@code KisHeaders.isInvalidToken}).
  *
  * <p><b>Redis가 죽으면 프로세스 사본을 쓴다 — {@code FmpQuotaGuard}와 반대 방향이다.</b>
  * 쿼터 카운터는 못 읽으면 그냥 호출을 통과시킨다(한도 초과의 대가가 작다). 여기는 반대로
  * 발급이 비싸다(1분 제한 + 알림톡). 그래서 Redis가 안 되면 메모리에 든 것을 쓰고, 둘 다 없을
- * 때만 발급한다.
+ * 때만 발급한다. <b>재발급 시각 도장도 같다</b> — 프로세스 사본과 Redis 중 늦은 쪽을 믿는다
+ * ({@code BinanceBanGate}와 같은 판단이다). 도장을 잊으면 호출마다 발급한다.
  */
 @Component
 public class KisTokenStore {
@@ -114,6 +115,9 @@ public class KisTokenStore {
     /** Redis가 죽었을 때 쓸 사본. 발급이 비싸서 들고 있는다. */
     private volatile Cached memory;
 
+    /** 재발급 시각 도장의 프로세스 사본 — Redis가 죽거나 비워져도 이 인스턴스만은 기다린다. */
+    private volatile Instant localReissueAfter = Instant.EPOCH;
+
     /**
      * 이 프로세스 안의 발급 줄. <b>Redis 락만으로는 모자란다</b> — Redis가 죽으면 락이 늘 「잡혔다」를 줘서
      * 같은 프로세스의 두 요청이 함께 발급하고, 뒤의 것이 앞의 것을 무효로 만든다. 뒤에 온 요청은 기다렸다가
@@ -170,26 +174,49 @@ public class KisTokenStore {
     }
 
     /**
-     * <b>KIS가 이 토큰을 거절했다</b>({@code msg_cd=EGW00121}) — 들고 있는 것을 버린다.
+     * <b>KIS가 이 토큰을 거절했다</b>({@code msg_cd=EGW00121}) — 들고 있는 것이 그 토큰이면 버린다.
      *
      * <p>안 버리면 토큰이 기록된 만료까지(최대 24시간) 남아 모든 KIS 호출이 실패한다
      * ({@link KisHeaders#reasonOf} 참고).
      *
      * <p><b>즉시 재발급하지 않는다.</b> {@link #SAME_TOKEN_WINDOW} 안에는 같은 죽은 토큰이
-     * 오기 때문이다. 대신 "언제 뒤에 발급해도 되는지"를 Redis에 남기고, 그 시각이 지나면
-     * {@link #token()}의 평상시 경로가 새로 받아 스스로 낫는다.
+     * 오기 때문이다. 대신 "언제 뒤에 발급해도 되는지"를 Redis와 프로세스 사본에 남기고, 그 시각이
+     * 지나면 {@link #token()}의 평상시 경로가 새로 받아 스스로 낫는다.
+     *
+     * <p>⚠️ <b>실패한 토큰을 받아 대 본다.</b> 같은 죽은 토큰을 든 요청 둘이 차례로 부르면 두 번째는
+     * 이미 비워진 자리를 본다 — 그때 발급 시각을 모른다고 「지금부터 6시간」을 찍으면 앞이 찍은
+     * 도장을 늦춰 KIS를 헛되이 막는다. 그래서 <b>들고 있는 것이 다른 토큰이면 아무것도 안 하고</b>,
+     * 도장은 <b>늦추지 않는다</b>(이미 있으면 둘 중 이른 쪽).
      *
      * <p>⚠️ <b>{@code EGW00304}(잘못된 앱시크릿)에는 부르지 않는다.</b> 그것도 500으로 오지만
      * 재발급으로 낫지 않는다 — 사람이 키를 고쳐야 한다. 버리면 멀쩡한 토큰을 잃고 알림톡만
      * 한 번 더 간다. 판정은 {@link KisHeaders#isInvalidToken}이 한다.
+     *
+     * @param failedToken KIS가 거절한 그 토큰 — 호출에 실었던 값
      */
-    public void invalidate() {
+    public void invalidate(String failedToken) {
         Instant now = clock.instant();
-        Cached dead = memory != null ? memory : readAny();
-        // 발급 시각을 알면 정확히 그때부터 6시간이다. 모르면(옛 형식) 지금부터 세어
-        // 규칙을 어기지 않는 쪽으로 기운다 — 늦게 낫는 것이 알림톡을 헛되이 쓰는 것보다 낫다
-        Instant issuedAt = dead == null || dead.issuedAt() == null ? now : dead.issuedAt();
+        Cached current = memory != null ? memory : readAny();
+        if (current != null && !current.token().equals(failedToken)) {
+            // 그사이 다른 요청·인스턴스가 갈아 끼웠다. 앞 토큰의 실패로 새 토큰을 지우지 않는다
+            return;
+        }
+        // 메모리 사본만 보고 Redis를 지우면 안 된다 — 다른 인스턴스가 이미 버리고 새로 받아 둔 토큰일 수 있다.
+        // 그때는 죽은 사본만 버리고 공유된 새 토큰을 쓴다(도장도 찍지 않는다 — 막을 이유가 없다)
+        Cached shared = readAny();
+        if (shared != null && !shared.token().equals(failedToken)) {
+            memory = null;
+            return;
+        }
+        // 발급 시각을 알면 정확히 그때부터 6시간이다. 모르면(옛 형식·이미 비워짐) 지금부터 세어
+        // 규칙을 어기지 않는 쪽으로 기운다 — 늦게 낫는 것이 알림톡을 헛되이 쓰는 것보다 낫다.
+        // 다만 앞서 찍힌 도장이 있으면 그보다 늦추지 않는다
+        Instant issuedAt = current == null || current.issuedAt() == null ? now : current.issuedAt();
         Instant reissueAfter = issuedAt.plus(SAME_TOKEN_WINDOW);
+        Instant stamped = reissueAfter();
+        if (stamped != null && stamped.isAfter(now) && stamped.isBefore(reissueAfter)) {
+            reissueAfter = stamped;
+        }
 
         memory = null;
         try {
@@ -204,13 +231,23 @@ public class KisTokenStore {
                 + "토큰을 돌려줍니다", reissueAfter);
     }
 
-    /** 재발급 허용 시각. 없거나 못 읽으면 {@code null} — 그때는 막지 않는다. */
+    /**
+     * 재발급 허용 시각 — 프로세스 사본과 Redis 중 <b>늦은 쪽</b>. 둘 다 없으면 {@code null}이고 그때는
+     * 막지 않는다.
+     */
     private Instant reissueAfter() {
+        Instant local = localReissueAfter;
+        Instant shared = sharedReissueAfter();
+        Instant later = shared != null && shared.isAfter(local) ? shared : local;
+        return Instant.EPOCH.equals(later) ? null : later;
+    }
+
+    /** Redis의 도장. 없거나 못 읽으면 {@code null} — 도장이 깨졌다고 KIS를 영영 못 부르게 하지 않는다. */
+    private Instant sharedReissueAfter() {
         try {
             String stored = redis.opsForValue().get(REISSUE_AFTER_KEY);
             return stored == null ? null : Instant.ofEpochSecond(Long.parseLong(stored.trim()));
         } catch (RuntimeException e) {
-            // 못 읽으면 막지 않는다 — 도장이 깨졌다고 KIS를 영영 못 부르게 하지 않는다
             return null;
         }
     }
@@ -340,12 +377,16 @@ public class KisTokenStore {
         }
     }
 
-    /** 재발급 허용 시각을 남긴다. {@link #invalidate()}와 만료 역전이 함께 쓴다. */
+    /**
+     * 재발급 허용 시각을 남긴다 — 프로세스 사본에도. {@link #invalidate(String)}와 만료 역전이 함께 쓴다.
+     * 사본은 그대로 덮는다 — 늦추지 않는 판단은 부르는 쪽이 이미 했다.
+     */
     private void markReissueAfter(Instant reissueAfter, Instant now) {
         Duration ttl = Duration.between(now, reissueAfter);
         if (!ttl.isPositive()) {
             return;
         }
+        localReissueAfter = reissueAfter;
         try {
             redis.opsForValue().set(REISSUE_AFTER_KEY,
                     Long.toString(reissueAfter.getEpochSecond()), ttl);
@@ -414,7 +455,7 @@ public class KisTokenStore {
     /**
      * 토큰과 만료, 그리고 <b>발급 시각</b>. Redis에는 {@code 토큰|만료초|발급초} 한 줄로 담는다.
      *
-     * <p><b>발급 시각을 담는 이유는 {@link #invalidate()} 하나다.</b> 무효를 알아차렸을 때
+     * <p><b>발급 시각을 담는 이유는 {@link #invalidate(String)} 하나다.</b> 무효를 알아차렸을 때
      * "언제부터 6시간인가"를 알아야 하는데, 그 기준이 발급 시각이다. 없으면 알아차린 시각부터
      * 세어 최대 6시간을 더 기다리게 된다.
      *

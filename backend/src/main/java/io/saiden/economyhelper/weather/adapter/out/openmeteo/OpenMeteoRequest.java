@@ -25,6 +25,13 @@ import org.springframework.web.client.RestClient;
  */
 final class OpenMeteoRequest {
 
+    /**
+     * 예보 API에서 받을 시간별 항목 — 확률과 양과 종류. 일별과 한 응답으로 받는 예보
+     * ({@code OpenMeteoForecastClient})와 시간별만 받는 보충({@code OpenMeteoHourlyClient})이 같은 목록을 쓴다.
+     * 둘이 갈리면 한 화면의 강수 줄이 어느 쪽이 냈느냐에 따라 달라진다.
+     */
+    static final String FORECAST_HOURLY_FIELDS = "precipitation_probability,precipitation,weather_code";
+
     private OpenMeteoRequest() {
     }
 

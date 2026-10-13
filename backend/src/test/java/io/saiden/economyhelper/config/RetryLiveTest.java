@@ -43,6 +43,8 @@ class RetryLiveTest extends WireMockTest {
         registry.add("economy-helper.weather.open-meteo.geocoding-base-url", () -> server.baseUrl());
         // 캐시를 끈다 — 켜 두면 두 번째 호출이 캐시 히트라 재시도가 아예 안 보인다
         registry.add("spring.cache.type", () -> "none");
+        // 본문이 멈추는 경우를 짧게 재현한다 — WireMock(localhost)은 출처별 타임아웃 표에 없어 기본값을 쓴다
+        registry.add("spring.http.clients.read-timeout", () -> "500ms");
     }
 
     @Autowired GeocodingApi geocoding;
@@ -61,6 +63,34 @@ class RetryLiveTest extends WireMockTest {
                 .willReturn(aResponse().withStatus(503))
                 .willSetStateTo("recovered"));
         server.stubFor(get(urlPathEqualTo(PATH)).inScenario("flaky")
+                .whenScenarioStateIs("recovered")
+                .willReturn(aResponse().withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("""
+                                {"results":[{"name":"성남시","latitude":37.43861,"longitude":127.13778,
+                                 "country":"대한민국","timezone":"Asia/Seoul","population":914832}]}""")));
+
+        Optional<?> found = geocoding.find("성남시", "KR");
+
+        assertThat(found).as("두 번째 시도가 성공했으면 값이 나와야 한다").isPresent();
+        server.verify(2, getRequestedFor(urlPathEqualTo(PATH)));
+    }
+
+    @Test
+    @DisplayName("본문을 읽다 끊긴 것도 다시 부른다 — Spring이 이것만 ResourceAccessException이 아닌 맨 RestClientException으로 감싼다")
+    void retriesAFailureWhileReadingTheBody() {
+        // 헤더(200)까지 오고 본문이 읽기 타임아웃을 넘겨 멈춘다. 헤더 전에 깨지면(리셋·깨진 청크)
+        // ResourceAccessException이라 원래 재시도됐지만, 본문 읽기는 DefaultRestClient
+        // .readWithMessageConverters가 맨 RestClientException으로 감싸 retryExceptions 열거에 안
+        // 걸렸다(spring-web 7.0.8 소스·JDK 클라이언트로 확인 — 2026-10-13)
+        server.stubFor(get(urlPathEqualTo(PATH)).inScenario("broken-body")
+                .whenScenarioStateIs("Started")
+                .willReturn(aResponse().withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"results\":[{\"name\":\"" + "가".repeat(2000) + "\"}]}")
+                        .withChunkedDribbleDelay(20, 5_000))
+                .willSetStateTo("recovered"));
+        server.stubFor(get(urlPathEqualTo(PATH)).inScenario("broken-body")
                 .whenScenarioStateIs("recovered")
                 .willReturn(aResponse().withStatus(200)
                         .withHeader("Content-Type", "application/json")

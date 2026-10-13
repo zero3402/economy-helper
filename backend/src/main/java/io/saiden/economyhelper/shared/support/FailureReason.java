@@ -29,10 +29,15 @@ import org.springframework.web.client.RestClientResponseException;
  * <p><b>어디에 쓰고 어디에 안 쓰는지가 규칙이다.</b> 이것은 <b>외부 호출</b> 실패를 분류한다 —
  * 상대가 죽었는지 우리가 끊었는지를 가르는 것이 전부이기 때문이다. 그래서 Redis 접근 실패
  * ({@code KisTokenStore}·{@code KisExchangeCache}·{@code FmpQuotaGuard}·{@code DigestSlot})와
- * 내부 조립 실패({@code TelegramWebhookController}의 답 만들기)에는 <b>쓰지 않는다</b> —
+ * 내부 조립 실패({@code TelegramWebhookController}의 답 만들기)에는 <b>분류하려고 쓰지 않는다</b> —
  * 거기서는 브레이커도 리미터도 451도 나올 수 없어 예외 이름이 이미 그 자체로 답이고,
  * 굳이 통과시키면 "분류했다"는 인상만 남는다. 로그가 곳곳에서 다른 모양인 것이 아니라
  * <b>다른 종류의 실패라서 다른 것</b>이다.
+ *
+ * <p>예외가 하나 있다 — 캐시 오류({@code CacheErrorConfig}·{@code CacheEvictEndpoint})와 기동 PING
+ * ({@code RedisConnectionLog})은
+ * 이것을 <b>메시지를 싣지 않는 한 줄</b>로 쓴다. 분류할 것은 없지만 모르는 예외에는 이름 사슬만
+ * 남기므로, 역직렬화 오류 메시지에 실려 오는 캐시 값 조각(검색어·답)이 로그로 흘러들지 않는다.
  *
  * <p>⚠️ <b>가르는 기준은 「그 그물이 어디 쳐졌나」가 아니라 「거기 닿을 수 있는 것이
  * 무엇인가」다 — 그래서 서비스의 바깥 그물 셋이 서로 다르고, 그것이 맞다.</b>

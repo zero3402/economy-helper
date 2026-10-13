@@ -161,6 +161,12 @@ class ResilienceConfigTest {
                     org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR, "", null, null, null),
             new org.springframework.web.client.ResourceAccessException(
                     "read timed out", new java.net.SocketTimeoutException()),
+            // 본문을 읽다 끊긴 것 — DefaultRestClient.readWithMessageConverters가 이 모양으로 감싼다
+            new org.springframework.web.client.RestClientException(
+                    "Error while extracting response", new java.net.SocketTimeoutException()),
+            new org.springframework.web.client.RestClientException("Error while extracting response",
+                    new org.springframework.http.converter.HttpMessageNotReadableException(
+                            "I/O error", new java.io.EOFException(), null)),
         };
 
         for (io.github.resilience4j.retry.Retry retry : retries.getAllRetries()) {
@@ -168,6 +174,25 @@ class ResilienceConfigTest {
                 assertThat(retry.getRetryConfig().getExceptionPredicate().test(e))
                         .as("%s가 %s를 재시도하지 않는다", retry.getName(), e.getClass().getSimpleName())
                         .isTrue();
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("I/O가 아닌 RestClientException은 재시도하지 않는다 — 깨진 JSON은 다시 받아도 깨져 있다")
+    void neverRetriesANonIoRestClientException() {
+        Throwable[] never = {
+            new org.springframework.web.client.RestClientException("Error while extracting response",
+                    new org.springframework.http.converter.HttpMessageNotReadableException(
+                            "JSON parse error", (org.springframework.http.HttpInputMessage) null)),
+            new org.springframework.web.client.RestClientException("no cause"),
+        };
+
+        for (io.github.resilience4j.retry.Retry retry : retries.getAllRetries()) {
+            for (Throwable e : never) {
+                assertThat(retry.getRetryConfig().getExceptionPredicate().test(e))
+                        .as("%s가 %s를 재시도한다", retry.getName(), e.getMessage())
+                        .isFalse();
             }
         }
     }
@@ -276,6 +301,65 @@ class ResilienceConfigTest {
 
 
     @Test
+    @DisplayName("바이낸스 일시 실패가 며칠에 흩어져 있으면 브레이커가 안 열린다 — 몰려 오는 진짜 장애에만 연다")
+    void binanceBreakerIgnoresSparseTransientFailures() {
+        // ⚠️ 바이낸스는 호출이 드물다(브리핑 하루 한 번 + 가끔 /crypto). 재시도가 브레이커 **바깥**이라
+        //    일시 실패 한 번이 「실패 하나 + 재시도 성공 하나」로 세어진다 — 호출 수로 센 창(10건·50%)이면
+        //    며칠에 걸친 그 쌍 다섯이 50%를 채워 150초 동안 코인 칸이 「조회 실패」가 됐다. 그래서 시간으로 센다
+        MovableClock clock = new MovableClock(java.time.Instant.parse("2026-10-13T00:00:00Z"));
+        io.github.resilience4j.circuitbreaker.CircuitBreakerConfig config =
+                io.github.resilience4j.circuitbreaker.CircuitBreakerConfig
+                        .from(registry.circuitBreaker("binance").getCircuitBreakerConfig())
+                        .clock(clock)
+                        .build();
+        Throwable timeout = new org.springframework.web.client.ResourceAccessException("Read timed out");
+
+        CircuitBreaker sparse = CircuitBreaker.of("binance-sparse", config);
+        for (int day = 0; day < 10; day++) {
+            sparse.onError(0, java.util.concurrent.TimeUnit.MILLISECONDS, timeout);
+            sparse.onSuccess(0, java.util.concurrent.TimeUnit.MILLISECONDS);
+            clock.now = clock.now.plus(java.time.Duration.ofDays(1));
+        }
+        assertThat(sparse.getState())
+                .as("하루 한 번의 일시 실패가 쌓여 열리면 「종종 실패」가 우리 손으로 만든 정지가 된다")
+                .isEqualTo(CircuitBreaker.State.CLOSED);
+
+        // 진짜 장애 — 두 요청이 재시도까지 다 실패했다(몇 초 안의 네 번)
+        CircuitBreaker outage = CircuitBreaker.of("binance-outage", config);
+        for (int i = 0; i < 4; i++) {
+            outage.onError(0, java.util.concurrent.TimeUnit.MILLISECONDS, timeout);
+        }
+        assertThat(outage.getState())
+                .as("몰려 오는 실패에는 열려야 한다 — 시간 창이 너무 넓거나 최소 호출 수가 너무 크면 영영 안 열린다")
+                .isEqualTo(CircuitBreaker.State.OPEN);
+    }
+
+    /** 시간 창을 넘겨 보려고 미는 시계 — 브레이커의 시간 창은 설정의 시계를 따른다. */
+    private static final class MovableClock extends java.time.Clock {
+
+        private java.time.Instant now;
+
+        private MovableClock(java.time.Instant now) {
+            this.now = now;
+        }
+
+        @Override
+        public java.time.Instant instant() {
+            return now;
+        }
+
+        @Override
+        public java.time.ZoneId getZone() {
+            return java.time.ZoneOffset.UTC;
+        }
+
+        @Override
+        public java.time.Clock withZone(java.time.ZoneId zone) {
+            return this;
+        }
+    }
+
+    @Test
     @DisplayName("텔레그램 429는 브레이커를 열지 않는다 — 우리가 빨리 물은 것이지 상대 장애가 아니다")
     void telegramRateLimitDoesNotOpenTheBreaker() {
         // 429가 200 본문에 error_code로 오므로 HTTP 예외가 아니다 — 좁은 타입으로 갈라 던져야
@@ -292,10 +376,32 @@ class ResilienceConfigTest {
 
         breaker.onError(0, java.util.concurrent.TimeUnit.MILLISECONDS,
                 new io.saiden.economyhelper.telegram.adapter.out.TelegramClient
-                        .TelegramException("chat not found"));
+                        .TelegramUnavailable("게이트웨이 502"));
         assertThat(breaker.getMetrics().getNumberOfFailedCalls())
-                .as("그 밖의 거절은 여전히 실패다 — 설정이 틀린 것은 알려야 한다")
+                .as("닿지 못한 것은 여전히 실패다 — 텔레그램이 정말 죽었으면 열려야 한다")
                 .isEqualTo(before + 1);
+    }
+
+    @Test
+    @DisplayName("텔레그램의 4xx 거절은 브레이커를 열지 않는다 — 토픽 하나가 틀려도 웹훅 답장까지 막히던 것")
+    void telegramClientRejectionDoesNotOpenTheBreaker() {
+        // 「message thread not found」·HTML 파싱 실패(can't parse entities)는 그 통 하나의 잘못이다.
+        // 실패로 세면 다섯 번에 브레이커가 열려, 멀쩡한 방의 명령 답장까지 60초 동안 버려진다 —
+        // 바이낸스가 없는 심볼의 400(UnknownSymbol)을 빼는 것과 같은 자리다
+        CircuitBreaker breaker = registry.circuitBreaker("telegram");
+        long before = breaker.getMetrics().getNumberOfFailedCalls();
+
+        breaker.onError(0, java.util.concurrent.TimeUnit.MILLISECONDS,
+                new io.saiden.economyhelper.telegram.adapter.out.TelegramClient.TelegramRejected(
+                        "텔레그램 sendMessage 거절: 400 Bad Request: message thread not found"));
+
+        assertThat(breaker.getMetrics().getNumberOfFailedCalls())
+                .as("텔레그램의 4xx 거절을 상대 장애로 셌다")
+                .isEqualTo(before);
+        assertThat(retries.retry("telegram").getRetryConfig().getExceptionPredicate()
+                .test(new io.saiden.economyhelper.telegram.adapter.out.TelegramClient.TelegramRejected("400")))
+                .as("거절은 다시 불러도 같은 답이다")
+                .isFalse();
     }
 
     @Test

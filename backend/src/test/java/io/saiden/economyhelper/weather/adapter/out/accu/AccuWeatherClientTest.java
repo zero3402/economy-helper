@@ -251,6 +251,13 @@ class AccuWeatherClientTest extends WireMockTest {
         server.verify(0, getRequestedFor(urlPathEqualTo(FORECAST_PATH)));
     }
 
+    @Test
+    @DisplayName("키가 없으면 맡지 않는다 — 실패로 세지 않고 다음 출처로 바로 넘어간다(기상청과 같다)")
+    void doesNotSupportAnythingWithoutApiKey() {
+        assertThat(clientWith("").supports(MIGEUM, days(1), TODAY)).isFalse();
+        assertThat(client.supports(MIGEUM, days(1), TODAY)).isTrue();
+    }
+
     private AccuWeatherClient clientWith(String apiKey) {
         var properties = TestProperties.builder().accuWeather(server.baseUrl(), apiKey).build();
         return new AccuWeatherClient(RestClient.builder(), properties,

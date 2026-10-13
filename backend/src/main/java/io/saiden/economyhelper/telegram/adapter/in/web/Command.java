@@ -111,6 +111,11 @@ public enum Command {
         return example;
     }
 
+    /** 정식 명령 글자({@code /crypto}) — 웹훅 로그가 사용자 원문 대신 이것을 남긴다. */
+    String token() {
+        return token;
+    }
+
     /**
      * 줄임말. 없으면 {@code null}이다 — <b>다만 지금은 여섯이 다 들고 있다.</b>
      *

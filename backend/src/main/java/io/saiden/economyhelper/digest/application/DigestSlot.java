@@ -18,7 +18,7 @@ import org.slf4j.LoggerFactory;
  * 한 번만 나가고, "정확히 09시에 깨어 있어야 한다"는 요구가 사라진다.
  *
  * <p>⚠️ <b>접두사를 생성자가 요구한다.</b> {@link SendHistory}는 잡들이 저장소 하나를 함께
- * 쓰므로, 접두사를 빠뜨리면 6시 날씨가 슬롯을 잡아 9시 브리핑이 통째로 안 나간다(실제로 났다).
+ * 쓰므로, 접두사를 빠뜨리면 먼저 도는 날씨 알람(8시)이 슬롯을 잡아 9시 브리핑이 통째로 안 나간다(실제로 났다).
  * 브리핑만 빈 문자열이다 — 이유는 {@code DailyDigestJob.SLOT_PREFIX}.
  */
 public final class DigestSlot {

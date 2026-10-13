@@ -92,6 +92,16 @@ class QueryNormalizerTest {
         }
     }
 
+    @Test
+    @DisplayName("한글이 한 자라도 섞이면 한글이다 — 검색어 번역·낱말 맞추기·지명 표기가 같은 판별을 쓴다")
+    void detectsHangul() {
+        assertThat(QueryNormalizer.hasHangul("금리")).isTrue();
+        assertThat(QueryNormalizer.hasHangul("s&p500 지수")).isTrue();
+        assertThat(QueryNormalizer.hasHangul("oil")).isFalse();
+        assertThat(QueryNormalizer.hasHangul("s&p500")).isFalse();
+        assertThat(QueryNormalizer.hasHangul(null)).isFalse();
+    }
+
     @Nested
     @DisplayName("/news 토큰 정규화 — 여기서만 조사를 뗀다")
     class ForSearchToken {

@@ -76,7 +76,16 @@ public class WeatherService {
      * @return 처음 성공한 출처의 날씨. 전부 실패하거나 맡을 출처가 없으면 {@link Optional#empty()}
      */
     public Optional<Weather> forecast(GeoLocation place, WeatherPeriod period) {
-        LocalDate today = today(place);
+        return forecast(place, period, today(place));
+    }
+
+    /**
+     * 부르는 쪽이 이미 잰 오늘로 조회한다 — <b>기간을 편 오늘과 출처를 고르는 오늘이 같아야 한다.</b>
+     * 여기서 시계를 다시 읽으면 자정 직전의 「오늘」이 어제가 되어 재분석(지난 날)으로 간다.
+     *
+     * @param today 그 지역의 오늘({@link #today})
+     */
+    public Optional<Weather> forecast(GeoLocation place, WeatherPeriod period, LocalDate today) {
         // 못 하는 출처는 부르지 않는다 — 먼저 걸러 두면 "시도했는가"를 목록이 말해 준다
         List<WeatherClient> eligible = clients.stream()
                 .filter(client -> client.supports(place, period, today))

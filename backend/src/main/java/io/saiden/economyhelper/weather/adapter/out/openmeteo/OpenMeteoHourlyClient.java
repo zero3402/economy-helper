@@ -39,11 +39,7 @@ import org.springframework.web.client.RestClient;
 @Component
 public class OpenMeteoHourlyClient implements HourlyPrecipitationClient {
 
-    /**
-     * 확률과 양과 종류. 일별은 안 받는다 — 이 클래스가 필요한 것은 시각뿐이고,
-     * 안 쓸 값을 받아 오면 응답만 무거워진다.
-     */
-    private static final String HOURLY_FIELDS = "precipitation_probability,precipitation,weather_code";
+    // 일별은 안 받는다 — 이 클래스가 필요한 것은 시각뿐이고, 안 쓸 값을 받아 오면 응답만 무거워진다
 
     private final RestClient restClient;
 
@@ -67,6 +63,7 @@ public class OpenMeteoHourlyClient implements HourlyPrecipitationClient {
     @Retry(name = "weatherOpenMeteoHourly")
     @CircuitBreaker(name = "weatherOpenMeteoHourly")
     public Map<LocalDate, List<HalfDay>> halves(GeoLocation place, WeatherPeriod period) {
-        return OpenMeteoRequest.hourly(restClient, "/v1/forecast", HOURLY_FIELDS, place, period);
+        return OpenMeteoRequest.hourly(restClient, "/v1/forecast",
+                OpenMeteoRequest.FORECAST_HOURLY_FIELDS, place, period);
     }
 }

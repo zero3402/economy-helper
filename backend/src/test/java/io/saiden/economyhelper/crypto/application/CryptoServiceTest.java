@@ -1,6 +1,7 @@
 package io.saiden.economyhelper.crypto.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.saiden.economyhelper.crypto.adapter.out.binance.BinanceApi;
 import io.saiden.economyhelper.crypto.adapter.out.binance.BinanceBanGate;
@@ -355,6 +356,46 @@ class CryptoServiceTest {
     }
 
     @Test
+    @DisplayName("낱개 재조회 중 418을 맞으면 남은 코인은 부르지 않는다 — 밴 중의 호출이 밴을 늘린다(ADR-0008)")
+    void stopsRequeryingOnceBanned() throws Exception {
+        java.util.concurrent.atomic.AtomicInteger http = new java.util.concurrent.atomic.AtomicInteger();
+        java.util.concurrent.CountDownLatch second = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.atomic.AtomicBoolean banned = new java.util.concurrent.atomic.AtomicBoolean();
+        BinanceApi gated = new BinanceApi(RestClient.builder(),
+                new io.saiden.economyhelper.crypto.adapter.out.binance.BinanceBanGate(null, java.time.Clock.systemUTC()),
+                TestProperties.offline()) {
+            @Override
+            public List<BinancePrice> prices(List<String> symbols) {
+                if (symbols.size() > 1) {
+                    throw new BinanceClient.UnknownSymbol("Invalid symbol.",
+                            new HttpClientErrorException(HttpStatus.BAD_REQUEST));
+                }
+                // BinanceApi의 밴 문을 흉내 낸다 — 닫힌 뒤에는 HTTP가 안 나간다
+                if (banned.get()) {
+                    throw new BinanceClient.Banned(FIXED_CLOCK.instant().plusSeconds(120));
+                }
+                if (http.incrementAndGet() == 1) {
+                    // 첫 낱개가 418을 받기 전에 다른 낱개가 문을 지나는지 본다. 차례로 묻는다면 아무도 안 온다
+                    try {
+                        second.await(300, java.util.concurrent.TimeUnit.MILLISECONDS);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                    banned.set(true);
+                    throw new HttpClientErrorException(HttpStatus.I_AM_A_TEAPOT);
+                }
+                second.countDown();
+                return List.of(new BinancePrice(symbols.getFirst(), Price.of(BigDecimal.ONE).orElse(null), null));
+            }
+        };
+        CryptoService service = new CryptoService(new RecordingApi(), gated, noResolver(), FIXED_CLOCK);
+
+        service.quotesOf(List.of("KRW-BTC", "KRW-ETH", "KRW-BCH"));
+
+        assertThat(http).as("418 뒤로는 한 번도 부르지 않는다").hasValue(1);
+    }
+
+    @Test
     @DisplayName("업비트 이름이 하나로 맞았는데 시세가 죽으면 그 코인을 조회 실패로 적는다 — LLM으로 넘겨 다른 코인을 답하지 않는다")
     void keepsTheMatchedCoinWhenUpbitTickersFail() {
         RecordingApi deadTickers = new RecordingApi() {
@@ -369,6 +410,37 @@ class CryptoServiceTest {
 
         assertThat(quote.name()).isEqualTo("비트코인캐시");
         assertThat(quote.upbit().state()).isEqualTo(CryptoQuote.Quote.State.FAILED);
+    }
+
+    @Test
+    @DisplayName("업비트 이름이 하나로 맞았는데 거래대금이 비어도 그 코인이다 — 고를 것이 없는데 LLM으로 넘기지 않는다")
+    void keepsTheSingleMatchWithoutTradeVolume() {
+        CryptoService service = cryptoService(new NoVolumeApi(), Map.of(), resolverOf("ETH"));
+
+        CryptoQuote quote = service.quote("비트코인캐시").orElseThrow();
+
+        assertThat(quote.market()).isEqualTo("KRW-BCH");
+        assertThat(quote.upbit().price().value()).isEqualByComparingTo("700000");
+    }
+
+    @Test
+    @DisplayName("후보가 여럿인데 거래대금이 다 비면 고르지 못했다고 던진다 — LLM에게 넘기면 다른 코인이 답이 된다")
+    void refusesToPickWithoutTradeVolume() {
+        CryptoService service = cryptoService(new NoVolumeApi(), Map.of(), explodingResolver());
+
+        // 웹훅이 「잠시 후 다시」로 답한다 — 거래대금 없이 아무거나 고르면 틀린 코인이 나간다
+        assertThatThrownBy(() -> service.quote("비트")).isInstanceOf(IllegalStateException.class);
+    }
+
+    /** 업비트가 시세는 주는데 24시간 거래대금을 비워 준 상태. */
+    private static final class NoVolumeApi extends RecordingApi {
+        @Override
+        public List<UpbitTicker> tickers(List<String> markets) {
+            return super.tickers(markets).stream()
+                    .map(ticker -> new UpbitTicker(ticker.market(), ticker.tradePrice(), null,
+                            ticker.change(), ticker.tradedAt()))
+                    .toList();
+        }
     }
 
     /** 바이낸스가 아무것도 못 주는 상태. 기존 단언은 업비트만 보므로 이게 기본값이다. */

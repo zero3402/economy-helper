@@ -38,13 +38,13 @@ import org.springframework.stereotype.Component;
  * <p>한 통에 다 담지 않는 이유는 성격이 다르기 때문이다. 시세는 한눈에 훑고 뉴스는 읽는다.
  * 게다가 넷을 합치면 텔레그램 한 통 상한(4,096자)에 닿을 수 있다.
  *
- * <p><b>뉴스 갈래는 기사마다 한 통이다</b> — 글 열세 통(시세 셋 + 뉴스 열)에 차트 사진이 붙어
- * 최대 스물네 통이 나간다. 묶지 않는 이유는 텔레그램이 미리보기 카드를 메시지 맨 아래에 하나만
- * 붙여서다 — 여러 건을 묶으면 첫 기사 카드가 마지막 기사 것처럼 보인다(실제로 그렇게 나갔다).
+ * <p><b>뉴스 갈래는 기사마다 한 통이다</b> — 글은 시세 세 통 + 기사 수만큼이고, 여기에 차트 사진이
+ * 설정한 지수·종목·코인마다 한 장씩 붙는다. 묶지 않는 이유는 텔레그램이 미리보기 카드를 메시지 맨
+ * 아래에 하나만 붙여서다 — 여러 건을 묶으면 첫 기사 카드가 마지막 기사 것처럼 보인다(실제로 그렇게 나갔다).
  *
- * <p>뉴스가 열 건인 것은 코인 다섯 + 경제 다섯이기 때문이다({@code NewsService.digest}).
- * 같은 방에 초당 한 통이라(간격은 창구 — {@link DigestNotifier} 구현이 지킨다) ~25초가 걸리는데
- * <b>발송 창이 두 시간</b>이라 늦어지는 것이 문제가 되지 않는다 → ADR-0015.
+ * <p>기사 수는 {@code NewsService.digest}가 정한다(코인 + 경제). 같은 방에 초당 한 통이라(간격은
+ * 창구 — {@link DigestNotifier} 구현이 지킨다) 통 수만큼 초가 걸리는데 <b>발송 창이 두 시간</b>이라
+ * 늦어지는 것이 문제가 되지 않는다. 지금 설정의 통 수와 소요 시간은 ADR-0015에 적는다.
  *
  * <p><b>부분 실패를 허용한다.</b> 넷 중 하나가 죽어도 나머지는 나간다 — 환율이 안 된다고
  * 뉴스까지 막을 이유가 없다. <b>전부 실패했을 때만</b> 슬롯을 되돌려 다음 시도를 열어 둔다.
@@ -129,10 +129,6 @@ public class DailyDigestJob extends TriggerableJob {
         List<String> delivered = new ArrayList<>();
         List<DigestResult.Failure> failed = new ArrayList<>();
 
-        // 환율은 두 통이 함께 쓴다 — 여기서 한 번만 조회해 증시 통까지 들고 간다. 통마다
-        // 따로 조회하면 환율 통에 찍힌 값과 미국 종목의 원화 환산이 서로 다를 수 있다.
-        FxRate fx = fxService.orNull();
-
         // 통 하나 안에서 글과 차트가 나눠 쓰는 값들
         Once<List<StockService.Answer>> domestic = Once.of(() -> stockService.answersOf(stockCodes));
         Once<List<StockService.Answer>> american = Once.of(() -> stockService.usAnswersOf(usSymbols));
@@ -143,7 +139,7 @@ public class DailyDigestJob extends TriggerableJob {
         //    올린다 — 배포 중 종료가 그 경로)는 그대로 새고, 그러면 슬롯은 잡힌 채 아무것도 안 나가
         //    그날 창의 나머지 틱이 전부 「이미 보냈다」가 된다. 한 통이라도 나갔으면 되돌리지 않는다
         try {
-            collectAndSend(fx, domestic, american, coins, delivered, failed);
+            collectAndSend(domestic, american, coins, delivered, failed);
         } catch (RuntimeException | Error e) {
             if (delivered.isEmpty()) {
                 slot.release(claim);
@@ -163,10 +159,17 @@ public class DailyDigestJob extends TriggerableJob {
         return DigestResult.completed(claim.id(), delivered, failed);
     }
 
-    /** 네 통을 겹쳐 모아 순서대로 보낸다. 슬롯 되돌림은 부르는 쪽({@link #execute})의 몫이다. */
-    private void collectAndSend(FxRate fx, Once<List<StockService.Answer>> domestic,
+    /**
+     * 네 통을 겹쳐 모아 순서대로 보낸다. 슬롯 되돌림은 부르는 쪽({@link #execute})의 몫이다 —
+     * 그래서 환율 조회도 여기서 한다. 그 그물 밖에서 부르면 거기서 샌 것이 슬롯을 잡아 둔 채 끝난다.
+     */
+    private void collectAndSend(Once<List<StockService.Answer>> domestic,
                                 Once<List<StockService.Answer>> american, Once<List<CryptoQuote>> coins,
                                 List<String> delivered, List<DigestResult.Failure> failed) {
+        // 환율은 세 통이 함께 쓴다 — 한 번만 조회해 증시·코인 통까지 들고 간다. 통마다
+        // 따로 조회하면 환율 통에 찍힌 값과 원화 환산이 서로 다를 수 있다(ADR-0006)
+        FxRate fx = fxService.orNull();
+
         // 네 통의 수집을 겹친다 — 서로 무관한 외부 호출이고 뉴스(피드 + Gemini)가 가장 길다.
         List<Section> sections = Concurrently.map(List.of(
                 section("환율", () -> fx == null ? null : new DigestMessage.Fx(fx),
@@ -192,6 +195,7 @@ public class DailyDigestJob extends TriggerableJob {
      * <p><b>캐시가 아니다</b> — 브리핑 한 번보다 오래 살지 않아 키도 만료도 없다.
      * <b>동기화하지 않는다</b> — 한 통의 글과 차트는 같은 스레드에서 차례로 돌고, 통마다 제 것을 든다.
      * <b>실패는 기억하지 않는다</b> — {@code message}가 던지면 통이 접혀 차트를 아예 안 부른다.
+     * <b>{@code null}은 기억한다</b> — 끝났는지를 값이 아니라 {@code computed}가 들고 있어서다.
      */
     private static final class Once<T> implements Supplier<T> {
 
@@ -207,7 +211,7 @@ public class DailyDigestJob extends TriggerableJob {
             return new Once<>(work);
         }
 
-        /** {@code null}을 sentinel로 쓰지 않는다 — 값이 {@code null}이면 매번 다시 계산된다. */
+        /** {@code null}을 「아직」의 표시로 쓰지 않는다 — 결과가 {@code null}이어도 다시 계산하지 않는다. */
         @Override
         public T get() {
             if (!computed) {

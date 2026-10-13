@@ -33,6 +33,12 @@ public class OpenMeteoArchiveClient implements WeatherClient {
     private static final String DAILY_FIELDS =
             "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum";
 
+    /**
+     * 하루 안의 강수 시각. <b>일일 값과 한 응답으로 온다</b> — 호출이 늘지 않는다.
+     * 지나간 날은 확률이라는 개념이 없어 실제로 온 양만 받는다.
+     */
+    private static final String HOURLY_FIELDS = "precipitation,weather_code";
+
     private final RestClient restClient;
 
     public OpenMeteoArchiveClient(RestClient.Builder builder,
@@ -40,12 +46,6 @@ public class OpenMeteoArchiveClient implements WeatherClient {
         this.restClient = builder
                 .baseUrl(properties.weather().openMeteo().archiveBaseUrl()).build();
     }
-
-    /**
-     * 하루 안의 강수 시각. <b>일일 값과 한 응답으로 온다</b> — 호출이 늘지 않는다.
-     * 지나간 날은 확률이라는 개념이 없어 실제로 온 양만 받는다.
-     */
-    private static final String HOURLY_FIELDS = "precipitation,weather_code";
 
     @Override
     public WeatherSource source() {

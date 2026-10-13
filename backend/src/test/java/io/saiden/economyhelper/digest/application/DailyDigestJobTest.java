@@ -287,7 +287,7 @@ class DailyDigestJobTest {
     @DisplayName("뉴스 열 건이면 열세 통이다 — 클래스 주석이 말하는 그 상한을 값으로 못 박는다")
     void sendsThirteenMessagesForTheProductionNewsCount() {
         // 운영 기본값이 코인 5 + 경제 5이므로 시세 셋 + 뉴스 열이 실제 발송 모양이다.
-        // 같은 방에 초당 한 통(TelegramClient가 발송 시작 사이 간격을 지킨다)이라 스물네 통이 ~25초인데
+        // 같은 방에 초당 한 통(TelegramClient가 발송 시작 사이 간격을 지킨다)이라 차트까지 통 수만큼 초가 걸리는데
         // 발송 창이 두 시간이라 문제가 되지 않는다
         RecordingTelegram telegram = new RecordingTelegram();
         List<NewsItem> ten = java.util.stream.IntStream.rangeClosed(1, 10)
@@ -338,6 +338,25 @@ class DailyDigestJobTest {
         };
 
         assertThatThrownBy(() -> job(new RecordingTelegram(), history, exploding).run(false))
+                .isInstanceOf(AssertionError.class);
+
+        assertThat(history.claimed).as("아무것도 못 보냈으니 다음 틱이 다시 시도할 수 있어야 한다").doesNotContain(SLOT);
+    }
+
+    @Test
+    @DisplayName("환율 조회에서 새어도 슬롯을 되돌린다 — 환율이 되돌림 그물 밖에서 먼저 불렸다")
+    void releasesTheSlotWhenTheFxLookupEscapes() {
+        // orNull은 RuntimeException을 삼키지만 Error와 인터럽트는 그대로 샌다 — 수집과 같은 자리다
+        InMemoryHistory history = new InMemoryHistory();
+        FxService dying = new FxService(List.of(), null) {
+            @Override
+            public Optional<FxRate> usdToKrw() {
+                throw new AssertionError("종료 신호");
+            }
+        };
+
+        assertThatThrownBy(() -> job(new RecordingTelegram(), history, new CountingFacade(List.of(item("기사"))),
+                dying, stock(false), crypto(false)).run(false))
                 .isInstanceOf(AssertionError.class);
 
         assertThat(history.claimed).as("아무것도 못 보냈으니 다음 틱이 다시 시도할 수 있어야 한다").doesNotContain(SLOT);

@@ -52,11 +52,11 @@ public enum NewsCategory {
     /**
      * 코인 낱말 — <b>개념마다 한 묶음이다</b>({@link KeywordGroup}).
      *
-     * <p>⚠️ <b>짧은 티커를 넣지 않는다.</b> {@code matches}는 부분 문자열 대조이므로
-     * {@code eth}는 {@code whether}·{@code together}에, {@code sol}은 {@code solution}·
-     * {@code sold}에, {@code defi}는 <b>{@code deficit}</b>에 걸린다 — 재정적자 기사가
-     * 코인 자리를 먹는다. 그래서 이름을 끝까지 적는다({@code ethereum}·{@code solana}).
-     * 같은 이유로 {@code ripple}(파급 효과)과 맨 {@code coin}({@code coincide})도 뺐다.
+     * <p>⚠️ <b>짧은 티커를 넣지 않는다.</b> {@code matches}는 영문 낱말을 <b>낱말 머리부터</b> 맞추고
+     * 세 글자 이하만 낱말 끝까지 맞아야 한다({@code KeywordGroup.occursIn}). 그래서 네 글자 이상은
+     * 머리말로 걸린다 — {@code defi}는 <b>{@code deficit}</b>에 걸려 재정적자 기사가 코인 자리를 먹고,
+     * 맨 {@code coin}은 {@code coincide}에 걸린다. 이름은 끝까지 적는다({@code ethereum}·{@code solana}).
+     * {@code ripple}은 뜻(파급 효과)이 겹쳐 뺐다.
      *
      * <p>{@code defi}·{@code tether}처럼 위험한 낱말이 빠져도 손실이 작다 — 그 주제의 기사는
      * {@code crypto}·{@code blockchain}·{@code stablecoin} 가운데 하나를 거의 반드시 적는다.

@@ -49,7 +49,7 @@ class WeatherFacadeTest {
         Geocoder geocoder = new Geocoder();
         geocoder.answer("성남시", "KR", place("성남시", "대한민국", 37.43861, 127.13778));
         WeatherFacade facade = facade(resolver(new ResolvedPlace(
-                "성남시", "KR", null, null, null, null, null)), geocoder);
+                "성남시", "KR", null, null, null, null, null, null, null, null)), geocoder);
 
         WeatherFacade.Lookup found = facade.search("미금");
 
@@ -71,7 +71,7 @@ class WeatherFacadeTest {
         Geocoder geocoder = new Geocoder();
         geocoder.answer("제주시", "KR", place("Jejudo", "대한민국", 33.4022, 126.5464));
         WeatherFacade facade = facade(resolver(new ResolvedPlace(
-                "제주시", "KR", null, null, null, null, null)), geocoder);
+                "제주시", "KR", null, null, null, null, null, null, null, null)), geocoder);
 
         WeatherFacade.Lookup found = facade.search("제주");
 
@@ -82,12 +82,12 @@ class WeatherFacadeTest {
     @DisplayName("적었는데 못 찾은 것과 아예 안 적은 것을 가른다 — 이미 적은 사용자에게 적으라고 하면 안 된다")
     void tellsApartAMissingPlaceFromAnUnfoundOne() {
         WeatherFacade unfound = facade(resolver(new ResolvedPlace(
-                "없는지명", "KR", null, null, null, null, null)), new Geocoder());
+                "없는지명", "KR", null, null, null, null, null, null, null, null)), new Geocoder());
         assertThat(unfound.search("없는지명").reason())
                 .isEqualTo(WeatherFacade.Lookup.Reason.NOT_FOUND);
 
         WeatherFacade noPlace = facade(resolver(new ResolvedPlace(
-                null, null, null, null, null, null, 7)), new Geocoder());
+                null, null, null, null, null, null, 7, null, null, null)), new Geocoder());
         assertThat(noPlace.search("일주일치 날씨").reason())
                 .isEqualTo(WeatherFacade.Lookup.Reason.NO_PLACE);
     }
@@ -112,7 +112,7 @@ class WeatherFacadeTest {
         geocoder.answer("Tokyo City", "JP", null);               // LLM이 준 것 — 없다
         geocoder.answer("Tokyo", null, place("도쿄", "일본", 35.6895, 139.6917));
         WeatherFacade facade = facade(resolver(new ResolvedPlace(
-                "Tokyo City", "JP", null, null, null, null, null)), geocoder);
+                "Tokyo City", "JP", null, null, null, null, null, null, null, null)), geocoder);
 
         WeatherFacade.Lookup found = facade.search("Tokyo");
 
@@ -126,7 +126,7 @@ class WeatherFacadeTest {
         Geocoder geocoder = new Geocoder();
         geocoder.answer("서울특별시", "KR", place("서울특별시", "대한민국", 37.56667, 126.97806));
         WeatherFacade facade = facade(resolver(new ResolvedPlace(
-                "서울특별시", "KR", null, null, null, null, null, true)), geocoder);
+                "서울특별시", "KR", null, null, null, null, null, true, null, null)), geocoder);
 
         WeatherFacade.Lookup found = facade.search("주말 서울");
 
@@ -140,7 +140,7 @@ class WeatherFacadeTest {
         Geocoder geocoder = new Geocoder();
         geocoder.answer("서울특별시", "KR", place("서울특별시", "대한민국", 37.56667, 126.97806));
         WeatherFacade facade = facade(resolver(new ResolvedPlace(
-                "서울특별시", "KR", null, 8, 29, null, null, true)), geocoder);
+                "서울특별시", "KR", null, 8, 29, null, null, true, null, null)), geocoder);
 
         WeatherFacade.Lookup found = facade.search("8월 29일 주말 서울");
 
@@ -197,9 +197,69 @@ class WeatherFacadeTest {
         Geocoder geocoder = new Geocoder();
         geocoder.answer("서울특별시", "KR", place("서울특별시", "대한민국", 37.56667, 126.97806));
         WeatherFacade facade = facade(resolver(new ResolvedPlace(
-                "서울특별시", "KR", null, 13, 1, null, null, null)), geocoder);
+                "서울특별시", "KR", null, 13, 1, null, null, null, null, null)), geocoder);
 
         assertThat(facade.search("13월 1일 서울").reason()).isEqualTo(WeatherFacade.Lookup.Reason.UNREADABLE_DATE);
+    }
+
+    @Test
+    @DisplayName("연도까지 적었는데 못 펴는 날짜(2025-02-30·2025-8-19)는 「날짜를 못 읽었다」다 — 오늘 날씨로 답하지 않는다")
+    void treatsAnUnparsableFullDateAsAnUnreadableDate() {
+        Geocoder geocoder = new Geocoder();
+        geocoder.answer("서울특별시", "KR", place("서울특별시", "대한민국", 37.56667, 126.97806));
+
+        for (String date : List.of("2025-02-30", "2025-8-19")) {
+            WeatherFacade facade = facade(resolver(new ResolvedPlace(
+                    "서울특별시", "KR", date, null, null, null, null, null, null, null)), geocoder);
+
+            assertThat(facade.search(date + " 서울").reason()).as(date)
+                    .isEqualTo(WeatherFacade.Lookup.Reason.UNREADABLE_DATE);
+        }
+    }
+
+    @Test
+    @DisplayName("「지난주 금요일」(weekOffset -1)은 지난주 금요일이다 — 다가오는 금요일이 나가지 않는다")
+    void readsLastWeeksWeekdayFromANegativeWeekOffset() {
+        Geocoder geocoder = new Geocoder();
+        geocoder.answer("성남시", "KR", place("성남시", "대한민국", 37.43861, 127.13778));
+        WeatherFacade facade = facade(resolver(new ResolvedPlace(
+                "성남시", "KR", null, null, null, null, null, null, 5, -1)), geocoder);
+
+        WeatherFacade.Lookup found = facade.search("지난주 금요일 성남");
+
+        // CLOCK은 2026-08-20(목) — 이번 주 금요일은 21일, 지난주 금요일은 14일이다
+        assertThat(found.places().get(0).days()).extracting(Daily::date).containsExactly(LocalDate.of(2026, 8, 14));
+    }
+
+    @Test
+    @DisplayName("「지난주 금요일」을 offsetDays -7로 줘도 지난주 금요일이다 — 주말 갈래와 같은 규칙이다")
+    void readsLastWeeksWeekdayFromANegativeWholeWeekOffset() {
+        Geocoder geocoder = new Geocoder();
+        geocoder.answer("성남시", "KR", place("성남시", "대한민국", 37.43861, 127.13778));
+        WeatherFacade facade = facade(resolver(new ResolvedPlace(
+                "성남시", "KR", null, null, null, -7, null, null, 5, null)), geocoder);
+
+        WeatherFacade.Lookup found = facade.search("지난주 금요일 성남");
+
+        assertThat(found.places().get(0).days()).extracting(Daily::date).containsExactly(LocalDate.of(2026, 8, 14));
+    }
+
+    @Test
+    @DisplayName("자정 직전의 「오늘」은 끝까지 그 오늘이다 — 조회 중에 날이 바뀌어도 아카이브(지난 날)로 가지 않는다")
+    void keepsOneTodayAcrossMidnight() {
+        Geocoder geocoder = new Geocoder();
+        geocoder.answer("서울특별시", "KR", place("서울특별시", "대한민국", 37.56667, 126.97806));
+        // 처음 읽으면 KST 08-20 23:59:59.999, 그다음부터는 08-21 00:00
+        Clock ticking = new TickingClock(Instant.parse("2026-08-20T14:59:59.999Z"),
+                Instant.parse("2026-08-20T15:00:00Z"));
+        WeatherFacade facade = new WeatherFacade(resolver(new ResolvedPlace(
+                "서울특별시", "KR", null, null, null, null, null, null, null, null)), geocoder,
+                new WeatherService(List.of(new UpcomingOnly()), ticking, TestWeather.noHourly()));
+
+        WeatherFacade.Lookup found = facade.search("서울");
+
+        assertThat(found.reason()).isEqualTo(WeatherFacade.Lookup.Reason.FOUND);
+        assertThat(found.places().get(0).days()).extracting(Daily::date).containsExactly(LocalDate.of(2026, 8, 20));
     }
 
     // --- 이음새를 재현하는 데 필요한 만큼만의 가짜들 ---
@@ -207,6 +267,55 @@ class WeatherFacadeTest {
     private static WeatherFacade facade(WeatherResolver resolver, Geocoder geocoder) {
         return new WeatherFacade(resolver, geocoder,
                 new WeatherService(List.of(new Forecaster()), CLOCK, TestWeather.noHourly()));
+    }
+
+    /** 첫 읽기에는 {@code first}, 그다음부터는 {@code then}을 준다 — 조회 도중 자정이 지나는 모양이다. */
+    private static final class TickingClock extends Clock {
+
+        private final Instant first;
+        private final Instant then;
+        private boolean read;
+
+        private TickingClock(Instant first, Instant then) {
+            this.first = first;
+            this.then = then;
+        }
+
+        @Override
+        public Instant instant() {
+            Instant now = read ? then : first;
+            read = true;
+            return now;
+        }
+
+        @Override
+        public ZoneId getZone() {
+            return SEOUL;
+        }
+
+        @Override
+        public Clock withZone(ZoneId zone) {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    /** 지난 날은 맡지 않는 예보 출처 — 기상청·AccuWeather·Open-Meteo 예보의 성질이다. */
+    private static final class UpcomingOnly implements WeatherClient {
+
+        @Override
+        public WeatherSource source() {
+            return WeatherSource.OPEN_METEO;
+        }
+
+        @Override
+        public Weather forecast(GeoLocation place, WeatherPeriod period) {
+            return new Forecaster().forecast(place, period);
+        }
+
+        @Override
+        public boolean supports(GeoLocation place, WeatherPeriod period, LocalDate today) {
+            return !period.past(today);
+        }
     }
 
     private static GeoLocation place(String name, String country, double lat, double lon) {

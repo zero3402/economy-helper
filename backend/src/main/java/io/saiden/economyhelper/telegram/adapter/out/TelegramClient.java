@@ -19,6 +19,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
@@ -82,8 +83,8 @@ public class TelegramClient {
      * {@code retry_after}를 맞을 수 있는데, 간격을 지키는 편이 재시도에 기대는 것보다 단순하고 확실하다.
      *
      * <p>⚠️ <b>「통 사이에 1초를 잔다」가 아니다.</b> 그러면 앞 통의 HTTP(실측 764ms)와 <b>합산</b>돼
-     * 브리핑 한 번이 18초를 그냥 잔다(통 수는 ADR-0015). 방마다 「마지막 발송 시작 + 간격」을 기억해
-     * <b>남은 만큼만</b> 기다리고, 부르는 쪽은 쉴 필요가 없다.
+     * 브리핑 한 번이 (통 수 − 1) × 그 HTTP 시간만큼 더 잔다(통 수는 ADR-0015). 방마다 「마지막 발송
+     * 시작 + 간격」을 기억해 <b>남은 만큼만</b> 기다리고, 부르는 쪽은 쉴 필요가 없다.
      *
      * <p>{@code KisThrottle}과 같은 모양(공평한 락 + {@code nextAllowed})이되 <b>방마다 하나</b>다 —
      * 권고가 방 단위라서다. 다른 방으로 가는 통은 서로 기다리지 않는다.
@@ -91,11 +92,26 @@ public class TelegramClient {
     private final long intervalNanos;
     private final ConcurrentHashMap<String, ChatGate> gates = new ConcurrentHashMap<>();
 
+    /** {@code getMe}가 실패한 뒤 다시 묻기까지 — 명령마다 이름을 묻느라 답이 한 왕복씩 늦지 않게. */
+    private static final Duration USERNAME_RETRY = Duration.ofMinutes(1);
+
     /** {@link #botUsername()}가 한 번 받은 이름. */
     private volatile String botUsername;
 
+    private final long usernameRetryNanos;
+
+    /** 마지막 {@code getMe} 실패 뒤 다시 물어도 되는 시각({@code nanoTime}). 실패한 적 없으면 {@code null}. */
+    private volatile Long usernameRetryAt;
+
     /** 같은 방 발송 간격은 {@link Telegram#minInterval()}이 정한다 — 테스트는 0으로 끈다. */
+    @Autowired
     public TelegramClient(RestClient.Builder builder, EconomyHelperProperties properties) {
+        this(builder, properties, USERNAME_RETRY);
+    }
+
+    /** {@code getMe} 실패를 기억하는 시간을 테스트가 정한다. */
+    TelegramClient(RestClient.Builder builder, EconomyHelperProperties properties, Duration usernameRetry) {
+        this.usernameRetryNanos = usernameRetry.toNanos();
         Telegram telegram = properties.telegram();
         this.restClient = builder.baseUrl(telegram.baseUrl()).build();
         // 끝의 개행·공백은 설정이 이미 뗐다(EconomyHelperProperties.secret)
@@ -111,7 +127,29 @@ public class TelegramClient {
         if (intervalNanos == 0) {
             return;
         }
-        gates.computeIfAbsent(chatId == null ? "" : chatId, key -> new ChatGate()).pace(intervalNanos);
+        gate(chatId).pace(intervalNanos);
+    }
+
+    private ChatGate gate(String chatId) {
+        return gates.computeIfAbsent(chatId == null ? "" : chatId, key -> new ChatGate());
+    }
+
+    /**
+     * 429의 {@code retry_after}를 <b>그 방의 문에 건다</b> — 다시 보내는 통도, 그 사이 같은 방으로 가려던
+     * 다른 통도 그 시각까지 기다리고, 다시 보낸 통이 새 「마지막 발송 시작」이 된다.
+     *
+     * <p>문을 거치지 않고 자고 나서 보내면 다시 보낸 통이 간격 장부에 안 남아, 바로 다음 통이
+     * 그 뒤에 붙어 나가 429를 또 맞는다. 방이 없는 호출({@code getMe}·{@code getChat})이나 간격을
+     * 끈 설정에서는 문이 없으므로 그냥 잔다.
+     */
+    private void waitOut(String chatId, Duration retryAfter) {
+        if (chatId == null || intervalNanos == 0) {
+            sleep(retryAfter);
+            return;
+        }
+        ChatGate gate = gate(chatId);
+        gate.holdFor(retryAfter.toNanos());
+        gate.pace(intervalNanos);
     }
 
     /**
@@ -140,6 +178,20 @@ public class TelegramClient {
                 lock.unlock();
             }
         }
+
+        /** 지금부터 {@code waitNanos} 동안 이 방의 문을 닫는다 — 이미 더 늦게 열릴 예정이면 그대로 둔다. */
+        void holdFor(long waitNanos) {
+            lock.lock();
+            try {
+                long until = System.nanoTime() + waitNanos;
+                // nanoTime은 뺄셈으로만 견준다 — 값 자체는 넘칠 수 있다
+                if (until - nextAllowed > 0) {
+                    nextAllowed = until;
+                }
+            } finally {
+                lock.unlock();
+            }
+        }
     }
 
     /**
@@ -154,7 +206,7 @@ public class TelegramClient {
             return null;
         }
         try {
-            return Integer.valueOf(configured.trim());
+            return Integer.valueOf(configured);
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException(
                     "텔레그램 토픽 ID가 숫자가 아닙니다: '" + configured + "'", e);
@@ -198,7 +250,7 @@ public class TelegramClient {
     @CircuitBreaker(name = "telegram")
     public void send(String chatId, Integer topicId, Integer replyTo, String text, boolean preview) {
         pace(chatId);
-        call("sendMessage", new SendMessage(chatId, topicId, truncate(text), "HTML", !preview,
+        call("sendMessage", chatId, new SendMessage(chatId, topicId, truncate(text), "HTML", !preview,
                 replyTo, replyTo == null ? null : true), SendAck.class);
     }
 
@@ -258,7 +310,7 @@ public class TelegramClient {
             }
         });
 
-        exchange("sendPhoto", SendAck.class, request -> request
+        exchange("sendPhoto", chatId, SendAck.class, request -> request
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .body(parts));
     }
@@ -275,7 +327,7 @@ public class TelegramClient {
             return Optional.empty();
         }
         try {
-            return Optional.ofNullable(call("getChat", new GetChat(defaultChatId), ChatAck.class))
+            return Optional.ofNullable(call("getChat", null, new GetChat(defaultChatId), ChatAck.class))
                     .map(ChatAck::result);
         } catch (RuntimeException e) {
             log.error("[telegram] 채팅방 조회 실패 — 브리핑이 안 나갈 수 있습니다: {}", e.getMessage());
@@ -286,24 +338,34 @@ public class TelegramClient {
     /**
      * 이 봇의 사용자 이름({@code getMe}) — 그룹의 {@code /명령@이름}이 우리를 부른 것인지 가린다.
      *
-     * <p><b>받은 것만 기억한다.</b> 실패는 기억하지 않고 다음에 다시 묻는다 — 이름을 모르면 호출부는 지금까지처럼
-     * 다 받으므로, 실패를 굳히면 다른 봇에게 한 명령에 계속 답한다. 예외를 던지지 않는다({@link #chatInfo}와 같다).
+     * <p><b>받은 이름은 계속, 실패는 잠깐만({@link #USERNAME_RETRY}) 기억한다.</b> 실패를 굳히면 안 된다 —
+     * 이름을 모르면 호출부는 지금까지처럼 다 받으므로 다른 봇에게 한 명령에 계속 답한다. 그렇다고 매번
+     * 다시 물으면 텔레그램이 아픈 동안 명령마다 실패할 왕복이 하나씩 붙는다. 예외를 던지지 않는다
+     * ({@link #chatInfo}와 같다).
      */
     public Optional<String> botUsername() {
         String known = botUsername;
         if (known != null) {
             return Optional.of(known);
         }
+        Long retryAt = usernameRetryAt;
+        if (retryAt != null && System.nanoTime() - retryAt < 0) {
+            return Optional.empty();
+        }
         try {
-            String name = Optional.ofNullable(call("getMe", Map.of(), UserAck.class))
+            String name = Optional.ofNullable(call("getMe", null, Map.of(), UserAck.class))
                     .map(UserAck::result)
                     .map(BotUser::username)
                     .filter(username -> !username.isBlank())
                     .orElse(null);
+            if (name == null) {
+                usernameRetryAt = System.nanoTime() + usernameRetryNanos;
+            }
             botUsername = name;
             return Optional.ofNullable(name);
         } catch (RuntimeException e) {
-            log.warn("[telegram] 봇 이름 조회 실패 — 이번에는 @이름을 가리지 않습니다: {}", e.getMessage());
+            usernameRetryAt = System.nanoTime() + usernameRetryNanos;
+            log.warn("[telegram] 봇 이름 조회 실패 — 잠시 @이름을 가리지 않습니다: {}", e.getMessage());
             return Optional.empty();
         }
     }
@@ -313,8 +375,8 @@ public class TelegramClient {
      * 그 한 문장이 곧 무엇을 고쳐야 하는지다({@code chat not found}인지
      * {@code message thread not found}인지).
      */
-    private <T extends Ack> T call(String method, Object body, Class<T> responseType) {
-        return exchange(method, responseType, request -> request.body(body));
+    private <T extends Ack> T call(String method, String chatId, Object body, Class<T> responseType) {
+        return exchange(method, chatId, responseType, request -> request.body(body));
     }
 
     /**
@@ -322,20 +384,23 @@ public class TelegramClient {
      *
      * <p>{@code sendPhoto}는 multipart이고 나머지는 JSON이지만, {@code ok:false} 판정과
      * 429 가르기와 예외 감싸기는 <b>같아야 한다.</b>
+     *
+     * @param chatId 발송이면 그 방 — 429 뒤 다시 보낼 때 그 방의 간격 문을 다시 지난다.
+     *               방이 없는 호출({@code getMe}·{@code getChat})은 {@code null}
      */
-    private <T extends Ack> T exchange(String method, Class<T> responseType,
+    private <T extends Ack> T exchange(String method, String chatId, Class<T> responseType,
                                        UnaryOperator<RestClient.RequestBodySpec> body) {
         try {
             return exchangeOnce(method, responseType, body);
         } catch (TelegramRateLimited e) {
             // 한 번만 다시 보낸다 — 두 번째 429는 그대로 올린다. 브리핑 한 번이 그룹 한도(분당 20)를
-            // 넘으면 뒤쪽 통이 여기 걸린다(통 수는 ADR-0015). 기다리는 동안 이 방의 다음 통도
-            // ChatGate에서 함께 밀린다
+            // 넘으면 뒤쪽 통이 여기 걸린다(통 수는 ADR-0015). retry_after를 그 방의 문에 걸어
+            // 기다리므로 그동안 같은 방의 다른 통도 함께 밀리고, 다시 보낸 이 통 뒤로 간격이 선다
             if (e.retryAfter() == null || e.retryAfter().compareTo(MAX_RETRY_AFTER) > 0) {
                 throw e;
             }
             log.info("[telegram] {} 429 — {}초 뒤 한 번 더 보냅니다", method, e.retryAfter().toSeconds());
-            sleep(e.retryAfter());
+            waitOut(chatId, e.retryAfter());
             return exchangeOnce(method, responseType, body);
         }
     }
@@ -375,6 +440,11 @@ public class TelegramClient {
                 ResponseParameters parameters = response.parameters();
                 throw new TelegramRateLimited(reason, parameters == null || parameters.retryAfter() == null
                         ? null : Duration.ofSeconds(parameters.retryAfter()));
+            }
+            // 4xx는 이 통의 잘못이다 — 브레이커가 걸러낼 수 있게 좁은 타입으로(TelegramRejected)
+            Integer code = response.errorCode();
+            if (code != null && code >= 400 && code < 500) {
+                throw new TelegramRejected(reason);
             }
             throw new TelegramException(reason);
         }
@@ -425,6 +495,23 @@ public class TelegramClient {
 
         TelegramUnavailable(String message, Throwable cause) {
             super(message, cause);
+        }
+    }
+
+    /**
+     * <b>텔레그램이 이 통을 거절했다</b>(4xx, 429 제외) — {@code message thread not found}·
+     * {@code can't parse entities}·{@code chat not found}.
+     *
+     * <p>따로 두는 이유는 브레이커가 이걸 실패로 세면 안 되기 때문이다({@code application.yml}의
+     * {@code telegram} 인스턴스가 {@code ignoreExceptions}에 적는다). 그 통 하나의 잘못이라 상대는
+     * 멀쩡한데, 세면 다섯 번에 브레이커가 열려 <b>다른 방의 명령 답장까지</b> 버려진다 —
+     * 바이낸스가 없는 심볼의 400({@code BinanceClient$UnknownSymbol})을 빼는 것과 같은 자리다.
+     * 재시도도 하지 않는다 — 세 번 불러도 같은 답이다.
+     */
+    public static class TelegramRejected extends TelegramException {
+
+        public TelegramRejected(String message) {
+            super(message);
         }
     }
 

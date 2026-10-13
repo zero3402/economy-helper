@@ -32,13 +32,7 @@ public record KisChartPrice(@JsonProperty("rt_cd") String resultCode,
      * @return 읽을 수 있는 날짜가 하나도 없으면 {@code null} — 「모른다」다
      */
     public LocalDate latestDate() {
-        if (bars == null) {
-            return null;
-        }
-        return bars.stream().filter(Objects::nonNull)
-                .map(bar -> KisHeaders.dateOf(bar.on()))
-                .filter(Objects::nonNull)
-                .max(LocalDate::compareTo).orElse(null);
+        return bars == null ? null : KisHeaders.latestOf(bars.stream().filter(Objects::nonNull).map(Bar::on));
     }
 
     /** @param on {@code stck_bsop_date} — {@code uuuuMMdd} */

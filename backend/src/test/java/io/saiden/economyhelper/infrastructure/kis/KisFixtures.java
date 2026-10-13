@@ -52,8 +52,9 @@ public final class KisFixtures {
         }
 
         @Override
-        public void invalidate() {
-            invalidated = true;
+        public void invalidate(String failedToken) {
+            // 호출에 실었던 그 토큰을 넘겨야 한다 — 다른 값이면 저장소가 「이미 갈아 끼웠다」로 읽고 안 버린다
+            invalidated = TOKEN.equals(failedToken);
         }
 
         public boolean invalidated() {

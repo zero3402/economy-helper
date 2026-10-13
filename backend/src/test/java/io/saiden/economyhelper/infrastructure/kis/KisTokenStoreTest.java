@@ -147,7 +147,7 @@ class KisTokenStoreTest extends WireMockTest {
         KisTokenStore store = store(NOW, redis);
         assertThat(store.token()).isEqualTo("tok-1");
 
-        store.invalidate();
+        store.invalidate("tok-1");
 
         // 발급을 다시 시도하지 않고 던져야 상위 서비스가 다음 출처로 넘어간다
         assertThatThrownBy(store::token)
@@ -189,13 +189,113 @@ class KisTokenStoreTest extends WireMockTest {
                 {"access_token":"tok-1","access_token_token_expired":"2026-08-19 16:56:34"}
                 """);
         store(NOW, redis).token();
-        store(NOW, redis).invalidate();
+        store(NOW, redis).invalidate("tok-1");
 
         stub("""
                 {"access_token":"tok-2","access_token_token_expired":"2026-08-20 16:56:34"}
                 """);
         // 발급 6시간 뒤 — 이제 KIS가 새 토큰을 준다
         assertThat(store(NOW.plusSeconds(6 * 3600 + 1), redis).token()).isEqualTo("tok-2");
+    }
+
+    @Test
+    @DisplayName("같은 죽은 토큰을 둘이 버려도 도장을 늦추지 않는다 — 두 번째가 지금+6시간으로 덮으면 KIS가 헛되이 막힌다")
+    void aSecondInvalidationOfTheSameDeadTokenKeepsTheStamp() {
+        // 동시에 EGW00121을 받은 두 요청이 차례로 버린다. 두 번째는 메모리도 Redis도 비어 있어
+        // 발급 시각을 모른다 — 그때 「지금부터 6시간」으로 덮으면 발급 1시간 뒤의 무효가 7시간을 막는다
+        FakeRedis redis = new FakeRedis();
+        stub("""
+                {"access_token":"tok-1","access_token_token_expired":"2026-08-19 16:56:34"}
+                """);
+        KisTokenStore store = store(NOW, redis);
+        store.token();
+        KisTokenStore later = store(NOW.plusSeconds(3600), redis);
+        later.invalidate("tok-1");
+        later.invalidate("tok-1");
+
+        stub("""
+                {"access_token":"tok-2","access_token_token_expired":"2026-08-20 16:56:34"}
+                """);
+        assertThat(store(NOW.plusSeconds(6 * 3600 + 1), redis).token()).isEqualTo("tok-2");
+    }
+
+    @Test
+    @DisplayName("이미 갈아 끼운 토큰은 버리지 않는다 — 앞 토큰의 실패가 새 토큰을 지우면 6시간이 막힌다")
+    void ignoresAFailureOfAnEarlierToken() {
+        FakeRedis redis = new FakeRedis();
+        redis.values.put("kis:token", "tok-2|" + NOW.plusSeconds(86400).getEpochSecond()
+                + '|' + NOW.getEpochSecond());
+        KisTokenStore store = store(NOW, redis);
+        assertThat(store.token()).isEqualTo("tok-2");
+
+        store.invalidate("tok-1");
+
+        assertThat(store.token()).isEqualTo("tok-2");
+        assertThat(redis.values).containsKey("kis:token").doesNotContainKey("kis:token:reissue-after");
+    }
+
+    @Test
+    @DisplayName("메모리에 죽은 토큰을 든 인스턴스가 다른 인스턴스의 새 토큰을 Redis에서 지우지 않는다")
+    void keepsAnotherInstancesNewTokenInRedis() {
+        FakeRedis redis = new FakeRedis();
+        long expiry = NOW.plusSeconds(86400).getEpochSecond();
+        redis.values.put("kis:token", "tok-1|" + expiry + '|' + NOW.getEpochSecond());
+        KisTokenStore stale = store(NOW, redis);
+        assertThat(stale.token()).isEqualTo("tok-1");
+        // 다른 인스턴스가 tok-1을 버리고 6시간 뒤 tok-2를 받아 두었다
+        redis.values.put("kis:token", "tok-2|" + expiry + '|' + NOW.getEpochSecond());
+
+        stale.invalidate("tok-1");
+
+        assertThat(redis.values.get("kis:token")).startsWith("tok-2|");
+        assertThat(redis.values).doesNotContainKey("kis:token:reissue-after");
+        assertThat(stale.token()).as("메모리의 죽은 사본만 버리고 공유된 새 토큰을 쓴다").isEqualTo("tok-2");
+    }
+
+    @Test
+    @DisplayName("Redis가 죽어도 버린 토큰의 재발급 시각을 기억한다 — 잊으면 호출마다 발급한다")
+    void remembersTheReissueWindowWithoutRedis() {
+        stub("""
+                {"access_token":"tok-1","access_token_token_expired":"2026-08-19 16:56:34"}
+                """);
+        KisTokenStore store = store(NOW);
+        store.token();
+
+        store.invalidate("tok-1");
+
+        assertThatThrownBy(store::token).hasMessageContaining("무효로 확인돼");
+        server.verify(1, postRequestedFor(urlPathEqualTo(PATH)));
+    }
+
+    @Test
+    @DisplayName("Redis가 죽어도 만료 역전의 도장을 기억한다 — 잊으면 다음 호출이 곧바로 또 발급한다")
+    void remembersTheExpiryInversionStampWithoutRedis() {
+        stub("""
+                {"access_token":"tok-dead","access_token_token_expired":"2026-08-18 16:40:00"}
+                """);
+        KisTokenStore store = store(NOW);
+
+        assertThatThrownBy(store::token).hasMessageContaining("이미 만료된 토큰");
+        assertThatThrownBy(store::token).isInstanceOf(IllegalStateException.class);
+
+        server.verify(1, postRequestedFor(urlPathEqualTo(PATH)));
+    }
+
+    @Test
+    @DisplayName("Redis의 도장이 사라져도 프로세스 사본으로 막는다 — 둘 중 늦은 쪽을 믿는다")
+    void trustsTheLaterOfLocalAndSharedStamps() {
+        FakeRedis redis = new FakeRedis();
+        stub("""
+                {"access_token":"tok-1","access_token_token_expired":"2026-08-19 16:56:34"}
+                """);
+        KisTokenStore store = store(NOW, redis);
+        store.token();
+        store.invalidate("tok-1");
+        // Redis가 재시작돼 도장이 날아갔다
+        redis.values.clear();
+
+        assertThatThrownBy(store::token).hasMessageContaining("무효로 확인돼");
+        server.verify(1, postRequestedFor(urlPathEqualTo(PATH)));
     }
 
     @Test

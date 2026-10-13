@@ -188,7 +188,7 @@ class KisFxClientTest extends WireMockTest {
         server.stubFor(get(urlPathEqualTo(PATH)).inScenario("limit").whenScenarioStateIs("second")
                 .willReturn(aResponse().withStatus(200).withHeader("Content-Type", "application/json")
                         .withBody("""
-                                {"rt_cd":"0","output1":{"ovrs_nmix_prpr":"1412.5000","prdy_ctrt":"-0.22"}}
+                                {"rt_cd":"0","output1":{"ovrs_nmix_prpr":"1412.5000","prdy_ctrt":"-0.22"},"output2":[{"stck_bsop_date":"20260818"}]}
                                 """)));
 
         assertThat(client.usdToKrw().rate().value()).isEqualByComparingTo("1412.5");
@@ -234,6 +234,29 @@ class KisFxClientTest extends WireMockTest {
     }
 
     @Test
+    @DisplayName("일봉 날짜를 모르면 던진다 — 마지막 종가일 수 있는 값을 실시간·지금 시각으로 꾸미지 않는다")
+    void throwsWhenTheBarDateIsUnknown() {
+        // output2가 비었거나 날짜를 STRICT로 못 읽으면 현재가가 어느 날 값인지 모른다.
+        // 지금 시각을 찍으면 휴일의 마지막 종가가 실시간으로 보인다 — 다음 출처(고시 날짜를 주는)로 넘긴다
+        stub("""
+                {"rt_cd":"0","output1":{"ovrs_nmix_prpr":"1412.5000","prdy_ctrt":"-0.22"},
+                 "output2":[{"stck_bsop_date":"20260230"}]}
+                """);
+
+        assertThatThrownBy(() -> client.usdToKrw())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("날짜");
+    }
+
+    @Test
+    @DisplayName("일봉 배열이 없어도 던진다")
+    void throwsWhenThereAreNoBars() {
+        stub("{\"rt_cd\":\"0\",\"output1\":{\"ovrs_nmix_prpr\":\"1412.5000\",\"prdy_ctrt\":\"-0.22\"}}");
+
+        assertThatThrownBy(() -> client.usdToKrw()).isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
     @DisplayName("오늘 봉이 있으면 실시간이고 읽은 시각을 기준으로 든다")
     void keepsTodaysValueLive() {
         stubRealShape();
@@ -255,7 +278,7 @@ class KisFxClientTest extends WireMockTest {
         server.stubFor(get(urlPathEqualTo(PATH)).inScenario("limit-200").whenScenarioStateIs("second")
                 .willReturn(aResponse().withStatus(200).withHeader("Content-Type", "application/json")
                         .withBody("""
-                                {"rt_cd":"0","output1":{"ovrs_nmix_prpr":"1412.5000","prdy_ctrt":"-0.22"}}
+                                {"rt_cd":"0","output1":{"ovrs_nmix_prpr":"1412.5000","prdy_ctrt":"-0.22"},"output2":[{"stck_bsop_date":"20260818"}]}
                                 """)));
 
         assertThat(client.usdToKrw().rate().value()).isEqualByComparingTo("1412.5");

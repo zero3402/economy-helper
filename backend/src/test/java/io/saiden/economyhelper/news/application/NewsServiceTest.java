@@ -53,7 +53,7 @@ class NewsServiceTest {
                 NewsSource.CNBC, List.of(article(NewsSource.CNBC, "Fed signals rate cut", 0))),
                 rejectingSearchScorer());
 
-        assertThat(service.search(groups("rate"), "금리")).isEmpty();
+        assertThat(service.search(groups("rate"), "금리", service.fetchAll())).isEmpty();
     }
 
     @Test
@@ -63,7 +63,7 @@ class NewsServiceTest {
                 NewsSource.CNBC, List.of(article(NewsSource.CNBC, "Fed signals rate cut", 0))),
                 rejectingSearchScorer());
 
-        assertThat(service.search(groups("rate"), null)).isNotEmpty();
+        assertThat(service.search(groups("rate"), null, service.fetchAll())).isNotEmpty();
     }
 
     @Test
@@ -77,7 +77,7 @@ class NewsServiceTest {
                 article(NewsSource.CNBC, "Another rate story", 4),
                 article(NewsSource.CNBC, "One more rate story", 5))));
 
-        assertThat(service.search(groups("rate"), "금리")).hasSize(SEARCH_RESULTS);
+        assertThat(service.search(groups("rate"), "금리", service.fetchAll())).hasSize(SEARCH_RESULTS);
     }
 
     @Test
@@ -97,7 +97,7 @@ class NewsServiceTest {
                         article(NewsSource.CNBC, "Rate outlook shifts", 2),
                         article(NewsSource.CNBC, "Rate traders regroup", 3))));
 
-        assertThat(service.search(groups("rate"), "금리")).hasSize(SEARCH_RESULTS);
+        assertThat(service.search(groups("rate"), "금리", service.fetchAll())).hasSize(SEARCH_RESULTS);
     }
 
     @Test
@@ -113,7 +113,7 @@ class NewsServiceTest {
                 NewsSource.INVESTING, List.of(shared),
                 NewsSource.INVESTING_CRYPTO, List.of(alsoInCrypto)));
 
-        assertThat(service.search(groups("rate"), "금리"))
+        assertThat(service.search(groups("rate"), "금리", service.fetchAll()))
                 .as("링크가 같으면 같은 기사다")
                 .hasSize(1);
         assertThat(service.digest()).hasSize(1);
@@ -158,7 +158,7 @@ class NewsServiceTest {
         NewsService service = service(Map.of(NewsSource.CNBC, List.of(
                 article(NewsSource.CNBC, "Fed signals rate cut", 0))));
 
-        assertThat(service.search(groups("rate"), "금리")).hasSize(1);
+        assertThat(service.search(groups("rate"), "금리", service.fetchAll())).hasSize(1);
     }
 
     @Test
@@ -168,7 +168,7 @@ class NewsServiceTest {
                 article(NewsSource.CNBC, "Rate cut today", 0),
                 aged(NewsSource.CNBC, "Old rate story", 1, Duration.ofHours(25)))));
 
-        List<ScoredArticle> result = service.search(groups("rate"), "금리");
+        List<ScoredArticle> result = service.search(groups("rate"), "금리", service.fetchAll());
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).article().title()).isEqualTo("Rate cut today");
@@ -183,7 +183,7 @@ class NewsServiceTest {
                 aged(NewsSource.YAHOO_FINANCE, "Bitcoin and ethereum prices today", 0,
                         Duration.ofHours(23)))));
 
-        assertThat(service.search(groups("ethereum"), "이더리움"))
+        assertThat(service.search(groups("ethereum"), "이더리움", service.fetchAll()))
                 .singleElement()
                 .satisfies(scored -> assertThat(scored.article().title()).contains("ethereum"));
     }
@@ -287,15 +287,33 @@ class NewsServiceTest {
         NewsService service = service(Map.of(
                 NewsSource.CNBC, List.of(article(NewsSource.CNBC, "Oil prices climb", 0))));
 
-        assertThat(service.search(groups("비트코인"), null)).isEmpty();
+        assertThat(service.search(groups("비트코인"), null, service.fetchAll())).isEmpty();
     }
 
     @Test
     @DisplayName("키워드가 비면 전체를 훑지 않고 곧바로 빈 결과 — 토큰화는 QueryExpander의 몫이다")
     void searchRejectsEmptyKeywords() {
-        assertThat(service(Map.of()).search(groups(), null)).isEmpty();
-        assertThat(service(Map.of()).search(null, null)).isEmpty();
-        assertThat(service(Map.of()).search(List.of(KeywordGroup.of()), null)).isEmpty();
+        NewsService service = service(Map.of());
+        assertThat(service.search(groups(), null, service.fetchAll())).isEmpty();
+        assertThat(service.search(null, null, service.fetchAll())).isEmpty();
+        assertThat(service.search(List.of(KeywordGroup.of()), null, service.fetchAll())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("브리핑은 HN 반응을 전 매체 기사를 모아 한 번만 묻는다 — 한 매체의 두 피드가 같은 도메인을 겹쳐 묻지 않는다")
+    void digestAsksForBuzzOnceAcrossAllSources() {
+        // Investing.com은 본 섹션과 암호화폐 섹션을 함께 단다(ADR-0014). 매체마다 따로 물으면
+        // 같은 도메인(investing.com)의 HN 조회가 동시에 두 번 나간다 — 둘 다 캐시가 비어 있을 때
+        Article main = article(NewsSource.INVESTING, "Treasury yields edge higher", 0);
+        Article crypto = article(NewsSource.INVESTING_CRYPTO, "Bitcoin slips", 0);
+        StubBuzzClient buzz = new StubBuzzClient();
+        NewsService service = service(Map.of(
+                NewsSource.INVESTING, List.of(main),
+                NewsSource.INVESTING_CRYPTO, List.of(crypto)), passAll(), buzz);
+
+        assertThat(service.digest()).hasSize(2);
+        assertThat(buzz.asked).hasSize(1);
+        assertThat(buzz.asked.getFirst()).containsExactlyInAnyOrder(main, crypto);
     }
 
     /** 검색어와 무관하다고 답하는 LLM — 매칭은 됐지만 스쳐 지나간 기사의 상황이다. */
@@ -325,9 +343,14 @@ class NewsServiceTest {
     }
 
     private static NewsService service(Map<NewsSource, List<Article>> bySource, RelevanceScorer relevance) {
+        return service(bySource, relevance, new StubBuzzClient());
+    }
+
+    private static NewsService service(Map<NewsSource, List<Article>> bySource, RelevanceScorer relevance,
+                                       StubBuzzClient buzz) {
         return new NewsService(
                 new StubFetcher(bySource),
-                new StubBuzzClient(),
+                buzz,
                 new PopularityScorer(new RankingWeights(0.35, 0.25, 0.25, 0.15), Duration.ofHours(6)),
                 relevance,
                 CLOCK,
@@ -394,8 +417,13 @@ class NewsServiceTest {
         }
     }
 
-    /** HN을 타지 않는다 — buzz가 0이어도 랭킹이 성립하는지 함께 확인하는 셈이다. */
+    /**
+     * HN을 타지 않는다 — buzz가 0이어도 랭킹이 성립하는지 함께 확인하는 셈이다.
+     * 무엇을 몇 번 물었는지는 남긴다 — 매체마다 따로 물으면 한 도메인을 겹쳐 두 번 묻는다.
+     */
     private static final class StubBuzzClient extends HackerNewsBuzzClient {
+        private final List<List<Article>> asked = new java.util.concurrent.CopyOnWriteArrayList<>();
+
         private StubBuzzClient() {
             super(new HackerNewsApi(RestClient.builder(), TestProperties.offline()),
                     TestProperties.offline());
@@ -403,6 +431,7 @@ class NewsServiceTest {
 
         @Override
         public Map<String, Integer> buzzByLink(List<Article> articles, Instant now) {
+            asked.add(List.copyOf(articles));
             return Map.of();
         }
     }

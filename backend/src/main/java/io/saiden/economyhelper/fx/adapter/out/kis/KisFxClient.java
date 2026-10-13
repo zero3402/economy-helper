@@ -92,8 +92,12 @@ public class KisFxClient implements FxRateClient {
         Price rate = Price.require(quote.price(), "KIS 환율");
         PercentChange change = PercentChange.ofNullable(quote.changePercent());
         // ⚠️ 주말·휴일·개장 전에는 현재가 자리에 마지막 영업일 종가가 온다 — 그 값에 읽은 시각을
-        //    찍으면 낡은 값을 실시간으로 꾸미는 셈이다. 마지막 일봉의 날짜로 적고 실시간이 아니라고 밝힌다
+        //    찍으면 낡은 값을 실시간으로 꾸미는 셈이다. 마지막 일봉의 날짜로 적고 실시간이 아니라고 밝힌다.
+        //    날짜를 모르면(일봉이 비었거나 STRICT로 못 읽음) 어느 쪽인지 가를 수 없다 — 던져서 다음 출처로 넘긴다
         LocalDate latest = response.latestDate();
+        if (latest == null) {
+            throw new IllegalStateException("KIS 환율 응답에 일봉 날짜가 없어 현재가가 어느 날 값인지 모릅니다");
+        }
         if (KisHeaders.closedBefore(latest, clock)) {
             return new FxRate("USD", "KRW", rate, change, FxSource.KIS, KisHeaders.startOfDay(latest), false);
         }

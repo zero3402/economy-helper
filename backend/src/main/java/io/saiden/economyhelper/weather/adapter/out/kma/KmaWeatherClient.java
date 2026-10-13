@@ -9,7 +9,6 @@ import io.saiden.economyhelper.weather.domain.Weather;
 import io.saiden.economyhelper.weather.domain.WeatherPeriod;
 import io.saiden.economyhelper.weather.domain.WeatherSource;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -38,10 +37,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class KmaWeatherClient implements WeatherClient {
 
-
-    /** 남한의 시간대는 하나다. 이것이 「국내인가」의 두 번째 열쇠다 — 패키지 공용 상수를 그대로 쓴다. */
-    private static final ZoneId SEOUL = KmaRequest.SEOUL;
-
     /**
      * 오늘부터 나흘(오늘 + 3) — <b>단기예보가 온전히 덮는 범위</b>다.
      *
@@ -54,9 +49,8 @@ public class KmaWeatherClient implements WeatherClient {
     private final boolean configured;
 
     public KmaWeatherClient(KmaVillageApi village, EconomyHelperProperties properties) {
-        String apiKey = properties.weather().kma().apiKey();
         this.village = village;
-        this.configured = apiKey != null && !apiKey.isBlank();
+        this.configured = !properties.weather().kma().apiKey().isBlank();
     }
 
     @Override
@@ -83,7 +77,8 @@ public class KmaWeatherClient implements WeatherClient {
     public boolean supports(GeoLocation place, WeatherPeriod period, LocalDate today) {
         return configured
                 && place != null
-                && SEOUL.equals(place.zone())
+                // 남한의 시간대는 하나다 — 이것이 「국내인가」의 두 번째 열쇠다
+                && KmaRequest.SEOUL.equals(place.zone())
                 && KmaGrid.of(place.latitude(), place.longitude()) != null
                 // ⚠️ 시작일도 본다. period.past()는 **끝**만 보므로 「어제~오늘」이 통과하는데,
                 //    단기예보에 지난 날짜가 없어 오늘 하나만 돌려주게 된다 — 물어본 어제가
@@ -133,7 +128,7 @@ public class KmaWeatherClient implements WeatherClient {
      * <p>{@code WeatherClient}는 뒷부분이 비는 것을 실패로 안 보지만, 기상청은 범위가 이미
      * 나흘이고 그 나흘을 폴백 둘이 온전히 덮는다(AccuWeather 오늘~+4 · Open-Meteo 16일). 부분
      * 응답을 성공으로 주면 이중화가 첫 성공에서 멈춰 온전한 출처가 시도조차 안 되고, 그 반쪽이
-     * 10분 캐시에 굳는다. {@code VillageBlock.toDays}가 일부러 버린 날도 여기서 걸린다.
+     * 10분 캐시에 굳는다. {@code VillageBlock.Axis.toDays}가 일부러 버린 날도 여기서 걸린다.
      *
      * @throws IllegalStateException 요청 범위의 날이 하나라도 빠졌을 때
      */
