@@ -1,6 +1,7 @@
 package io.saiden.economyhelper.stock.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.saiden.economyhelper.stock.domain.Listing;
 import java.time.Clock;
@@ -178,6 +179,68 @@ class StockListingsTest {
 
         assertThat(listings.find("삼성전자")).contains(SAMSUNG);
         assertThat(loads).as("다시 받아 보기는 했다").hasValue(2);
+    }
+
+    @Test
+    @DisplayName("다시 받기가 실패하면 잠깐 쉰다 — 조회마다 마스터 두 파일을 다시 받지 않는다")
+    void backsOffAfterAFailedRefresh() {
+        AtomicReference<Instant> now = new AtomicReference<>(Instant.parse("2026-10-13T00:00:00Z"));
+        Clock clock = movable(now);
+        AtomicInteger loads = new AtomicInteger();
+        StockListings listings = new StockListings(() -> {
+            if (loads.incrementAndGet() > 1) {
+                throw new IllegalStateException("마스터 다운로드 실패");
+            }
+            return List.of(SAMSUNG);
+        }, Duration.ofHours(6), clock);
+        listings.find("삼성전자");
+        now.set(now.get().plus(Duration.ofHours(7)));
+
+        // /stock 한 번이 색인을 여러 번 묻는다 — 그때마다 다시 받으면 실패 하나가 zip 수십 번이 된다
+        assertThat(listings.find("삼성전자")).contains(SAMSUNG);
+        assertThat(listings.find("삼성전자")).contains(SAMSUNG);
+        assertThat(listings.byCode("005930")).contains(SAMSUNG);
+        assertThat(loads).as("쉬는 동안에는 다시 받지 않고 낡은 사본으로 답한다").hasValue(2);
+
+        now.set(now.get().plus(Duration.ofMinutes(2)));
+        listings.find("삼성전자");
+        assertThat(loads).as("쉬는 시간이 지나면 다시 받아 본다 — 마스터가 살아나면 낫는다").hasValue(3);
+    }
+
+    @Test
+    @DisplayName("사본이 아예 없을 때 실패해도 잠깐 쉰다 — 기동 직후 마스터 장애가 조회마다 다운로드를 부르지 않게")
+    void backsOffWithoutAnyCopy() {
+        AtomicReference<Instant> now = new AtomicReference<>(Instant.parse("2026-10-13T00:00:00Z"));
+        AtomicInteger loads = new AtomicInteger();
+        StockListings listings = new StockListings(() -> {
+            loads.incrementAndGet();
+            throw new IllegalStateException("마스터 다운로드 실패");
+        }, Duration.ofHours(6), movable(now));
+
+        assertThatThrownBy(() -> listings.find("삼성전자")).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> listings.find("삼성전자"))
+                .as("사본이 없으면 여전히 던진다 — 부르는 쪽이 공공데이터포털로 넘어간다")
+                .isInstanceOf(IllegalStateException.class);
+        assertThat(loads).hasValue(1);
+    }
+
+    private static Clock movable(AtomicReference<Instant> now) {
+        return new Clock() {
+            @Override
+            public ZoneId getZone() {
+                return ZoneOffset.UTC;
+            }
+
+            @Override
+            public Clock withZone(ZoneId zone) {
+                return this;
+            }
+
+            @Override
+            public Instant instant() {
+                return now.get();
+            }
+        };
     }
 
     @Test

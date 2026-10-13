@@ -13,8 +13,8 @@ import org.junit.jupiter.api.Test;
  * 밴 문의 <b>산수</b>만 본다 — Redis 없이 프로세스 사본으로 돈다.
  *
  * <p>이 클래스가 있는 이유는 브레이커가 못 하는 일을 하기 때문이다. {@code binance} 브레이커는
- * 10건 중 50%가 실패해야 열리므로 <b>418 하나로는 안 열리고 다섯 번을 더 부른다.</b>
- * 그 다섯 번이 정확히 바이낸스가 밴을 연장하는 호출이다.
+ * 60초 창에 최소 네 건이 차야 열리므로 <b>418 하나로는 안 열리고 몇 번을 더 부른다.</b>
+ * 그 몇 번이 정확히 바이낸스가 밴을 연장하는 호출이다.
  */
 class BinanceBanGateTest {
 
@@ -74,6 +74,53 @@ class BinanceBanGateTest {
 
         clock.now = NOW.plusSeconds(121);
         assertThat(gate.bannedUntil()).as("지나면 아무것도 안 막는다").isNull();
+    }
+
+    @Test
+    @DisplayName("프로세스 사본이 밴 중이면 Redis를 읽지 않는다 — 어차피 막히는데 캐시 미스마다 왕복을 쓴다")
+    void skipsRedisWhileTheLocalCopyIsBanned() {
+        CountingRedis redis = new CountingRedis();
+        BinanceBanGate gate = new BinanceBanGate(redis, clock);
+        gate.ban(Duration.ofMinutes(2));
+        redis.reads = 0;
+
+        assertThat(gate.bannedUntil()).isEqualTo(NOW.plusSeconds(120));
+        assertThat(redis.reads).isZero();
+    }
+
+    @Test
+    @DisplayName("프로세스 사본이 비어 있으면 Redis를 읽는다 — 다른 인스턴스가 맞은 밴을 함께 지킨다")
+    void readsRedisWhenTheLocalCopyIsOpen() {
+        CountingRedis redis = new CountingRedis();
+        redis.stored = String.valueOf(NOW.plusSeconds(300).toEpochMilli());
+
+        assertThat(new BinanceBanGate(redis, clock).bannedUntil()).isEqualTo(NOW.plusSeconds(300));
+    }
+
+    /** 읽은 횟수를 세는 Redis — 값 하나만 든다. */
+    private static final class CountingRedis extends org.springframework.data.redis.core.StringRedisTemplate {
+
+        private int reads;
+        private String stored;
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public org.springframework.data.redis.core.ValueOperations<String, String> opsForValue() {
+            return (org.springframework.data.redis.core.ValueOperations<String, String>) java.lang.reflect.Proxy
+                    .newProxyInstance(getClass().getClassLoader(),
+                            new Class<?>[] {org.springframework.data.redis.core.ValueOperations.class},
+                            (proxy, method, args) -> switch (method.getName()) {
+                                case "get" -> {
+                                    reads++;
+                                    yield stored;
+                                }
+                                case "set" -> {
+                                    stored = (String) args[1];
+                                    yield null;
+                                }
+                                default -> throw new UnsupportedOperationException(method.getName());
+                            });
+        }
     }
 
     /** 시간을 밀어 볼 수 있는 시계 — 밴은 시각으로 풀리므로 그 경계를 넘겨 봐야 한다. */

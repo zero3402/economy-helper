@@ -244,4 +244,15 @@ class WeatherPeriodTest {
         assertThat(WeatherPeriod.weekday(tuesday, 5, 1)).as("다음 주 금요일은 이번 주 금요일이 아니다")
                 .isEqualTo(new WeatherPeriod(LocalDate.of(2026, 10, 9), LocalDate.of(2026, 10, 9)));
     }
+
+    @Test
+    @DisplayName("「지난주 금요일」은 지난주(월~일)의 금요일이다 — 다가오는 금요일이 아니다")
+    void lastWeeksWeekdayIsInThePast() {
+        LocalDate tuesday = LocalDate.of(2026, 9, 29);
+
+        assertThat(WeatherPeriod.weekday(tuesday, 5, -1))
+                .isEqualTo(new WeatherPeriod(LocalDate.of(2026, 9, 25), LocalDate.of(2026, 9, 25)));
+        assertThat(WeatherPeriod.weekday(tuesday, 1, -1)).as("지난주 월요일 — 이번 주 월요일(어제)이 아니다")
+                .isEqualTo(new WeatherPeriod(LocalDate.of(2026, 9, 21), LocalDate.of(2026, 9, 21)));
+    }
 }

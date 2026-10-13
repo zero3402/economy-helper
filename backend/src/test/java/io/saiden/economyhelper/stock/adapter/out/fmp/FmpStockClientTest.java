@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.saiden.economyhelper.config.EconomyHelperProperties.UsSymbol;
 import io.saiden.economyhelper.stock.adapter.out.fmp.FmpApi.FmpQuote;
+import io.saiden.economyhelper.stock.application.port.out.StockClient;
 import io.saiden.economyhelper.stock.domain.StockQuote;
 import io.saiden.economyhelper.testsupport.TestProperties;
 import java.math.BigDecimal;
@@ -34,6 +35,13 @@ class FmpStockClientTest {
         assertThatThrownBy(() -> client.quote(new UsSymbol("PATH", "유아이패스")))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("값이 없습니다");
+    }
+
+    @Test
+    @DisplayName("FMP가 모르는 심볼은 「모른다」로 던진다 — 장애로 던지면 /stock이 「잠시 후 다시」로 답한다")
+    void signalsAnUnknownSymbolAsNotFound() {
+        assertThatThrownBy(() -> client(null).quote(new UsSymbol("ZZZZ", "없는것")))
+                .isInstanceOf(StockClient.NotFound.class);
     }
 
     @Test

@@ -9,7 +9,9 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.ResolverStyle;
+import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientResponseException;
@@ -102,7 +104,7 @@ public class KisHeaders {
      *
      * <p><b>무효 토큰은 6시간 안에는 재발급으로 낫지 않는다</b> — KIS가 같은 죽은 토큰을
      * 돌려준다({@code KisTokenStore} 참고). 그래서 {@link #isInvalidToken}이 이 코드를 알아보면
-     * {@code KisTokenStore.invalidate()}가 <b>버리고 6시간 뒤에 다시 받는다.</b> 안 버리면 기록된
+     * {@code KisTokenStore.invalidate}가 <b>버리고 6시간 뒤에 다시 받는다.</b> 안 버리면 기록된
      * 만료까지(최대 24시간) 모든 KIS 호출이 죽는다.
      *
      * <p><b>본문을 통째로 싣지 않는다.</b> 두 필드만 꺼낸다 — 다른 응답 본문에 무엇이 실릴지
@@ -216,6 +218,16 @@ public class KisHeaders {
      */
     public static boolean closedBefore(LocalDate latest, Clock clock, ZoneId market) {
         return latest != null && latest.isBefore(LocalDate.ofInstant(clock.instant(), market));
+    }
+
+    /**
+     * 일봉 날짜 여럿 중 <b>가장 늦은 날</b> — 현재가가 어느 날의 값인지는 일봉 배열에서만 안다.
+     * 국내 시세({@code KisStockApi})와 해외 차트({@link KisChartPrice})가 함께 쓴다.
+     *
+     * @return 읽을 수 있는 날짜가 하나도 없으면 {@code null} — 「모른다」다. 못 읽는 칸은 건너뛴다
+     */
+    public static LocalDate latestOf(Stream<String> yyyymmdd) {
+        return yyyymmdd.map(KisHeaders::dateOf).filter(Objects::nonNull).max(LocalDate::compareTo).orElse(null);
     }
 
     /** 그 날짜의 KST 자정 — 「종가」 값의 기준 시각이다(시각은 모르므로 있는 척하지 않는다). */

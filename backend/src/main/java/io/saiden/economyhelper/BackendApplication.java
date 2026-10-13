@@ -12,12 +12,13 @@ import org.springframework.core.Ordered;
  * <p>기본값으로 두면 반대가 된다. 실측한 order는 이렇다:
  *
  * <ul>
+ *   <li>{@code retryAspectOrder} = {@code LOWEST_PRECEDENCE - 5} = 2147483642
  *   <li>{@code circuitBreakerAspectOrder} = {@code LOWEST_PRECEDENCE - 4} = 2147483643
  *   <li>{@code rateLimiterAspectOrder} = {@code LOWEST_PRECEDENCE - 3} = 2147483644
  *   <li>캐시 어드바이저(기본) = {@code LOWEST_PRECEDENCE} = 2147483647
  * </ul>
  *
- * 값이 작을수록 바깥이므로 기본값이면 <b>브레이커 → 리미터 → 캐시</b> 순이 되고, 두 가지가 깨진다:
+ * 값이 작을수록 바깥이므로 기본값이면 <b>재시도 → 브레이커 → 리미터 → 캐시</b> 순이 되고, 두 가지가 깨진다:
  *
  * <ol>
  *   <li><b>캐시 히트가 리미터 퍼밋을 태운다.</b> 브리핑의 KIS 조회 9회가 전부 캐시에 있어도
@@ -26,9 +27,10 @@ import org.springframework.core.Ordered;
  *       「하루 50회 한도의 실질 방어」인데 그 방어가 브레이커 앞에서 무력해진다.
  * </ol>
  *
- * <p>캐시를 가장 바깥에 두면 히트가 두 애스펙트를 아예 타지 않는다. 미스일 때만 리미터와
- * 브레이커를 거치는데, 그게 원래 의도다 — 둘은 <b>외부 호출</b>을 보호하는 장치이고 캐시
- * 히트는 외부 호출이 아니다.
+ * <p>캐시를 가장 바깥에 두면 히트가 세 애스펙트를 아예 타지 않는다. 미스일 때만 재시도·브레이커·
+ * 리미터를 거치는데, 그게 원래 의도다 — 셋은 <b>외부 호출</b>을 보호하는 장치이고 캐시
+ * 히트는 외부 호출이 아니다. 그래서 감싸는 순서는 <b>캐시 ⊃ 재시도 ⊃ 브레이커 ⊃ 리미터</b>다
+ * (재시도가 브레이커 바깥인 이유는 {@code ResilienceConfigTest.retrySitsOutsideTheBreaker}).
  */
 @SpringBootApplication
 @ConfigurationPropertiesScan

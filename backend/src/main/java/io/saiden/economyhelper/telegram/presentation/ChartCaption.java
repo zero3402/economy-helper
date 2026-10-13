@@ -1,6 +1,7 @@
 package io.saiden.economyhelper.telegram.presentation;
 
 import static io.saiden.economyhelper.telegram.presentation.MessageLayout.DATE;
+import static io.saiden.economyhelper.telegram.presentation.MessageLayout.bold;
 import static io.saiden.economyhelper.telegram.presentation.MessageLayout.change;
 import static io.saiden.economyhelper.telegram.presentation.MessageLayout.money;
 
@@ -45,8 +46,8 @@ public final class ChartCaption {
         //    「최근 14거래일」이 이름표이고 「3,150.22 → 3,182.44」가 그 값이라,
         //    본문 통의 전망 블록(「목표」 / 값)과 똑같은 모양이다. 사이를 벌리면 창이
         //    홀로 떠서 무엇에 걸린 말인지 흐려진다 — 「빈 줄은 블록 사이, 한 줄은 블록 안」
-        StringBuilder caption = new StringBuilder("<b>").append(Html.escape(subject))
-                .append("</b>\n\n최근 ").append(bars.size()).append("거래일");
+        StringBuilder caption = new StringBuilder(bold(subject))
+                .append("\n\n최근 ").append(bars.size()).append("거래일");
         caption.append("\n").append(money(first.close()))
                 .append(" → ").append(money(last.close()));
         if (unit != null) {

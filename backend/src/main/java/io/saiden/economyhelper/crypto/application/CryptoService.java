@@ -224,7 +224,7 @@ public class CryptoService {
             return Optional.empty();
         }
         try {
-            return pickAndQuote(candidates);
+            return Optional.of(pickAndQuote(candidates));
         } catch (RuntimeException e) {
             // ⚠️ 이름은 업비트에서 맞았다 — 여기서 빈손을 주면 LLM으로 넘어가 다른 코인이 답이 될 수 있다.
             //    후보가 하나면 그 코인을 업비트 「조회 실패」로 적고(바이낸스는 따로 붙는다), 여럿이면 어느 것인지
@@ -305,7 +305,9 @@ public class CryptoService {
         } catch (BinanceClient.UnknownSymbol unknown) {
             // ⚠️ 미상장 심볼이 하나라도 끼면 바이낸스가 배치 전체를 400으로 거절한다 — 「조회 실패」로 적으면
             //    상장된 코인까지 실패로 찍히고 김치 프리미엄이 사라진다. 단건이면 그 코인이 미상장이고,
-            //    여럿이면 하나씩 다시 물어 없는 것만 미상장으로 적는다(이 갈래에서만 호출이 늘어난다)
+            //    여럿이면 하나씩 다시 물어 없는 것만 미상장으로 적는다(이 갈래에서만 호출이 늘어난다).
+            //    ⚠️ 겹쳐 묻지 않는다 — 차례로 물어야 첫 418이 닫은 밴 문(BinanceApi)을 다음 것이 본다.
+            //    겹치면 모두가 문을 지난 뒤에 418이 와서 밴 중에 N번을 부른다
             if (symbols.size() == 1) {
                 return allBinance(quotes, symbolByMarket, Quote.NOT_LISTED);
             }
@@ -363,20 +365,29 @@ public class CryptoService {
      * 후보가 여럿이면 거래대금 1위를 고른다.
      *
      * <p>후보 전부의 시세를 한 번에 받으므로, 고르는 것과 값을 얻는 것이 같은 호출로 끝난다.
+     *
+     * <p>⚠️ <b>빈손을 돌려주지 않는다</b> — 이름은 이미 업비트에서 맞았고, 빈손이면 LLM으로 넘어가 다른 코인이
+     * 답이 된다({@link #byUpbitName}). 시세가 하나뿐이면 거래대금 없이도 그것이고, 여럿인데 거래대금이 다
+     * 비었으면 고를 근거가 없으므로 던진다.
+     *
+     * @throws IllegalStateException 업비트가 후보 시세를 안 줬거나, 여럿 중 고를 거래대금이 없을 때
      */
-    private Optional<CryptoQuote> pickAndQuote(List<UpbitMarket> candidates) {
+    private CryptoQuote pickAndQuote(List<UpbitMarket> candidates) {
         List<String> codes = candidates.stream().map(UpbitMarket::market).toList();
-        List<UpbitTicker> tickers = upbit.tickers(codes);
-        if (tickers.isEmpty()) {
-            return Optional.empty();
-        }
-
         Map<String, UpbitMarket> byCode = byCode(candidates);
-
+        List<UpbitTicker> tickers = upbit.tickers(codes).stream()
+                .filter(ticker -> byCode.containsKey(ticker.market()))
+                .toList();
+        if (tickers.size() == 1) {
+            UpbitTicker only = tickers.getFirst();
+            return toQuote(byCode.get(only.market()), only);
+        }
         return tickers.stream()
-                .filter(ticker -> ticker.accTradePrice24h() != null && byCode.containsKey(ticker.market()))
+                .filter(ticker -> ticker.accTradePrice24h() != null)
                 .max(Comparator.comparing(UpbitTicker::accTradePrice24h))
-                .map(ticker -> toQuote(byCode.get(ticker.market()), ticker));
+                .map(ticker -> toQuote(byCode.get(ticker.market()), ticker))
+                .orElseThrow(() -> new IllegalStateException(
+                        "업비트 후보 " + codes + "에서 거래대금으로 고르지 못했습니다 — 시세 " + tickers.size() + "건"));
     }
 
     /** {@code static}이 아닌 이유는 {@link #clock}이다 — 벽시계를 직접 읽지 않는다. */

@@ -153,29 +153,6 @@ public class PopularityScorer {
         return clamp(Math.pow(0.5, ageSeconds / recencyHalfLife.toSeconds()));
     }
 
-    /**
-     * 매칭된 <b>개념</b> 수 / {@code min(개념 수, 포화점)}.
-     *
-     * <p>분모를 이렇게 잡으면 검색어가 두어 개일 때는 「전부 맞아야 만점」이고,
-     * 많을 때는 「몇 개만 맞으면 만점」이 된다.
-     *
-     * <p>세는 단위가 표현이 아니라 {@link KeywordGroup}인 게 중요하다. {@code 반도체}를
-     * {@code [semiconductor, chip, chips]}로 확장했을 때 표현 단위로 세면 하나만 걸려도 0.33이 되어
-     * 번역 확장이 오히려 점수를 깎는다. 묶음 단위로 세면 검색어 하나당 만점 1개로 유지된다.
-     */
-    static double keywordScore(Article article, Collection<KeywordGroup> keywords) {
-        return keywordScore(article.title(), article.description(), keywords);
-    }
-
-    /**
-     * <p><b>제목과 본문을 갈라 센다.</b> 제목에 있으면 그 기사가 그 주제를 <b>다루는</b> 것이고,
-     * 본문에만 있으면 <b>언급한</b> 것이다. 한 덩어리로 세면 "환율 기사인데 금리를 한 줄 언급"한
-     * 것이 {@code /news 금리}의 1위로 올라온다.
-     */
-    static double keywordScore(String title, String body, Collection<KeywordGroup> keywords) {
-        return matchScore(title, body, usable(keywords));
-    }
-
     /** 빈 묶음과 겹치는 묶음을 걷는다 — 목록 하나를 매길 때 기사마다 다시 걷지 않게 한 번만 부른다. */
     private static List<KeywordGroup> usable(Collection<KeywordGroup> keywords) {
         if (keywords == null || keywords.isEmpty()) {
@@ -187,6 +164,22 @@ public class PopularityScorer {
                 .toList();
     }
 
+    /**
+     * 매칭된 <b>개념</b> 수 / {@code min(개념 수, 포화점)}.
+     *
+     * <p>분모를 이렇게 잡으면 검색어가 두어 개일 때는 「전부 맞아야 만점」이고,
+     * 많을 때는 「몇 개만 맞으면 만점」이 된다.
+     *
+     * <p>세는 단위가 표현이 아니라 {@link KeywordGroup}인 게 중요하다. {@code 반도체}를
+     * {@code [semiconductor, chip, chips]}로 확장했을 때 표현 단위로 세면 하나만 걸려도 0.33이 되어
+     * 번역 확장이 오히려 점수를 깎는다. 묶음 단위로 세면 검색어 하나당 만점 1개로 유지된다.
+     *
+     * <p><b>제목과 본문을 갈라 센다.</b> 제목에 있으면 그 기사가 그 주제를 <b>다루는</b> 것이고,
+     * 본문에만 있으면 <b>언급한</b> 것이다. 한 덩어리로 세면 "환율 기사인데 금리를 한 줄 언급"한
+     * 것이 {@code /news 금리}의 1위로 올라온다.
+     *
+     * @param normalized {@link #usable}을 거친 묶음
+     */
     private static double matchScore(String title, String body, List<KeywordGroup> normalized) {
         if (normalized.isEmpty()) {
             return 0.0;

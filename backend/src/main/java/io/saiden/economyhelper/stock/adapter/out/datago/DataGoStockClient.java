@@ -8,6 +8,7 @@ import io.saiden.economyhelper.shared.support.FailureReason;
 import io.saiden.economyhelper.stock.adapter.out.datago.MarketIndexApi.MarketIndex;
 import io.saiden.economyhelper.stock.adapter.out.datago.StockPriceApi.StockPrice;
 import io.saiden.economyhelper.stock.application.port.out.DomesticStockClient;
+import io.saiden.economyhelper.stock.application.port.out.StockClient;
 import io.saiden.economyhelper.stock.application.port.out.StockNameSearch;
 import io.saiden.economyhelper.stock.domain.StockQuote;
 import io.saiden.economyhelper.stock.domain.StockSource;
@@ -72,12 +73,19 @@ public class DataGoStockClient implements DomesticStockClient, StockNameSearch {
      * ({@link #quietly}), <b>둘 다 빈손일 때만</b> 던진다(SPI 계약 — 그래야 이중화가 다음 출처로 넘어간다).
      * ⚠️ ETF 쪽은 {@code .or(() -> …)} 람다 안에 둔다 — 인자로 먼저 평가되면 주식 API가 던질 때
      * ETF 가지가 실행조차 안 된다.
+     *
+     * <p>빈손은 <b>한쪽이라도 답했으면</b> 「모른다」({@link StockClient.NotFound})이고, 둘 다 죽었으면 장애다.
+     * ETF는 활용신청 전이면 늘 403이라 「한쪽이라도」로 가른다 — 둘 다를 요구하면 늘 장애가 된다.
      */
     @Override
     public StockQuote stock(String code) {
-        return best(quietly("주식", code, () -> stocks.searchByCode(code)))
-                .or(() -> best(quietly("ETF", code, () -> etfs.searchByCode(code))))
-                .orElseThrow(() -> new IllegalStateException("종목코드 " + code + " 시세가 없습니다"));
+        List<RuntimeException> failures = new ArrayList<>();
+        return best(quietly("주식", code, () -> stocks.searchByCode(code), failures))
+                .or(() -> best(quietly("ETF", code, () -> etfs.searchByCode(code), failures)))
+                .orElseThrow(() -> failures.size() < 2
+                        ? new StockClient.NotFound("종목코드 " + code + " 시세가 없습니다")
+                        : new IllegalStateException("종목코드 " + code + " 조회 실패 — 주식·ETF API가 모두 죽었습니다: "
+                                + FailureReason.of(failures.getFirst())));
     }
 
     /**
@@ -88,7 +96,7 @@ public class DataGoStockClient implements DomesticStockClient, StockNameSearch {
     public StockQuote index(Index index) {
         MarketIndex found = indices.searchByName(index.name());
         if (found == null) {
-            throw new IllegalStateException("'" + index.name() + "' 지수를 찾지 못했습니다");
+            throw new StockClient.NotFound("'" + index.name() + "' 지수를 찾지 못했습니다");
         }
         // 이름도 응답 것을 쓴다 — 완전일치로 고른 것이라 설정 이름과 같고, 부분일치로 떨어졌다면
         // 실제로 찾아낸 지수의 정식명이 맞다(KIS가 '종합'을 주는 것과 사정이 다르다)
@@ -130,10 +138,17 @@ public class DataGoStockClient implements DomesticStockClient, StockNameSearch {
      * 브레이커는 실패를 먼저 센다.
      */
     private static List<StockPrice> quietly(String what, String query, Supplier<List<StockPrice>> search) {
+        return quietly(what, query, search, new ArrayList<>());
+    }
+
+    /** @param failures 삼킨 실패를 여기 모은다 — 빈손이 「모른다」인지 「못 물었다」인지 {@link #stock}이 가른다 */
+    private static List<StockPrice> quietly(String what, String query, Supplier<List<StockPrice>> search,
+                                            List<RuntimeException> failures) {
         try {
             return search.get();
         } catch (RuntimeException e) {
             log.warn("[stock] '{}' {} 검색 실패 — 다른 쪽 후보만 봅니다: {}", query, what, FailureReason.of(e));
+            failures.add(e);
             return List.of();
         }
     }

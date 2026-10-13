@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.telegram.presentation;
 
+import static io.saiden.economyhelper.telegram.presentation.MessageLayout.bold;
 import static io.saiden.economyhelper.telegram.presentation.MessageLayout.head;
 import static io.saiden.economyhelper.telegram.presentation.MessageLayout.title;
 
@@ -49,7 +50,7 @@ public final class HelpFormatter {
      * 무엇이 이 메시지의 제목인지 흐려진다 — 목록 본문만 빌린다.
      */
     public static String unknownCommand() {
-        return "<b>모르는 명령</b>\n\n입력하신 명령을 찾지 못했습니다." + commandList();
+        return bold("모르는 명령") + "\n\n입력하신 명령을 찾지 못했습니다." + commandList();
     }
 
     /**

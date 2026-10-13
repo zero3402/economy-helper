@@ -110,15 +110,6 @@ class QueryExpanderTest {
         assertThat(QueryExpander.tokenize(null)).isEmpty();
     }
 
-    @Test
-    @DisplayName("한글이 한 자라도 섞이면 번역 대상이다")
-    void detectsHangul() {
-        assertThat(QueryExpander.hasHangul("금리")).isTrue();
-        assertThat(QueryExpander.hasHangul("s&p500 지수")).isTrue();
-        assertThat(QueryExpander.hasHangul("oil")).isFalse();
-        assertThat(QueryExpander.hasHangul("s&p500")).isFalse();
-    }
-
     /** 어떤 토큰이 번역을 요청받았는지 기록한다 — 호출 여부가 이 클래스의 핵심 계약이다. */
     private static final class RecordingTranslator implements SearchTermTranslator {
         private final List<String> requested = new java.util.concurrent.CopyOnWriteArrayList<>();

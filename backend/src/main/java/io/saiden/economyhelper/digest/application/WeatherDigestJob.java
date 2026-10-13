@@ -27,7 +27,7 @@ import org.springframework.stereotype.Component;
  * 매일 오전 8시(KST) 날씨 알람 — 설정에 적힌 지역들(지금은 미금·서현·잠실·삼성중앙역).
  *
  * <p>{@link DailyDigestJob}과 같은 구조다: 발송 창 안에서 10분마다 돌고 <b>슬롯(KST 날짜)이
- * 하루 한 번을 보장한다.</b> 잠들어 있었으면 깨어난 뒤 첫 틱이 보낸다 — "정확히 6시에 깨어
+ * 하루 한 번을 보장한다.</b> 잠들어 있었으면 깨어난 뒤 첫 틱이 보낸다 — "정확히 8시에 깨어
  * 있어야 한다"는 요구가 사라진다.
  *
  * <p>⚠️ <b>슬롯 키에 접두사를 붙인다</b> — 이유는 {@link DigestSlot}.
@@ -43,8 +43,6 @@ public class WeatherDigestJob extends TriggerableJob {
     /** 브리핑 슬롯과 섞이지 않게 하는 접두사. 이게 없으면 둘 중 하나만 나간다. */
     private static final String SLOT_PREFIX = "weather-";
 
-    private static final ZoneId DEFAULT_ZONE = ZoneId.of("Asia/Seoul");
-
     private final WeatherService weatherService;
     private final DigestNotifier notifier;
     private final DigestSlot slot;
@@ -57,14 +55,10 @@ public class WeatherDigestJob extends TriggerableJob {
                             EconomyHelperProperties properties) {
         this.weatherService = weatherService;
         this.notifier = notifier;
-        ZoneId zone = zoneOf(properties.weather());
+        // 브리핑(DailyDigestJob)과 같이 설정의 시간대를 그대로 쓴다 — application.yml이 늘 채운다
+        ZoneId zone = ZoneId.of(properties.weather().zone());
         this.slot = new DigestSlot(history, clock, zone, SLOT_PREFIX, "weather");
         this.places = toPlaces(properties.weather(), zone);
-    }
-
-    private static ZoneId zoneOf(EconomyHelperProperties.Weather weather) {
-        return weather == null || weather.zone() == null
-                ? DEFAULT_ZONE : ZoneId.of(weather.zone());
     }
 
     /**
@@ -88,7 +82,7 @@ public class WeatherDigestJob extends TriggerableJob {
     /**
      * 스케줄 진입점.
      *
-     * <p>{@code @SchedulerLock} 이름을 브리핑과 따로 준다 — 같은 이름을 쓰면 6시와 9시가
+     * <p>{@code @SchedulerLock} 이름을 브리핑과 따로 준다 — 같은 이름을 쓰면 8시와 9시가
      * 서로를 막는다.
      */
     @Scheduled(cron = "${economy-helper.weather.cron}", zone = "${economy-helper.weather.zone}")

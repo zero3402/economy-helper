@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.config;
 
+import io.saiden.economyhelper.shared.support.FailureReason;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,14 +69,25 @@ public class CacheEvictEndpoint {
                     "reason", "name과 key를 모두 주십시오 — 캐시를 통째로 비우는 것은 "
                             + "DELETE /actuator/caches가 합니다");
         }
-        Cache cache = cacheManager.getCache(name);
+        // ⚠️ getCache(name) == null로 가리면 안 된다 — RedisCacheManager는 모르는 이름에도 캐시를
+        //    즉석에서 만들어 돌려준다. 그러면 오타가 「버렸다」로 답하고, 만들어진 빈 캐시가 이름
+        //    목록에 남아 다음 판정까지 속인다. 그래서 getCache보다 먼저 등록된 이름(CacheConfig가
+        //    기동 때 만든 것)인지를 본다
+        Cache cache = cacheManager.getCacheNames().contains(name) ? cacheManager.getCache(name) : null;
         if (cache == null) {
             log.warn("[cache] 없는 캐시를 비우려 했습니다: {} (등록된 것: {})",
                     name, cacheManager.getCacheNames());
             return Map.of("evicted", false, "cache", name,
                     "reason", "그런 이름의 캐시가 없습니다 — 판 번호까지 적었는지 보십시오");
         }
-        cache.evict(key);
+        try {
+            cache.evict(key);
+        } catch (RuntimeException e) {
+            // Redis가 죽어 있으면 여기서 던진다. 500을 주면 이름이 틀린 것인지 앱이 죽은 것인지 모른다
+            log.warn("[cache] '{}' 키 하나 버리기 실패: {}", name, FailureReason.of(e));
+            return Map.of("evicted", false, "cache", name,
+                    "reason", "캐시 저장소에 닿지 못했습니다: " + FailureReason.of(e));
+        }
         log.info("[cache] '{}'에서 키 '{}'를 버렸습니다", name, key);
         return Map.of("evicted", true, "cache", name, "key", key);
     }

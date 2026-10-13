@@ -12,6 +12,7 @@ import io.saiden.economyhelper.config.EconomyHelperProperties.Index;
 import io.saiden.economyhelper.config.EconomyHelperProperties.KisIndex;
 import io.saiden.economyhelper.config.EconomyHelperProperties.UsSymbol;
 import io.saiden.economyhelper.infrastructure.kis.KisFixtures;
+import io.saiden.economyhelper.stock.application.port.out.StockClient;
 import io.saiden.economyhelper.stock.domain.StockQuote;
 import io.saiden.economyhelper.stock.domain.StockSource;
 import io.saiden.economyhelper.testsupport.TestProperties;
@@ -555,7 +556,9 @@ class KisStockApiTest extends WireMockTest {
                  "output":{"stck_prpr":"","prdy_ctrt":"","hts_avls":""}}""");
 
         assertThatThrownBy(() -> api.stock("JEPI"))
-                .isInstanceOf(KisStockApi.Unsupported.class);
+                .isInstanceOf(KisStockApi.Unsupported.class)
+                .as("KIS가 모르는 것은 장애가 아니다 — StockService가 「못 찾음」으로 답한다")
+                .isInstanceOf(StockClient.NotFound.class);
     }
 
     @Test

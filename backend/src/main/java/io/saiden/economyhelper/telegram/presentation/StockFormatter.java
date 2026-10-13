@@ -141,7 +141,7 @@ public final class StockFormatter {
         // 브리핑은 지수와 종목을 따로 조회하므로 하나만 폴백하는 일이 실제로 난다
         Instant live = basisOf(quotes, true);
         Instant closing = basisOf(quotes, false);
-        message.append("\n\n<b>").append(market.title()).append("</b>");
+        message.append("\n\n").append(bold(market.title()));
 
         for (StockQuote quote : quotes) {
             // 블록 사이는 빈 줄. 이름을 굵게 쓴다 — 코인·날씨 통과 같은 자리의 표기다

@@ -38,7 +38,11 @@ public record Article(
         }
     }
 
-    /** 검색 전-필터가 훑을 텍스트({@code NewsService.matchesAny}). 번역과 관련도 채점은 {@code title}·{@code description}을 따로 쓴다 — 여기를 거치지 않는다. 요약문이 없으면 제목만 돌려준다. */
+    /**
+     * 낱말 대조가 훑을 텍스트 — 검색 전-필터({@code NewsService.matchesAny})와 코인 판정({@link NewsCategory#of}).
+     * 번역과 채점({@code PopularityScorer}·{@code RelevanceScorer})은 {@code title}·{@code description}을 따로 쓴다 —
+     * 여기를 거치지 않는다. 요약문이 없으면 제목만 돌려준다.
+     */
     public String text() {
         return description == null || description.isBlank()
                 ? title

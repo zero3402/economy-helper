@@ -218,6 +218,27 @@ class TelegramWebhookControllerTest {
                 .contains("찾지 못했습니다");
     }
 
+    @Test
+    @DisplayName("출처가 전부 장애면 「찾지 못했습니다」가 아니라 「잠시 후 다시」다 — 웹훅은 그래도 200이다")
+    void tellsUserToRetryWhenEveryStockSourceIsDown() {
+        RecordingTelegram client = new RecordingTelegram();
+        StockService down = new StockStub() {
+            @Override
+            public Optional<Answer> answer(String query) {
+                throw new StockService.Unavailable("종목 005930", new IllegalStateException("연결 거부"));
+            }
+        };
+        var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()),
+                fx(Optional.empty()), down, client);
+
+        assertThat(controller.onUpdate(null, update(1, "/stock 005930")).getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        assertThat(client.messages.get(0).text())
+                .startsWith("<b>증시</b>")
+                .contains("잠시 후 다시")
+                .doesNotContain("찾지 못했습니다");
+    }
+
     // --- 검색 답의 차트 ---
     //
     // ⚠️ 누가 Reply.plain(text)로 한 줄 바꾸면 사진이 조용히 사라진다 — 페이크가 sendPhoto를
@@ -315,6 +336,97 @@ class TelegramWebhookControllerTest {
 
         assertThat(client.messages.get(0).text()).as("값은 그대로 나간다").contains("239,500 KRW");
         assertThat(client.captions).as("차트만 빠진다 — 보충이지 폴백이 아니다").isEmpty();
+    }
+
+    @Test
+    @DisplayName("/crypto는 시세와 환율을 겹쳐 묻는다 — 시세 다음에 환율을 기다리면 그만큼 답이 늦는다")
+    void overlapsTheCryptoQuoteWithTheFxLookup() {
+        // 시세 조회가 환율 조회의 시작을 기다린다 — 차례로 부르면 환율은 시세가 끝난 뒤에야 시작해
+        // 기다림이 시간 초과로 끝난다(테스트 규칙: 시간 단언 대신 래치로 서로를 기다리게 한다)
+        java.util.concurrent.CountDownLatch fxStarted = new java.util.concurrent.CountDownLatch(1);
+        AtomicBoolean overlapped = new AtomicBoolean();
+        CryptoQuote btc = new CryptoQuote("비트코인", "KRW-BTC", NOW,
+                io.saiden.economyhelper.crypto.domain.CryptoQuote.Quote.of(
+                        new Price(new BigDecimal("89848000")), null),
+                io.saiden.economyhelper.crypto.domain.CryptoQuote.Quote.of(
+                        new Price(new BigDecimal("63703.69")), null));
+        CryptoService crypto = new CryptoStub() {
+            @Override
+            public Optional<CryptoQuote> quote(String query) {
+                try {
+                    overlapped.set(fxStarted.await(5, java.util.concurrent.TimeUnit.SECONDS));
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                return Optional.of(btc);
+            }
+        };
+        FxService fx = new FxService(List.of(), null) {
+            @Override
+            public Optional<FxRate> usdToKrw() {
+                fxStarted.countDown();
+                return Optional.of(new FxRate("USD", "KRW", new Price(new BigDecimal("1415")),
+                        FxSource.KEXIM, NOW));
+            }
+        };
+        RecordingTelegram client = new RecordingTelegram();
+
+        defaultController(facade(Optional.empty()), crypto, fx, stock(Optional.empty()), client)
+                .onUpdate(null, update(1, "/crypto 비트코인"));
+
+        assertThat(overlapped).as("환율 조회가 시세 조회와 함께 돌아야 한다").isTrue();
+        assertThat(client.messages.get(0).text()).as("겹쳐 받은 환율로 환산한다").contains("90,140,721 KRW");
+    }
+
+    @Test
+    @DisplayName("웹훅 로그에 사용자 원문을 남기지 않는다 — 명령 이름과 길이만")
+    @org.junit.jupiter.api.extension.ExtendWith(org.springframework.boot.test.system.OutputCaptureExtension.class)
+    void neverLogsTheRawCommandText(org.springframework.boot.test.system.CapturedOutput output) {
+        RecordingTelegram client = new RecordingTelegram();
+        CryptoService exploding = new CryptoStub() {
+            @Override
+            public Optional<CryptoQuote> quote(String query) {
+                throw new IllegalStateException("답 만들기 실패");
+            }
+        };
+
+        defaultController(facade(Optional.empty()), crypto(Optional.empty()),
+                fx(Optional.empty()), stock(Optional.empty()), client)
+                .onUpdate(null, update(1, "/crypto 비밀검색어가나다"));
+        defaultController(facade(Optional.empty()), exploding,
+                fx(Optional.empty()), stock(Optional.empty()), client)
+                .onUpdate(null, update(2, "/crypto 실패할검색어라마바"));
+
+        assertThat(output)
+                .as("검색어가 곧 그룹 대화다 — 캐시 키를 안 남기는 것과 같은 이유")
+                .doesNotContain("비밀검색어가나다")
+                .doesNotContain("실패할검색어라마바")
+                .contains("/crypto");
+    }
+
+    @Test
+    @DisplayName("사용법 안내가 발송에 실패해도 다른 답과 같은 자리에서 삼킨다 — 마지막 그물까지 새지 않는다")
+    @org.junit.jupiter.api.extension.ExtendWith(org.springframework.boot.test.system.OutputCaptureExtension.class)
+    void usageAndUnknownRepliesFailQuietly(org.springframework.boot.test.system.CapturedOutput output) {
+        RecordingTelegram rejecting = new RecordingTelegram() {
+            @Override
+            public void send(String chatId, Integer topicId, Integer replyTo, String text, boolean preview) {
+                throw new TelegramClient.TelegramRejected("텔레그램 sendMessage 거절: 400 message thread not found");
+            }
+
+            @Override
+            public void send(String chatId, Integer topicId, Integer replyTo, String text) {
+                send(chatId, topicId, replyTo, text, false);
+            }
+        };
+        var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()),
+                fx(Optional.empty()), stock(Optional.empty()), rejecting);
+
+        controller.onUpdate(null, update(1, "/없는명령"));
+        controller.onUpdate(null, update(2, "/crypto"));
+
+        assertThat(output).contains("[webhook] 채팅").contains("발송 실패")
+                .doesNotContain("웹훅 처리 실패");
     }
 
     @Test

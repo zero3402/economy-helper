@@ -6,6 +6,12 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       timeout: 2s
+      # 연결 맺기의 상한. 비우면 Lettuce 기본 10초다 — 기동 PING(RedisConnectionLog)이 readiness보다
+      # 먼저 돌아서, 닿지 않는 주소면 준비가 10초 늦고 Redis가 죽은 동안 캐시를 거치는 조회마다
+      # 재연결에 그만큼 붙든다. 명령 타임아웃(위 2s)과 같은 값으로 둔다 — 연결에 그보다 오래 걸리는
+      # Redis는 붙어도 명령마다 타임아웃에 걸려 캐시 노릇을 못 한다. (연결 시간 실측은 아직 없다 —
+      # 짧아서 붙지 못하면 기동 때 RedisConnectionLog 경고로 바로 드러난다)
+      connect-timeout: 2s
       # 관리형 Redis(Upstash·ElastiCache·Redis Cloud)는 전부 인증과 TLS를 요구한다.
       # 여기가 비어 있으면 배포처가 정해지는 순간 코드를 고쳐야 하므로 미리 환경변수로 열어 둔다.
       # 빈 값은 Spring이 "인증 없음"으로 처리해서 로컬 동작은 그대로다.
@@ -352,7 +358,6 @@ economy-helper:
     # 실측 2026-08-15: /news 이더리움이 빈손이었는데 가장 최근 기사가 23시간 18분 전 것이라
     # 하루도 안 지났는데 'KST 어제'라는 이유로 잘려 나간 것이었다.
     window: 24h
-    # 매체별로 LLM에 넘길 후보 수. 전부 넣으면 무료 티어를 태우고, 너무 좁히면 진짜 기사가 빠진다
     # /news 검색이 보여줄 건수. 1 → 3 → 5로 늘렸다 — 1위가 늘 원하던 기사는 아닌데
     # 몇 건뿐이면 사용자가 할 수 있는 일이 검색어를 바꿔 다시 치는 것밖에 없었다.
     # 텔레그램은 메시지당 미리보기를 하나만 붙이므로 기사마다 통을 쪼갠다.
@@ -363,6 +368,7 @@ economy-helper:
     # 코인이 3건뿐인 날은 8건이 나간다.
     crypto-results: 5
     economy-results: 5
+    # 매체별로 LLM에 넘길 후보 수. 전부 넣으면 무료 티어를 태우고, 너무 좁히면 진짜 기사가 빠진다
     llm-candidates: 8
     # 이 미만이면 재테크 뉴스가 아닌 것으로 보고 그 매체를 이번 발송에서 뺀다
     relevance-threshold: 0.4
@@ -559,7 +565,8 @@ economy-helper:
     base-url: https://api.telegram.org
     # 같은 방에 연달아 보낼 때 **발송 시작 사이**의 최소 간격 — 텔레그램 권고가 초당 한 통이다.
     # ⚠️ 「통 사이에 자는 시간」이 아니다. 앞 통의 HTTP(실측 764ms)를 뺀 나머지만 기다린다.
-    #    통마다 1초를 잤던 때는 브리핑 24통에 18초를 그냥 잠들어 있었다.
+    #    통마다 1초를 잤던 때는 브리핑 한 번에 (통 수 − 1) × 앞 통의 HTTP 시간을 그냥 잠들어 있었다
+    #    (통 수는 ADR-0015).
     min-interval: 1s
 
 resilience4j:
@@ -588,7 +595,7 @@ resilience4j:
         waitDurationInOpenState: 120s
         # 429는 "우리가 너무 빨리 물었다"이지 Gemini 장애가 아니다. 실패로 세면 무료 티어를
         # 스칠 때마다 브레이커가 열려 120초 동안 번역이 통째로 막힌다 — 리미터 거절(위의
-        # RequestNotPermitted)을 빼 둔 것과 같은 이유다. 바이낸스가 4xx를 빼는 것도 같다.
+        # RequestNotPermitted)을 빼 둔 것과 같은 이유다. ⚠️ 바이낸스는 반대다 — 429·418을 센다(아래).
         ignoreExceptions:
           - io.github.resilience4j.ratelimiter.RequestNotPermitted
           - org.springframework.web.client.HttpClientErrorException.TooManyRequests
@@ -597,7 +604,11 @@ resilience4j:
         # ⚠️ 아래 목록이 configs.default의 것을 덮어쓴다 — 위 default 블록 주석 참조
         ignoreExceptions:
           - io.github.resilience4j.ratelimiter.RequestNotPermitted
-          - io.saiden.economyhelper.telegram.adapter.out.TelegramClient.TelegramRateLimited
+          - io.saiden.economyhelper.telegram.adapter.out.TelegramClient$TelegramRateLimited
+          # 4xx 거절(토픽 없음·HTML 파싱 실패)은 그 통 하나의 잘못이다. 세면 다섯 번에 열려
+          # 멀쩡한 방의 명령 답장까지 버려진다 — 바이낸스 UnknownSymbol과 같은 자리다.
+          # 닿지 못한 것(TelegramUnavailable)과 5xx는 그대로 센다
+          - io.saiden.economyhelper.telegram.adapter.out.TelegramClient$TelegramRejected
       # buzz는 랭킹의 부속 신호다. 끊겨도 나머지 세 지표로 순위가 매겨지므로
       # 빨리 열고 오래 닫아 둔다.
       hackerNews:
@@ -606,11 +617,19 @@ resilience4j:
         waitDurationInOpenState: 300s
       upbit:
         baseConfig: default
-      # 바이낸스는 4xx를 실패로 세지 않는다. 상장 안 된 심볼을 물으면 400인데
-      # (실측: USDTUSDT → -1121 Invalid symbol) 그건 우리 잘못이지 거래소 장애가 아니다.
-      # 실패로 세면 멀쩡한 거래소에 브레이커가 열려 다른 코인까지 막힌다.
+      # 바이낸스는 4xx 가운데 **없는 심볼의 400 하나만** 실패로 세지 않는다(실측: USDTUSDT → -1121
+      # Invalid symbol). 그건 우리 잘못이지 거래소 장애가 아니고, 세면 멀쩡한 거래소에 브레이커가
+      # 열려 다른 코인까지 막힌다. 418·429는 세고(아래), 451은 BinanceApi가 미러로 한 번 더 묻는다.
       binance:
         baseConfig: default
+        # ⚠️ **호출 수가 아니라 시간으로 센다.** 바이낸스는 호출이 드물다(브리핑 하루 한 번 + 가끔
+        #    /crypto). 기본 창(최근 10건 중 50%)이면 며칠에 걸친 일시 실패가 한 창에 쌓이고, 재시도가
+        #    브레이커 바깥이라 일시 실패 하나가 「실패 + 재시도 성공」 한 쌍으로 세어져 그 쌍 다섯이
+        #    곧 50%다 — 「종종 실패」가 150초짜리 정지가 됐다. 60초 창에 최소 4건(두 요청 × 시도 두 번)이면
+        #    흩어진 실패는 한 창에 못 모이고, 몰려 오는 진짜 장애에는 연다(근거 → ADR-0008, 2026-10-13)
+        slidingWindowType: TIME_BASED
+        slidingWindowSize: 60
+        minimumNumberOfCalls: 4
         # ⚠️ **418(IP 밴)은 반드시 브레이커를 열어야 한다.** 바이낸스는 429를 받고도 계속 부르면
         #    IP를 자동 밴하고, 밴 중에 더 부르면 **밴이 길어진다**(2분~3일). 즉 여기서 옳은
         #    대응은 "물러서기"이고 그 수단이 브레이커다.
@@ -619,8 +638,8 @@ resilience4j:
         #    418·429도 같은 4xx라 함께 빠져, IP가 밴된 동안에도 브레이커가 안 열리고 매 호출이
         #    그대로 나갔다. **우리가 우리 밴을 늘리고 있었다.** 그래서 400만 좁은 타입으로
         #    갈라(BinanceClient.UnknownSymbol) 그것만 무시한다.
-        #    ⚠️ 그래도 **브레이커만으로는 물러설 수 없다.** 기본이 10건 중 50%라 418 하나로는
-        #    안 열리고 다섯 번을 더 부르는데, 그 다섯 번이 정확히 밴을 늘리는 호출이다.
+        #    ⚠️ 그래도 **브레이커만으로는 물러설 수 없다.** 60초 창에 최소 4건이라 418 하나로는
+        #    안 열리고 몇 번을 더 부르는데, 그 몇 번이 정확히 밴을 늘리는 호출이다.
         #    그래서 BinanceBanGate가 첫 418에 문을 닫고, 브레이커는 그 밖의 실패를 맡는다.
         #    Banned는 우리가 스스로 닫은 문이라 실패로 세지 않는다 — 세면 밴이 풀린 뒤에도
         #    브레이커가 열린 채 남아 **밴보다 오래 가는 정지**가 된다.
@@ -752,7 +771,9 @@ resilience4j:
   #    쪽으로 조용히 망가졌지만(met.no가 그 상태였다) 이쪽은 **우리 잘못(4xx)까지 세 번 부르는**
   #    쪽으로 망가진다. 그래서 default를 먼저 적고 전부 baseConfig로 물려받는다.
   #
-      # ⚠️ 애스펙트 order는 적지 않는다 — 기본값이 이미 원하는 순서다(docs/design.md 4.4).
+  # ⚠️ 애스펙트 order는 적지 않는다 — 기본값이 이미 원하는 순서다: 재시도(LOWEST_PRECEDENCE-5) ⊃
+  #    브레이커(-4) ⊃ 리미터(-3). 캐시는 그보다 바깥이다(BackendApplication). ResilienceConfigTest가
+  #    순서를 검사한다(docs/design.md 4.4).
   retry:
     configs:
       default:
@@ -769,9 +790,14 @@ resilience4j:
         # 없는 심볼·없는 지명은 우리 잘못이고 상대는 멀쩡하다.
         retryExceptions:
           - org.springframework.web.client.HttpServerErrorException
-          # 커넥션 리셋·연결/읽기 타임아웃이 전부 여기로 온다 — Spring이 IOException을
+          # 헤더를 받기 전의 커넥션 리셋·연결/읽기 타임아웃이 여기로 온다 — Spring이 IOException을
           # 이 타입으로 감싼다(DefaultRestClient)
           - org.springframework.web.client.ResourceAccessException
+        # ⚠️ 헤더를 받은 **뒤** 본문을 읽다 끊기거나 멈춘 것은 위 타입이 아니라 맨 RestClientException
+        #    으로 온다(readWithMessageConverters). 맨 타입을 위에 적으면 4xx까지 걸리므로 원인 사슬에
+        #    IOException이 있는 것만 고른다. 위 열거와 「또는」으로 묶이고, baseConfig로 물려받아
+        #    retryExceptions를 덮어쓴 인스턴스(telegram)에서도 산다
+        retryExceptionPredicate: io.saiden.economyhelper.config.BodyReadFailure
         # 위 열거만으로도 이 둘은 안 걸린다. 그래도 적는 이유가 둘이다:
         # (1) retryExceptions를 넓히는 인스턴스(telegram)에서도 뜻이 유지돼야 한다,
         # (2) 무엇을 재시도하지 않기로 했는지를 설정이 스스로 말해야 한다.
@@ -815,8 +841,8 @@ resilience4j:
         baseConfig: default
         waitDuration: 200ms
       # 실측 86ms. 글로벌 시세 단일 출처다.
-      # ⚠️ 451(지역 차단)은 4xx라 위 열거에 안 걸린다 — 재시도해도 안 낫는 것이 맞다.
-      #    리전을 옮기는 것만이 답이고, FailureReason이 로그에 그렇게 적는다
+      # ⚠️ 4xx는 위 열거에 안 걸려 재시도하지 않는다. 451(지역 차단)은 같은 호스트를 다시 불러도 안
+      #    낫고, BinanceApi가 미러(fallback-base-url)로 한 번 더 묻는다. 418·429는 BinanceBanGate가 문을 닫는다
       binance:
         baseConfig: default
         waitDuration: 200ms
@@ -842,7 +868,7 @@ resilience4j:
           - org.springframework.web.client.HttpServerErrorException
           - org.springframework.web.client.ResourceAccessException
           # **닿지 못한 것만** 다시 시도한다. ok:false 거절(chat not found)은 설정이 틀린 것이라
-          # 세 번 불러도 같은 답이고, 그동안 브리핑 여섯 통이 통마다 두 배로 늦어진다
+          # 세 번 불러도 같은 답이고, 그동안 브리핑이 통마다 그만큼 늦어진다
           - io.saiden.economyhelper.telegram.adapter.out.TelegramClient$TelegramUnavailable
         ignoreExceptions:
           - io.github.resilience4j.ratelimiter.RequestNotPermitted

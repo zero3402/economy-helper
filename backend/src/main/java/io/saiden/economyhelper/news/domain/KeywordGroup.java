@@ -1,5 +1,6 @@
 package io.saiden.economyhelper.news.domain;
 
+import io.saiden.economyhelper.shared.support.QueryNormalizer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
@@ -50,7 +51,7 @@ public record KeywordGroup(List<String> terms) {
      * 굴절을 받는다). 한글은 조사가 붙어 있어(「금리가」) 경계를 볼 수 없다.
      */
     static boolean occursIn(String text, String term) {
-        if (term.codePoints().anyMatch(KeywordGroup::isHangul)) {
+        if (QueryNormalizer.hasHangul(term)) {
             return text.contains(term);
         }
         boolean wholeWord = term.length() <= WHOLE_WORD_MAX;
@@ -63,10 +64,6 @@ public record KeywordGroup(List<String> terms) {
             }
         }
         return false;
-    }
-
-    private static boolean isHangul(int codePoint) {
-        return Character.UnicodeScript.of(codePoint) == Character.UnicodeScript.HANGUL;
     }
 
     public boolean isEmpty() {

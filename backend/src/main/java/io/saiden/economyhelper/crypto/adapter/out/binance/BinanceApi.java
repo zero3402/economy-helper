@@ -48,7 +48,7 @@ import org.springframework.web.client.RestClient;
  * 떠 있어서 쓸 수 있는 것이고, 리전을 옮기면 가장 먼저 깨질 연동이다.
  *
  * <p><b>418·429는 문을 닫는다</b>({@link BinanceBanGate}). 브레이커에 맡기면 열릴 때까지
- * 다섯 번을 더 부르는데, 바이낸스는 <b>밴 중의 호출로 밴을 연장한다</b> — 물러서는 판단을
+ * 몇 번을 더 부르는데, 바이낸스는 <b>밴 중의 호출로 밴을 연장한다</b> — 물러서는 판단을
  * 통계에 맡길 수 없는 자리다.
  *
  * <p>업비트와 마찬가지로 실패를 삼키지 않고 던진다. 다만 <b>바이낸스가 죽어도 업비트 시세는
@@ -134,7 +134,7 @@ public class BinanceApi implements BinanceClient {
     /**
      * 418·429를 받았으면 문을 닫는다 — <b>다음 호출부터 HTTP가 아예 안 나간다.</b>
      *
-     * <p>브레이커에 맡기면 열리기까지 다섯 번을 더 부르고, 그 다섯 번이 정확히 밴을 늘리는 호출이다.
+     * <p>브레이커에 맡기면 열리기까지 몇 번을 더 부르고, 그 몇 번이 정확히 밴을 늘리는 호출이다.
      */
     private void closeGateIfBanned(RuntimeException e, int status) {
         if (status != IP_BANNED && status != TOO_MANY_REQUESTS) {

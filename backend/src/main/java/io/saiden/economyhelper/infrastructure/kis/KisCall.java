@@ -86,14 +86,25 @@ public class KisCall {
      */
     private <T extends KisResponse> T attempt(Class<T> type, String trId, String what,
                                               Function<UriBuilder, URI> uri) {
+        String token;
+        try {
+            token = tokens.token();
+        } catch (KisThrottle.Congested ours) {
+            throw ours;
+        } catch (RuntimeException e) {
+            // 토큰 단계의 실패는 KisTokenStore가 만든 문장이다(발급 응답 본문은 이미 걸렀다) — 이유를
+            // 그대로 싣는다. reasonOf로 보내면 「IllegalStateException」만 남아 재발급 대기인지 키 누락인지 모른다
+            String reason = e instanceof IllegalStateException ? e.getMessage() : KisHeaders.reasonOf(e);
+            throw failed(null, reason, "KIS " + what + " 조회 실패: ", what, null);
+        }
         T response;
         try {
-            response = send(type, trId, uri);
+            response = send(type, trId, token, uri);
         } catch (KisThrottle.Congested ours) {
             // 우리 간격 문이 거절한 것이다 — 감싸지 않는다. 브레이커 무시 목록이 이 타입을 적는다
             throw ours;
         } catch (RuntimeException e) {
-            throw failed(KisHeaders.codeOf(e), KisHeaders.reasonOf(e), "KIS " + what + " 조회 실패: ", what);
+            throw failed(KisHeaders.codeOf(e), KisHeaders.reasonOf(e), "KIS " + what + " 조회 실패: ", what, token);
         }
         // ⚠️ 빈 본문을 rt_cd로 읽으면 「rt_cd=null」이라는 헷갈리는 메시지가 나간다 —
         //    원인을 KIS의 응답 코드 탓으로 오해하게 만드는 자리라 제 이름으로 던진다
@@ -104,7 +115,7 @@ public class KisCall {
             String message = response.message();
             String reason = message == null || message.isBlank() ? "알 수 없는 오류" : message.trim();
             throw failed(response.messageCode(), reason,
-                    "KIS " + what + " 조회 실패 (rt_cd=" + response.resultCode() + "): ", what);
+                    "KIS " + what + " 조회 실패 (rt_cd=" + response.resultCode() + "): ", what, token);
         }
         return response;
     }
@@ -115,8 +126,7 @@ public class KisCall {
      * <p>⚠️ <b>토큰을 먼저 받고 나서 문을 지난다.</b> 토큰 발급 POST도 제 차례에 문을 지나므로,
      * 거꾸로 하면 이 GET의 차례가 POST보다 앞서 소진돼 발급 직후 간격 없이 붙어 나간다(EGW00201).
      */
-    private <T> T send(Class<T> type, String trId, Function<UriBuilder, URI> uri) {
-        String token = tokens.token();
+    private <T> T send(Class<T> type, String trId, String token, Function<UriBuilder, URI> uri) {
         throttle.pace();
         return restClient.get()
                 .uri(uri)
@@ -132,7 +142,7 @@ public class KisCall {
      * @param code   {@code msg_cd}. HTTP 에러 본문에서든 200 본문에서든 같은 판정을 받는다
      * @param reason 사람이 읽을 이유. 예외 이름만으로는 부족하다 — 무효 토큰이 500으로 오고 이유가 본문에만 있다
      */
-    private RuntimeException failed(String code, String reason, String prefix, String what) {
+    private RuntimeException failed(String code, String reason, String prefix, String what, String token) {
         IllegalStateException failure = new IllegalStateException(prefix + reason);
         if (KisHeaders.isRateLimited(code)) {
             return new RateLimited(failure, reason);
@@ -141,7 +151,7 @@ public class KisCall {
         // 무효 토큰은 다음 호출에서도 같은 이유로 실패한다. 알아차린 자리에서 버려야
         // 스스로 낫는다 — 안 버리면 기록된 만료까지(최대 24시간) 모든 KIS 호출이 죽는다
         if (KisHeaders.isInvalidToken(code)) {
-            tokens.invalidate();
+            tokens.invalidate(token);
         }
         return failure;
     }

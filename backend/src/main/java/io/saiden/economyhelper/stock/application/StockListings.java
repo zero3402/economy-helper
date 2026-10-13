@@ -64,15 +64,29 @@ public class StockListings {
     /** 부분일치를 받는 가장 짧은 질의(정규화 뒤 글자 수). 이보다 짧으면 이름이 딱 맞는 상장만 답한다. */
     private static final int MIN_PARTIAL_LENGTH = 2;
 
+    /**
+     * 다시 받기가 실패한 뒤 쉬는 시간. {@code /stock} 한 번이 색인을 여러 번 묻는다 — 쉬지 않으면 마스터 장애
+     * 동안 조회마다 zip 두 개를 다시 받아(브레이커가 열리기 전이면 타임아웃까지) 답이 그만큼 늦는다. 짧게 잡는
+     * 이유는 마스터가 살아나면 곧 새 목록을 받으려는 것이다 — 낡은 사본이 1분 더 가는 것은 해롭지 않다.
+     */
+    private static final Duration REFRESH_BACKOFF = Duration.ofMinutes(1);
+
     private final ListingSource source;
     /** 사본을 얼마나 들고 있는가. {@code Duration.ZERO}면 부를 때마다 다시 읽는다 — 테스트가 그렇게 쓴다. */
     private final Duration keepFor;
     private final Clock clock;
     private volatile Index index;
 
+    /** 다시 받기가 실패해 쉬는 동안의 끝과 그 실패 — 쉬는 동안 사본이 없으면 이것을 던진다. */
+    private volatile Instant retryAfter = Instant.EPOCH;
+    private volatile RuntimeException lastFailure;
+
     /**
-     * 사본 수명은 <b>Redis 캐시와 같은 값</b>이다({@code cache-ttl.kr-listings}) — 두 수명이
-     * 어긋나면 한쪽이 비운 뒤에도 다른 쪽이 옛 목록을 답한다. 그래서 설정도 한 줄이다.
+     * 사본 수명은 <b>Redis 캐시와 같은 값</b>이다({@code cache-ttl.kr-listings}) — 설정도 한 줄이다.
+     *
+     * <p>⚠️ 같은 값이라고 목록이 그만큼 신선한 것은 아니다. 사본은 <b>그 순간 Redis에 든 목록</b>으로
+     * 만들어지고 그 목록은 이미 몇 시간 묵었을 수 있다 — 목록 나이는 최대 두 수명(12시간)까지 간다.
+     * 상장·폐지가 그 안에 화면에 닿아야 할 일은 없다.
      */
     @Autowired
     public StockListings(ListingSource source, EconomyHelperProperties properties, Clock clock) {
@@ -129,20 +143,29 @@ public class StockListings {
      *
      * <p>⚠️ <b>다시 받기가 실패하면 낡은 사본을 그대로 쓴다.</b> 상장·폐지는 하루에 몇 건이고 이름 → 코드는
      * 그사이에 거의 안 바뀐다 — 버리면 마스터가 잠깐 죽은 동안 이름 검색이 전부 던진다. 사본이 처음부터
-     * 없을 때만 던진다. 다음 호출이 다시 받아 본다.
+     * 없을 때만 던진다. {@link #REFRESH_BACKOFF}가 지난 뒤의 호출이 다시 받아 본다.
      */
     private Index index() {
         Index current = index;
         Instant now = clock.instant();
         if (current == null || keepFor.isZero() || current.loadedAt().plus(keepFor).isBefore(now)) {
+            // 수명 0(테스트)은 부를 때마다 읽는 것이 뜻이라 쉬지 않는다
+            if (!keepFor.isZero() && now.isBefore(retryAfter)) {
+                if (current == null) {
+                    throw lastFailure;
+                }
+                return current;
+            }
             try {
                 current = Index.of(source.listings(), now);
             } catch (RuntimeException e) {
+                lastFailure = e;
+                retryAfter = now.plus(REFRESH_BACKOFF);
                 if (current == null) {
                     throw e;
                 }
-                log.warn("[stock] 종목 마스터를 다시 받지 못해 {}에 만든 사본을 씁니다: {}",
-                        current.loadedAt(), FailureReason.of(e));
+                log.warn("[stock] 종목 마스터를 다시 받지 못해 {}에 만든 사본을 씁니다 — {} 뒤에 다시 받아 봅니다: {}",
+                        current.loadedAt(), REFRESH_BACKOFF, FailureReason.of(e));
                 return current;
             }
             index = current;

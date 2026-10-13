@@ -4,6 +4,7 @@ import io.saiden.economyhelper.config.EconomyHelperProperties.UsSymbol;
 import io.saiden.economyhelper.shared.domain.PercentChange;
 import io.saiden.economyhelper.shared.domain.Price;
 import io.saiden.economyhelper.stock.adapter.out.fmp.FmpApi.FmpQuote;
+import io.saiden.economyhelper.stock.application.port.out.StockClient;
 import io.saiden.economyhelper.stock.application.port.out.UsStockClient;
 import io.saiden.economyhelper.stock.domain.StockQuote;
 import io.saiden.economyhelper.stock.domain.StockSource;
@@ -45,7 +46,7 @@ public class FmpStockClient implements UsStockClient {
         FmpQuote found = api.quote(symbol.symbol());
         if (found == null) {
             // LLM이 지어낸 티커가 여기서 걸러진다 — FMP가 빈 배열을 준다
-            throw new IllegalStateException("'" + symbol.symbol() + "' 심볼이 없습니다");
+            throw new StockClient.NotFound("'" + symbol.symbol() + "' 심볼이 없습니다");
         }
         return toQuote(found, symbol);
     }

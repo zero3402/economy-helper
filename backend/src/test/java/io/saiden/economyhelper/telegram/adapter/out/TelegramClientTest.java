@@ -133,7 +133,7 @@ class TelegramClientTest extends WireMockTest {
                 .hasMessageContaining("토픽3");
 
         assertThat(TelegramClient.topicId("")).as("비면 지정하지 않는다").isNull();
-        assertThat(TelegramClient.topicId(" 12 ")).as("붙여 넣은 공백은 다듬는다").isEqualTo(12);
+        assertThat(TelegramClient.topicId("12")).as("붙여 넣은 공백은 설정이 이미 뗐다(EconomyHelperProperties.secret)").isEqualTo(12);
     }
 
     @Test
@@ -223,6 +223,32 @@ class TelegramClientTest extends WireMockTest {
     }
 
     @Test
+    @DisplayName("4xx 거절은 좁은 타입으로 던진다 — 브레이커가 그것만 골라 뺄 수 있어야 한다")
+    void throwsANarrowTypeForClientErrors() {
+        server.stubFor(post(anyUrl()).willReturn(aResponse()
+                .withStatus(400)
+                .withHeader("Content-Type", "application/json")
+                .withBody("{\"ok\":false,\"error_code\":400,"
+                        + "\"description\":\"Bad Request: can't parse entities\"}")));
+
+        assertThatThrownBy(() -> client().send("12345", 3, null, "<b>안녕"))
+                .isInstanceOf(TelegramClient.TelegramRejected.class);
+    }
+
+    @Test
+    @DisplayName("5xx로 온 ok:false는 거절이 아니다 — 텔레그램 장애는 브레이커가 세야 한다")
+    void serverErrorIsNotAClientRejection() {
+        server.stubFor(post(anyUrl()).willReturn(aResponse()
+                .withStatus(500)
+                .withHeader("Content-Type", "application/json")
+                .withBody("{\"ok\":false,\"error_code\":500,\"description\":\"Internal Server Error\"}")));
+
+        assertThatThrownBy(() -> client().send("12345", 3, null, "안녕"))
+                .isInstanceOf(TelegramClient.TelegramException.class)
+                .isNotInstanceOf(TelegramClient.TelegramRejected.class);
+    }
+
+    @Test
     @DisplayName("getChat으로 방이 포럼인지 확인한다 — 기동 시 자가진단이 이걸 쓴다")
     void readsChatInfo() {
         server.stubFor(post(anyUrl()).willReturn(aResponse()
@@ -262,10 +288,22 @@ class TelegramClientTest extends WireMockTest {
     }
 
     @Test
-    @DisplayName("getMe가 실패하면 비우되 기억하지 않는다 — 다음에 다시 묻는다")
-    void retriesBotUsernameAfterFailure() {
+    @DisplayName("getMe가 실패하면 잠깐은 다시 묻지 않는다 — 웹훅마다 getMe가 한 번씩 더 나가던 것")
+    void remembersBotUsernameFailureBriefly() {
         server.stubFor(post(anyUrl()).willReturn(aResponse().withStatus(502)));
         TelegramClient client = client();
+
+        assertThat(client.botUsername()).isEmpty();
+        assertThat(client.botUsername()).isEmpty();
+        server.verify(1, postRequestedFor(urlPathEqualTo("/bottest-token/getMe")));
+    }
+
+    @Test
+    @DisplayName("실패를 굳히지는 않는다 — 기다린 뒤에는 다시 묻는다")
+    void asksAgainForBotUsernameAfterTheBackoff() {
+        server.stubFor(post(anyUrl()).willReturn(aResponse().withStatus(502)));
+        TelegramClient client = new TelegramClient(RestClient.builder(),
+                properties("3", Duration.ZERO), Duration.ZERO);
 
         assertThat(client.botUsername()).isEmpty();
         assertThat(client.botUsername()).isEmpty();
@@ -302,6 +340,34 @@ class TelegramClientTest extends WireMockTest {
         assertThat(Duration.ofNanos(System.nanoTime() - started))
                 .as("셋째 통의 시작은 첫 통에서 간격 두 배 뒤다")
                 .isGreaterThanOrEqualTo(Duration.ofMillis(800));
+    }
+
+    @Test
+    @DisplayName("429 뒤에 다시 보낸 통도 간격을 센다 — 바로 다음 통이 그 뒤에 붙어 나가 429를 또 맞던 것")
+    void pacesTheMessageAfterA429Resend() {
+        server.stubFor(post(anyUrl()).inScenario("429-paced").whenScenarioStateIs(STARTED)
+                .willReturn(aResponse().withStatus(429)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"ok\":false,\"error_code\":429,\"description\":\"Too Many Requests: retry after 1\","
+                                + "\"parameters\":{\"retry_after\":1}}"))
+                .willSetStateTo("waited"));
+        server.stubFor(post(anyUrl()).inScenario("429-paced").whenScenarioStateIs("waited")
+                .willReturn(aResponse().withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"ok\":true}")));
+        TelegramClient paced = client(Duration.ofMillis(600));
+
+        paced.send("12345", null, null, "첫 통");
+        paced.send("12345", null, null, "둘째 통");
+
+        java.util.List<com.github.tomakehurst.wiremock.verification.LoggedRequest> sent =
+                server.findAll(postRequestedFor(urlPathEqualTo("/bottest-token/sendMessage")));
+        assertThat(sent).hasSize(3);
+        long resend = sent.get(1).getLoggedDate().getTime();
+        long next = sent.get(2).getLoggedDate().getTime();
+        assertThat(next - resend)
+                .as("다시 보낸 통도 그 방의 발송 시작이다 — 다음 통은 그로부터 간격 뒤에 나가야 한다")
+                .isGreaterThanOrEqualTo(550);
     }
 
     @Test

@@ -49,8 +49,8 @@ public class TelegramSelfCheck {
         Optional<ChatInfo> chat = client.chatInfo();
         if (chat.isEmpty()) {
             log.error("[telegram] chat-id '{}'로 채팅방을 찾지 못했습니다 — 아침 브리핑이 나가지 않습니다. "
-                    + "슈퍼그룹으로 승격되면 번호가 -100...으로 바뀝니다. 그 방에서 /help를 치면 "
-                    + "현재 번호를 봇이 알려줍니다", chatId);
+                    + "슈퍼그룹으로 승격되면 번호가 -100...으로 바뀝니다. 그 방에서 아무 명령(/help)이나 치면 "
+                    + "웹훅 로그([webhook] 허용되지 않은 채팅 …)에 현재 번호가 찍힙니다", chatId);
             return;
         }
 
@@ -63,8 +63,8 @@ public class TelegramSelfCheck {
         // 알 방법이 없다 — 사용자에게는 "Notice에 안 온다"로 보인다
         if (forum && noticeTopicId == null) {
             log.error("[telegram] 포럼 그룹인데 TELEGRAM_NOTICE_TOPIC_ID가 비어 있습니다 — "
-                    + "브리핑이 General 토픽으로 갑니다. 브리핑을 받을 토픽에서 /help를 치면 "
-                    + "거기 넣을 번호를 봇이 알려줍니다");
+                    + "브리핑이 General 토픽으로 갑니다. 브리핑을 받을 토픽에서 아무 명령(/help)이나 치면 "
+                    + "웹훅 로그([webhook] 채팅 … 토픽 …)에 거기 넣을 번호가 찍힙니다");
         }
         // 반대는 발송 자체가 거절된다
         if (!forum && noticeTopicId != null) {
@@ -83,8 +83,8 @@ public class TelegramSelfCheck {
         // 포럼인데 안 정하면 어느 토픽에서든 명령이 먹는다 — 고장은 아니지만 의도한 것인지 밝힌다
         if (forum && searchTopicId == null) {
             log.warn("[telegram] 포럼 그룹인데 TELEGRAM_SEARCH_TOPIC_ID가 비어 있습니다 — "
-                    + "모든 토픽에서 명령을 받습니다. 한 토픽으로 좁히려면 그 토픽에서 /help를 "
-                    + "치면 번호를 봇이 알려줍니다");
+                    + "모든 토픽에서 명령을 받습니다. 한 토픽으로 좁히려면 그 토픽에서 아무 명령(/help)이나 "
+                    + "치면 웹훅 로그([webhook] 채팅 … 토픽 …)에 번호가 찍힙니다");
         }
     }
 }

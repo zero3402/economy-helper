@@ -2,6 +2,7 @@ package io.saiden.economyhelper.telegram.presentation;
 
 import io.saiden.economyhelper.shared.domain.DailyBar;
 import io.saiden.economyhelper.shared.domain.DailySeries;
+import io.saiden.economyhelper.shared.domain.PercentChange;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.GradientPaint;
@@ -140,7 +141,7 @@ public final class ChartRenderer {
             double high = Arrays.stream(values).max().orElse(0);
             double first = values[0];
             double last = values[values.length - 1];
-            Color line = colorOf(first, last);
+            Color line = colorOf(DailySeries.changePercent(bars));
 
             // 겹 순서가 뜻을 만든다 — 격자는 메우기 **아래**여야 색을 흐리지 않고,
             // 고리·점은 선 **위**여야 보인다(끝점에 후광을 둔 것과 같은 이유다)
@@ -298,8 +299,14 @@ public final class ChartRenderer {
         return new Color(color.getRed(), color.getGreen(), color.getBlue(), alpha);
     }
 
-    private static Color colorOf(double first, double last) {
-        int direction = Double.compare(last, first);
+    /**
+     * 선 색은 <b>캡션의 등락률과 같은 값</b>({@link DailySeries#changePercent})의 부호로 정한다.
+     *
+     * <p>원값을 견주면 안 된다 — 캡션은 소수 둘째 자리로 반올림하므로 1000 → 1000.04는 캡션이
+     * 「0.00%」인데 선만 붉게 나갔다. 등락률을 못 구하면(첫 값이 0) 캡션에도 없으니 보합 색이다.
+     */
+    private static Color colorOf(PercentChange change) {
+        int direction = change == null ? 0 : change.percent().signum();
         return direction > 0 ? UP : direction < 0 ? DOWN : FLAT;
     }
 
