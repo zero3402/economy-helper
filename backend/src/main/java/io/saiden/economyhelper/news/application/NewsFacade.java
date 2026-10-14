@@ -1,7 +1,6 @@
 package io.saiden.economyhelper.news.application;
 
 import io.saiden.economyhelper.news.domain.Article;
-import io.saiden.economyhelper.news.domain.KeywordGroup;
 import io.saiden.economyhelper.news.domain.NewsItem;
 import io.saiden.economyhelper.news.domain.ScoredArticle;
 import io.saiden.economyhelper.shared.support.Concurrently;
@@ -43,7 +42,11 @@ public class NewsFacade {
         return newsService.window();
     }
 
-    /** 최근 창 안의 발행분 중 무리마다 점수 상위 몇 건 — 정기 발송과 검색어 없는 {@code /news}가 쓴다. */
+    /**
+     * 최근 창 안의 발행분 중 무리마다 점수 상위 몇 건 — 정기 발송과 검색어 없는 {@code /news}가 쓴다.
+     *
+     * @throws Unavailable 피드가 전부 수집에 실패했을 때
+     */
     public List<NewsItem> digest() {
         // NewsService가 이미 점수순으로 준다 — 그 순서 그대로 번역한다
         return translated(newsService.digest());
@@ -61,9 +64,34 @@ public class NewsFacade {
         // 원문을 함께 넘긴다 — 확장한 표현 묶음은 매칭용이고, "정말 그 주제인가"를 물으려면
         // 사용자가 실제로 친 말이 있어야 한다
         // 검색어 확장(Gemini)과 피드 수집은 서로를 기다릴 이유가 없다 — 겹친다
-        Concurrently.Pair<List<KeywordGroup>, List<Article>> both =
+        Concurrently.Pair<QueryExpander.Expansion, List<Article>> both =
                 Concurrently.both(() -> queryExpander.expand(query), newsService::fetchAll);
-        return translated(newsService.search(both.first(), query, both.second()));
+        List<ScoredArticle> found = newsService.search(both.first().groups(), query, both.second());
+        if (found.isEmpty() && both.first().untranslated()) {
+            // ⚠️ 「찾지 못했다」가 아니다 — 번역이 살아 있었다면 영문 기사에 걸렸을 수 있다(실물 감사 2026-10-14
+            //    「/news 금리」, Gemini 503 중). 못 찾음으로 답하면 사용자가 다시 묻지 않는다
+            throw new Unavailable("검색어를 번역하지 못해 '" + query + "'로는 영문 기사를 찾을 수 없었습니다");
+        }
+        return translated(found);
+    }
+
+    /**
+     * <b>장애로 한 건도 못 찾았다</b> — 「그런 뉴스가 없다」가 아니다. 경우는 둘이다.
+     *
+     * <ul>
+     *   <li>검색어를 번역하지 못했다({@link #search}) — 영문 기사는 번역된 낱말로만 걸리므로, 번역이 살아
+     *       있었다면 찾았을 수 있다.</li>
+     *   <li>피드가 <b>전부</b> 수집에 실패했다({@code NewsService.fetchEach}) — {@link #search}와 {@link #digest}
+     *       둘 다 던진다.</li>
+     * </ul>
+     *
+     * <p>웹훅이 이것을 받아 「잠시 후 다시」로 답하고, 브리핑은 뉴스 통만 뺀다({@code DailyDigestJob.section}).
+     */
+    public static final class Unavailable extends RuntimeException {
+
+        public Unavailable(String message) {
+            super(message);
+        }
     }
 
     /** 번역을 한 번에 묶어 {@link NewsItem}으로 옮긴다 — 이유는 {@link TranslationService#translateAll}. */

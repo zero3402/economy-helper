@@ -1,7 +1,9 @@
 package io.saiden.economyhelper.stock.adapter.out.llm;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import io.saiden.economyhelper.infrastructure.llm.LlmJson;
 import io.saiden.economyhelper.stock.domain.ResolvedStock;
 import io.saiden.economyhelper.testsupport.TestGemini;
 import java.util.Optional;
@@ -102,10 +104,10 @@ class StockResolverTest {
     }
 
     @Test
-    @DisplayName("LLM이 죽으면 빈손이다 — 호출자가 원문으로 이름·티커를 시도한다")
-    void returnsEmptyWhenTheModelFails() {
-        assertThat(new StockResolver(TestGemini.failing(), new ObjectMapper()).resolve("삼성전자"))
-                .isEmpty();
+    @DisplayName("LLM이 죽으면 빈손이 아니라 고장으로 알린다 — 호출자가 원문으로 찾되, 못 찾으면 「잠시 후 다시」다")
+    void reportsTheModelFailure() {
+        assertThatThrownBy(() -> new StockResolver(TestGemini.failing(), new ObjectMapper()).resolve("삼성전자"))
+                .isInstanceOf(LlmJson.Failed.class);
     }
 
     @Test

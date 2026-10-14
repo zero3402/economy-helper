@@ -12,6 +12,7 @@ import io.saiden.economyhelper.news.domain.NewsSource;
 import io.saiden.economyhelper.news.domain.PopularityScorer;
 import io.saiden.economyhelper.news.domain.ScoredArticle;
 import io.saiden.economyhelper.shared.support.Concurrently;
+import io.saiden.economyhelper.shared.support.FailureReason;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -22,6 +23,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -96,14 +98,16 @@ public class NewsService {
      * 관련도를 <b>어떻게 재는지</b>는 {@link RelevanceJudge}(구현 {@code RelevanceScorer})가 정한다.
      *
      * <p>수집에 실패한 매체도 결과에서 빠질 뿐 나머지를 막지 않는다.
-     * 이게 "한 소스가 죽어도 발송은 계속된다"의 실제 구현이다.
+     * 이게 "한 소스가 죽어도 발송은 계속된다"의 실제 구현이다({@link #fetchEach}).
+     *
+     * @throws NewsFacade.Unavailable 매체가 <b>전부</b> 수집에 실패했을 때 — 브리핑은 뉴스 통만 빠지고
+     *         ({@code DailyDigestJob.section}), 검색어 없는 {@code /news}는 「잠시 후 다시」다
      */
     public List<ScoredArticle> digest() {
         Instant now = clock.instant();
         List<NewsSource> sources = List.of(NewsSource.values());
-        // 매체끼리는 서로를 기다릴 이유가 없어 겹쳐 돈다 — 가장 느린 매체 하나 만큼만 걸린다.
         // 최근 창 안의 발행분만 남긴다 — 묵은 기사로 자리를 채우지 않는다
-        List<List<Article>> recentBySource = Concurrently.map(sources, source -> recent(fetcher.fetch(source), now));
+        List<List<Article>> recentBySource = fetchEach(sources).stream().map(articles -> recent(articles, now)).toList();
         // HN 반응은 전 매체 기사를 모아 **한 번에** 묻는다(rank()와 같다) — 매체마다 물으면 한 매체의 두 피드
         // (Investing.com 본 섹션·암호화폐 섹션)가 같은 도메인을 동시에 묻는다. 캐시가 비어 있으면 둘 다 나간다
         Map<String, Integer> buzz = buzzClient.buzzByLink(
@@ -219,9 +223,37 @@ public class NewsService {
      * 그대로 체감된다. 검색어와 무관하므로 부르는 쪽이 검색어 확장(Gemini)과 <b>겹쳐</b> 부를 수 있다.
      */
     public List<Article> fetchAll() {
-        return Concurrently.map(List.of(NewsSource.values()), fetcher::fetch).stream()
+        return fetchEach(List.of(NewsSource.values())).stream()
                 .flatMap(List::stream)
                 .toList();
+    }
+
+    /**
+     * 매체마다 긁는다 — 결과는 {@code sources}와 같은 순서이고, 실패한 매체는 빈 목록이다.
+     *
+     * <p>⚠️ <b>전부 실패하면 던진다.</b> 빈 목록으로 내주면 호출자가 「피드는 답했는데 걸린 게 없다」와 가르지
+     * 못해 {@code /news}가 「찾지 못했습니다」로 답한다 — 사용자가 다시 묻지 않는다. 일부만 실패하면 긁은 것으로
+     * 답한다(보충이 아니라 같은 답의 일부라 빠진 매체를 화면에 적지는 않는다).
+     *
+     * @throws NewsFacade.Unavailable 한 매체도 수집하지 못했을 때
+     */
+    private List<List<Article>> fetchEach(List<NewsSource> sources) {
+        // 매체끼리는 서로를 기다릴 이유가 없어 겹쳐 돈다 — 가장 느린 매체 하나 만큼만 걸린다
+        List<Optional<List<Article>>> fetched = Concurrently.map(sources, this::fetchOrSkip);
+        if (fetched.stream().allMatch(Optional::isEmpty)) {
+            throw new NewsFacade.Unavailable("피드 " + sources.size() + "곳이 전부 수집에 실패했습니다");
+        }
+        return fetched.stream().map(articles -> articles.orElse(List.of())).toList();
+    }
+
+    /** 한 매체의 실패는 그 매체만 빠진다 — 캐시 프록시가 던지는 것(Redis 장애)도 여기서 받는다. */
+    private Optional<List<Article>> fetchOrSkip(NewsSource source) {
+        try {
+            return Optional.of(fetcher.fetch(source));
+        } catch (RuntimeException e) {
+            log.warn("[{}] 피드 수집 실패 — 이 매체는 건너뜁니다: {}", source, FailureReason.of(e));
+            return Optional.empty();
+        }
     }
 
     /**

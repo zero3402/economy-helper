@@ -32,12 +32,31 @@ public class QueryExpander {
         this.translator = translator;
     }
 
-    public List<KeywordGroup> expand(String query) {
+    public Expansion expand(String query) {
         // 토큰마다 Gemini 한 번이고 서로를 모른다 — 겹친다. 「비트코인 금리」가 순차면 번역 둘이
         // 줄줄이 2~5초였다. 리미터(12/60초)는 퍼밋 수를 세므로 겹쳐도 소비량은 같고,
-        // groupFor가 실패를 원문 토큰으로 삼키므로 하나가 죽어도 나머지가 산다
-        return Concurrently.map(tokens(query), this::groupFor);
+        // groupFor가 실패를 원문 토큰으로 내려 주므로 하나가 죽어도 나머지가 산다
+        List<Grouped> grouped = Concurrently.map(tokens(query), this::groupFor);
+        return new Expansion(grouped.stream().map(Grouped::group).toList(),
+                grouped.stream().anyMatch(Grouped::untranslated));
     }
+
+    /**
+     * 확장 결과.
+     *
+     * @param groups       토큰마다 한 묶음
+     * @param untranslated 번역이 <b>고장으로</b> 빠진 한글 토큰이 있다 — 그 토큰은 원문으로만 찾으므로 영문 기사에
+     *                     안 걸린다. 그래서 못 찾았을 때 「찾지 못했다」라 단정할 수 없다({@code NewsFacade.search})
+     */
+    public record Expansion(List<KeywordGroup> groups, boolean untranslated) {
+
+        public Expansion {
+            groups = List.copyOf(groups);
+        }
+    }
+
+    /** 토큰 하나의 묶음과, 번역이 고장으로 빠졌는지. */
+    private record Grouped(KeywordGroup group, boolean untranslated) {}
 
     /**
      * 토큰 하나 — <b>친 표기</b>와 <b>조사를 뗀 형태</b>.
@@ -47,10 +66,10 @@ public class QueryExpander {
      */
     record Token(String surface, String stem) {}
 
-    private KeywordGroup groupFor(Token token) {
+    private Grouped groupFor(Token token) {
         // 영어 검색어는 번역할 게 없다. 무료 티어를 태우지 않고 지연도 붙지 않는다
         if (!QueryNormalizer.hasHangul(token.surface())) {
-            return KeywordGroup.of(token.stem());
+            return new Grouped(KeywordGroup.of(token.stem()), false);
         }
 
         try {
@@ -58,12 +77,12 @@ public class QueryExpander {
             List<String> terms = new ArrayList<>(english.size() + 1);
             terms.add(token.stem());
             terms.addAll(english);
-            return new KeywordGroup(terms);
+            return new Grouped(new KeywordGroup(terms), false);
         } catch (Exception e) {
-            // 원문 토큰으로 내려간다. 영문 기사에는 걸리지 않으므로 사용자는 "찾지 못했습니다"를
-            // 받는다 — 별도 오류 문구를 만들지 않고 로그로 원인을 남긴다
+            // 원문 토큰으로 내려간다 — 한글 기사에는 그대로 걸린다. 영문 기사에는 안 걸리므로 그 사실을
+            // 함께 넘긴다: 그래서 한 건도 못 찾으면 「찾지 못했다」가 아니라 「잠시 후 다시」다(NewsFacade)
             log.error("[news] '{}' 검색어 번역 실패 — 원문 토큰으로 검색합니다: {}", token.surface(), FailureReason.of(e));
-            return KeywordGroup.of(token.stem());
+            return new Grouped(KeywordGroup.of(token.stem()), true);
         }
     }
 

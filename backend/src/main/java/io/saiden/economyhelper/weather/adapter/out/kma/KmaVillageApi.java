@@ -107,7 +107,9 @@ class KmaVillageApi {
      * <p>⚠️ <b>「반나절 둘이 다 있나」와 「일 극값이 있나」를 함께 묻는다</b> — 극값만 보면 그것이
      * 11시·14시 창을 덮는 것이 우연이다({@code VillageBlock.Axis.hasBothHalves}).
      *
-     * <p>⚠️ <b>보충이라 실패를 삼킨다.</b> 실패하면 오늘이 반나절 하나로 남고
+     * <p>⚠️ <b>보충이라 실패를 삼킨다.</b> 그 뒤는 최신 발표가 정한다.
+     * <b>05·08시 판</b>은 오전 슬롯이 남아 있어 오늘이 그대로 나가고, 일 최저·최고만 남은 시각의
+     * 값으로 낸다(오전 8시 알람이 이 경우다). <b>11시 판부터</b>는 오늘이 반나절 하나로 남아
      * {@code VillageBlock.Axis.toDays}가 그 날을 버려 <b>폴백이 일어난다</b> — AccuWeather와
      * Open-Meteo 시간별이 두 줄을 온전히 주므로 반쪽을 내보내는 것보다 낫다.
      *
@@ -123,13 +125,15 @@ class KmaVillageApi {
         try {
             return fetch(grid, today.atTime(BASE_HOURS[0], 0), "단기예보(이른 발표)").axis();
         } catch (RuntimeException e) {
-            log.warn("[weather] 기상청 {} 이른 발표를 못 받았습니다 — 오늘이 빠져 폴백합니다: {}",
+            log.warn("[weather] 기상청 {} 이른 발표를 못 받았습니다 — 오전이 없으면 오늘이 빠져 폴백합니다: {}",
                     today, FailureReason.of(e));
             return null;
         }
     }
 
-    private VillageBlock fetch(KmaGrid grid, LocalDateTime published, String what) {
+    private VillageBlock fetch(KmaGrid grid, LocalDateTime published, String kind) {
+        // 격자를 이름에 싣는다 — 알람은 네 격자를 겹쳐 묻는데, 격자 없는 실패 로그로는 어느 곳인지 못 가른다
+        String what = kind + " " + grid.nx() + "," + grid.ny();
         Response response = KmaRequest.fetch(restClient,
                 KmaRequest.uri(baseUrl, PATH, apiKey, Map.of(
                         "numOfRows", String.valueOf(PAGE_SIZE),

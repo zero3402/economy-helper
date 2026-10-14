@@ -187,8 +187,10 @@ public class StockService {
             return stockAnswer(code.get());
         }
 
-        Optional<ResolvedStock> resolved = resolve(key);
         Outages outages = new Outages();
+        Optional<ResolvedStock> resolved = resolve(key, outages);
+        // 해석기가 죽었으면 그 사실이 첫 장애로 남는다 — 원문으로도 못 찾으면 「잠시 후 다시」다
+        boolean resolverDown = outages.any();
 
         if (resolved.filter(ResolvedStock::isUs).isPresent()) {
             Optional<Answer> found = outages.attempt(() -> usAnswer(resolved.get()));
@@ -219,7 +221,7 @@ public class StockService {
                     .or(() -> outages.attempt(() -> byExactListing(name, forms)))
                     .or(() -> outages.attempt(() -> usByTicker(query, forms, null))));
         }
-        Optional<Answer> found = search(resolved, forms, query, outages);
+        Optional<Answer> found = search(resolved, forms, query, outages, resolverDown);
         // ⚠️ 국내 이름 검색까지 다 빈손이다. 원문이 미국 티커 모양이면 한 번 더 —
         //    LLM이 죽거나 거절해도 사용자가 친 글자로 찾을 수 있어야 한다
         return outages.settle(found.isPresent() ? found : outages.attempt(() -> usByTicker(query, forms, null)));
@@ -246,6 +248,17 @@ public class StockService {
             }
         }
 
+        /** 다른 길을 거치지 않고 생긴 장애를 기억한다 — 해석기 고장이 그것이다. */
+        void note(Unavailable outage) {
+            if (first == null) {
+                first = outage;
+            }
+        }
+
+        boolean any() {
+            return first != null;
+        }
+
         Optional<Answer> settle(Optional<Answer> found) {
             if (found.isEmpty() && first != null) {
                 throw first;
@@ -255,17 +268,19 @@ public class StockService {
     }
 
     /**
-     * 검색어 해석 — <b>실패는 LLM이 빈손인 것과 같이 다룬다.</b>
+     * 검색어 해석 — <b>고장은 빈손이 아니라 장애로 기억한다.</b>
      *
-     * <p>해석기 안쪽은 제 실패를 삼키지만 거기 걸린 {@code @Cacheable} 프록시(Redis)는 메서드 밖에서 던진다.
-     * 그때 {@code /stock} 전체를 버리지 않고 원문으로 찾는다 — 「삼성전자」는 LLM 없이도 걸린다.
-     * 그 밖의 예외는 삼키지 않는다 — 웹훅이 「못 찾았다」가 아니라 「잠시 후 다시」로 답하게 둔다.
+     * <p>해석기가 죽었어도({@code LlmJson.Failed}, 거기 걸린 {@code @Cacheable} 프록시의 Redis 예외까지)
+     * {@code /stock} 전체를 버리지 않고 원문으로 찾는다 — 「삼성전자」는 LLM 없이도 걸린다. 다만 그 사실을
+     * {@code outages}에 남긴다: 원문으로도 못 찾으면 「못 찾음」이 아니라 「잠시 후 다시」다 — 살아 있는 해석기라면
+     * 「네이버」를 NAVER로 옮겼다(실물 감사 2026-10-14).
      */
-    private Optional<ResolvedStock> resolve(String key) {
+    private Optional<ResolvedStock> resolve(String key, Outages outages) {
         try {
             return resolver.resolve(key);
         } catch (RuntimeException e) {
-            log.warn("[stock] '{}' 해석 실패 — 원문으로 찾습니다: {}", key, FailureReason.of(e));
+            log.warn("[stock] '{}' 해석 실패 — 딱 맞는 이름만 원문으로 찾습니다: {}", key, FailureReason.of(e));
+            outages.note(new Unavailable("종목 해석 '" + key + "'", e));
             return Optional.empty();
         }
     }
@@ -305,12 +320,17 @@ public class StockService {
      * 차트가 붙는다. 없으면 공공데이터포털(전일 종가, 코드 없음).
      *
      * <p>마지막에 원문으로 한 번 더 시도하는 것이 <b>LLM 장애에 대한 폴백</b>이다.
-     * {@code 삼성전자}·{@code 하이닉스}처럼 이름을 그대로 친 경우는 LLM 없이도 걸린다 —
+     * {@code 삼성전자}처럼 상장명을 그대로 친 경우는 LLM 없이도 걸린다 —
      * Gemini가 죽었다고 {@code /stock} 전체가 멈추면 안 된다. {@code 타임나스닥100}은 LLM 없이는
      * 빈손이다({@code 타임} ≠ {@code TIME}) — 그 소리를 맞추는 것이 LLM의 몫이다.
+     *
+     * <p>⚠️ <b>해석기가 죽었으면({@code exactOnly}) 원문은 이름이 딱 맞을 때만 받는다.</b> 부분일치는 시총
+     * 1위를 집어 오는데, LLM 없이는 그것이 물은 종목인지 가릴 길이 없다 — 「애플」이 {@code PLUS 애플채권혼합}
+     * ETF로 나갔다(실물 감사 2026-10-14, Gemini 타임아웃 중). 틀린 값보다 「잠시 후 다시」가 낫다.
+     * 해석기가 살아서 「특정하지 못했다」고 한 것은 다르다 — 그때는 지금까지처럼 부분일치도 받는다.
      */
     private Optional<Answer> search(Optional<ResolvedStock> resolved, List<String> forms, String query,
-                                    Outages outages) {
+                                    Outages outages, boolean exactOnly) {
         if (resolved.isPresent()) {
             ResolvedStock found = resolved.get();
             CodeTrust trust = codeTrust(found);
@@ -351,6 +371,11 @@ public class StockService {
         if (asIndex.isPresent()) {
             return asIndex;
         }
+        if (exactOnly) {
+            // 해석기가 죽었다 — 색인도 공공데이터포털도 이름이 딱 맞는 것만 받는다
+            return outages.attempt(() -> byExactListing(query.strip(), forms))
+                    .or(() -> outages.attempt(() -> byNames(query, forms, true)));
+        }
         // 원문이 그대로 종목명일 수 있다 — 군더더기를 뗀 형태까지 색인에 대 본다(「타임나스닥100 etf」의 etf)
         for (String form : forms) {
             Optional<Answer> byListing = outages.attempt(() -> byListing(form));
@@ -358,7 +383,7 @@ public class StockService {
                 return byListing;
             }
         }
-        return outages.attempt(() -> byNames(query, forms));
+        return outages.attempt(() -> byNames(query, forms, false));
     }
 
     /** LLM이 준 코드를 이름과 견준 결과. */
@@ -419,16 +444,27 @@ public class StockService {
      *
      * <p>⚠️ 정규화한 형태만 보내면 늘 빈손이다 — 상장명이 대소문자·띄어쓰기를 지키는데({@code SK하이닉스}·
      * {@code TIGER 미국나스닥100}) 정규화는 소문자로 내리고 공백을 지운다. 조회는 1시간 캐시라 되풀이 비용이 작다.
+     *
+     * @param exact 참이면 상장명이 물은 이름과 <b>딱 맞는</b> 답만 받는다 — 이 검색은 부분일치({@code likeItmsNm})라
+     *              시총 1위가 다른 종목일 수 있다({@link #search}의 {@code exactOnly})
      */
-    private Optional<Answer> byNames(String query, List<String> forms) {
+    private Optional<Answer> byNames(String query, List<String> forms, boolean exact) {
         // 한 형태의 실패로 나머지 형태를 버리지 않는다 — 장애는 기억했다가 전부 빈손일 때만 던진다
         Outages outages = new Outages();
         Optional<Answer> found = Stream.concat(Stream.of(query.strip()), forms.stream())
                 .distinct()
-                .map(name -> outages.attempt(() -> byName(name).map(Answer::of)))
+                .map(name -> outages.attempt(() -> byName(name)
+                        .filter(quote -> !exact || sameName(quote, name))
+                        .map(Answer::of)))
                 .flatMap(Optional::stream)
                 .findFirst();
         return outages.settle(found);
+    }
+
+    /** 시세의 이름이 물은 이름과 정규화해서 같은가 — {@code StockListings.exact}와 같은 잣대다. */
+    private static boolean sameName(StockQuote quote, String asked) {
+        String wanted = QueryNormalizer.normalize(asked);
+        return !wanted.isEmpty() && quote.name() != null && wanted.equals(QueryNormalizer.normalize(quote.name()));
     }
 
     /**

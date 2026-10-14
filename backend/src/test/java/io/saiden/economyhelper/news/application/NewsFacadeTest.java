@@ -1,17 +1,22 @@
 package io.saiden.economyhelper.news.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.saiden.economyhelper.news.domain.Article;
+import io.saiden.economyhelper.news.domain.KeywordGroup;
 import io.saiden.economyhelper.news.domain.NewsItem;
 import io.saiden.economyhelper.news.domain.NewsSource;
 import io.saiden.economyhelper.news.domain.ScoredArticle;
 import io.saiden.economyhelper.testsupport.TestProperties;
+import io.saiden.economyhelper.translate.application.QueryTranslationService;
 import io.saiden.economyhelper.translate.application.TranslationService;
+import io.saiden.economyhelper.translate.application.port.out.SearchTermTranslator;
 import io.saiden.economyhelper.translate.domain.Translation;
 import io.saiden.economyhelper.translate.domain.TranslationRequest;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -65,7 +70,63 @@ class NewsFacadeTest {
         assertThat(asked).isEmpty();
     }
 
+    @Test
+    @DisplayName("검색어 번역이 죽고 한 건도 못 찾았으면 「찾지 못했다」가 아니라 장애다 — 실물 감사 2026-10-14 「/news 금리」")
+    void signalsAnOutageWhenTheQueryCouldNotBeTranslatedAndNothingMatched() {
+        NewsFacade facade = searchFacade(List.of(), token -> {
+            throw new IllegalStateException("Gemini 503");
+        });
+
+        assertThatThrownBy(() -> facade.search("금리")).isInstanceOf(NewsFacade.Unavailable.class);
+    }
+
+    @Test
+    @DisplayName("번역이 죽어도 원문 토큰이 찾은 기사는 낸다 — 장애는 빈손일 때만 알린다")
+    void answersWhatTheUntranslatedQueryFound() {
+        NewsFacade facade = searchFacade(List.of(scored("금리 동결", "https://a.example/rate")), token -> {
+            throw new IllegalStateException("Gemini 503");
+        });
+
+        assertThat(facade.search("금리")).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("번역이 됐는데 못 찾은 것은 그대로 「찾지 못했다」다 — 장애가 아니다")
+    void returnsEmptyWhenTheTranslatedQueryFindsNothing() {
+        NewsFacade facade = searchFacade(List.of(), token -> List.of("interest rate"));
+
+        assertThat(facade.search("금리")).isEmpty();
+    }
+
     // --- 도우미 ---
+
+    /** {@code search()}가 부르는 셋만 갈아 끼운다 — 수집은 빈손, 점수는 {@code found}가 정한다. */
+    private static NewsFacade searchFacade(List<ScoredArticle> found, SearchTermTranslator translator) {
+        NewsService news = new NewsService(null, null, null, null,
+                java.time.Clock.fixed(NOW, java.time.ZoneOffset.UTC),
+                TestProperties.builder()
+                        .newsWindow(java.time.Duration.ofHours(24))
+                        .llmCandidates(8).relevanceThreshold(0.4)
+                        .searchResults(5).cryptoResults(5).economyResults(5)
+                        .build()) {
+            @Override
+            public List<Article> fetchAll() {
+                return List.of();
+            }
+
+            @Override
+            public List<ScoredArticle> search(Collection<KeywordGroup> keywords, String query, List<Article> fetched) {
+                return found;
+            }
+        };
+        TranslationService translations = new TranslationService(null, null) {
+            @Override
+            public List<Translation> translateAll(List<TranslationRequest> articles) {
+                return articles.stream().map(article -> Translation.of(article.title(), "")).toList();
+            }
+        };
+        return new NewsFacade(news, translations, new QueryExpander(new QueryTranslationService(translator)));
+    }
 
     private static ScoredArticle scored(String title, String link) {
         return new ScoredArticle(

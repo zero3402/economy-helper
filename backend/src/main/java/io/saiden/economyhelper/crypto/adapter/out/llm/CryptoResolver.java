@@ -56,8 +56,9 @@ public class CryptoResolver implements CoinResolver {
     }
 
     /**
-     * @return LLM이 판단한 코인. 실패하거나 특정하지 못하면 {@link Optional#empty()} —
+     * @return LLM이 판단한 코인. 특정하지 못하면 {@link Optional#empty()} —
      *         업비트 매칭이 이미 빗나간 뒤라 호출자는 「찾지 못했다」로 답한다
+     * @throws LlmJson.Failed LLM이 죽었을 때 — 호출자는 「잠시 후 다시」로 답한다. 예외라 캐시에 담기지 않는다
      */
     @Cacheable(cacheNames = CacheNames.CRYPTO_RESOLVE, key = "#a0", unless = "#result == null")
     @Override

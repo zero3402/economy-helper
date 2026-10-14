@@ -1,6 +1,7 @@
 package io.saiden.economyhelper.news.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.saiden.economyhelper.config.EconomyHelperProperties.Feed;
@@ -9,6 +10,7 @@ import io.saiden.economyhelper.news.adapter.out.feed.FeedFetcher;
 import io.saiden.economyhelper.news.adapter.out.hackernews.HackerNewsApi;
 import io.saiden.economyhelper.news.adapter.out.hackernews.HackerNewsBuzzClient;
 import io.saiden.economyhelper.news.adapter.out.llm.RelevanceScorer;
+import io.saiden.economyhelper.news.application.port.out.ArticleFeed;
 import io.saiden.economyhelper.news.domain.Article;
 import io.saiden.economyhelper.news.domain.KeywordGroup;
 import io.saiden.economyhelper.news.domain.NewsCategory;
@@ -24,8 +26,10 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
@@ -333,6 +337,40 @@ class NewsServiceTest {
         };
     }
 
+    @Test
+    @DisplayName("피드가 전부 죽으면 「찾지 못했다」가 아니라 장애다 — 검색어가 있든 없든 /news가 「잠시 후 다시」로 답한다")
+    void signalsAnOutageWhenEveryFeedFails() {
+        NewsService service = service(Map.of(), EnumSet.allOf(NewsSource.class));
+
+        assertThatThrownBy(service::fetchAll)
+                .as("/news {검색어} — 긁은 것이 없어 무엇과도 안 걸린다")
+                .isInstanceOf(NewsFacade.Unavailable.class);
+        assertThatThrownBy(service::digest)
+                .as("/news — 브리핑도 이 경로라 통째로 빠질 뿐 잡 밖으로 새지 않는다(DailyDigestJob.section)")
+                .isInstanceOf(NewsFacade.Unavailable.class);
+    }
+
+    @Test
+    @DisplayName("피드 일부만 죽으면 긁은 것으로 답한다 — 한 매체 장애가 답을 막지 않는다")
+    void answersWithWhatWasFetchedWhenSomeFeedsFail() {
+        Set<NewsSource> down = EnumSet.allOf(NewsSource.class);
+        down.remove(NewsSource.CNBC);
+        NewsService service = service(Map.of(
+                NewsSource.CNBC, List.of(article(NewsSource.CNBC, "Fed signals rate cut", 0))), down);
+
+        assertThat(service.search(groups("rate"), null, service.fetchAll())).hasSize(1);
+        assertThat(service.digest()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("피드가 답했는데 걸린 것이 없으면 장애가 아니다 — 빈 결과(「찾지 못했습니다」)다")
+    void answeredButEmptyFeedsAreNotAnOutage() {
+        NewsService service = service(Map.of());
+
+        assertThat(service.fetchAll()).isEmpty();
+        assertThat(service.digest()).isEmpty();
+    }
+
     /** 표현마다 1항목 묶음 — 재테크 사전이 이 모양이다. */
     private static List<KeywordGroup> groups(String... terms) {
         return Arrays.stream(terms).map(KeywordGroup::of).toList();
@@ -342,14 +380,23 @@ class NewsServiceTest {
         return service(bySource, passAll());
     }
 
+    /** {@code down}의 매체는 수집에 실패한다({@link ArticleFeed.Unavailable}). */
+    private static NewsService service(Map<NewsSource, List<Article>> bySource, Set<NewsSource> down) {
+        return service(new StubFetcher(bySource, down), passAll(), new StubBuzzClient());
+    }
+
     private static NewsService service(Map<NewsSource, List<Article>> bySource, RelevanceScorer relevance) {
         return service(bySource, relevance, new StubBuzzClient());
     }
 
     private static NewsService service(Map<NewsSource, List<Article>> bySource, RelevanceScorer relevance,
                                        StubBuzzClient buzz) {
+        return service(new StubFetcher(bySource, Set.of()), relevance, buzz);
+    }
+
+    private static NewsService service(StubFetcher fetcher, RelevanceScorer relevance, StubBuzzClient buzz) {
         return new NewsService(
-                new StubFetcher(bySource),
+                fetcher,
                 buzz,
                 new PopularityScorer(new RankingWeights(0.35, 0.25, 0.25, 0.15), Duration.ofHours(6)),
                 relevance,
@@ -395,8 +442,9 @@ class NewsServiceTest {
     /** 실제 HTTP 없이 소스별 결과를 정해 준다. */
     private static final class StubFetcher extends FeedFetcher {
         private final Map<NewsSource, List<Article>> bySource;
+        private final Set<NewsSource> down;
 
-        private StubFetcher(Map<NewsSource, List<Article>> bySource) {
+        private StubFetcher(Map<NewsSource, List<Article>> bySource, Set<NewsSource> down) {
             super(RestClient.builder(),
                     TestProperties.builder()
                             .feeds(new EnumMap<NewsSource, Feed>(NewsSource.class))
@@ -409,10 +457,14 @@ class NewsServiceTest {
                     Clock.systemUTC(),
                     List.of());
             this.bySource = bySource;
+            this.down = down;
         }
 
         @Override
         public List<Article> fetch(NewsSource source) {
+            if (down.contains(source)) {
+                throw new ArticleFeed.Unavailable(source, new IllegalStateException("HTTP 503"));
+            }
             return bySource.getOrDefault(source, List.of());
         }
     }

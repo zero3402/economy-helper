@@ -326,6 +326,24 @@ class DailyDigestJobTest {
     }
 
     @Test
+    @DisplayName("피드가 전부 죽어 뉴스가 장애를 알려도 브리핑은 뉴스 통만 빼고 나간다 — 예외가 잡 밖으로 새지 않는다")
+    void dropsOnlyTheNewsSectionWhenEveryFeedIsDown() {
+        RecordingTelegram telegram = new RecordingTelegram();
+        NewsFacade down = new CountingFacade(List.of()) {
+            @Override
+            public List<NewsItem> digest() {
+                throw new NewsFacade.Unavailable("피드 전부 수집 실패");
+            }
+        };
+
+        DigestResult result = job(telegram, new InMemoryHistory(), down, fx(true), stock(true), crypto(true)).run(false);
+
+        assertThat(result.sent()).isTrue();
+        assertThat(result.delivered()).containsExactly("환율", "증시", "코인");
+        assertThat(result.failed()).extracting(DigestResult.Failure::section).containsExactly("뉴스");
+    }
+
+    @Test
     @DisplayName("수집이 예외로 새면 슬롯을 되돌린다 — 안 그러면 그날 창의 나머지 틱이 전부 「이미 보냈다」다")
     void releasesTheSlotWhenCollectionEscapes() {
         // section()은 RuntimeException을 값으로 바꾸지만 Error와 인터럽트는 그대로 샌다 — 배포 중 종료가 그 경로다

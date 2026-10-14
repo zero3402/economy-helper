@@ -277,6 +277,43 @@ class KmaWeatherClientTest extends WireMockTest {
     }
 
     @Test
+    @DisplayName("오전 8시 알람의 네 격자가 모두 오늘을 낸다 — 05시 발표 + 02시 보충")
+    void everyAlarmGridAnswersTodayAtEight() {
+        // 2026-10-14 08:00 알람부터 미금역만 나왔다(원인 미확정). 격자로 갈리는 분기가 없다는 것을
+        // 그 시각·그 격자 넷으로 못 박는다. 픽스처는 2026-08-26 서현 격자의 실측이라 날짜만 그날로 옮긴다
+        // (06:30 테스트가 시계를 픽스처 날에 맞춘 것의 거울상이다)
+        Instant eight = Instant.parse("2026-10-13T23:00:00Z");
+        LocalDate alarmDay = LocalDate.of(2026, 10, 14);
+        KmaWeatherClient atEight = clientAt(eight);
+        int[][] grids = {{62, 122}, {62, 123}, {62, 126}, {61, 126}};
+        for (int[] grid : grids) {
+            stubAt(grid, "0500", shiftedTo(alarmDay, "fixtures/kma-vilage-20260826-0500.json"));
+            stubAt(grid, "0200", shiftedTo(alarmDay, "fixtures/kma-vilage-20260826-0200.json"));
+        }
+        GeoLocation[] places = {
+            KmaFixtures.domestic("미금역", KmaFixtures.MIGEUM_LATITUDE, KmaFixtures.MIGEUM_LONGITUDE),
+            KmaFixtures.domestic("서현역", KmaFixtures.SEOHYEON_LATITUDE, KmaFixtures.SEOHYEON_LONGITUDE),
+            KmaFixtures.domestic("잠실역", KmaFixtures.JAMSIL_LATITUDE, KmaFixtures.JAMSIL_LONGITUDE),
+            KmaFixtures.domestic("삼성중앙역", KmaFixtures.SAMSEONG_LATITUDE, KmaFixtures.SAMSEONG_LONGITUDE),
+        };
+
+        for (GeoLocation place : places) {
+            Weather.Daily today = atEight.forecast(place,
+                    WeatherPeriod.of(alarmDay, null, null, 1)).days().get(0);
+            assertThat(today.date()).as(place.name()).isEqualTo(alarmDay);
+            assertThat(today.halves()).as(place.name() + " — 오전·오후 두 줄").hasSize(2);
+            assertThat(today.low()).as(place.name() + " — 02시 발표의 TMN").isEqualByComparingTo("24.0");
+        }
+        for (int[] grid : grids) {
+            server.verify(getRequestedFor(urlPathEqualTo(VILLAGE_PATH))
+                    .withQueryParam("base_date", WireMock.equalTo("20261014"))
+                    .withQueryParam("base_time", WireMock.equalTo("0500"))
+                    .withQueryParam("nx", WireMock.equalTo(String.valueOf(grid[0])))
+                    .withQueryParam("ny", WireMock.equalTo(String.valueOf(grid[1]))));
+        }
+    }
+
+    @Test
     @DisplayName("오늘이 온전한 발표에는 이른 발표를 안 부른다 — 헛호출이 된다")
     void neverAsksTheEarlierPublicationWhenTodayIsComplete() {
         // 02시 판이 최신인 시각(02:40)에는 그 판이 오전(03~11시)과 TMN·TMX를 다 들고 있다.
@@ -426,7 +463,42 @@ class KmaWeatherClientTest extends WireMockTest {
 
         assertThatThrownBy(() -> client.forecast(SEOHYEON, days(1)))
                 .hasMessageNotContaining(API_KEY)
-                .hasMessageNotContaining("serviceKey");
+                .hasMessageNotContaining("serviceKey")
+                .satisfies(KmaWeatherClientTest::keyFreeChain);
+    }
+
+    @Test
+    @DisplayName("⚠️ 실패 사유와 원인을 남긴다 — 원인 없는 「조회 실패」로는 무엇이 터졌는지 모른다")
+    void keepsTheReasonAndTheCause() {
+        // 2026-10-14 08:00 알람에서 세 곳이 빠졌는데 기상청 실패는 원인 없는 IllegalStateException
+        // 하나뿐이라 로그가 아무것도 말하지 못했다. 상태 코드와 격자가 메시지에 남아야 한다
+        server.stubFor(get(urlPathEqualTo(VILLAGE_PATH))
+                .willReturn(aResponse().withStatus(503)));
+
+        assertThatThrownBy(() -> client.forecast(SEOHYEON, days(1)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("HTTP 503")
+                .hasMessageContaining("62,123")
+                .satisfies(e -> assertThat(io.saiden.economyhelper.shared.support.FailureReason.of(e))
+                        .as("원인 사슬을 FailureReason이 읽어 상태 코드까지 간다")
+                        .contains("HTTP 503"))
+                .satisfies(KmaWeatherClientTest::keyFreeChain);
+    }
+
+    @Test
+    @DisplayName("⚠️ 연결이 끊긴 실패도 원인을 남기되 키는 안 남긴다 — 그 예외의 메시지에 URL이 통째로 실린다")
+    void keepsAnIoCauseWithoutTheKey() {
+        // ResourceAccessException의 메시지는 「I/O error on GET request for "…?serviceKey=…"」다
+        server.stubFor(get(urlPathEqualTo(VILLAGE_PATH))
+                .willReturn(aResponse().withFault(
+                        com.github.tomakehurst.wiremock.http.Fault.CONNECTION_RESET_BY_PEER)));
+
+        assertThatThrownBy(() -> client.forecast(SEOHYEON, days(1)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("연결 실패")
+                .satisfies(e -> assertThat(e.getCause())
+                        .isInstanceOf(org.springframework.web.client.ResourceAccessException.class))
+                .satisfies(KmaWeatherClientTest::keyFreeChain);
     }
 
     @Test
@@ -440,6 +512,15 @@ class KmaWeatherClientTest extends WireMockTest {
     }
 
     // --- 도구 -------------------------------------------------------------
+
+    /** 원인 사슬 어디에도 키가 없다 — 누가 예외를 통째로 로그에 남겨도 새지 않는다. */
+    private static void keyFreeChain(Throwable thrown) {
+        for (Throwable e = thrown; e != null; e = e.getCause() == e ? null : e.getCause()) {
+            assertThat(String.valueOf(e.getMessage()))
+                    .as("%s의 메시지", e.getClass().getSimpleName())
+                    .doesNotContain(API_KEY).doesNotContain(DECODED_KEY).doesNotContain("serviceKey");
+        }
+    }
 
     private KmaWeatherClient clientWith(String apiKey) {
         return client(apiKey, Clock.fixed(NOW, SEOUL));
@@ -462,6 +543,28 @@ class KmaWeatherClientTest extends WireMockTest {
                 .willReturn(aResponse().withStatus(200)
                         .withHeader("Content-Type", "application/json")
                         .withBody(TestFixtures.text(fixture))));
+    }
+
+    /** 격자 하나의 한 발표 — 격자마다 따로 스텁해야 어느 격자가 무엇을 받았는지 갈린다. */
+    private void stubAt(int[] grid, String baseTime, String body) {
+        server.stubFor(get(urlPathEqualTo(VILLAGE_PATH))
+                .withQueryParam("base_time", WireMock.equalTo(baseTime))
+                .withQueryParam("nx", WireMock.equalTo(String.valueOf(grid[0])))
+                .withQueryParam("ny", WireMock.equalTo(String.valueOf(grid[1])))
+                .willReturn(aResponse().withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(body)));
+    }
+
+    /** 2026-08-26 픽스처의 날짜(발표일·예보일 +0~+4)를 {@code day}로 옮긴다 — 값은 그대로다. */
+    private static String shiftedTo(LocalDate day, String fixture) {
+        String text = TestFixtures.text(fixture);
+        java.time.format.DateTimeFormatter compact = java.time.format.DateTimeFormatter.BASIC_ISO_DATE;
+        for (int offset = 0; offset <= 4; offset++) {
+            text = text.replace(TODAY.plusDays(offset).format(compact),
+                    day.plusDays(offset).format(compact));
+        }
+        return text;
     }
 
     private static WeatherPeriod days(int count) {

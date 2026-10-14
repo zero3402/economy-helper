@@ -16,6 +16,7 @@ import io.saiden.economyhelper.stock.domain.ResolvedStock;
 import io.saiden.economyhelper.stock.domain.StockOutlook;
 import io.saiden.economyhelper.stock.domain.StockQuote;
 import io.saiden.economyhelper.stock.domain.StockSource;
+import io.saiden.economyhelper.testsupport.TestGemini;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -24,6 +25,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * 이 클래스가 책임지는 것은 <b>어디로 보내고, 죽으면 어디로 넘기느냐</b> 둘뿐이다.
@@ -722,6 +724,50 @@ class StockServiceTest {
         assertThat(service.quote("삼성전자").orElseThrow().name()).isEqualTo("삼성전자");
     }
 
+    // --- 해석기 장애 (실물 감사 2026-10-14 — Gemini 타임아웃·503 중) ---
+
+    private static final Listing PLUS_APPLE_BOND = new Listing("0080Y0", "PLUS 애플채권혼합", "EF", 1200);
+
+    @Test
+    @DisplayName("해석기가 죽었을 때 원문의 부분일치는 답이 아니다 — 「애플」이 PLUS 애플채권혼합 ETF로 나가던 것")
+    void neverAnswersAPartialMatchWhileTheResolverIsDown() {
+        StockQuote etf = krStock("PLUS 애플채권혼합", "10500", StockSource.KIS);
+        FakeDomestic kis = domestic(StockSource.KIS, Map.of(PLUS_APPLE_BOND.code(), etf));
+        // 공공데이터포털 likeItmsNm도 부분일치다 — 같은 ETF를 시총 1위로 준다
+        RecordingNames names = new RecordingNames(Map.of("애플",
+                krStock("PLUS 애플채권혼합", "10450", StockSource.DATA_GO)));
+        StockService service = service(List.of(kis), List.of(), deadResolver(), names,
+                listings(PLUS_APPLE_BOND, SAMSUNG));
+
+        assertThatThrownBy(() -> service.answer("애플"))
+                .as("틀린 값보다 「잠시 후 다시」다 — 해석기가 살아 있었다면 AAPL이었다")
+                .isInstanceOf(StockService.Unavailable.class);
+        assertThat(kis.asked).as("부분일치한 ETF의 시세를 묻지 않는다").isEmpty();
+    }
+
+    @Test
+    @DisplayName("해석기가 죽고 원문으로도 못 찾으면 「못 찾음」이 아니라 장애다 — 「네이버」는 상장명이 NAVER다")
+    void signalsAnOutageWhenTheResolverIsDownAndNothingAnswers() {
+        // 진짜 해석기에 죽은 Gemini를 단다 — 해석기가 실패를 빈손으로 삼키던 것이 이 버그의 뿌리다
+        StockService service = service(List.of(domestic(StockSource.KIS, Map.of())), List.of(),
+                new StockResolver(TestGemini.failing(), new ObjectMapper()),
+                new RecordingNames(Map.of()), listings(NAVER, SAMSUNG));
+
+        assertThatThrownBy(() -> service.answer("네이버")).isInstanceOf(StockService.Unavailable.class);
+    }
+
+    @Test
+    @DisplayName("해석기가 죽어도 이름이 딱 맞으면 답한다 — 색인이 죽었으면 공공데이터포털의 딱 맞는 이름까지")
+    void stillAnswersAnExactNameWhileTheResolverIsDown() {
+        RecordingNames names = new RecordingNames(Map.of("삼성전자", krStock("삼성전자", "268500", StockSource.DATA_GO)));
+        StockListings deadIndex = new StockListings(() -> {
+            throw new IllegalStateException("종목 마스터 다운로드 실패");
+        });
+        StockService service = service(List.of(), List.of(), deadResolver(), names, deadIndex);
+
+        assertThat(service.quote("삼성전자").orElseThrow().name()).isEqualTo("삼성전자");
+    }
+
     // --- 스텁 ---
 
     private static StockService service(List<DomesticStockClient> domestic, List<UsStockClient> us,
@@ -897,9 +943,19 @@ class StockServiceTest {
         };
     }
 
-    /** LLM이 죽었거나 종목을 특정하지 못한 상태. */
+    /** LLM이 종목을 특정하지 못한 상태 — 죽은 것({@link #deadResolver})과 다르다. */
     private static StockResolver noResolver() {
         return resolver(null);
+    }
+
+    /** LLM이 죽은 상태 — 해석기는 빈손이 아니라 예외로 알린다(LlmJson). */
+    private static StockResolver deadResolver() {
+        return new StockResolver(null, null) {
+            @Override
+            public Optional<ResolvedStock> resolve(String normalizedQuery) {
+                throw new IllegalStateException("LLM 해석 실패: 타임아웃");
+            }
+        };
     }
 
     /** 불리면 안 되는 상태 — 해석할 것이 없는 입력에 Gemini가 나가면 여기서 드러난다. */

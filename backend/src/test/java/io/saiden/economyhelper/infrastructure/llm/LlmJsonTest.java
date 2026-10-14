@@ -1,6 +1,7 @@
 package io.saiden.economyhelper.infrastructure.llm;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.saiden.economyhelper.testsupport.TestProperties;
 import org.junit.jupiter.api.DisplayName;
@@ -9,9 +10,9 @@ import org.springframework.web.client.RestClient;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * LLM 해석의 공통 관문 — <b>여기가 던지면 {@code /stock}·{@code /crypto}·{@code /weather}가
- * 통째로 죽는다.</b> 해석기 셋({@code StockResolver}·{@code CryptoResolver}·{@code WeatherResolver})이
- * 전부 이 위에 서 있어, 여기서 예외가 새면 세 명령이 함께 빈손이 된다.
+ * LLM 해석의 공통 관문 — 해석기 셋({@code StockResolver}·{@code CryptoResolver}·{@code WeatherResolver})이
+ * 전부 이 위에 서 있다. <b>「특정하지 못했다」(빈손)와 「고장」({@link LlmJson.Failed})을 가른다</b> —
+ * 둘을 같은 빈손으로 주면 Gemini 장애 중의 답이 「찾지 못했습니다」가 된다(실물 감사 2026-10-14).
  */
 class LlmJsonTest {
 
@@ -41,10 +42,12 @@ class LlmJsonTest {
     }
 
     @Test
-    @DisplayName("LLM이 던져도 빈 값이다 — 예외를 올리면 그 명령이 통째로 빈손이 된다")
-    void swallowsTheCallFailure() {
-        assertThat(LlmJson.ask(answering(null), MAPPER, "p", Parsed.class,
-                "stock", "삼성전자", parsed -> true)).isEmpty();
+    @DisplayName("LLM이 던지면 빈손이 아니라 고장으로 알린다 — 빈손이면 호출자가 「못 찾음」으로 답한다")
+    void reportsTheCallFailure() {
+        assertThatThrownBy(() -> LlmJson.ask(answering(null), MAPPER, "p", Parsed.class,
+                "stock", "삼성전자", parsed -> true))
+                .isInstanceOf(LlmJson.Failed.class)
+                .hasRootCauseMessage("LLM 죽었다");
     }
 
     @Test
@@ -55,9 +58,10 @@ class LlmJsonTest {
         assertThat(LlmJson.ask(answering("[{\"code\":\"005930\"}]"), MAPPER, "p", Parsed.class,
                 "stock", "삼성전자", parsed -> parsed.code() != null))
                 .contains(new Parsed("005930"));
-        assertThat(LlmJson.ask(answering("[{\"code\":\"1\"},{\"code\":\"2\"}]"), MAPPER, "p", Parsed.class,
-                "stock", "삼성전자", parsed -> true))
-                .as("둘 이상이면 어느 것인지 모른다 — 고르지 않는다").isEmpty();
+        assertThatThrownBy(() -> LlmJson.ask(answering("[{\"code\":\"1\"},{\"code\":\"2\"}]"), MAPPER, "p",
+                Parsed.class, "stock", "삼성전자", parsed -> true))
+                .as("둘 이상이면 어느 것인지 모른다 — 고르지 않고 못 읽은 것으로 본다")
+                .isInstanceOf(LlmJson.Failed.class);
     }
 
     @Test
@@ -72,10 +76,11 @@ class LlmJsonTest {
     }
 
     @Test
-    @DisplayName("JSON이 아니어도 빈 값이다 — LLM은 아무 문자열이나 낼 수 있다")
-    void swallowsUnparseableOutput() {
-        assertThat(LlmJson.ask(answering("죄송합니다, 잘 모르겠습니다"), MAPPER, "p", Parsed.class,
-                "stock", "삼성전자", parsed -> true)).isEmpty();
+    @DisplayName("JSON이 아니면 고장이다 — 같은 입력을 다시 물으면 멀쩡히 읽힌 적이 있다(2026-09-29)")
+    void reportsUnparseableOutput() {
+        assertThatThrownBy(() -> LlmJson.ask(answering("죄송합니다, 잘 모르겠습니다"), MAPPER, "p", Parsed.class,
+                "stock", "삼성전자", parsed -> true))
+                .isInstanceOf(LlmJson.Failed.class);
     }
 
     @Test

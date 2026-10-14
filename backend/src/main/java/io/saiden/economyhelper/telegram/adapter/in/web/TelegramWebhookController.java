@@ -410,8 +410,24 @@ public class TelegramWebhookController {
      */
     private Reply reply(ParsedCommand command) {
         return switch (command.command()) {
-            case NEWS -> newsReply(command);
-            case CRYPTO -> cryptoReply(command);
+            case NEWS -> {
+                try {
+                    yield newsReply(command);
+                } catch (NewsFacade.Unavailable e) {
+                    // 검색어 번역이나 피드 전부가 죽어 못 찾았다 — 「찾지 못했습니다」가 아니다(STOCK과 같은 자리)
+                    log.warn("[webhook] /news 답 없음 — {}", e.getMessage());
+                    yield Reply.plain(MessageLayout.unavailable(command.command()));
+                }
+            }
+            case CRYPTO -> {
+                try {
+                    yield cryptoReply(command);
+                } catch (CryptoService.Unavailable e) {
+                    // 티커 해석이 죽어 못 찾았다 — 「찾지 못했습니다」가 아니다(STOCK과 같은 자리)
+                    log.warn("[webhook] /crypto 답 없음 — {}", e.getMessage());
+                    yield Reply.plain(MessageLayout.unavailable(command.command()));
+                }
+            }
             case FX -> fxService.usdToKrw()
                     // 차트는 보충이다 — 일봉을 못 받아도 환율은 그대로 나간다
                     .map(rate -> Reply.plain(FxFormatter.format(rate), fxChart()))

@@ -1,6 +1,8 @@
 package io.saiden.economyhelper.weather.adapter.out.kma;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import io.saiden.economyhelper.shared.support.FailureReason;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.net.URLEncoder;
@@ -9,7 +11,10 @@ import java.time.ZoneId;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
 /**
  * 기상청에 <b>묻는 방법</b> — 단기예보 클라이언트({@code KmaVillageApi})가 쓴다.
@@ -61,16 +66,52 @@ final class KmaRequest {
     /**
      * 한 번 조회한다 — <b>키를 지운 예외로 바꿔 던진다.</b>
      *
+     * <p>메시지에 {@link FailureReason}(HTTP 상태·타임아웃 등)을 싣고 원인도 남긴다 — 한동안 원인 없는
+     * 「조회 실패」만 남아, 알람에서 지역이 빠져도 무엇이 터졌는지 로그가 말하지 못했다.
+     * 원인은 <b>키를 지운 사본</b>이다({@link #keyless}).
+     *
      * @return 역직렬화한 응답. 본문이 없으면 {@code null} — 「없음」은 호출부가 읽는다
-     * @throws IllegalStateException 조회 실패. 이유만 남는다
+     * @throws IllegalStateException 조회 실패. 이유와 키를 지운 원인이 남는다
      */
     static <T> T fetch(RestClient restClient, String uri, Class<T> type, String what) {
         try {
             return restClient.get().uri(URI.create(uri)).retrieve().body(type);
         } catch (RuntimeException e) {
-            log.warn("[weather] 기상청 {} 조회 실패: {}", what, e.getClass().getSimpleName());
-            throw new IllegalStateException("기상청 " + what + " 조회 실패");
+            String reason = FailureReason.of(e);
+            log.warn("[weather] 기상청 {} 조회 실패: {}", what, reason);
+            throw new IllegalStateException("기상청 " + what + " 조회 실패: " + reason, keyless(e));
         }
+    }
+
+    /**
+     * 원인을 <b>메시지 없이</b> 옮긴다 — 타입과 상태 코드만 남긴다.
+     *
+     * <p>⚠️ {@code ResourceAccessException}의 메시지에는 {@code serviceKey}가 박힌 URL이 그대로 들어가고
+     * ({@code DefaultRestClient}), 4xx·5xx 메시지에는 상대가 보낸 본문이 들어간다. 그래서 원본을 원인으로
+     * 달지 않는다. {@link FailureReason}이 읽는 것(상태 코드·{@code IOException}의 타입)은 그대로 남는다.
+     *
+     * @return 옮길 것이 없으면 {@code null} — 무엇이었는지는 메시지가 이미 말한다
+     */
+    private static RuntimeException keyless(RuntimeException e) {
+        if (e instanceof RestClientResponseException response) {
+            return new RestClientResponseException("HTTP " + response.getStatusCode().value(),
+                    response.getStatusCode(), response.getStatusText(), null, null, null);
+        }
+        IOException io = ioCauseOf(e);
+        if (e instanceof ResourceAccessException) {
+            return new ResourceAccessException("I/O 실패", io);
+        }
+        return io == null ? null : new RestClientException("본문 읽기 실패", io);
+    }
+
+    /** 사슬에서 처음 만나는 {@code IOException} — JDK 클라이언트의 것이라 URL을 싣지 않는다. */
+    private static IOException ioCauseOf(Throwable e) {
+        for (Throwable cause = e.getCause(); cause != null && cause != e; cause = cause.getCause()) {
+            if (cause instanceof IOException io) {
+                return io;
+            }
+        }
+        return null;
     }
 
     /**
@@ -90,14 +131,17 @@ final class KmaRequest {
      */
     static KmaVillageApi.Envelope opened(KmaVillageApi.Envelope envelope, String what) {
         if (envelope == null) {
+            log.warn("[weather] 기상청 {} 응답 봉투가 다릅니다", what);
             throw new IllegalStateException("기상청 " + what
                     + " 응답 봉투가 다릅니다 — 서비스키를 의심할 자리입니다");
         }
         Header header = envelope.header();
         if (header == null || !OK.equals(header.resultCode())) {
-            throw new IllegalStateException("기상청 " + what + " 응답이 정상이 아닙니다: "
-                    + (header == null ? "머리가 없습니다"
-                            : header.resultCode() + " " + header.resultMsg()));
+            // HTTP는 200이라 FailureReason이 타입 이름밖에 못 준다 — resultCode는 여기서만 보인다
+            String result = header == null ? "머리가 없습니다"
+                    : header.resultCode() + " " + header.resultMsg();
+            log.warn("[weather] 기상청 {} 응답이 정상이 아닙니다: {}", what, result);
+            throw new IllegalStateException("기상청 " + what + " 응답이 정상이 아닙니다: " + result);
         }
         return envelope;
     }
