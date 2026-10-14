@@ -76,8 +76,9 @@ public class StockResolver implements StockQueryResolver {
     }
 
     /**
-     * @return LLM이 판단한 종목. 실패하거나 특정하지 못하면 {@link Optional#empty()} —
-     *         호출자는 원문으로 이름 검색을 시도한다(LLM이 죽어도 직접 이름은 걸린다)
+     * @return LLM이 판단한 종목. 특정하지 못하면 {@link Optional#empty()} — 호출자는 원문으로 이름 검색을 시도한다
+     * @throws LlmJson.Failed LLM이 죽었을 때 — 호출자는 딱 맞는 이름만 원문으로 찾고, 못 찾으면 「잠시 후 다시」다.
+     *         예외라 캐시에 담기지 않는다
      */
     @Cacheable(cacheNames = CacheNames.STOCK_RESOLVE, key = "#a0", unless = "#result == null")
     @Override
@@ -85,7 +86,7 @@ public class StockResolver implements StockQueryResolver {
         if (normalizedQuery == null || normalizedQuery.isBlank()) {
             return Optional.empty();
         }
-        // 골격은 LlmJson이 든다. 실패하면 호출자가 원문 이름 검색으로 내려간다
+        // 골격은 LlmJson이 든다. 고장이면 던지고(LlmJson.Failed) 호출자가 원문 이름 검색으로 내려간다
         Optional<ResolvedStock> resolved = LlmJson.ask(api, objectMapper,
                 PROMPT.formatted(normalizedQuery), Parsed.class,
                 "stock", normalizedQuery, parsed -> !parsed.isEmpty())

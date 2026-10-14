@@ -1,7 +1,9 @@
 package io.saiden.economyhelper.weather.adapter.out.llm;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import io.saiden.economyhelper.infrastructure.llm.LlmJson;
 import io.saiden.economyhelper.testsupport.TestGemini;
 import io.saiden.economyhelper.weather.domain.ResolvedPlace;
 import java.util.Optional;
@@ -60,12 +62,12 @@ class WeatherResolverTest {
     }
 
     @Test
-    @DisplayName("LLM이 죽으면 빈손이다 — 호출자가 원문으로 지오코딩을 시도한다")
-    void returnsEmptyWhenTheModelFails() {
+    @DisplayName("LLM이 죽으면 빈손이 아니라 고장으로 알린다 — 호출자가 원문으로 지오코딩하되, 못 찾으면 「잠시 후 다시」다")
+    void reportsTheModelFailure() {
         WeatherResolver resolver =
                 new WeatherResolver(TestGemini.failing(), new ObjectMapper());
 
-        assertThat(resolver.resolve("서현")).isEmpty();
+        assertThatThrownBy(() -> resolver.resolve("서현")).isInstanceOf(LlmJson.Failed.class);
     }
 
     @Test

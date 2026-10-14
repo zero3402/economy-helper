@@ -226,18 +226,19 @@ public final class MessageLayout {
      * <p>⚠️ <b>1원 미만은 예외다.</b> 그대로 반올림하면 {@code 0 KRW}가 찍히는데, 그건
      * "환산하면 0원"이라는 <b>값</b>으로 읽힌다 — 실제로 도지코인 {@code 0.00035 USDT}가
      * {@code 0 KRW}로 나갔다. {@code 0}을 값으로 내보내지 않는다는 규칙({@code Price})이
-     * 화면에서도 같이 걸려야 한다. 그때만 두 자리를 남긴다.
+     * 화면에서도 같이 걸려야 한다.
      *
-     * <p>⚠️ 두 자리에서도 0이 되는 값(0.005원 미만)은 <b>유효숫자 둘</b>을 남긴다 — {@code 0.00 KRW}도
-     * {@code 0 KRW}와 같은 거짓말이다.
+     * <p>⚠️ 1원 미만은 <b>유효숫자 셋</b>을 남긴다(화면의 최소 두 자리는 {@link #money}가 맞춘다). 둘째 자리로 자르면 작은 값일수록
+     * 크게 틀린다 — 페페 {@code 0.0000042 USDT}(≈0.0057원)가 {@code 0.01 KRW}로 나가 바로 위 업비트
+     * {@code 0.00566 KRW}의 두 배 가까운 값이 됐다(실물 감사 2026-10-14). 업비트 원화 호가도 1원 미만에서는
+     * 유효숫자 서너 개로 온다 — 두 원화값이 같은 정밀도여야 나란히 견줄 수 있다. 김프는 이 반올림 전 값으로 잰다.
      */
     static BigDecimal krw(BigDecimal usd, FxRate fx) {
         BigDecimal converted = usd.multiply(fx.rate().value());
         if (converted.compareTo(BigDecimal.ONE) >= 0) {
             return converted.setScale(0, RoundingMode.HALF_UP);
         }
-        BigDecimal cents = converted.setScale(2, RoundingMode.HALF_UP);
-        return cents.signum() != 0 ? cents : converted.round(new MathContext(2, RoundingMode.HALF_UP));
+        return converted.round(new MathContext(3, RoundingMode.HALF_UP));
     }
 
     /** 원화 금액 한 칸 — {@code 239,500 KRW}. */

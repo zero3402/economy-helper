@@ -280,6 +280,18 @@ class CryptoServiceTest {
     }
 
     @Test
+    @DisplayName("업비트에 안 걸리고 LLM이 죽었으면 「찾지 못했다」가 아니라 장애다 — 실물 감사 2026-10-14")
+    void signalsAnOutageWhenTheResolverIsDownAndUpbitHasNoMatch() {
+        // 진짜 해석기에 죽은 Gemini를 단다 — 해석기가 실패를 빈손으로 삼키던 것이 이 버그의 뿌리다
+        CryptoService service = cryptoService(new RecordingApi(), Map.of(),
+                new CryptoResolver(io.saiden.economyhelper.testsupport.TestGemini.failing(),
+                        new tools.jackson.databind.ObjectMapper()));
+
+        assertThatThrownBy(() -> service.quote("바이낸스코인"))
+                .isInstanceOf(CryptoService.Unavailable.class);
+    }
+
+    @Test
     @DisplayName("없는 심볼만 미상장이다 — 418·451까지 묶으면 물러서면 될 것을 '없는 코인'이라 답하게 된다")
     void separatesInvalidSymbolFromOutage() {
         CryptoService invalidSymbol = new CryptoService(new RecordingApi(),

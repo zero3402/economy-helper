@@ -3,6 +3,7 @@ package io.saiden.economyhelper.weather.application;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.saiden.economyhelper.infrastructure.llm.GeminiApi;
+import io.saiden.economyhelper.testsupport.TestGemini;
 import io.saiden.economyhelper.testsupport.TestProperties;
 import io.saiden.economyhelper.testsupport.TestWeather;
 import io.saiden.economyhelper.weather.adapter.out.llm.WeatherResolver;
@@ -103,6 +104,58 @@ class WeatherFacadeTest {
 
         assertThat(found.reason()).isEqualTo(WeatherFacade.Lookup.Reason.FOUND);
         assertThat(found.places().get(0).place().displayName()).isEqualTo("파리, 프랑스");
+    }
+
+    @Test
+    @DisplayName("LLM이 던져도 원문으로 다시 찾는다 — 죽은 해석기가 곧 「잠시 후 다시」는 아니다")
+    void fallsBackToTheRawQueryWhenTheLlmThrows() {
+        Geocoder geocoder = new Geocoder();
+        geocoder.answer("파리", null, place("파리", "프랑스", 48.8566, 2.3522));
+        WeatherFacade facade = facade(deadResolver(), geocoder);
+
+        assertThat(facade.search("파리").reason()).isEqualTo(WeatherFacade.Lookup.Reason.FOUND);
+    }
+
+    @Test
+    @DisplayName("LLM이 죽고 원문으로도 못 찾으면 「찾지 못했다」가 아니라 「잠시 후 다시」다 — 실물 감사 2026-10-14 「서현역 내일」")
+    void signalsAnOutageWhenTheLlmIsDeadAndTheRawQueryFindsNothing() {
+        // 진짜 해석기에 죽은 Gemini를 단다 — 해석기가 실패를 빈손으로 삼키던 것이 이 버그의 뿌리다
+        WeatherFacade facade = facade(new WeatherResolver(TestGemini.failing(), new ObjectMapper()), new Geocoder());
+
+        assertThat(facade.search("서현역 내일").reason()).isEqualTo(WeatherFacade.Lookup.Reason.UNAVAILABLE);
+        assertThat(facade.search("미금").reason()).isEqualTo(WeatherFacade.Lookup.Reason.UNAVAILABLE);
+    }
+
+    @Test
+    @DisplayName("LLM이 죽었는데 원문에 날짜·기간이 있으면 원문 지오코딩이 찾아도 「잠시 후 다시」다 — 「미금 내일」에 오늘 예보를 답하지 않는다")
+    void doesNotAnswerTodayForADatedQueryWhenTheLlmIsDead() {
+        // 원문 지오코딩이 무엇을 찾든(지오코더가 군더더기를 무시해 걸릴 수 있다) 해석기 없이는 기간을 못 편다 —
+        // 그대로 답하면 묻지 않은 날(오늘)의 값이 나간다. 틀린 값은 빈칸보다 나쁘다
+        List<String> dated = List.of("미금 내일", "내일 미금", "미금 모레", "미금 주말", "미금 일요일",
+                "미금 다음 주", "미금 다음주 화요일", "미금 8/16", "미금 8월 16일", "일주일치 미금",
+                "미금 3일치", "미금 사흘", "미금 tomorrow", "Paris weekend");
+        for (String query : dated) {
+            Geocoder geocoder = new Geocoder();
+            geocoder.answer(query, null, place("성남시", "대한민국", 37.43861, 127.13778));
+            WeatherFacade facade = facade(deadResolver(), geocoder);
+
+            assertThat(facade.search(query).reason()).as(query)
+                    .isEqualTo(WeatherFacade.Lookup.Reason.UNAVAILABLE);
+        }
+    }
+
+    @Test
+    @DisplayName("LLM이 죽어도 날짜 말이 없는 원문은 그대로 답한다 — 「오늘」·「날씨」는 해석 없이도 오늘이다")
+    void stillAnswersAnUndatedQueryWhenTheLlmIsDead() {
+        // 지명 안의 글자(「제주」·「광주」의 주, 「월곶」의 월)를 기간으로 읽지 않는다
+        for (String query : List.of("파리", "파리 오늘", "파리 날씨", "제주", "광주", "전주", "월곶", "Paris")) {
+            Geocoder geocoder = new Geocoder();
+            geocoder.answer(query, null, place("파리", "프랑스", 48.8566, 2.3522));
+            WeatherFacade facade = facade(deadResolver(), geocoder);
+
+            assertThat(facade.search(query).reason()).as(query)
+                    .isEqualTo(WeatherFacade.Lookup.Reason.FOUND);
+        }
     }
 
     @Test
@@ -322,7 +375,17 @@ class WeatherFacadeTest {
         return new GeoLocation(name, country, lat, lon, SEOUL);
     }
 
-    /** {@code null}을 주면 해석 실패다 — 호출자가 원문 지오코딩으로 내려간다. */
+    /** LLM이 죽은 해석기 — 빈손이 아니라 예외로 알린다(LlmJson). */
+    private static WeatherResolver deadResolver() {
+        return new WeatherResolver(new GeminiStub(), new ObjectMapper()) {
+            @Override
+            public Optional<ResolvedPlace> resolve(String normalizedQuery) {
+                throw new IllegalStateException("LLM 해석 실패: HTTP 503");
+            }
+        };
+    }
+
+    /** {@code null}을 주면 LLM이 읽지 못한 것이다 — 호출자가 원문 지오코딩으로 내려간다. */
     private static WeatherResolver resolver(ResolvedPlace answer) {
         return new WeatherResolver(new GeminiStub(), new ObjectMapper()) {
             @Override

@@ -10,6 +10,7 @@ import io.saiden.economyhelper.weather.domain.WeatherPeriod;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -22,12 +23,31 @@ import org.springframework.stereotype.Service;
  *
  * <p><b>LLM이 죽어도 답이 나간다.</b> 해석에 실패하면 사용자 원문을 그대로 지오코딩에 넣는다 —
  * {@code 파리}·{@code Tokyo} 같은 평범한 지명은 그걸로 걸린다. {@code StockService}가 LLM 실패
- * 시 이름 검색으로 내려가는 것과 같은 구조다.
+ * 시 이름 검색으로 내려가는 것과 같은 구조다. 원문으로도 못 찾으면 「찾지 못했다」가 아니라
+ * 「잠시 후 다시」다 — 그때는 해석기가 살아 있었다면 찾았을 수 있다. 원문에 날짜·기간 말이 있어도
+ * 「잠시 후 다시」다({@link #WHEN}) — 펼 해석기가 없는데 답하면 묻지 않은 날(오늘)의 값이 나간다.
  */
 @Service
 public class WeatherFacade {
 
     private static final Logger log = LoggerFactory.getLogger(WeatherFacade.class);
+
+    /**
+     * 원문에 <b>해석기 없이는 못 펴는</b> 날짜·기간 말이 있나 — 해석기가 죽었을 때만 쓴다.
+     *
+     * <p>날짜를 펴는 일은 해석기({@code WeatherResolver})의 몫이고 여기서 다시 하지 않는다. 이것은
+     * 「펴야 할 것이 있다」만 본다 — 있으면 오늘로 답하지 않고 「잠시 후 다시」다. 그래서 넓게 잡는다:
+     * 지명에 숫자가 드물어 <b>숫자는 전부</b> 날짜·일수로 보고(「8/16」·「16일」·「3일치」), 한글은 낱말로 본다.
+     * 「주」 한 글자는 보지 않는다(「제주」·「광주」·「전주」). 「오늘」은 해석 없이도 오늘이라 넣지 않는다.
+     * 대가: 숫자가 든 지명이나 여기 없는 말(「낼」 따위)은 각각 「잠시 후 다시」·오늘 예보가 된다 —
+     * 해석기가 죽은 동안만이다.
+     */
+    private static final Pattern WHEN = Pattern.compile(
+            "\\d|내일|모레|글피|어제|그제|그저께|주말|요일|일주일|주간|보름"
+                    + "|(?:이번|다음|다다음|지난|저번)\\s*주"
+                    + "|하루|이틀|사흘|나흘|닷새|엿새|이레|여드레|아흐레|열흘"
+                    + "|\\b(?:tomorrow|yesterday|weekend|week|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\\b",
+            Pattern.CASE_INSENSITIVE);
 
     private final PlaceResolver resolver;
     private final Geocoder geocoding;
@@ -49,9 +69,9 @@ public class WeatherFacade {
         try {
             return lookup(query);
         } catch (RuntimeException e) {
-            // resolver.resolve()·geocoding.find()에 걸린 @Cacheable 프록시가 던지는 것을 잡는다 —
-            // Redis가 죽으면 캐시 계층이 던지는데 그건 해석기 안쪽 try가 못 잡는다(메서드 밖이다).
-            // 없으면 /weather가 무응답이 된다
+            // geocoding.find() 등에 걸린 @Cacheable 프록시가 던지는 것을 잡는다 — Redis가 죽으면 캐시 계층이
+            // 던지는데 그건 어댑터 안쪽 try가 못 잡는다(메서드 밖이다). 없으면 /weather가 무응답이 된다.
+            // 해석기의 고장은 lookup이 따로 받는다 — 원문 지오코딩까지 해 본 뒤에 「잠시 후 다시」다
             log.error("[weather] '{}' 조회 실패: {}", query, FailureReason.of(e));
             return Lookup.unavailable();
         }
@@ -59,9 +79,30 @@ public class WeatherFacade {
 
     private Lookup lookup(String query) {
         // 친 그대로 넘긴다 — 캐시 키는 해석기가 다듬는다(PlaceResolver)
-        Optional<ResolvedPlace> resolved = resolver.resolve(query);
+        Optional<ResolvedPlace> resolved;
+        boolean resolverDown = false;
+        try {
+            resolved = resolver.resolve(query);
+        } catch (RuntimeException e) {
+            // 해석기(LlmJson.Failed)나 거기 걸린 @Cacheable 프록시가 던졌다 — 원문 지오코딩은 그래도 해 본다
+            log.warn("[weather] '{}' 해석 실패 — 원문으로 찾습니다: {}", query, FailureReason.of(e));
+            resolved = Optional.empty();
+            resolverDown = true;
+        }
+
+        if (resolverDown && saysWhen(query)) {
+            // ⚠️ 원문 지오코딩이 지명을 찾더라도 답하지 않는다 — 「미금 내일」의 「내일」을 펼 해석기가 없어
+            //    오늘 예보가 나간다. 묻지 않은 날의 값은 틀린 값이고, 틀린 값은 빈칸보다 나쁘다
+            log.warn("[weather] '{}'에 날짜·기간이 있는데 해석기가 죽어 펼 수 없습니다 — 잠시 후 다시", query);
+            return Lookup.unavailable();
+        }
 
         Optional<GeoLocation> place = locate(query, resolved.orElse(null));
+        if (place.isEmpty() && resolverDown) {
+            // ⚠️ 「찾지 못했다」가 아니다 — 살아 있는 해석기라면 「서현역 내일」에서 「서현역」을 떼어 물었다.
+            //    못 찾음으로 답하면 사용자가 다시 묻지 않는다(실물 감사 2026-10-14, Gemini 503 중)
+            return Lookup.unavailable();
+        }
         if (place.isEmpty()) {
             // ⚠️ 둘을 반드시 가른다. '내일 서현'처럼 지역을 적었는데 못 찾은 경우까지
             // "지역을 적어 주세요"로 답하면, 이미 적은 사용자에게 적으라고 하는 꼴이 된다.
@@ -115,6 +156,11 @@ public class WeatherFacade {
         // 그 답이 맞는지 사용자가 알 수 없다
         String asked = query.trim();
         return geocoding.find(asked, null).map(place -> place.labelledFor(asked));
+    }
+
+    /** 원문에 날짜·기간 말이 있나({@link #WHEN}). */
+    private static boolean saysWhen(String query) {
+        return WHEN.matcher(query).find();
     }
 
     /**

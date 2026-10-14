@@ -6,6 +6,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
@@ -13,6 +14,7 @@ import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.saiden.economyhelper.config.EconomyHelperProperties.Feed;
 import io.saiden.economyhelper.config.EconomyHelperProperties.Weights;
 import io.saiden.economyhelper.config.EconomyHelperProperties;
+import io.saiden.economyhelper.news.application.port.out.ArticleFeed;
 import io.saiden.economyhelper.news.domain.Article;
 import io.saiden.economyhelper.news.domain.FeedType;
 import io.saiden.economyhelper.news.domain.NewsSource;
@@ -129,25 +131,26 @@ class FeedFetcherTest extends WireMockTest {
     }
 
     @Test
-    @DisplayName("403이면 예외가 아니라 빈 리스트 — 호출자가 나머지 매체를 계속 돌 수 있다")
-    void returnsEmptyOnForbidden() {
+    @DisplayName("403이면 빈 리스트가 아니라 수집 실패다 — 빈 리스트는 「기사가 없다」라서, 매체가 전부 죽은 날 /news가 「찾지 못했습니다」가 된다")
+    void signalsFailureOnForbidden() {
         stubFeed("/blocked", 403, "<html>Access Denied</html>");
 
-        List<Article> articles = fetcher(Map.of(
-                NewsSource.YAHOO_FINANCE, feed("/blocked", FeedType.RSS)))
-                .fetch(NewsSource.YAHOO_FINANCE);
+        FeedFetcher fetcher = fetcher(Map.of(NewsSource.YAHOO_FINANCE, feed("/blocked", FeedType.RSS)));
 
-        assertThat(articles).isEmpty();
+        // 건너뛰고 나머지 매체로 답하는 것은 NewsService의 몫이다(NewsServiceTest)
+        assertThatThrownBy(() -> fetcher.fetch(NewsSource.YAHOO_FINANCE))
+                .isInstanceOf(ArticleFeed.Unavailable.class);
     }
 
     @Test
-    @DisplayName("응답이 RSS가 아니어도 빈 리스트로 강등한다")
-    void returnsEmptyOnGarbageBody() {
+    @DisplayName("응답이 RSS가 아니어도 수집 실패다")
+    void signalsFailureOnGarbageBody() {
         stubFeed("/garbage", 200, "이건 XML이 아닙니다");
 
-        assertThat(fetcher(Map.of(NewsSource.BBC, feed("/garbage", FeedType.RSS)))
-                .fetch(NewsSource.BBC))
-                .isEmpty();
+        FeedFetcher fetcher = fetcher(Map.of(NewsSource.BBC, feed("/garbage", FeedType.RSS)));
+
+        assertThatThrownBy(() -> fetcher.fetch(NewsSource.BBC))
+                .isInstanceOf(ArticleFeed.Unavailable.class);
     }
 
     @Test
@@ -178,7 +181,8 @@ class FeedFetcherTest extends WireMockTest {
 
         // 고장난 매체를 반복 호출해 그쪽 브레이커를 연다
         for (int i = 0; i < 10; i++) {
-            fetcher.fetch(NewsSource.YAHOO_FINANCE);
+            assertThatThrownBy(() -> fetcher.fetch(NewsSource.YAHOO_FINANCE))
+                    .isInstanceOf(ArticleFeed.Unavailable.class);
         }
 
         assertThat(fetcher.fetch(NewsSource.INVESTING))

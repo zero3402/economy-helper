@@ -80,6 +80,7 @@ public class CryptoService {
 
     /**
      * @return 두 거래소 시세. 어느 쪽에도 없으면 {@link Optional#empty()}
+     * @throws Unavailable 업비트 이름에 안 걸렸는데 티커 해석(LLM)이 죽었을 때 — 「못 찾음」이라 단정할 수 없다
      */
     public Optional<CryptoQuote> quote(String query) {
         Optional<CryptoQuote> byName = byUpbitName(query).map(this::withBinance);
@@ -94,16 +95,16 @@ public class CryptoService {
     }
 
     /**
-     * 티커 해석 — <b>실패는 빈손이다.</b> 해석기 안쪽은 제 실패를 삼키지만 거기 걸린 {@code @Cacheable}
-     * 프록시(Redis)는 메서드 밖에서 던진다. 그 밖의 예외는 삼키지 않는다 — 웹훅이 「못 찾았다」가 아니라
-     * 「잠시 후 다시」로 답하게 둔다.
+     * 티커 해석 — <b>고장은 빈손이 아니라 장애다.</b> 업비트 이름 매칭이 이미 빗나간 뒤라 다음 수가 없다 —
+     * 빈손으로 주면 「찾지 못했다」가 나가는데, 살아 있는 해석기라면 찾았을 수 있다(실물 감사 2026-10-14).
+     * 해석기({@code LlmJson.Failed})든 거기 걸린 {@code @Cacheable} 프록시(Redis)든 같다.
      */
     private Optional<ResolvedCoin> resolve(String query) {
         try {
             return resolver.resolve(QueryNormalizer.normalize(query));
         } catch (RuntimeException e) {
             log.warn("[crypto] '{}' 해석 실패: {}", query, FailureReason.of(e));
-            return Optional.empty();
+            throw new Unavailable("코인 해석 '" + query + "'", e);
         }
     }
 
@@ -398,6 +399,19 @@ public class CryptoService {
                 Quote.of(ticker.tradePrice(), ticker.change()), Quote.FAILED);
     }
 
+
+    /**
+     * <b>찾을 길이 장애로 막혔다</b> — 「그런 코인이 없다」가 아니다.
+     *
+     * <p>{@link #quote}만 던진다. 웹훅이 이것을 받아 「잠시 후 다시」로 답한다({@code StockService.Unavailable}과
+     * 같은 자리다).
+     */
+    public static final class Unavailable extends RuntimeException {
+
+        public Unavailable(String what, RuntimeException cause) {
+            super(what + "를 장애로 마치지 못했습니다: " + FailureReason.of(cause), cause);
+        }
+    }
 
     /** 값이 없으면({@code null}·0) {@link Quote#FAILED}다 — 0원은 값이 아니다. */
     private static Quote binanceQuote(BinancePrice price) {

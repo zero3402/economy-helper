@@ -1,9 +1,13 @@
 package io.saiden.economyhelper.crypto.adapter.out.llm;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import io.saiden.economyhelper.infrastructure.llm.LlmJson;
+import io.saiden.economyhelper.testsupport.TestGemini;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * LLM이 준 티커를 <b>쓸 수 있는 값인지</b> 가르는 순수 계산.
@@ -39,5 +43,12 @@ class CryptoResolverTest {
         assertThat(new CryptoResolver.Parsed("btc").upperSymbol()).isEqualTo("BTC");
         // 이름에 null이 들어간 멀쩡한 티커까지 막지 않는다
         assertThat(new CryptoResolver.Parsed("nullx").upperSymbol()).isEqualTo("NULLX");
+    }
+
+    @Test
+    @DisplayName("LLM이 죽으면 빈손이 아니라 고장으로 알린다 — 빈손이면 「찾지 못했습니다」가 나간다")
+    void reportsTheModelFailure() {
+        assertThatThrownBy(() -> new CryptoResolver(TestGemini.failing(), new ObjectMapper()).resolve("페페"))
+                .isInstanceOf(LlmJson.Failed.class);
     }
 }

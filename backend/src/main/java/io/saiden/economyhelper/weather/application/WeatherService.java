@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.BiConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -86,6 +87,17 @@ public class WeatherService {
      * @param today 그 지역의 오늘({@link #today})
      */
     public Optional<Weather> forecast(GeoLocation place, WeatherPeriod period, LocalDate today) {
+        return forecast(place, period, today, (source, e) -> { });
+    }
+
+    /**
+     * 출처별 실패를 <b>부르는 쪽에도</b> 알린다 — 알람이 빠진 지역의 실제 사유를 결과에 남긴다.
+     * 빈손만 돌려받으면 「무엇이 터졌나」가 로그를 뒤져야만 보인다.
+     *
+     * @param onSourceFailure 한 출처가 실패할 때마다(다음 출처가 있든 없든). 로그는 여기서 이미 남긴다
+     */
+    public Optional<Weather> forecast(GeoLocation place, WeatherPeriod period, LocalDate today,
+                                      BiConsumer<WeatherSource, RuntimeException> onSourceFailure) {
         // 못 하는 출처는 부르지 않는다 — 먼저 걸러 두면 "시도했는가"를 목록이 말해 준다
         List<WeatherClient> eligible = clients.stream()
                 .filter(client -> client.supports(place, period, today))
@@ -107,14 +119,15 @@ public class WeatherService {
         Optional<Map<LocalDate, List<HalfDay>>> halves = Optional.empty();
         if (supplementCertain) {
             Concurrently.Pair<Optional<Weather>, Optional<Map<LocalDate, List<HalfDay>>>> both =
-                    Concurrently.both(() -> firstOf(eligible, place, period), () -> halvesOf(place, period));
+                    Concurrently.both(() -> firstOf(eligible, place, period, onSourceFailure),
+                            () -> halvesOf(place, period));
             found = both.first();
             halves = both.second();
         } else {
-            found = firstOf(eligible, place, period);
+            found = firstOf(eligible, place, period, onSourceFailure);
         }
         if (found.isEmpty()) {
-            log.error("[weather] 모든 출처에서 날씨를 가져오지 못했습니다");
+            log.error("[weather] {} 모든 출처에서 날씨를 가져오지 못했습니다", place.name());
             return found;
         }
         Weather weather = found.get();
@@ -127,11 +140,17 @@ public class WeatherService {
         return Optional.of(halves.map(hours -> withHalves(weather, place, period, hours)).orElse(weather));
     }
 
-    private Optional<Weather> firstOf(List<WeatherClient> eligible, GeoLocation place, WeatherPeriod period) {
+    private Optional<Weather> firstOf(List<WeatherClient> eligible, GeoLocation place, WeatherPeriod period,
+                                      BiConsumer<WeatherSource, RuntimeException> onSourceFailure) {
         return Failover.first(eligible, client -> client.forecast(place, period),
-                // 다음 출처가 있으면 조용히 넘어간다. 이게 이중화가 하는 일이다
-                (client, e) -> log.warn("[weather] {} 조회 실패 — 다음 출처로 넘어갑니다: {}",
-                        client.source().displayName(), FailureReason.of(e)));
+                // 다음 출처가 있으면 조용히 넘어간다. 이게 이중화가 하는 일이다.
+                // 지역 이름을 함께 남긴다 — 알람은 네 곳을 겹쳐 물어 이름 없는 줄로는 어느 곳인지 못 가른다.
+                // 이름은 설정이나 지오코딩이 준 것이다(사용자가 친 글이 아니다)
+                (client, e) -> {
+                    log.warn("[weather] {} {} 조회 실패 — 다음 출처로 넘어갑니다: {}",
+                            place.name(), client.source().displayName(), FailureReason.of(e));
+                    onSourceFailure.accept(client.source(), e);
+                });
     }
 
     /**

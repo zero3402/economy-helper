@@ -685,6 +685,22 @@ class MessageFormattingTest {
                 .contains("업비트\n조회 실패");
     }
 
+    @Test
+    @DisplayName("1원 미만 환산은 업비트처럼 유효숫자로 적는다 — 페페 0.0000042 USDT가 「0.01 KRW」로 나가던 것(실물 감사 2026-10-14)")
+    void convertsASubWonPriceWithSignificantDigits() {
+        FxRate fx = new FxRate("USD", "KRW", new Price(new BigDecimal("1350.00")), FxSource.KIS, NOW);
+        String message = crypto(new CryptoQuote("페페", "KRW-PEPE", NOW,
+                Quote.of(new Price(new BigDecimal("0.00566")), null),
+                Quote.of(new Price(new BigDecimal("0.0000042")), null)), fx);
+
+        assertThat(message)
+                .contains("업비트\n0.00566 KRW")
+                .as("0.0000042 × 1,350 = 0.00567 — 0.01이면 77% 부풀린 값이다")
+                .contains("0.0000042 USDT\n0.00567 KRW")
+                .as("김프는 반올림 전 값으로 잰다 — 0.00566 ÷ 0.00567 − 1")
+                .contains("김프\n🔵 -0.18%");
+    }
+
     // --- 헬퍼 ---------------------------------------------------------------
 
     private static String stock(StockQuote quote) {

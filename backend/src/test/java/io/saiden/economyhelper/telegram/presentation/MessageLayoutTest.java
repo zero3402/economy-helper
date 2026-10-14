@@ -78,11 +78,18 @@ class MessageLayoutTest {
                 .as("232.14 × 1412.17 = 327,821.14... → 327,821")
                 .isEqualByComparingTo("327821");
         assertThat(MessageLayout.krw(new BigDecimal("0.0001"), fx))
-                .as("1원 미만은 0원이 되면 값을 잃는다").isEqualByComparingTo("0.14");
+                .as("1원 미만은 0원이 되면 값을 잃는다 — 유효숫자 셋").isEqualByComparingTo("0.141");
         assertThat(MessageLayout.krw(new BigDecimal("0.000002"), fx))
-                .as("둘째 자리에서도 0이 되면 유효숫자 둘을 남긴다 — 「0.00 KRW」도 값으로 읽힌다")
-                .isEqualByComparingTo("0.0028");
-        assertThat(MessageLayout.inKrw(new BigDecimal("0.000002"), fx)).isEqualTo("0.0028 KRW");
+                .as("「0.00 KRW」도 값으로 읽힌다 — 유효숫자 셋을 남긴다")
+                .isEqualByComparingTo("0.00282");
+        assertThat(MessageLayout.inKrw(new BigDecimal("0.000002"), fx)).isEqualTo("0.00282 KRW");
+        assertThat(MessageLayout.krw(new BigDecimal("0.0000042"), fx))
+                .as("0.005931원을 둘째 자리로 자르면 0.01 — 69% 부풀린 값이다(페페, 실물 감사 2026-10-14)")
+                .isEqualByComparingTo("0.00593");
+        assertThat(MessageLayout.krw(new BigDecimal("0.00035"), fx))
+                .as("둘째 자리 아래가 있어도 최소 두 자리는 남는다").isEqualByComparingTo("0.494");
+        assertThat(MessageLayout.inKrw(new BigDecimal("0.0005"), fx))
+                .as("뒤 0도 자릿수다 — 0.706085 → 0.706").isEqualTo("0.706 KRW");
     }
 
     @Test

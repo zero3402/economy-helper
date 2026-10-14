@@ -13,6 +13,7 @@ import io.saiden.economyhelper.weather.domain.GeoLocation;
 import io.saiden.economyhelper.weather.domain.Weather;
 import io.saiden.economyhelper.weather.domain.WeatherPeriod;
 import java.time.Clock;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
@@ -145,30 +146,51 @@ public class WeatherDigestJob extends TriggerableJob {
     }
 
     /**
-     * 설정된 지역을 <b>겹쳐</b> 조회한다. 실패한 곳은 <b>사유를 남기고</b> 빠진다 — 수동 점검이
-     * 응답만 보고 판단할 수 있어야 한다.
+     * 설정된 지역을 <b>겹쳐</b> 조회한다. 실패한 곳은 <b>실제 사유를 남기고</b> 빠진다 — 수동 점검이
+     * 응답만 보고 판단할 수 있어야 한다. 한때 사유가 늘 「날씨를 가져오지 못했습니다」라, 2026-10-14
+     * 08:00 알람에서 세 곳이 빠졌을 때 무엇이 터졌는지 남은 것이 없었다.
      */
     private List<Weather> collect(List<DigestResult.Failure> failed) {
-        List<Optional<Weather>> results = Concurrently.map(places, this::forecastOf);
+        List<Gathered> results = Concurrently.map(places, this::forecastOf);
         List<Weather> collected = new ArrayList<>(results.size());
         for (int i = 0; i < results.size(); i++) {
-            if (results.get(i).isPresent()) {
-                collected.add(results.get(i).get());
+            Gathered result = results.get(i);
+            if (result.weather() != null) {
+                collected.add(result.weather());
             } else {
-                failed.add(new DigestResult.Failure(places.get(i).name(), "날씨를 가져오지 못했습니다"));
+                failed.add(new DigestResult.Failure(places.get(i).name(), result.reason()));
             }
         }
         return List.copyOf(collected);
     }
 
-    /** 오늘 하루치. 알람은 언제나 그날 하루다. */
-    private Optional<Weather> forecastOf(GeoLocation place) {
+    /**
+     * 오늘 하루치. 알람은 언제나 그날 하루다.
+     *
+     * <p>출처별 실패는 {@code WeatherService}가 지역 이름과 함께 한 줄씩 남긴다. 여기서는 그 사유를
+     * 모아 결과에 싣는다 — 「기상청 IllegalStateException — HTTP 500 · Open-Meteo 브레이커 열림」처럼.
+     */
+    private Gathered forecastOf(GeoLocation place) {
+        // 한 지역의 출처는 차례로 불리므로(Failover.first) 이 목록에 동시에 쓰는 일이 없다
+        List<String> reasons = new ArrayList<>();
         try {
-            WeatherPeriod today = WeatherPeriod.of(weatherService.today(place), null, null, null);
-            return weatherService.forecast(place, today);
+            LocalDate today = weatherService.today(place);
+            WeatherPeriod period = WeatherPeriod.of(today, null, null, null);
+            Optional<Weather> found = weatherService.forecast(place, period, today,
+                    (source, e) -> reasons.add(source.displayName() + " " + FailureReason.of(e)));
+            if (found.isPresent()) {
+                return new Gathered(found.get(), null);
+            }
+            String reason = reasons.isEmpty() ? "맡을 출처가 없습니다" : String.join(" · ", reasons);
+            log.warn("[weather] {} 알람에서 빠집니다: {}", place.name(), reason);
+            return new Gathered(null, reason);
         } catch (RuntimeException e) {
             log.error("[weather] {} 조회 실패: {}", place.name(), FailureReason.of(e));
-            return Optional.empty();
+            return new Gathered(null, FailureReason.of(e));
         }
+    }
+
+    /** 한 지역의 결과 — 날씨나 빠진 사유 중 하나다. */
+    private record Gathered(Weather weather, String reason) {
     }
 }

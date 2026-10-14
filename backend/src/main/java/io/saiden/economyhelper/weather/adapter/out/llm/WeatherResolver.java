@@ -114,8 +114,10 @@ public class WeatherResolver implements PlaceResolver {
      * 「일주일치 미금이 이틀치」의 자리였다. <b>캐시 키도 그 형태를 쓰지 않는다</b>({@link #cacheKey}) —
      * {@code 1/11 서울}과 {@code 11/1 서울}이 {@code 111서울} 한 칸을 쓰면 먼저 물은 날짜가 7일 동안 답한다.
      *
-     * @return LLM이 읽은 지명과 기간. 실패하면 {@link Optional#empty()} — 호출자는 원문 그대로
+     * @return LLM이 읽은 지명과 기간. 아무것도 못 읽었으면 {@link Optional#empty()} — 호출자는 원문 그대로
      *         지오코딩을 시도한다({@code 파리}·{@code Tokyo} 같은 평범한 지명은 그걸로 걸린다)
+     * @throws LlmJson.Failed LLM이 죽었을 때 — 호출자는 원문으로 지오코딩하되, 못 찾으면 「잠시 후 다시」다.
+     *         예외라 캐시에 담기지 않는다
      */
     @Override
     @Cacheable(cacheNames = CacheNames.WEATHER_RESOLVE,
@@ -128,7 +130,7 @@ public class WeatherResolver implements PlaceResolver {
         String asTyped = query.strip();
         // ⚠️ usable에 readsNothing()을 넘긴다 — 안 그러면 전부 null인 파싱이 「성공」으로 7일
         //    캐시되어 WeatherFacade가 「지역을 안 적었다」와 「적었는데 못 찾았다」를 못 가른다.
-        //    실패하면 호출자가 원문 지오코딩으로 내려간다
+        //    고장이면 던지고(LlmJson.Failed) 호출자가 원문 지오코딩으로 내려간다
         Optional<ResolvedPlace> resolved = LlmJson.ask(api, objectMapper,
                 PROMPT.formatted(asTyped), Answer.class,
                 "weather", asTyped, parsed -> !parsed.toPlace().readsNothing())

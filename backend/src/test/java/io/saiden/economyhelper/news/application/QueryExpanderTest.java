@@ -22,7 +22,7 @@ class QueryExpanderTest {
     void koreanTokenExpandsToOneGroupWithEnglishTerms() {
         RecordingTranslator translator = new RecordingTranslator(List.of("bitcoin", "btc"), null);
 
-        List<KeywordGroup> groups = new QueryExpander(new QueryTranslationService(translator)).expand("비트코인");
+        List<KeywordGroup> groups = new QueryExpander(new QueryTranslationService(translator)).expand("비트코인").groups();
 
         assertThat(groups).hasSize(1);
         assertThat(groups.get(0).terms()).containsExactly("비트코인", "bitcoin", "btc");
@@ -34,7 +34,7 @@ class QueryExpanderTest {
     void translatesTheTypedWordNotTheParticleStrippedOne() {
         RecordingTranslator translator = new RecordingTranslator(List.of("huawei"), null);
 
-        List<KeywordGroup> groups = new QueryExpander(new QueryTranslationService(translator)).expand("화웨이");
+        List<KeywordGroup> groups = new QueryExpander(new QueryTranslationService(translator)).expand("화웨이").groups();
 
         assertThat(translator.requested).containsExactly("화웨이");
         assertThat(groups.get(0).terms()).contains("huawei");
@@ -51,7 +51,7 @@ class QueryExpanderTest {
     void capsTheNumberOfTranslatedTokens() {
         RecordingTranslator translator = new RecordingTranslator(List.of("x"), null);
 
-        new QueryExpander(new QueryTranslationService(translator)).expand("가나 다라 마바 사아 자차 카타 파하");
+        new QueryExpander(new QueryTranslationService(translator)).expand("가나 다라 마바 사아 자차 카타 파하").groups();
 
         assertThat(translator.requested).hasSize(QueryExpander.MAX_TOKENS);
     }
@@ -61,7 +61,7 @@ class QueryExpanderTest {
     void englishTokenSkipsTranslation() {
         RecordingTranslator translator = new RecordingTranslator(List.of("절대 안 쓰임"), null);
 
-        List<KeywordGroup> groups = new QueryExpander(new QueryTranslationService(translator)).expand("oil");
+        List<KeywordGroup> groups = new QueryExpander(new QueryTranslationService(translator)).expand("oil").groups();
 
         assertThat(groups.get(0).terms()).containsExactly("oil");
         assertThat(translator.requested).isEmpty();
@@ -72,7 +72,7 @@ class QueryExpanderTest {
     void translatesEachTokenSeparately() {
         RecordingTranslator translator = new RecordingTranslator(List.of("translated"), null);
 
-        List<KeywordGroup> groups = new QueryExpander(new QueryTranslationService(translator)).expand("비트코인 금리 oil");
+        List<KeywordGroup> groups = new QueryExpander(new QueryTranslationService(translator)).expand("비트코인 금리 oil").groups();
 
         assertThat(groups).hasSize(3);
         // 토큰별 번역은 겹쳐서 돌므로 요청 순서는 정해져 있지 않다 — 무엇을 물었는지만 본다
@@ -87,11 +87,23 @@ class QueryExpanderTest {
         RecordingTranslator translator =
                 new RecordingTranslator(null, new IllegalStateException("429 Too Many Requests"));
 
-        List<KeywordGroup> groups = new QueryExpander(new QueryTranslationService(translator)).expand("금리 oil");
+        QueryExpander.Expansion expansion = new QueryExpander(new QueryTranslationService(translator)).expand("금리 oil");
+        List<KeywordGroup> groups = expansion.groups();
 
         assertThat(groups).hasSize(2);
         assertThat(groups.get(0).terms()).containsExactly("금리");
         assertThat(groups.get(1).terms()).containsExactly("oil");
+        assertThat(expansion.untranslated())
+                .as("고장으로 빠진 번역을 알린다 — 못 찾았을 때 「찾지 못했다」라 단정하지 않게").isTrue();
+    }
+
+    @Test
+    @DisplayName("번역이 됐거나 번역할 것이 없으면 고장이 아니다")
+    void reportsNoFailureWhenNothingBroke() {
+        RecordingTranslator translator = new RecordingTranslator(List.of("interest rate"), null);
+
+        assertThat(new QueryExpander(new QueryTranslationService(translator)).expand("금리 oil").untranslated())
+                .isFalse();
     }
 
     @Test
@@ -99,8 +111,8 @@ class QueryExpanderTest {
     void blankQueryYieldsNoGroups() {
         QueryExpander expander = new QueryExpander(new QueryTranslationService(new RecordingTranslator(List.of("x"), null)));
 
-        assertThat(expander.expand("   ")).isEmpty();
-        assertThat(expander.expand(null)).isEmpty();
+        assertThat(expander.expand("   ").groups()).isEmpty();
+        assertThat(expander.expand(null).groups()).isEmpty();
     }
 
     @Test

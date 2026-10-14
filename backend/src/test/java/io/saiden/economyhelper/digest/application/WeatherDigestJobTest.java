@@ -91,6 +91,44 @@ class WeatherDigestJobTest {
     }
 
     @Test
+    @DisplayName("빠진 곳에는 실제 사유를 남긴다 — 고정 문구로는 무엇이 터졌는지 알 수 없다")
+    void recordsTheRealFailureReason() {
+        // 2026-10-14 08:00 알람에서 세 곳이 빠졌는데 사유가 전부 「날씨를 가져오지 못했습니다」라
+        // 기상청이 죽었는지 Open-Meteo 브레이커가 열렸는지 응답도 로그도 말하지 못했다
+        WeatherClient succeeding = alwaysSucceeds();
+        WeatherClient failing = new WeatherClient() {
+            @Override
+            public WeatherSource source() {
+                return WeatherSource.OPEN_METEO;
+            }
+
+            @Override
+            public boolean supports(GeoLocation place, WeatherPeriod period, LocalDate today) {
+                return true;
+            }
+
+            @Override
+            public Weather forecast(GeoLocation place, WeatherPeriod period) {
+                if (!place.name().equals("미금역")) {
+                    throw org.springframework.web.client.HttpServerErrorException.create(
+                            org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE, "", null, null, null);
+                }
+                return succeeding.forecast(place, period);
+            }
+        };
+
+        DigestResult result = job(new RecordingTelegram(), new InMemoryHistory(), failing).run(false);
+
+        assertThat(result.failed())
+                .extracting(DigestResult.Failure::section)
+                .containsExactlyInAnyOrder("서현역", "잠실역", "삼성중앙역");
+        assertThat(result.failed())
+                .extracting(DigestResult.Failure::reason)
+                .as("출처 이름과 FailureReason이 남는다")
+                .allSatisfy(reason -> assertThat(reason).isEqualTo("Open-Meteo HTTP 503"));
+    }
+
+    @Test
     @DisplayName("한 곳도 못 가져오면 슬롯을 되돌린다 — 안 보낸 날을 '보냄'으로 남기면 복구가 안 된다")
     void releasesTheSlotWhenNothingCouldBeSent() {
         InMemoryHistory history = new InMemoryHistory();

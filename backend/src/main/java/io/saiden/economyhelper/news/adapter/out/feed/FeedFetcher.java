@@ -11,7 +11,6 @@ import io.saiden.economyhelper.news.application.port.out.ArticleFeed;
 import io.saiden.economyhelper.news.domain.Article;
 import io.saiden.economyhelper.news.domain.FeedType;
 import io.saiden.economyhelper.news.domain.NewsSource;
-import io.saiden.economyhelper.shared.support.FailureReason;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -30,10 +29,11 @@ import org.springframework.web.client.RestClient;
  * <p><b>서킷브레이커와 재시도를 애너테이션이 아니라 프로그래매틱 API로 건다.</b> 이유가 둘이다.
  * 브레이커는 이름이 매체별이어야 한다({@code feed-YAHOO}) — 애너테이션은 이름이 컴파일 타임에
  * 고정이라 매체들이 브레이커 하나를 공유해 Yahoo가 죽으면 BBC 호출까지 끊긴다. 재시도는
- * {@link #fetch}가 예외를 <b>스스로 삼켜</b> 빈 목록을 주므로 {@code @Retry}를 달면
- * <b>발동조차 하지 않는다.</b>
+ * {@link #fetch}가 실패를 {@link ArticleFeed.Unavailable}로 <b>감싸기 전에</b> 돌아야 한다 —
+ * {@code @Retry}를 달면 감싼 예외를 보게 되어 재시도 설정의 무시 목록(열린 브레이커)이 먹지 않는다.
  *
- * <p>실패는 예외가 아니라 빈 리스트다. 한 매체가 죽어도 나머지 매체 발송은 계속돼야 한다.
+ * <p>실패는 빈 리스트가 아니라 예외다 — 빈 리스트는 「피드가 답했는데 창 안의 기사가 없다」다. 한 매체를
+ * 건너뛰고 나머지로 답하는 것은 호출자({@code NewsService.fetchEach})가 하고, 전부 실패하면 장애로 알린다.
  */
 @Component
 public class FeedFetcher implements ArticleFeed {
@@ -75,8 +75,10 @@ public class FeedFetcher implements ArticleFeed {
     }
 
     /**
-     * 실패 시 빈 리스트. 빈 결과는 캐시하지 않는다 — 일시적 장애를 10분간 굳히면
-     * 그 사이 정기 발송이 통째로 그 매체를 빠뜨린다.
+     * 빈 결과는 캐시하지 않는다 — 일시적 장애를 10분간 굳히면 그 사이 정기 발송이 통째로 그 매체를 빠뜨린다.
+     * 실패는 예외라 애초에 캐시에 담기지 않는다.
+     *
+     * @throws ArticleFeed.Unavailable 재시도 뒤에도 받지 못했거나 파싱하지 못했을 때, 브레이커가 열렸을 때
      */
     @Override
     @Cacheable(cacheNames = CacheNames.FEED, key = "#source", unless = "#result.isEmpty()")
@@ -95,8 +97,8 @@ public class FeedFetcher implements ArticleFeed {
             return Retry.decorateCallable(retries.retry("feed"),
                     CircuitBreaker.decorateCallable(breaker, () -> download(source, feed))).call();
         } catch (Exception e) {
-            log.warn("[{}] 피드 수집 실패 — 이 매체는 건너뜁니다: {}", source, FailureReason.of(e));
-            return List.of();
+            // 로그는 건너뛰는 쪽(NewsService)이 남긴다 — 원인 사슬은 cause로 따라간다
+            throw new ArticleFeed.Unavailable(source, e);
         }
     }
 

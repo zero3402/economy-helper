@@ -239,6 +239,53 @@ class TelegramWebhookControllerTest {
                 .doesNotContain("찾지 못했습니다");
     }
 
+    @Test
+    @DisplayName("코인·뉴스도 해석·번역 장애면 「찾지 못했습니다」가 아니라 「잠시 후 다시」다 — 실물 감사 2026-10-14")
+    void tellsUserToRetryWhenCryptoOrNewsLookupIsDown() {
+        RecordingTelegram client = new RecordingTelegram();
+        CryptoService downCrypto = new CryptoStub() {
+            @Override
+            public Optional<CryptoQuote> quote(String query) {
+                throw new CryptoService.Unavailable("코인 해석 '페페'", new IllegalStateException("Gemini 503"));
+            }
+        };
+        NewsFacade downNews = new NewsFacade(null, null, null) {
+            @Override
+            public List<NewsItem> search(String query) {
+                throw new NewsFacade.Unavailable("검색어 번역 실패");
+            }
+        };
+        var controller = defaultController(downNews, downCrypto, fx(Optional.empty()), stock(Optional.empty()), client);
+
+        controller.onUpdate(null, update(1, "/crypto 페페"));
+        controller.onUpdate(null, update(1, "/news 금리"));
+
+        assertThat(client.messages).hasSize(2);
+        assertThat(client.messages.get(0).text()).startsWith("<b>코인</b>").contains("잠시 후 다시")
+                .doesNotContain("찾지 못했습니다");
+        assertThat(client.messages.get(1).text()).startsWith("<b>뉴스</b>").contains("잠시 후 다시")
+                .doesNotContain("찾지 못했습니다");
+    }
+
+    @Test
+    @DisplayName("피드가 전부 죽으면 검색어 없는 /news도 「찾지 못했습니다」가 아니라 「잠시 후 다시」다")
+    void tellsUserToRetryWhenEveryFeedIsDown() {
+        RecordingTelegram client = new RecordingTelegram();
+        NewsFacade downNews = new NewsFacade(null, null, null) {
+            @Override
+            public List<NewsItem> digest() {
+                throw new NewsFacade.Unavailable("피드 전부 수집 실패");
+            }
+        };
+        var controller = defaultController(downNews, crypto(Optional.empty()), fx(Optional.empty()),
+                stock(Optional.empty()), client);
+
+        controller.onUpdate(null, update(1, "/news"));
+
+        assertThat(client.messages).singleElement().satisfies(message -> assertThat(message.text())
+                .startsWith("<b>뉴스</b>").contains("잠시 후 다시").doesNotContain("찾지 못했습니다"));
+    }
+
     // --- 검색 답의 차트 ---
     //
     // ⚠️ 누가 Reply.plain(text)로 한 줄 바꾸면 사진이 조용히 사라진다 — 페이크가 sendPhoto를
