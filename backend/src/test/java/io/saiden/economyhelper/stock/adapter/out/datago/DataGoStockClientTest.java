@@ -213,7 +213,19 @@ class DataGoStockClientTest {
                 .isInstanceOf(RuntimeException.class)
                 .as("둘 다 죽었으면 「모른다」가 아니다 — 1순위도 죽었을 때 「못 찾음」으로 답하게 된다")
                 .isNotInstanceOf(StockClient.NotFound.class);
-        assertThat(client(null, null, null).byName("삼성")).as("이름 검색은 「없다」가 값이라 던지지 않는다").isEmpty();
+        // 이름 검색도 같다 — 둘 다 못 물었는데 빈손을 주면 StockService가 장애를 볼 길이 없어
+        // 브레이커 열림·5xx 중에 「못 찾음」으로 답한다(포트 계약: 조회 실패는 던진다)
+        assertThatThrownBy(() -> client(null, null, null).byName("삼성"))
+                .as("한쪽도 답하지 않았는데 「그런 종목이 없다」고 할 수 없다")
+                .isInstanceOf(IllegalStateException.class)
+                .isNotInstanceOf(StockClient.NotFound.class);
+    }
+
+    @Test
+    @DisplayName("이름 검색은 한쪽이 죽어도 다른 쪽이 「없다」고 답했으면 빈손이다 — ETF는 활용신청 전이면 늘 403이다")
+    void nameSearchIsEmptyWhenOneSideIsDownAndTheOtherHasNothing() {
+        assertThat(client(Map.of(), null, null).byName("없는종목")).isEmpty();
+        assertThat(client(null, Map.of(), null).byName("없는종목")).isEmpty();
     }
 
     private static DataGoStockClient client(Map<String, List<StockPrice>> byQuery,

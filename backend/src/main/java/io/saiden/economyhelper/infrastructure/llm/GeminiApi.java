@@ -27,6 +27,7 @@ public class GeminiApi {
 
     private final RestClient restClient;
     private final String model;
+    private final boolean configured;
 
     public GeminiApi(RestClient.Builder builder, EconomyHelperProperties properties) {
         Gemini gemini = properties.translation().gemini();
@@ -34,14 +35,23 @@ public class GeminiApi {
         this.restClient = builder.baseUrl(gemini.baseUrl())
                 .defaultHeader("x-goog-api-key", gemini.apiKey()).build();
         this.model = gemini.model();
+        this.configured = !gemini.apiKey().isBlank();
     }
 
     /**
+     * 브레이커 이름이 {@code gemini}인 이유: 브레이커는 출처 단위다 — 번역기 둘과 해석기 넷이 전부 여기를 거치므로
+     * 한 호출자 이름(번역)을 붙이면 나머지 다섯이 왜 막혔는지 로그에서 안 보인다.
+     *
      * @return 모델이 낸 텍스트. JSON 모드로 요청하므로 호출자는 이걸 그대로 파싱하면 된다
+     * @throws IllegalStateException 키가 없을 때 — 부르지 않는다. 매번 거절당하러 왕복하면 왕복만큼 느리고
+     *         로그가 더러워진다(FMP·수출입은행과 같은 자리)
      */
     @RateLimiter(name = "gemini")
-    @CircuitBreaker(name = "translation")
+    @CircuitBreaker(name = "gemini")
     public String generate(String prompt) {
+        if (!configured) {
+            throw new IllegalStateException("Gemini 키가 없습니다");
+        }
         GenerateContentResponse response = restClient.post()
                 .uri("/v1beta/models/{model}:generateContent", model)
                 .body(GenerateContentRequest.of(prompt))

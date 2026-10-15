@@ -42,6 +42,13 @@ final class KmaRequest {
     private static final String OK = "00";
 
     /**
+     * 「자료 없음」({@code NO_DATA}) — 봉투는 정상이고 {@code body}만 없다. 실측(2026-10-14 10:23)에서
+     * 08시 발표가 격자 62,122·62,123·62,126에는 이것을 주고 61,126에는 정상 응답을 줬다.
+     * 호출부({@code KmaVillageApi})가 한 판 앞 발표로 한 번 더 묻는 근거라 타입을 따로 둔다.
+     */
+    private static final String NO_DATA = "03";
+
+    /**
      * 남한의 시간대는 하나다. 발표시각도 이 달력으로 고른다 — <b>출처가 한국이다.</b>
      * 패키지가 함께 쓴다({@code KmaVillageApi}·{@code KmaWeatherClient}).
      */
@@ -136,6 +143,12 @@ final class KmaRequest {
                     + " 응답 봉투가 다릅니다 — 서비스키를 의심할 자리입니다");
         }
         Header header = envelope.header();
+        if (header != null && NO_DATA.equals(header.resultCode())) {
+            // 봉투는 정상인데 자료가 없다 — 발표가 늦었거나 그 격자만 비었다. 한 판 앞을 물을 수 있는 실패다
+            log.warn("[weather] 기상청 {} 발표에 자료가 없습니다: {} {}", what, header.resultCode(), header.resultMsg());
+            throw new NoData("기상청 " + what + " 발표에 자료가 없습니다: "
+                    + header.resultCode() + " " + header.resultMsg());
+        }
         if (header == null || !OK.equals(header.resultCode())) {
             // HTTP는 200이라 FailureReason이 타입 이름밖에 못 준다 — resultCode는 여기서만 보인다
             String result = header == null ? "머리가 없습니다"
@@ -144,6 +157,17 @@ final class KmaRequest {
             throw new IllegalStateException("기상청 " + what + " 응답이 정상이 아닙니다: " + result);
         }
         return envelope;
+    }
+
+    /**
+     * 발표에 자료가 없다({@link #NO_DATA}) — 다른 실패와 달리 <b>한 판 앞 발표를 묻는 것이 답</b>이다.
+     * {@code IllegalStateException}인 채로 두어 그 길을 안 타는 호출부에는 지금까지와 같은 실패다.
+     */
+    static final class NoData extends IllegalStateException {
+
+        NoData(String message) {
+            super(message);
+        }
     }
 
     /** 응답의 머리 — {@code resultCode}가 {@link #OK}가 아니면 {@code body}에 값이 없다. */

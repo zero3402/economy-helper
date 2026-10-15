@@ -85,8 +85,8 @@ public class FeedFetcher implements ArticleFeed {
     public List<Article> fetch(NewsSource source) {
         Feed feed = properties.feeds().get(source);
         if (feed == null) {
-            log.warn("[{}] 피드 설정이 없습니다", source);
-            return List.of();
+            // 빈 목록이 아니다 — 빈 목록은 「피드가 답했는데 기사가 없다」라 설정 누락이 성공으로 세어져 조용히 묻힌다
+            throw new ArticleFeed.Unavailable(source, "피드 설정이 없습니다");
         }
 
         CircuitBreaker breaker = circuitBreakers.circuitBreaker("feed-" + source);

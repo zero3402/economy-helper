@@ -10,13 +10,17 @@ import static com.github.tomakehurst.wiremock.stubbing.Scenario.STARTED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.github.tomakehurst.wiremock.http.Fault;
 import io.saiden.economyhelper.config.EconomyHelperProperties;
+import io.saiden.economyhelper.shared.support.FailureReason;
 import io.saiden.economyhelper.testsupport.TestProperties;
 import io.saiden.economyhelper.testsupport.WireMockTest;
+import java.net.ConnectException;
 import java.time.Duration;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
 @WireMockTest.WireMockOptions(http2PlainDisabled = true)
@@ -42,7 +46,7 @@ class TelegramClientTest extends WireMockTest {
     @Test
     @DisplayName("봇 토큰을 경로에 넣고 chat_id·text를 스네이크케이스로 보낸다")
     void postsSendMessageWithSnakeCaseFields() {
-        client().send("12345", null, null, "안녕하세요");
+        client().send("12345", null, null, "안녕하세요", false);
 
         server.verify(postRequestedFor(urlPathEqualTo("/bottest-token/sendMessage"))
                 .withRequestBody(equalToJson("""
@@ -70,7 +74,7 @@ class TelegramClientTest extends WireMockTest {
     @Test
     @DisplayName("토픽을 주면 message_thread_id로 실어 보낸다 — 포럼에서 그 토픽에 뜬다")
     void carriesForumTopicId() {
-        client().send("12345", 7, null, "안녕하세요");
+        client().send("12345", 7, null, "안녕하세요", false);
 
         server.verify(postRequestedFor(anyUrl())
                 .withRequestBody(equalToJson("""
@@ -81,7 +85,7 @@ class TelegramClientTest extends WireMockTest {
     @Test
     @DisplayName("토픽이 없으면 필드 자체를 뺀다 — null을 실으면 포럼이 아닌 방에서 거절당한다")
     void omitsThreadIdEntirelyWhenAbsent() {
-        client().send("12345", null, null, "안녕하세요");
+        client().send("12345", null, null, "안녕하세요", false);
 
         server.verify(postRequestedFor(anyUrl())
                 .withRequestBody(equalToJson("""
@@ -104,7 +108,7 @@ class TelegramClientTest extends WireMockTest {
     @Test
     @DisplayName("답글로 달면 원 명령 번호를 실어 보낸다 — 여럿이 동시에 검색해도 답이 섞이지 않는다")
     void repliesToTheCommandThatAskedForIt() {
-        client().send("12345", 7, 4821, "증시 '삼성전자'");
+        client().send("12345", 7, 4821, "증시 '삼성전자'", false);
 
         server.verify(postRequestedFor(anyUrl())
                 .withRequestBody(equalToJson("""
@@ -156,7 +160,7 @@ class TelegramClientTest extends WireMockTest {
                 .withBody("{\"ok\":false,\"error_code\":400,"
                         + "\"description\":\"Bad Request: chat not found\"}")));
 
-        assertThatThrownBy(() -> client().send("12345", null, null, "안녕하세요"))
+        assertThatThrownBy(() -> client().send("12345", null, null, "안녕하세요", false))
                 .as("무엇을 고쳐야 하는지가 description에 적혀 있다 — 그 문장을 그대로 실어 올린다")
                 .hasMessageContaining("chat not found")
                 .hasMessageContaining("400");
@@ -177,7 +181,7 @@ class TelegramClientTest extends WireMockTest {
                         .withBody("{\"ok\":true}")));
 
         long started = System.nanoTime();
-        client().send("12345", null, null, "안녕하세요");
+        client().send("12345", null, null, "안녕하세요", false);
 
         assertThat(Duration.ofNanos(System.nanoTime() - started)).isGreaterThanOrEqualTo(Duration.ofMillis(950));
         server.verify(2, postRequestedFor(urlPathEqualTo("/bottest-token/sendMessage")));
@@ -191,7 +195,7 @@ class TelegramClientTest extends WireMockTest {
                 .withBody("{\"ok\":false,\"error_code\":429,\"description\":\"Too Many Requests\","
                         + "\"parameters\":{\"retry_after\":1}}")));
 
-        assertThatThrownBy(() -> client().send("12345", null, null, "안녕하세요"))
+        assertThatThrownBy(() -> client().send("12345", null, null, "안녕하세요", false))
                 .isInstanceOf(TelegramClient.TelegramRateLimited.class);
         server.verify(2, postRequestedFor(urlPathEqualTo("/bottest-token/sendMessage")));
     }
@@ -204,7 +208,7 @@ class TelegramClientTest extends WireMockTest {
                 .withBody("{\"ok\":false,\"error_code\":429,\"description\":\"Too Many Requests\","
                         + "\"parameters\":{\"retry_after\":3600}}")));
 
-        assertThatThrownBy(() -> client().send("12345", null, null, "안녕하세요"))
+        assertThatThrownBy(() -> client().send("12345", null, null, "안녕하세요", false))
                 .isInstanceOf(TelegramClient.TelegramRateLimited.class);
         server.verify(1, postRequestedFor(urlPathEqualTo("/bottest-token/sendMessage")));
     }
@@ -218,7 +222,7 @@ class TelegramClientTest extends WireMockTest {
                 .withBody("{\"ok\":false,\"error_code\":400,"
                         + "\"description\":\"Bad Request: message thread not found\"}")));
 
-        assertThatThrownBy(() -> client().send("12345", 3, null, "안녕하세요"))
+        assertThatThrownBy(() -> client().send("12345", 3, null, "안녕하세요", false))
                 .hasMessageContaining("message thread not found");
     }
 
@@ -231,7 +235,7 @@ class TelegramClientTest extends WireMockTest {
                 .withBody("{\"ok\":false,\"error_code\":400,"
                         + "\"description\":\"Bad Request: can't parse entities\"}")));
 
-        assertThatThrownBy(() -> client().send("12345", 3, null, "<b>안녕"))
+        assertThatThrownBy(() -> client().send("12345", 3, null, "<b>안녕", false))
                 .isInstanceOf(TelegramClient.TelegramRejected.class);
     }
 
@@ -243,9 +247,89 @@ class TelegramClientTest extends WireMockTest {
                 .withHeader("Content-Type", "application/json")
                 .withBody("{\"ok\":false,\"error_code\":500,\"description\":\"Internal Server Error\"}")));
 
-        assertThatThrownBy(() -> client().send("12345", 3, null, "안녕"))
+        assertThatThrownBy(() -> client().send("12345", 3, null, "안녕", false))
                 .isInstanceOf(TelegramClient.TelegramException.class)
                 .isNotInstanceOf(TelegramClient.TelegramRejected.class);
+    }
+
+    @Test
+    @DisplayName("연결이 거부되면 「닿지 못함」이다 — 요청이 나가기 전이라 다시 보내도 두 번 가지 않는다")
+    void classifiesAConnectionRefusalAsUnreachable() {
+        TelegramClient unreachable = new TelegramClient(RestClient.builder(), TestProperties.builder()
+                .telegramBaseUrl("http://localhost:1").botToken("test-token")
+                .chatId("default-chat").noticeTopicId("3").telegramMinInterval(Duration.ZERO)
+                .build());
+
+        assertThatThrownBy(() -> unreachable.send("12345", null, null, "안녕하세요", false))
+                .isInstanceOf(TelegramClient.TelegramUnavailable.class)
+                .cause().cause().isInstanceOf(ConnectException.class);
+    }
+
+    @Test
+    @DisplayName("실패 메시지와 원인 사슬에 봇 토큰이 없다 — RestClient 예외 메시지에는 토큰이 든 URL이 그대로 실린다")
+    void neverLeaksTheBotTokenInFailures() {
+        TelegramClient unreachable = new TelegramClient(RestClient.builder(), TestProperties.builder()
+                .telegramBaseUrl("http://localhost:1").botToken("secret-bot-token")
+                .chatId("default-chat").noticeTopicId("3").telegramMinInterval(Duration.ZERO)
+                .build());
+        server.stubFor(post(anyUrl()).willReturn(aResponse().withFault(Fault.CONNECTION_RESET_BY_PEER)));
+
+        Throwable refused = org.assertj.core.api.Assertions.catchThrowable(
+                () -> unreachable.send("12345", null, null, "안녕하세요", false));
+        TelegramClient reset = new TelegramClient(RestClient.builder(), TestProperties.builder()
+                .telegramBaseUrl(server.baseUrl()).botToken("secret-bot-token")
+                .chatId("default-chat").noticeTopicId("3").telegramMinInterval(Duration.ZERO)
+                .build());
+        Throwable unknown = org.assertj.core.api.Assertions.catchThrowable(
+                () -> reset.send("12345", null, null, "안녕하세요", false));
+
+        for (Throwable thrown : java.util.List.of(refused, unknown)) {
+            assertThat(thrown).isNotNull();
+            for (Throwable e = thrown; e != null; e = e.getCause() == e ? null : e.getCause()) {
+                assertThat(String.valueOf(e.getMessage())).as("%s의 메시지", e.getClass().getSimpleName())
+                        .doesNotContain("secret-bot-token");
+            }
+        }
+        assertThat(refused).isInstanceOf(TelegramClient.TelegramUnavailable.class);
+        assertThat(unknown).isInstanceOf(TelegramClient.TelegramUnknownOutcome.class);
+    }
+
+    @Test
+    @DisplayName("요청을 쓴 뒤 연결이 끊기면 「닿았는지 모름」이다 — 다시 보내면 구독자 전원에게 두 번 갈 수 있다")
+    void classifiesAResetAfterSendingAsUnknownOutcome() {
+        server.stubFor(post(anyUrl()).willReturn(aResponse().withFault(Fault.CONNECTION_RESET_BY_PEER)));
+
+        assertThatThrownBy(() -> client().send("12345", null, null, "안녕하세요", false))
+                .isInstanceOf(TelegramClient.TelegramUnknownOutcome.class)
+                .as("TelegramException 계열이 아니어야 재시도 목록(TelegramUnavailable)에 안 걸린다")
+                .isNotInstanceOf(TelegramClient.TelegramException.class)
+                .hasMessageContaining("전달됐을 수");
+    }
+
+    @Test
+    @DisplayName("응답을 기다리다 타임아웃이 나도 「닿았는지 모름」이다 — 사유는 FailureReason이 「타임아웃」으로 읽는다")
+    void classifiesAReadTimeoutAsUnknownOutcome() {
+        // 지연(2초)이 타임아웃(300ms)보다 넉넉히 길면 된다 — 시간을 재는 단언은 없다
+        server.stubFor(post(anyUrl()).willReturn(aResponse().withStatus(200)
+                .withHeader("Content-Type", "application/json")
+                .withBody("{\"ok\":true}").withFixedDelay(2_000)));
+        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory();
+        factory.setReadTimeout(Duration.ofMillis(300));
+        TelegramClient slow = new TelegramClient(RestClient.builder().requestFactory(factory),
+                properties("3", Duration.ZERO));
+
+        assertThatThrownBy(() -> slow.send("12345", null, null, "안녕하세요", false))
+                .isInstanceOf(TelegramClient.TelegramUnknownOutcome.class)
+                .satisfies(e -> assertThat(FailureReason.of(e)).contains("타임아웃"));
+    }
+
+    @Test
+    @DisplayName("200인데 본문이 비어도 「닿았는지 모름」이다 — 텔레그램이 받았는데 답만 잃은 것일 수 있다")
+    void classifiesAnEmptyOkResponseAsUnknownOutcome() {
+        server.stubFor(post(anyUrl()).willReturn(aResponse().withStatus(200)));
+
+        assertThatThrownBy(() -> client().send("12345", null, null, "안녕하세요", false))
+                .isInstanceOf(TelegramClient.TelegramUnknownOutcome.class);
     }
 
     @Test
@@ -333,8 +417,8 @@ class TelegramClientTest extends WireMockTest {
         TelegramClient paced = client(Duration.ofMillis(400));
 
         long started = System.nanoTime();
-        paced.send("12345", null, null, "첫 통");
-        paced.send("12345", null, null, "둘째 통");
+        paced.send("12345", null, null, "첫 통", false);
+        paced.send("12345", null, null, "둘째 통", false);
         paced.sendPhoto("12345", null, null, new byte[] {1}, "사진");
 
         assertThat(Duration.ofNanos(System.nanoTime() - started))
@@ -357,8 +441,8 @@ class TelegramClientTest extends WireMockTest {
                         .withBody("{\"ok\":true}")));
         TelegramClient paced = client(Duration.ofMillis(600));
 
-        paced.send("12345", null, null, "첫 통");
-        paced.send("12345", null, null, "둘째 통");
+        paced.send("12345", null, null, "첫 통", false);
+        paced.send("12345", null, null, "둘째 통", false);
 
         java.util.List<com.github.tomakehurst.wiremock.verification.LoggedRequest> sent =
                 server.findAll(postRequestedFor(urlPathEqualTo("/bottest-token/sendMessage")));
@@ -374,11 +458,11 @@ class TelegramClientTest extends WireMockTest {
     @DisplayName("간격을 기다리다 인터럽트되면 보내지 않고 던진다 — 종료 중 남은 통이 연달아 나가면 429를 우리가 만든다")
     void refusesToSendWhenInterruptedWhilePacing() {
         TelegramClient paced = client(Duration.ofSeconds(2));
-        paced.send("12345", null, null, "첫 통");
+        paced.send("12345", null, null, "첫 통", false);
 
         Thread.currentThread().interrupt();
         try {
-            assertThatThrownBy(() -> paced.send("12345", null, null, "둘째 통"))
+            assertThatThrownBy(() -> paced.send("12345", null, null, "둘째 통", false))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("중단");
         } finally {
@@ -393,8 +477,8 @@ class TelegramClientTest extends WireMockTest {
         TelegramClient paced = client(Duration.ofSeconds(3));
 
         long started = System.nanoTime();
-        paced.send("12345", null, null, "이 방");
-        paced.send("67890", null, null, "저 방");
+        paced.send("12345", null, null, "이 방", false);
+        paced.send("67890", null, null, "저 방", false);
 
         assertThat(Duration.ofNanos(System.nanoTime() - started))
                 .as("두 방이면 간격을 한 번도 기다리지 않는다")
@@ -408,7 +492,7 @@ class TelegramClientTest extends WireMockTest {
 
         long started = System.nanoTime();
         paced.sendPhoto("12345", null, null, new byte[0], "없는 사진");
-        paced.send("12345", null, null, "글");
+        paced.send("12345", null, null, "글", false);
 
         assertThat(Duration.ofNanos(System.nanoTime() - started)).isLessThan(Duration.ofSeconds(3));
         assertThat(server.findAll(postRequestedFor(anyUrl()))).hasSize(1);

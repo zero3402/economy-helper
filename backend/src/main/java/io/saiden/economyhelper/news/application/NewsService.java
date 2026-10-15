@@ -43,6 +43,9 @@ public class NewsService {
 
     private static final Logger log = LoggerFactory.getLogger(NewsService.class);
 
+    /** 발행 시각이 이보다 더 미래면 피드의 시간대가 틀린 것이다 — {@link #recent}. */
+    private static final Duration CLOCK_SKEW_TOLERANCE = Duration.ofHours(1);
+
     private final ArticleFeed fetcher;
     private final ArticleBuzz buzzClient;
     private final PopularityScorer scorer;
@@ -213,8 +216,11 @@ public class NewsService {
      */
     private List<Article> recent(List<Article> articles, Instant now) {
         Instant cutoff = now.minus(window);
+        // 미래로 찍힌 기사도 자른다 — 시간대 오프셋이 틀린 피드(+9h)는 늘 「방금」이라 신선도 만점으로 1위를 독차지한다.
+        // 매체 시계와 우리 시계의 오차만큼(1시간)은 봐준다
+        Instant horizon = now.plus(CLOCK_SKEW_TOLERANCE);
         return articles.stream()
-                .filter(article -> article.publishedAt().isAfter(cutoff))
+                .filter(article -> article.publishedAt().isAfter(cutoff) && !article.publishedAt().isAfter(horizon))
                 .toList();
     }
 

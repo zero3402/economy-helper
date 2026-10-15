@@ -4,11 +4,16 @@ import io.saiden.economyhelper.news.domain.Article;
 import io.saiden.economyhelper.news.domain.NewsItem;
 import io.saiden.economyhelper.news.domain.ScoredArticle;
 import io.saiden.economyhelper.shared.support.Concurrently;
+import io.saiden.economyhelper.shared.support.Outage;
 import io.saiden.economyhelper.translate.application.TranslationService;
 import io.saiden.economyhelper.translate.domain.Translation;
 import io.saiden.economyhelper.translate.domain.TranslationRequest;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.List;
 import org.springframework.stereotype.Service;
 
@@ -87,7 +92,7 @@ public class NewsFacade {
      *
      * <p>웹훅이 이것을 받아 「잠시 후 다시」로 답하고, 브리핑은 뉴스 통만 뺀다({@code DailyDigestJob.section}).
      */
-    public static final class Unavailable extends RuntimeException {
+    public static final class Unavailable extends Outage {
 
         public Unavailable(String message) {
             super(message);
@@ -107,10 +112,29 @@ public class NewsFacade {
     }
 
     /**
-     * 기사를 번역 입력으로 옮긴다 — 번역은 기사를 모른다. 캐시 키는 <b>링크</b>다
-     * (같은 기사를 두 번 번역하지 않는다).
+     * 기사를 번역 입력으로 옮긴다 — 번역은 기사를 모른다.
+     *
+     * <p>캐시 키는 <b>링크 + 글의 지문</b>이다. 링크만으로 하면 매체가 같은 URL 아래 제목을 고쳤을 때
+     * (Yahoo·CNBC가 그런다) 옛 제목의 번역이 새 기사에 7일간 붙는다 — 틀린 값이다. 글이 바뀌면 키가 바뀌어
+     * 다시 번역하고, 같으면 같은 키라 두 번 번역하지 않는다. 링크를 앞에 그대로 두는 것은 로그·Redis에서
+     * 사람이 읽기 위해서다.
+     *
+     * <p>판 번호({@code docs/design.md} 4.2)는 안 올렸다 — 담는 값의 모양은 그대로고 키 모양만 바뀌었다.
+     * 옛 키는 링크뿐이고 새 키는 {@code |지문}이 붙어 서로 충돌하지 않으며, 옛 키는 아무도 안 읽어 TTL 뒤 사라진다.
      */
     static TranslationRequest requestOf(Article article) {
-        return new TranslationRequest(article.link(), article.title(), article.description());
+        return new TranslationRequest(cacheKeyOf(article), article.title(), article.description());
+    }
+
+    private static String cacheKeyOf(Article article) {
+        String text = article.title() + "\n" + (article.description() == null ? "" : article.description());
+        byte[] digest;
+        try {
+            digest = MessageDigest.getInstance("SHA-256").digest(text.getBytes(StandardCharsets.UTF_8));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256을 지원하지 않는 JVM입니다", e);
+        }
+        // 앞 8바이트(16자)면 충분하다 — 같은 링크 안에서 글이 다른지만 가르면 된다
+        return article.link() + "|" + HexFormat.of().formatHex(digest, 0, 8);
     }
 }

@@ -12,6 +12,7 @@ import io.saiden.economyhelper.news.application.NewsFacade;
 import io.saiden.economyhelper.news.domain.NewsItem;
 import io.saiden.economyhelper.shared.support.Concurrently;
 import io.saiden.economyhelper.shared.support.FailureReason;
+import io.saiden.economyhelper.shared.support.Outage;
 import io.saiden.economyhelper.stock.application.StockService;
 import io.saiden.economyhelper.stock.domain.StockOutlook;
 import io.saiden.economyhelper.stock.domain.StockQuote;
@@ -405,45 +406,34 @@ public class TelegramWebhookController {
     /**
      * 명령 하나에 대한 답을 만든다.
      *
-     * <p>{@code default} 없는 switch 식이라 <b>명령을 더하면 컴파일이 깨진다</b> —
-     * 새 명령을 여기서 빠뜨려 조용히 무응답이 되는 일을 컴파일러가 막아 준다.
+     * <p><b>출처 장애({@link Outage})는 여기서 한 번만 잡는다</b> — 종목·코인·뉴스가 각자의 {@code Unavailable}을
+     * 던지지만 답은 하나(「잠시 후 다시」)다. 「못 찾음」으로 답하면 사용자가 다시 묻지 않는다(stock/AGENTS.md).
+     * 예상한 실패라 마지막 그물(ERROR·스택)까지 올리지 않는다.
      */
     private Reply reply(ParsedCommand command) {
+        try {
+            return answer(command);
+        } catch (Outage e) {
+            log.warn("[webhook] {} 답 없음 — {}", command.command(), e.getMessage());
+            return Reply.plain(MessageLayout.unavailable(command.command()));
+        }
+    }
+
+    /**
+     * {@code default} 없는 switch 식이라 <b>명령을 더하면 컴파일이 깨진다</b> —
+     * 새 명령을 여기서 빠뜨려 조용히 무응답이 되는 일을 컴파일러가 막아 준다.
+     */
+    private Reply answer(ParsedCommand command) {
         return switch (command.command()) {
-            case NEWS -> {
-                try {
-                    yield newsReply(command);
-                } catch (NewsFacade.Unavailable e) {
-                    // 검색어 번역이나 피드 전부가 죽어 못 찾았다 — 「찾지 못했습니다」가 아니다(STOCK과 같은 자리)
-                    log.warn("[webhook] /news 답 없음 — {}", e.getMessage());
-                    yield Reply.plain(MessageLayout.unavailable(command.command()));
-                }
-            }
-            case CRYPTO -> {
-                try {
-                    yield cryptoReply(command);
-                } catch (CryptoService.Unavailable e) {
-                    // 티커 해석이 죽어 못 찾았다 — 「찾지 못했습니다」가 아니다(STOCK과 같은 자리)
-                    log.warn("[webhook] /crypto 답 없음 — {}", e.getMessage());
-                    yield Reply.plain(MessageLayout.unavailable(command.command()));
-                }
-            }
+            case NEWS -> newsReply(command);
+            case CRYPTO -> cryptoReply(command);
             case FX -> fxService.usdToKrw()
                     // 차트는 보충이다 — 일봉을 못 받아도 환율은 그대로 나간다
                     .map(rate -> Reply.plain(FxFormatter.format(rate), fxChart()))
                     .orElseGet(() -> Reply.plain(FxFormatter.unavailable()));
-            case STOCK -> {
-                try {
-                    yield stockService.answer(command.argument())
-                            .map(this::stockReply)
-                            .orElseGet(() -> Reply.plain(StockFormatter.notFound(command.argument())));
-                } catch (StockService.Unavailable e) {
-                    // 출처가 전부 장애다 — 「못 찾음」으로 답하면 사용자가 다시 묻지 않는다(stock/AGENTS.md).
-                    // 예상한 실패라 마지막 그물(ERROR·스택)까지 올리지 않는다
-                    log.warn("[webhook] /stock 답 없음 — {}", e.getMessage());
-                    yield Reply.plain(MessageLayout.unavailable(command.command()));
-                }
-            }
+            case STOCK -> stockService.answer(command.argument())
+                    .map(this::stockReply)
+                    .orElseGet(() -> Reply.plain(StockFormatter.notFound(command.argument())));
             case WEATHER -> weatherReply(command.argument());
             case HELP -> Reply.plain(HelpFormatter.help());
         };

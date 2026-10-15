@@ -6,11 +6,18 @@ import io.saiden.economyhelper.infrastructure.llm.GeminiApi;
 import io.saiden.economyhelper.testsupport.TestProperties;
 import io.saiden.economyhelper.translate.adapter.out.cache.SpringTranslationCache;
 import io.saiden.economyhelper.translate.adapter.out.llm.GeminiTranslator;
+import io.saiden.economyhelper.translate.application.port.out.TranslationCache;
 import io.saiden.economyhelper.translate.domain.Translation;
 import io.saiden.economyhelper.translate.domain.TranslationRequest;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.concurrent.ConcurrentMapCache;
 import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.json.JsonMapper;
@@ -80,7 +87,7 @@ class TranslationServiceTest {
     }
 
     @Test
-    @DisplayName("이미 번역한 기사는 묶음에서 뺀다 — 링크 단위 캐시가 무료 티어를 아끼는 수단이다")
+    @DisplayName("이미 번역한 기사는 묶음에서 뺀다 — 키 단위 캐시가 무료 티어를 아끼는 수단이다")
     void batchesOnlyTheCacheMisses() {
         FakeGemini gemini = new FakeGemini(Translation.of("한국어 제목", "한국어 본문"), null);
         TranslationService service = service(gemini);
@@ -119,6 +126,75 @@ class TranslationServiceTest {
         service.translateAll(List.of(article));
 
         assertThat(failing.calls).as("두 번째도 다시 시도해야 한다").isEqualTo(2);
+    }
+
+    // --- 캐시 조회: 건마다 Redis 왕복이라 동시에 보낸다 ------------------------
+
+    @Test
+    @DisplayName("캐시 조회는 동시에 나간다 — 기사 열 건이면 Redis 왕복 열 번을 줄줄이 기다리지 않는다")
+    void looksUpTheCacheConcurrently() {
+        // 세 조회가 서로를 기다리게 한다 — 순차로 돌면 첫 조회가 나머지 둘을 영영 못 만난다
+        CountDownLatch allStarted = new CountDownLatch(3);
+        TranslationCache meeting = new TranslationCache() {
+            @Override
+            public Optional<Translation> find(String key) {
+                allStarted.countDown();
+                try {
+                    if (!allStarted.await(5, TimeUnit.SECONDS)) {
+                        throw new AssertionError("캐시 조회가 순차로 돈다 — 나머지 조회가 시작되지 않았다");
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException(e);
+                }
+                return Optional.empty();
+            }
+
+            @Override
+            public void put(String key, Translation translation) {
+            }
+        };
+        TranslationService service = new TranslationService(
+                new FakeGemini(Translation.of("한국어 제목", "한국어 본문"), null), meeting);
+
+        assertThat(service.translateAll(List.of(
+                article("First", "Body one"), article("Second", "Body two"), article("Third", "Body three"))))
+                .hasSize(3);
+    }
+
+    @Test
+    @DisplayName("한 건의 캐시 읽기가 실패해도 그 건만 미스로 번역된다 — 캐시가 죽어도 답은 나가고, 멀쩡한 적중은 그대로 쓴다")
+    void treatsACacheReadFailureAsAMissForThatArticleOnly() {
+        FakeGemini gemini = new FakeGemini(Translation.of("한국어 제목", "한국어 본문"), null);
+        TranslationRequest broken = article("First", "Body one");
+        TranslationRequest healthy = article("Second", "Body two");
+        TranslationService service = new TranslationService(gemini,
+                new SpringTranslationCache(cacheFailingToRead(broken.key())));
+        service.translateAll(List.of(broken, healthy));
+
+        List<Translation> results = service.translateAll(List.of(broken, healthy));
+
+        assertThat(results).hasSize(2).allSatisfy(t -> assertThat(t.translated()).isTrue());
+        assertThat(gemini.batched).as("읽기가 실패한 한 건만 미스로 실린다").isEqualTo(1);
+        assertThat(gemini.calls).isEqualTo(2);
+    }
+
+    /** {@code brokenKey}를 읽을 때만 던지는 캐시 — Redis가 한 키에서 끊긴 상황이다. 쓰기는 멀쩡하다. */
+    private static CacheManager cacheFailingToRead(String brokenKey) {
+        return new ConcurrentMapCacheManager(SpringTranslationCache.CACHE) {
+            @Override
+            protected Cache createConcurrentMapCache(String name) {
+                return new ConcurrentMapCache(name) {
+                    @Override
+                    public <T> T get(Object key, Class<T> type) {
+                        if (brokenKey.equals(key)) {
+                            throw new IllegalStateException("Redis 연결이 끊겼습니다");
+                        }
+                        return super.get(key, type);
+                    }
+                };
+            }
+        };
     }
 
     private static TranslationService service(GeminiTranslator gemini) {

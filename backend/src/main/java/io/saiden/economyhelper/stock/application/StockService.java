@@ -4,6 +4,7 @@ import io.saiden.economyhelper.config.EconomyHelperProperties.Index;
 import io.saiden.economyhelper.config.EconomyHelperProperties.UsSymbol;
 import io.saiden.economyhelper.shared.domain.DailyBar;
 import io.saiden.economyhelper.shared.support.Concurrently;
+import io.saiden.economyhelper.shared.support.Outage;
 import io.saiden.economyhelper.shared.support.Failover;
 import io.saiden.economyhelper.shared.support.FailureReason;
 import io.saiden.economyhelper.shared.support.QueryNormalizer;
@@ -156,10 +157,12 @@ public class StockService {
     }
 
     /**
+     * 시세만 — <b>테스트 편의다.</b> 운영 코드는 전망·차트까지 붙는 {@link #answer}를 쓴다.
+     *
      * @return 시가총액 1위 후보의 시세. 걸리는 종목이 없으면 {@link Optional#empty()}
      * @throws Unavailable 출처가 장애로 실패해 찾지 못했을 때({@link #answer})
      */
-    public Optional<StockQuote> quote(String query) {
+    Optional<StockQuote> quote(String query) {
         return answer(query).map(Answer::quote);
     }
 
@@ -567,7 +570,7 @@ public class StockService {
      * 브리핑 경로({@link #answersOf}·{@link #indicesOf}·{@link #usAnswersOf})는 던지지 않는다 —
      * 종목마다 따로 실패하고 그 줄만 빠진다.
      */
-    public static final class Unavailable extends RuntimeException {
+    public static final class Unavailable extends Outage {
 
         public Unavailable(String what, RuntimeException cause) {
             super(what + "를 어느 출처에서도 가져오지 못했습니다 (장애): " + FailureReason.of(cause), cause);

@@ -191,6 +191,12 @@ public final class TestProperties {
             return this;
         }
 
+        /** 알람 크론. 안 주면 {@code null} — 잡은 매 틱을 마지막 틱으로 본다(미루지 않는다). */
+        public Builder weatherCron(String cron) {
+            weather().cron = cron;
+            return this;
+        }
+
         public Builder kma(String baseUrl, String apiKey) {
             weather().kma = new Kma(baseUrl, apiKey);
             return this;
@@ -451,13 +457,14 @@ public final class TestProperties {
 
     private static final class WeatherValues {
         private String zone;
+        private String cron;
         private List<WeatherLocation> locations;
         private Kma kma;
         private AccuWeather accuWeather;
         private OpenMeteo openMeteo;
 
         private Weather build() {
-            return new Weather(zone, locations, kma, accuWeather, openMeteo);
+            return new Weather(zone, cron, locations, kma, accuWeather, openMeteo);
         }
     }
 

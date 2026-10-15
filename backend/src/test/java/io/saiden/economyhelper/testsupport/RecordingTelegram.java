@@ -58,11 +58,6 @@ public class RecordingTelegram extends TelegramClient {
     }
 
     @Override
-    public void send(String chatId, Integer topicId, Integer replyTo, String text) {
-        record(chatId, topicId, replyTo, text, false);
-    }
-
-    @Override
     public void send(String chatId, Integer topicId, Integer replyTo, String text, boolean preview) {
         record(chatId, topicId, replyTo, text, preview);
     }

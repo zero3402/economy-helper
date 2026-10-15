@@ -49,8 +49,7 @@ class NewsFacadeTest {
 
         List<NewsItem> items = facade(ordered, articles -> articles.stream()
                 // 링크의 마지막 토막을 제목으로 쓴다 — 짝이 밀리면 바로 드러난다
-                .map(article -> Translation.of(
-                        "번역:" + article.key().substring(article.key().lastIndexOf('/') + 1), ""))
+                .map(article -> Translation.of("번역:" + lastSegmentOfLink(article), ""))
                 .toList()).digest();
 
         assertThat(items).extracting(NewsItem::link, NewsItem::title).containsExactly(
@@ -98,6 +97,24 @@ class NewsFacadeTest {
         assertThat(facade.search("금리")).isEmpty();
     }
 
+    @Test
+    @DisplayName("번역 캐시 키는 링크에 글의 지문을 붙인다 — 같은 URL 아래 제목이 바뀌면 옛 번역을 붙이지 않는다")
+    void translationKeyFollowsTheHeadlineNotJustTheLink() {
+        // Yahoo·CNBC는 같은 URL로 제목을 고친다. 링크만 키로 쓰면 옛 제목의 번역이 새 기사에 7일간 붙는다 — 틀린 값이다
+        String link = "https://a.example/fed";
+        Article first = new Article(NewsSource.CNBC, "Fed holds rates", "Rates stay put.", link, NOW, 0);
+        Article retitled = new Article(NewsSource.CNBC, "Fed cuts rates", "Rates stay put.", link, NOW, 0);
+        Article sameText = new Article(NewsSource.CNBC, "Fed holds rates", "Rates stay put.", link, NOW, 3);
+        Article noBody = new Article(NewsSource.CNBC, "Fed holds rates", null, link, NOW, 0);
+
+        String key = NewsFacade.requestOf(first).key();
+
+        assertThat(NewsFacade.requestOf(retitled).key()).as("제목이 바뀌면 다른 키").isNotEqualTo(key);
+        assertThat(NewsFacade.requestOf(sameText).key()).as("글이 같으면 같은 키 — 캐시가 계속 맞는다").isEqualTo(key);
+        assertThat(NewsFacade.requestOf(noBody).key()).as("요약문이 없어도 키가 선다").isNotEqualTo(key);
+        assertThat(key).as("로그·Redis에서 사람이 읽도록 링크가 앞에 그대로 남는다").startsWith(link);
+    }
+
     // --- 도우미 ---
 
     /** {@code search()}가 부르는 셋만 갈아 끼운다 — 수집은 빈손, 점수는 {@code found}가 정한다. */
@@ -126,6 +143,12 @@ class NewsFacadeTest {
             }
         };
         return new NewsFacade(news, translations, new QueryExpander(new QueryTranslationService(translator)));
+    }
+
+    /** 키는 링크 + {@code |지문}이다({@code NewsFacade.requestOf}) — 링크 부분의 마지막 토막만 쓴다. */
+    private static String lastSegmentOfLink(TranslationRequest article) {
+        String link = article.key().substring(0, article.key().indexOf('|'));
+        return link.substring(link.lastIndexOf('/') + 1);
     }
 
     private static ScoredArticle scored(String title, String link) {

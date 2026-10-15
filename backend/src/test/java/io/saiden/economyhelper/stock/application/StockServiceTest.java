@@ -7,6 +7,9 @@ import io.saiden.economyhelper.config.EconomyHelperProperties.Index;
 import io.saiden.economyhelper.config.EconomyHelperProperties.UsSymbol;
 import io.saiden.economyhelper.shared.domain.Price;
 import io.saiden.economyhelper.stock.adapter.out.datago.DataGoStockClient;
+import io.saiden.economyhelper.stock.adapter.out.datago.EtfPriceApi;
+import io.saiden.economyhelper.stock.adapter.out.datago.StockPriceApi;
+import io.saiden.economyhelper.stock.adapter.out.datago.StockPriceApi.StockPrice;
 import io.saiden.economyhelper.stock.adapter.out.llm.StockResolver;
 import io.saiden.economyhelper.stock.application.port.out.DomesticStockClient;
 import io.saiden.economyhelper.stock.application.port.out.StockClient;
@@ -17,7 +20,9 @@ import io.saiden.economyhelper.stock.domain.StockOutlook;
 import io.saiden.economyhelper.stock.domain.StockQuote;
 import io.saiden.economyhelper.stock.domain.StockSource;
 import io.saiden.economyhelper.testsupport.TestGemini;
+import io.saiden.economyhelper.testsupport.TestProperties;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,6 +30,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.web.client.RestClient;
 import tools.jackson.databind.ObjectMapper;
 
 /**
@@ -126,6 +132,18 @@ class StockServiceTest {
                 deadNames, deadIndex);
 
         assertThatThrownBy(() -> service.answer("삼성전자")).isInstanceOf(StockService.Unavailable.class);
+    }
+
+    @Test
+    @DisplayName("공공데이터포털의 주식·ETF API가 다 죽었으면 이름으로 물어도 「못 찾음」이 아니라 장애다")
+    void signalsAnOutageWhenBothNameSearchApisAreDown() {
+        // ⚠️ 가짜가 아니라 진짜 DataGoStockClient다 — 두 API의 실패를 빈손으로 삼켜 Unavailable이
+        //    영영 안 나던 것이 버그다. 위의 deadNames처럼 던지는 가짜로는 이 자리가 보이지 않는다
+        DataGoStockClient names = new DataGoStockClient(deadStockApi(), null, deadEtfApi());
+        StockService service = service(List.of(domestic(StockSource.KIS, Map.of())), List.of(), noResolver(),
+                names, listings(SAMSUNG));
+
+        assertThatThrownBy(() -> service.answer("없는이름")).isInstanceOf(StockService.Unavailable.class);
     }
 
     @Test
@@ -790,6 +808,26 @@ class StockServiceTest {
 
     private static StockListings listings(Listing... listings) {
         return new StockListings(() -> List.of(listings));
+    }
+
+    /** 공공데이터포털 주식 API가 죽은 모양 — dataGo 브레이커가 열렸거나 5xx다. HTTP는 타지 않는다. */
+    private static StockPriceApi deadStockApi() {
+        return new StockPriceApi(RestClient.builder(), TestProperties.offline(), Clock.systemUTC(), null) {
+            @Override
+            public List<StockPrice> searchByName(String name) {
+                throw new IllegalStateException("공공데이터포털 조회 실패 (dataGo 브레이커 열림)");
+            }
+        };
+    }
+
+    /** ETF API도 죽은 모양 — 활용신청 전의 403이 늘 이 모양이다. */
+    private static EtfPriceApi deadEtfApi() {
+        return new EtfPriceApi(RestClient.builder(), TestProperties.offline(), Clock.systemUTC(), null) {
+            @Override
+            public List<StockPrice> searchByName(String name) {
+                throw new IllegalStateException("공공데이터포털 조회 실패 (403 SERVICE_KEY_IS_NOT_REGISTERED_ERROR)");
+            }
+        };
     }
 
     private static FakeDomestic domestic(StockSource source, Map<String, StockQuote> stocks) {

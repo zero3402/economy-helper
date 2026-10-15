@@ -17,12 +17,19 @@ public interface DigestNotifier {
      * 다음 틱에 같은 글이 또 나간다.
      *
      * @param charts      글 다음에 한 장씩 나갈 차트들. 못 그린 것은 그 한 장만 빠진다
-     * @param onDelivered 글이 한 통 나갈 때마다 불린다
+     * @param onDelivered 글이 한 통 나갈 때마다 <b>즉시</b> 불린다
+     * @param onUncertain 닿았는지 모르는 실패가 날 때마다 <b>즉시</b> — 같은 이유다. 그 뒤 {@code Error}가 새면
+     *                    돌려줄 {@link Delivery}가 없어 잡이 슬롯을 되돌리고, 다음 틱이 같은 통을 또 보낸다
      */
-    Delivery send(DigestMessage message, List<DigestMessage.Chart> charts, Runnable onDelivered);
+    Delivery send(DigestMessage message, List<DigestMessage.Chart> charts, Runnable onDelivered,
+                  Runnable onUncertain);
+
+    default Delivery send(DigestMessage message, List<DigestMessage.Chart> charts, Runnable onDelivered) {
+        return send(message, charts, onDelivered, () -> { });
+    }
 
     default Delivery send(DigestMessage message) {
-        return send(message, List.of(), () -> { });
+        return send(message, List.of(), () -> { }, () -> { });
     }
 
     /**
@@ -33,7 +40,13 @@ public interface DigestNotifier {
      *
      * @param delivered 글이 한 통이라도 나갔는가
      * @param failure   도중에 멈춘 이유. 끝까지 보냈으면 {@code null}
+     * @param uncertain <b>닿았는지 모르는</b> 실패가 있었는가 — 텔레그램이 받고 응답만 유실된 모양(읽기 타임아웃 등).
+     *                  잡이 이것을 보고 슬롯을 되돌리지 않는다. 되돌려 다음 틱에 다시 보내면 구독자 전원에게 두 번 간다
      */
-    record Delivery(boolean delivered, RuntimeException failure) {
+    record Delivery(boolean delivered, RuntimeException failure, boolean uncertain) {
+
+        Delivery(boolean delivered, RuntimeException failure) {
+            this(delivered, failure, false);
+        }
     }
 }

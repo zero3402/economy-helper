@@ -11,4 +11,5 @@
 - **번역은 요약하지 않는다.** 줄이면 제목이 기사와 다른 말을 한다 → ADR-0015
 - 캐시 미스를 구분해야 해서 캐시가 포트(`TranslationCache`)로 나와 있다 — `application`은 스프링 캐시를 모른다 → `docs/design.md` 2.2 규칙 2
 - `SpringTranslationCache`도 Redis 실패를 캐시 미스로 바꾼다 — 캐시가 죽어도 답은 나간다 → `docs/design.md` 4.2
+- 번역 캐시 키는 링크 + 제목·본문 지문이다(`NewsFacade.requestOf`). 링크만 보면 같은 URL에서 제목이 바뀐 기사가 옛 번역을 단다 — 틀린 값이다
 - Gemini 호출(한도·재시도·대체값 캐시)은 `infrastructure/llm/AGENTS.md`를 따른다.

@@ -111,17 +111,36 @@ class CryptoServiceTest {
     }
 
     @Test
-    @DisplayName("업비트가 죽어도 예외를 밖으로 내보내지 않는다 — 웹훅은 어떤 경우에도 200이어야 한다")
+    @DisplayName("업비트가 죽어도 브리핑은 예외를 밖으로 내보내지 않는다 — 코인 통만 빠지고 나머지 통은 나간다")
     void degradesWhenUpbitFails() {
-        UpbitApi exploding = new RecordingApi() {
-            @Override
-            public List<UpbitMarket> krwMarkets() {
-                throw new IllegalStateException("서킷브레이커 열림");
-            }
-        };
+        assertThat(cryptoService(deadMarketList()).quotesOf(List.of("KRW-BTC"))).isEmpty();
+    }
 
-        assertThat(cryptoService(exploding).quote("비트코인")).isEmpty();
-        assertThat(cryptoService(exploding).quotesOf(List.of("KRW-BTC"))).isEmpty();
+    @Test
+    @DisplayName("업비트 마켓 목록이 죽고 LLM도 못 가리면 「찾지 못했다」가 아니라 장애다 — 목록이 살았다면 한글 이름이 걸렸을 수 있다")
+    void signalsAnOutageWhenTheMarketListIsDownAndTheResolverCannotTell() {
+        // noResolver는 LLM이 「특정하지 못했다」(빈손)를 준 상태다 — 고장(Failed)은 이미 따로 장애로 던진다
+        CryptoService service = cryptoService(deadMarketList(), Map.of(), noResolver());
+
+        // 웹훅이 「잠시 후 다시」로 답한다 — 「못 찾음」이면 사용자는 다시 치지 않는다
+        assertThatThrownBy(() -> service.quote("비트코인")).isInstanceOf(CryptoService.Unavailable.class);
+    }
+
+    @Test
+    @DisplayName("/crypto 한 번에 마켓 목록은 한 번만 읽는다 — 이름 매칭·상장 확인이 저마다 읽으면 63KB 캐시 판을 두세 번 푼다")
+    void readsTheMarketListOncePerQuote() {
+        CountingApi api = new CountingApi();
+        CryptoService service = cryptoService(api, Map.of("BTCUSDT", "63703.69", "BNBUSDT", "612.40"),
+                resolverOf("BNB"));
+
+        service.quote("비트코인");
+        assertThat(api.marketReads).as("업비트 이름 경로").hasValue(1);
+
+        service.quote("바이낸스코인");
+        assertThat(api.marketReads).as("LLM 경로 — 상장 확인(quoteOf)이 목록을 다시 읽던 자리").hasValue(2);
+
+        service.quotesOf(List.of("KRW-BTC", "KRW-ETH"));
+        assertThat(api.marketReads).as("브리핑 경로는 원래 한 번이다").hasValue(3);
     }
 
     @Test
@@ -452,6 +471,28 @@ class CryptoServiceTest {
                     .map(ticker -> new UpbitTicker(ticker.market(), ticker.tradePrice(), null,
                             ticker.change(), ticker.tradedAt()))
                     .toList();
+        }
+    }
+
+    /** 업비트 마켓 목록이 죽은 상태 — 브레이커 열림·타임아웃을 대표한다. 시세(tickers)는 산다. */
+    private static UpbitApi deadMarketList() {
+        return new RecordingApi() {
+            @Override
+            public List<UpbitMarket> krwMarkets() {
+                throw new IllegalStateException("서킷브레이커 열림");
+            }
+        };
+    }
+
+    /** 마켓 목록을 몇 번 읽는지 센다 — 캐시 판을 푸는 횟수가 곧 이것이다. */
+    private static final class CountingApi extends RecordingApi {
+        private final java.util.concurrent.atomic.AtomicInteger marketReads =
+                new java.util.concurrent.atomic.AtomicInteger();
+
+        @Override
+        public List<UpbitMarket> krwMarkets() {
+            marketReads.incrementAndGet();
+            return super.krwMarkets();
         }
     }
 

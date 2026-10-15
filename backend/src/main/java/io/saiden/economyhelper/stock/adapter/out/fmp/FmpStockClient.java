@@ -10,6 +10,8 @@ import io.saiden.economyhelper.stock.domain.StockQuote;
 import io.saiden.economyhelper.stock.domain.StockSource;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import org.springframework.stereotype.Component;
 
 /**
@@ -27,6 +29,11 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class FmpStockClient implements UsStockClient {
+
+    /** 체결 시각이 「오늘」인지는 그 시장의 달력으로 본다 — KST로 보면 서울 새벽의 뉴욕 장중 체결이 어제가 된다. */
+    private static final ZoneId NEW_YORK = ZoneId.of("America/New_York");
+    /** 종가의 기준 시각 — 종가일 00시(KST). {@code DataGoStockClient}·{@code KisHeaders.startOfDay}와 같은 모양이다. */
+    private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
 
     private final FmpApi api;
     private final Clock clock;
@@ -64,14 +71,32 @@ public class FmpStockClient implements UsStockClient {
         String name = symbol.name() == null || symbol.name().isBlank() ? quote.name() : symbol.name();
         // 미국 폴백의 마지막 자리다 — 여기서 빈 값이 새면 받아 줄 출처가 없다.
         // FMP는 상장폐지·장전 무거래에 price를 null로 주고, 그건 "없다"이지 값이 아니다
+        Basis basis = basisOf(quote);
         return new StockQuote(name, Price.require(quote.price(), "FMP " + symbol.symbol()),
                 PercentChange.ofNullable(quote.changePercentage()),
                 index ? StockQuote.Money.NONE : StockQuote.Money.USD, StockQuote.Market.US,
-                StockSource.FMP, at(quote), true);
+                StockSource.FMP, basis.at(), basis.live());
     }
 
-    /** FMP는 <b>체결 시각을 준다</b> — KIS와 달리 읽은 시각으로 대신할 필요가 없다. */
-    private Instant at(FmpQuote quote) {
-        return quote.timestamp() == null ? clock.instant() : Instant.ofEpochSecond(quote.timestamp());
+    /**
+     * FMP는 <b>체결 시각을 준다</b> — KIS와 달리 읽은 시각으로 대신할 필요가 없다.
+     *
+     * <p>그 체결이 뉴욕 달력으로 <b>어제 이전이면 종가다.</b> 토요일에 금요일 16시 체결가를 실시간이라 찍으면
+     * 낡은 값을 신선하게 꾸미는 셈이다 — KIS 종가와 같은 모양(종가일 00시 KST, {@code realtime=false})으로 두면
+     * 화면이 날짜와 (종가)를 찍는다. 체결 시각이 없으면 지금까지처럼 읽은 시각·실시간이다 — 모른다고 낡았다고
+     * 단정하지 않는다.
+     */
+    private Basis basisOf(FmpQuote quote) {
+        if (quote.timestamp() == null) {
+            return new Basis(clock.instant(), true);
+        }
+        Instant traded = Instant.ofEpochSecond(quote.timestamp());
+        LocalDate tradedOn = LocalDate.ofInstant(traded, NEW_YORK);
+        if (tradedOn.isBefore(LocalDate.ofInstant(clock.instant(), NEW_YORK))) {
+            return new Basis(tradedOn.atStartOfDay(SEOUL).toInstant(), false);
+        }
+        return new Basis(traded, true);
     }
+
+    private record Basis(Instant at, boolean live) {}
 }

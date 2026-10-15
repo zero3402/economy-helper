@@ -34,6 +34,32 @@ public record DigestResult(boolean sent, String slot,
         return new DigestResult(false, slot, List.of(), List.of(), reason);
     }
 
+    /** {@link #deferred}의 사유 — 술어가 이 글자로 가르므로 로그에 덧붙일 것은 로그 쪽에 적는다. */
+    private static final String DEFERRED = "일부가 빠져 발송을 미뤘습니다 — 다음 틱이 다시 모읍니다";
+
+    /**
+     * 일부가 빠져 <b>일부러 안 보냈다</b> — 슬롯은 되돌렸고 다음 틱이 다시 모은다(날씨 알람).
+     *
+     * <p>{@link #allFailed}처럼 실패 목록을 남긴다. 성분을 늘리지 않아 액추에이터 응답 모양은 그대로다.
+     */
+    public static DigestResult deferred(String slot, List<Failure> failed) {
+        return new DigestResult(false, slot, List.of(), List.copyOf(failed), DEFERRED);
+    }
+
+    /** 계획된 미룸인가 — 스케줄 경로가 ERROR로 남기지 않을 유일한 「안 보냄」이다. */
+    public boolean deferred() {
+        return DEFERRED.equals(reason);
+    }
+
+    /**
+     * 나간 것이 확인된 통은 없는데 <b>닿았는지 모르는</b> 통이 있다 — 슬롯은 잡은 채 둔다.
+     * 되돌리면 다음 틱이 같은 통을 다시 보내 구독자 전원에게 두 번 갈 수 있다. 사람이 결과를 보고 판단한다.
+     */
+    public static DigestResult uncertain(String slot, List<Failure> failed) {
+        return new DigestResult(false, slot, List.of(), List.copyOf(failed),
+                "전달됐는지 모르는 통이 있어 슬롯을 잡은 채 둡니다 — 되돌리면 두 번 갑니다");
+    }
+
     /**
      * 하나도 못 보냈다.
      *

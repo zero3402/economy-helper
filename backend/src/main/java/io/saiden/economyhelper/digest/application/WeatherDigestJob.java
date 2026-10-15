@@ -15,6 +15,7 @@ import io.saiden.economyhelper.weather.domain.WeatherPeriod;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -22,6 +23,7 @@ import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.scheduling.support.CronExpression;
 import org.springframework.stereotype.Component;
 
 /**
@@ -44,10 +46,19 @@ public class WeatherDigestJob extends TriggerableJob {
     /** 브리핑 슬롯과 섞이지 않게 하는 접두사. 이게 없으면 둘 중 하나만 나간다. */
     private static final String SLOT_PREFIX = "weather-";
 
+
     private final WeatherService weatherService;
     private final DigestNotifier notifier;
     private final DigestSlot slot;
     private final List<GeoLocation> places;
+    private final Clock clock;
+    private final ZoneId zone;
+    /**
+     * 발송 창 — 「오늘 틱이 더 남았나」를 묻는 데 쓴다. {@code null}이면(테스트의 {@code -}) 매 틱이 마지막 틱이다.
+     * 지역이 빠진 알람은 창의 마지막 틱까지 미룬다 — 2026-10-14 08:00에 첫 틱이 한 곳만 보내고 슬롯을 잡아
+     * 나머지 셋이 그날 영영 안 나갔다. 기한을 따로 두지 않는다 — 창이 곧 기한이다.
+     */
+    private final CronExpression window;
 
     public WeatherDigestJob(WeatherService weatherService,
                             DigestNotifier notifier,
@@ -56,10 +67,30 @@ public class WeatherDigestJob extends TriggerableJob {
                             EconomyHelperProperties properties) {
         this.weatherService = weatherService;
         this.notifier = notifier;
+        this.clock = clock;
         // 브리핑(DailyDigestJob)과 같이 설정의 시간대를 그대로 쓴다 — application.yml이 늘 채운다
-        ZoneId zone = ZoneId.of(properties.weather().zone());
+        this.zone = ZoneId.of(properties.weather().zone());
         this.slot = new DigestSlot(history, clock, zone, SLOT_PREFIX, "weather");
         this.places = toPlaces(properties.weather(), zone);
+        this.window = windowOf(properties.weather().cron());
+    }
+
+    /** 크론을 창으로 읽는다. {@code -}·빈 값은 스케줄이 꺼진 것이라({@code Scheduled.CRON_DISABLED}) 창이 없다. */
+    private static CronExpression windowOf(String cron) {
+        if (cron == null || cron.isBlank() || Scheduled.CRON_DISABLED.equals(cron)) {
+            return null;
+        }
+        return CronExpression.parse(cron);
+    }
+
+    /** 오늘(설정의 시간대) 안에 다음 틱이 더 있나 — 있으면 빠진 지역을 그 틱에 다시 모을 수 있다. */
+    private boolean hasLaterTickToday() {
+        if (window == null) {
+            return false;
+        }
+        ZonedDateTime now = clock.instant().atZone(zone);
+        ZonedDateTime next = window.next(now);
+        return next != null && next.toLocalDate().equals(now.toLocalDate());
     }
 
     /**
@@ -91,14 +122,18 @@ public class WeatherDigestJob extends TriggerableJob {
     public void sendScheduled() {
         DigestResult result = run(false);
         // 스케줄 경로는 아무도 응답을 보지 않는다. 실패했으면 여기서라도 크게 남겨야
-        // "아침에 날씨가 안 왔다"가 다음 날에야 발견되는 일을 막는다
-        if (!result.sent() && !result.failed().isEmpty()) {
+        // "아침에 날씨가 안 왔다"가 다음 날에야 발견되는 일을 막는다. 일부러 미룬 틱은 계획된
+        // 상태라 ERROR가 아니다 — execute가 WARN으로 사유를 남긴다
+        if (!result.sent() && !result.failed().isEmpty() && !result.deferred()) {
             log.error("[weather] 스케줄 발송이 아무것도 내보내지 못했습니다: {}", result.failed());
         }
     }
 
     /**
      * 지역별 부분 실패를 허용한다 — "한 곳이 안 된다고 아침 알람을 통째로 잃을 이유가 없다".
+     * 다만 <b>창에 틱이 더 남았으면 빠진 채로 보내지 않는다</b> — 보내고 슬롯을 잡으면 창의
+     * 남은 틱이 전부 「이미 발송」이 되어 08:00의 일시 장애가 그날의 결손이 된다(2026-10-14,
+     * 미금역만 나갔다). 안 보낸 틱은 슬롯을 되돌리므로 되돌려도 중복이 없다. 마지막 틱은 모인 것만 보낸다.
      *
      * <p><b>지역이 하나도 설정돼 있지 않으면 슬롯을 잡지 않는다.</b> 보낼 것이 없는데 오늘
      * 몫을 선점하면, 설정을 고쳐 넣어도 그날은 영영 안 나간다.
@@ -109,6 +144,9 @@ public class WeatherDigestJob extends TriggerableJob {
             log.warn("[weather] 알람 지역이 설정돼 있지 않습니다 — 보낼 것이 없습니다");
             return DigestResult.skipped(slot.id(), "알람 지역이 설정돼 있지 않습니다");
         }
+        // 틱의 시작 시각으로 한 번만 정한다 — 수집 뒤에는 던질 수 있는 식이 없어야 슬롯이 잡힌 채
+        // 새는 일이 없다(아래 try가 지키는 그 규칙). 수동(force)은 답을 원하므로 미루지 않는다
+        boolean deferrable = !force && hasLaterTickToday();
 
         DigestSlot.Claim claim = slot.claim(force);
         if (!claim.proceed()) {
@@ -132,13 +170,26 @@ public class WeatherDigestJob extends TriggerableJob {
             log.warn("[weather] {} 슬롯에 보낼 날씨가 없습니다 — 발송하지 않습니다", claim.id());
             return DigestResult.allFailed(claim.id(), failed);
         }
+        if (deferrable && !failed.isEmpty()) {
+            // 아무것도 안 나갔으니 되돌려도 중복이 없다. 빠진 지역의 사유는 결과에 그대로 남긴다
+            slot.release(claim);
+            log.warn("[weather] {} 슬롯에 {}곳이 빠져 미룹니다 — 오늘 창의 다음 틱이 다시 모읍니다: {}",
+                    claim.id(), failed.size(), failed);
+            return DigestResult.deferred(claim.id(), failed);
+        }
 
         DigestNotifier.Delivery delivery = notifier.send(new DigestMessage.WeatherAlarm(collected));
         if (delivery.failure() != null) {
-            // 한 통짜리라 실패면 아무것도 안 나갔다
+            failed.add(DigestResult.Failure.of("날씨", delivery.failure()));
+            if (delivery.uncertain()) {
+                // 텔레그램이 받았을 수 있다 — 되돌리면 다음 틱에 같은 알람이 또 간다. 잡은 채 두고 사람에게 남긴다
+                log.error("[weather] {} 슬롯 발송 결과를 모릅니다 — 중복을 피해 슬롯을 잡은 채 둡니다: {}",
+                        claim.id(), delivery.failure().toString());
+                return DigestResult.uncertain(claim.id(), failed);
+            }
+            // 한 통짜리라 닿지 못한 실패면 아무것도 안 나갔다
             slot.release(claim);
             log.error("[weather] {} 슬롯 발송 실패: {}", claim.id(), delivery.failure().toString());
-            failed.add(DigestResult.Failure.of("날씨", delivery.failure()));
             return DigestResult.allFailed(claim.id(), failed);
         }
         log.info("[weather] {} 슬롯 발송 완료 — {}곳 (실패 {})", claim.id(), collected.size(), failed);

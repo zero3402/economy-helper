@@ -12,6 +12,7 @@ import io.saiden.economyhelper.config.EconomyHelperProperties.Index;
 import io.saiden.economyhelper.config.EconomyHelperProperties.KisIndex;
 import io.saiden.economyhelper.config.EconomyHelperProperties.UsSymbol;
 import io.saiden.economyhelper.infrastructure.kis.KisFixtures;
+import io.saiden.economyhelper.infrastructure.kis.KisHeaders;
 import io.saiden.economyhelper.stock.application.port.out.StockClient;
 import io.saiden.economyhelper.stock.domain.StockQuote;
 import io.saiden.economyhelper.stock.domain.StockSource;
@@ -19,6 +20,7 @@ import io.saiden.economyhelper.testsupport.TestProperties;
 import io.saiden.economyhelper.testsupport.WireMockTest;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -94,7 +96,17 @@ class KisStockApiTest extends WireMockTest {
 
     private KisStockApi apiWith(List<Index> indices, List<KisIndex> usIndices,
                                 org.springframework.cache.CacheManager caches) {
-        Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
+        return apiWith(indices, usIndices, caches, NOW);
+    }
+
+    /** 시각만 다른 판 — 값의 기준(실시간·종가)은 시계로 가른다. */
+    private KisStockApi apiAt(Instant now) {
+        return apiWith(List.of(KOSPI), List.of(NASDAQ_KIS), null, now);
+    }
+
+    private KisStockApi apiWith(List<Index> indices, List<KisIndex> usIndices,
+                                org.springframework.cache.CacheManager caches, Instant now) {
+        Clock clock = Clock.fixed(now, ZoneOffset.UTC);
         tokens = new KisFixtures.FixedToken(clock);
         return new KisStockApi(KisFixtures.call(server.baseUrl(), tokens), clock,
                 TestProperties.builder()
@@ -150,6 +162,24 @@ class KisStockApiTest extends WireMockTest {
                  "output1":{"bstp_nmix_prdy_vrss":"-108.11","bstp_nmix_prdy_ctrt":"-1.55",
                             "hts_kor_isnm":"종합","bstp_nmix_prpr":"6869.83","bstp_cls_code":"0001"},
                  "output2":[{"stck_bsop_date":"20260818","bstp_nmix_prpr":"6869.83"}]}
+                """);
+    }
+
+    /** dailyprice 응답 — 날짜만 다른 두 행. 종가일은 이 마지막 날짜에서 나온다. */
+    private static String usSeriesBody(String latest, String before) {
+        return """
+                {"rt_cd":"0","msg_cd":"MCA00000","msg1":"정상처리 되었습니다.",
+                 "output1":{"rsym":"DNASAAPL","zdiv":"4","nrec":"100"},
+                 "output2":[{"xymd":"%s","clos":"306.1900","open":"305.0000"},
+                            {"xymd":"%s","clos":"300.0000","open":"299.0000"}]}""".formatted(latest, before);
+    }
+
+    /** 애플(NAS) 실측 응답을 줄인 것 — <b>날짜 필드가 없다.</b> 장중인가는 시계가, 종가일은 일봉이 정한다. */
+    private void stubUsStock() {
+        stub(US_STOCK_PATH, """
+                {"rt_cd":"0","msg_cd":"MCA00000","msg1":"정상처리 되었습니다.",
+                 "output":{"rsym":"DNASAAPL","curr":"USD","last":"306.1920","base":"300.0000",
+                           "t_xprc":"432282","t_xrat":"+0.20","t_rate":"1411.80"}}
                 """);
     }
 
@@ -234,20 +264,99 @@ class KisStockApiTest extends WireMockTest {
     @DisplayName("미국 지수는 미국 달력으로 견준다 — 서울 새벽 2시는 뉴욕 장중이다")
     void judgesUsIndexFreshnessOnTheUsCalendar() {
         // KST 2026-08-19 02:00 = 뉴욕 2026-08-18 13:00(장중). 봉 날짜 20260818은 뉴욕의 오늘이다
-        Clock seoulNight = Clock.fixed(Instant.parse("2026-08-18T17:00:00Z"), ZoneOffset.UTC);
-        KisStockApi atNight = new KisStockApi(KisFixtures.call(server.baseUrl(), new KisFixtures.FixedToken(seoulNight)),
-                seoulNight,
-                TestProperties.builder()
-                        .indices(List.of(KOSPI))
-                        .kisUsIndices(List.of(NASDAQ_KIS))
-                        .build(),
-                exchanges, null);
+        KisStockApi atNight = apiAt(Instant.parse("2026-08-18T17:00:00Z"));
         stub(US_INDEX_PATH, """
                 {"rt_cd":"0","output1":{"prdy_ctrt":"-0.32","ovrs_nmix_prpr":"26644.91"},
                  "output2":[{"stck_bsop_date":"20260818","ovrs_nmix_prpr":"26644.91"}]}
                 """);
 
         assertThat(atNight.quote(NASDAQ).realtime()).isTrue();
+    }
+
+    // --- 미국 종목의 기준 — price-detail에는 날짜가 없어 뉴욕 정규장 달력으로 가른다 ---
+
+    @Test
+    @DisplayName("미국 종목은 주말이면 종가다 — 토요일에 금요일 종가에 지금 시각을 찍지 않는다")
+    void marksAUsStockClosingOnTheWeekend() {
+        // KST 토요일 20:00 = 뉴욕 토요일 07:00. 종가일은 달력이 아니라 일봉의 마지막 날짜(금요일 2026-08-21)다
+        KisStockApi weekend = apiAt(Instant.parse("2026-08-22T11:00:00Z"));
+        stubUsStock();
+        stub(US_STOCK_SERIES_PATH, usSeriesBody("20260821", "20260820"));
+
+        StockQuote quote = weekend.quote(APPLE);
+
+        assertThat(quote.realtime()).isFalse();
+        assertThat(quote.at()).as("지수 경로와 같은 모양 — 그 날짜의 KST 자정")
+                .isEqualTo(KisHeaders.startOfDay(LocalDate.of(2026, 8, 21)));
+    }
+
+    @Test
+    @DisplayName("평일 휴장일에도 종가일은 일봉이 확인한 거래일이다 — 달력으로 만든 날짜는 없는 거래일이다")
+    void neverInventsAClosingDateOnAHoliday() {
+        // 2026-09-07 월요일(노동절) 뉴욕 20:00. 달력으로는 「오늘 16시에 끝난 장」이지만 그런 장은 없었다 —
+        // dailyprice의 마지막 행은 금요일(09-04)이고 그것이 유일하게 확인된 거래일이다
+        KisStockApi holidayEvening = apiAt(Instant.parse("2026-09-08T00:00:00Z"));
+        stubUsStock();
+        stub(US_STOCK_SERIES_PATH, usSeriesBody("20260904", "20260903"));
+
+        StockQuote quote = holidayEvening.quote(APPLE);
+
+        assertThat(quote.realtime()).isFalse();
+        assertThat(quote.at()).isEqualTo(KisHeaders.startOfDay(LocalDate.of(2026, 9, 4)))
+                .isNotEqualTo(KisHeaders.startOfDay(LocalDate.of(2026, 9, 7)));
+    }
+
+    @Test
+    @DisplayName("일봉을 못 받으면 종가일을 모른다 — 실시간으로 둔다(모른다고 낡았다고 단정하지 않는다)")
+    void staysLiveWhenTheSeriesIsUnavailable() {
+        KisStockApi weekend = apiAt(Instant.parse("2026-08-22T11:00:00Z"));
+        stubUsStock();
+        server.stubFor(get(urlPathEqualTo(US_STOCK_SERIES_PATH)).willReturn(aResponse().withStatus(500)));
+
+        StockQuote quote = weekend.quote(APPLE);
+
+        assertThat(quote.realtime()).isTrue();
+    }
+
+    @Test
+    @DisplayName("종가일을 알려고 받은 일봉은 차트 캐시에 심는다 — 차트가 KIS를 다시 부르지 않는다")
+    void seedsTheUsSeriesCacheWhileDecidingTheBasis() {
+        org.springframework.cache.CacheManager caches =
+                new org.springframework.cache.concurrent.ConcurrentMapCacheManager(io.saiden.economyhelper.config.CacheNames.STOCK_SERIES);
+        KisStockApi weekend = apiWith(List.of(KOSPI), List.of(NASDAQ_KIS), caches,
+                Instant.parse("2026-08-22T11:00:00Z"));
+        stubUsStock();
+        stub(US_STOCK_SERIES_PATH, usSeriesBody("20260821", "20260820"));
+
+        weekend.quote(APPLE);
+
+        assertThat(caches.getCache(io.saiden.economyhelper.config.CacheNames.STOCK_SERIES).get("us:AAPL")).isNotNull();
+        server.verify(1, getRequestedFor(urlPathEqualTo(US_STOCK_SERIES_PATH)));
+    }
+
+    @Test
+    @DisplayName("뉴욕 정규장 안이면 실시간이다 — 수요일 13:00")
+    void keepsAUsStockLiveDuringTheSession() {
+        Instant midSession = Instant.parse("2026-08-19T17:00:00Z"); // 뉴욕 수요일 13:00(EDT)
+        stubUsStock();
+
+        StockQuote quote = apiAt(midSession).quote(APPLE);
+
+        assertThat(quote.realtime()).isTrue();
+        assertThat(quote.at()).isEqualTo(midSession);
+    }
+
+    @Test
+    @DisplayName("개장 전이면 전 거래일 종가다 — 수요일 08:00의 현재가 자리에는 화요일 종가가 와 있다")
+    void marksAUsStockClosingBeforeTheOpen() {
+        KisStockApi preMarket = apiAt(Instant.parse("2026-08-19T12:00:00Z")); // 뉴욕 수요일 08:00(EDT)
+        stubUsStock();
+        stub(US_STOCK_SERIES_PATH, usSeriesBody("20260818", "20260817"));
+
+        StockQuote quote = preMarket.quote(APPLE);
+
+        assertThat(quote.realtime()).isFalse();
+        assertThat(quote.at()).isEqualTo(KisHeaders.startOfDay(LocalDate.of(2026, 8, 18)));
     }
 
     @Test
@@ -582,7 +691,8 @@ class KisStockApiTest extends WireMockTest {
                 {"rt_cd":"0","output":{"rsym":"DNYSPATH","curr":"USD",
                  "last":"15.5800","base":"15.9900"}}""");
 
-        api.quote(new UsSymbol("PATH", "유아이패스"));
+        // 장중 시각 — 장 밖이면 종가일을 알려고 일봉을 한 번 더 받는다(그건 아래 종가 테스트들이 본다)
+        apiAt(Instant.parse("2026-08-19T17:00:00Z")).quote(new UsSymbol("PATH", "유아이패스"));
 
         assertThat(server.getAllServeEvents()).hasSize(1);
         server.verify(getRequestedFor(urlPathEqualTo(US_STOCK_PATH))

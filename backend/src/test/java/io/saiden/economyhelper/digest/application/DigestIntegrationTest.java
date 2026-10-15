@@ -156,7 +156,7 @@ class DigestIntegrationTest {
         int before = circuitBreakerRegistry.circuitBreaker("telegram")
                 .getMetrics().getNumberOfFailedCalls();
 
-        assertThatThrownBy(() -> telegramClient.send("1", null, null, "연결 거부될 주소"))
+        assertThatThrownBy(() -> telegramClient.send("1", null, null, "연결 거부될 주소", false))
                 .isInstanceOf(Exception.class);
 
         assertThat(circuitBreakerRegistry.circuitBreaker("telegram")
@@ -238,7 +238,7 @@ class DigestIntegrationTest {
                 DailyDigestJobTest.properties()).run(false);
     }
 
-    /** 뉴스가 번역에 넘기는 모양 그대로 — 캐시 키는 기사 링크다. */
+    /** 뉴스가 번역에 넘기는 모양 — 운영의 키는 링크 + 제목 지문({@code NewsFacade.requestOf})이지만 이 왕복에는 링크면 된다. */
     private static TranslationRequest requestOf(Article article) {
         return new TranslationRequest(article.link(), article.title(), article.description());
     }

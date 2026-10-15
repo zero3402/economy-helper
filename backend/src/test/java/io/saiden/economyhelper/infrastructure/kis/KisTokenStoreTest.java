@@ -452,6 +452,67 @@ class KisTokenStoreTest extends WireMockTest {
     }
 
     @Test
+    @DisplayName("발급이 실패하면 1분 동안 다시 발급하지 않는다 — 장애 중 브리핑 한 번이 열 번을 연타해 1분 1회 제한을 어겼다")
+    void backsOffForAMinuteAfterAFailedIssue() {
+        // KIS 5xx(또는 1분 1회 거절)는 기억되지 않아 KIS 호출마다 tokenP를 다시 POST했다 —
+        // 브리핑 한 번이 열 번쯤이고, 그것이 곧 「1분에 한 번만 발급」을 우리 손으로 어기는 길이다
+        server.stubFor(post(urlPathEqualTo(PATH)).willReturn(aResponse().withStatus(500)));
+        MovableClock clock = new MovableClock(NOW);
+        KisTokenStore store = new KisTokenStore(RestClient.builder(), credentials("key", "secret"),
+                null, clock, KisFixtures.unpaced());
+
+        assertThatThrownBy(store::token).hasMessageContaining("1분에 한 번");
+        assertThatThrownBy(store::token).isInstanceOf(IllegalStateException.class);
+        server.verify(1, postRequestedFor(urlPathEqualTo(PATH)));
+
+        // 1분이 지나면 다시 받아 본다 — 쉬는 동안 굳지 않는다
+        clock.now = NOW.plusSeconds(61);
+        stub("""
+                {"access_token":"tok-1","access_token_token_expired":"2026-08-19 16:56:34"}
+                """);
+        assertThat(store.token()).isEqualTo("tok-1");
+        server.verify(2, postRequestedFor(urlPathEqualTo(PATH)));
+    }
+
+    @Test
+    @DisplayName("200인데 토큰이 없어도 1분을 쉰다 — HTTP 실패만 쉬면 빈 응답에는 호출마다 다시 POST한다")
+    void backsOffAfterAnEmptyIssueResponseToo() {
+        stub("{}");
+        MovableClock clock = new MovableClock(NOW);
+        KisTokenStore store = new KisTokenStore(RestClient.builder(), credentials("key", "secret"),
+                null, clock, KisFixtures.unpaced());
+
+        assertThatThrownBy(store::token).hasMessageContaining("접근토큰이 없습니다");
+        assertThatThrownBy(store::token).hasMessageContaining("1분에 한 번");
+        server.verify(1, postRequestedFor(urlPathEqualTo(PATH)));
+    }
+
+    /** 시간을 밀어 볼 수 있는 시계 — 쉬는 시간은 시각으로 풀리므로 그 경계를 넘겨 봐야 한다. */
+    private static final class MovableClock extends Clock {
+
+        private Instant now;
+
+        private MovableClock(Instant now) {
+            this.now = now;
+        }
+
+        @Override
+        public Instant instant() {
+            return now;
+        }
+
+        @Override
+        public java.time.ZoneId getZone() {
+            return ZoneOffset.UTC;
+        }
+
+        @Override
+        public Clock withZone(java.time.ZoneId zone) {
+            return this;
+        }
+    }
+
+    @Test
     @DisplayName("예외 메시지에 응답 본문이 새지 않는다 — 이 응답에는 접근토큰이 들어 있다")
     void neverLeaksTheResponseBody() {
         server.stubFor(post(urlPathEqualTo(PATH)).willReturn(aResponse().withStatus(500)

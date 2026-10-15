@@ -154,9 +154,12 @@ class FeedFetcherTest extends WireMockTest {
     }
 
     @Test
-    @DisplayName("설정에 없는 매체는 조용히 건너뛴다")
-    void returnsEmptyWhenSourceNotConfigured() {
-        assertThat(fetcher(Map.of()).fetch(NewsSource.INVESTING)).isEmpty();
+    @DisplayName("설정에 없는 매체는 빈 목록이 아니라 수집 실패다 — 빈 목록은 「기사가 없다」라서 설정 누락이 조용히 묻힌다")
+    void signalsFailureWhenSourceNotConfigured() {
+        assertThatThrownBy(() -> fetcher(Map.of()).fetch(NewsSource.INVESTING))
+                .isInstanceOf(ArticleFeed.Unavailable.class)
+                .hasMessageContaining("INVESTING")
+                .hasMessageContaining("설정");
     }
 
     @Test

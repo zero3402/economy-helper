@@ -22,5 +22,10 @@ public interface ArticleFeed {
         public Unavailable(NewsSource source, Throwable cause) {
             super(source + " 피드 수집 실패", cause);
         }
+
+        /** 부르기 전에 끝난 실패 — 원인 예외가 따로 없다(설정 누락). */
+        public Unavailable(NewsSource source, String reason) {
+            super(source + " 피드 수집 실패: " + reason);
+        }
     }
 }

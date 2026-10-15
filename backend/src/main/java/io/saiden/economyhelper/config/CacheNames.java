@@ -62,10 +62,11 @@ public final class CacheNames {
     public static final String STOCK_RESOLVE = "stock-resolve-v5";
 
     /**
-     * 코인 검색어 해석. <b>v3</b> — 담는 티커를 해석기가 다듬어(대문자·앞뒤 공백 제거) 넣는다.
+     * 코인 검색어 해석. <b>v4</b> — 티커 모양({@code [A-Z0-9]{1,20}})이 아닌 답은 담지 않는다.
+     * v3에는 {@code BTC/USDT}·한글 같은 답이 그대로 담겨 바이낸스에 나갈 수 있었다(규칙이 바뀌었다 — 4.2).
      * v2에는 LLM이 준 날것이 담겨 있다.
      */
-    public static final String CRYPTO_RESOLVE = "crypto-resolve-v3";
+    public static final String CRYPTO_RESOLVE = "crypto-resolve-v4";
 
     // ── 나머지: 상대가 준 값이다. 판이 붙은 것은 담는 모양이 바뀌어서다 ─────────
 
