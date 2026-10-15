@@ -460,11 +460,6 @@ class TelegramWebhookControllerTest {
             public void send(String chatId, Integer topicId, Integer replyTo, String text, boolean preview) {
                 throw new TelegramClient.TelegramRejected("텔레그램 sendMessage 거절: 400 message thread not found");
             }
-
-            @Override
-            public void send(String chatId, Integer topicId, Integer replyTo, String text) {
-                send(chatId, topicId, replyTo, text, false);
-            }
         };
         var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()),
                 fx(Optional.empty()), stock(Optional.empty()), rejecting);

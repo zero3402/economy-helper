@@ -128,6 +128,8 @@ public class DailyDigestJob extends TriggerableJob {
 
         List<String> delivered = new ArrayList<>();
         List<DigestResult.Failure> failed = new ArrayList<>();
+        // 닿았는지 모르는 통 — 나간 것으로 확인되진 않았지만 되돌리면 두 번 갈 수 있는 통
+        List<String> uncertain = new ArrayList<>();
 
         // 통 하나 안에서 글과 차트가 나눠 쓰는 값들
         Once<List<StockService.Answer>> domestic = Once.of(() -> stockService.answersOf(stockCodes));
@@ -139,9 +141,9 @@ public class DailyDigestJob extends TriggerableJob {
         //    올린다 — 배포 중 종료가 그 경로)는 그대로 새고, 그러면 슬롯은 잡힌 채 아무것도 안 나가
         //    그날 창의 나머지 틱이 전부 「이미 보냈다」가 된다. 한 통이라도 나갔으면 되돌리지 않는다
         try {
-            collectAndSend(domestic, american, coins, delivered, failed);
+            collectAndSend(domestic, american, coins, delivered, failed, uncertain);
         } catch (RuntimeException | Error e) {
-            if (delivered.isEmpty()) {
+            if (delivered.isEmpty() && uncertain.isEmpty()) {
                 slot.release(claim);
                 log.error("[digest] {} 수집 중 예외 — 슬롯을 되돌립니다: {}", claim.id(), e.toString());
             }
@@ -149,6 +151,11 @@ public class DailyDigestJob extends TriggerableJob {
         }
 
         if (delivered.isEmpty()) {
+            if (!uncertain.isEmpty()) {
+                // 텔레그램이 받았을 수 있다 — 되돌리면 다음 틱이 같은 통을 또 보낸다. 잡은 채 두고 사람에게 남긴다
+                log.error("[digest] {} 슬롯 발송 결과를 모릅니다 {} — 중복을 피해 슬롯을 잡은 채 둡니다", claim.id(), uncertain);
+                return DigestResult.uncertain(claim.id(), failed);
+            }
             // 넷 다 실패했다. "보냈다"로 남기면 이 시간대는 복구 후에도 영영 비어 있다
             slot.release(claim);
             log.warn("[digest] {} 슬롯에 보낼 내용이 하나도 없습니다 — 발송하지 않습니다", claim.id());
@@ -165,7 +172,8 @@ public class DailyDigestJob extends TriggerableJob {
      */
     private void collectAndSend(Once<List<StockService.Answer>> domestic,
                                 Once<List<StockService.Answer>> american, Once<List<CryptoQuote>> coins,
-                                List<String> delivered, List<DigestResult.Failure> failed) {
+                                List<String> delivered, List<DigestResult.Failure> failed,
+                                List<String> uncertain) {
         // 환율은 세 통이 함께 쓴다 — 한 번만 조회해 증시·코인 통까지 들고 간다. 통마다
         // 따로 조회하면 환율 통에 찍힌 값과 원화 환산이 서로 다를 수 있다(ADR-0006)
         FxRate fx = fxService.orNull();
@@ -185,7 +193,7 @@ public class DailyDigestJob extends TriggerableJob {
 
         // 발송은 순서대로 — 텔레그램이 같은 방에 초당 한 통을 권고한다(간격은 창구가 지킨다)
         for (Section section : sections) {
-            send(section, delivered, failed);
+            send(section, delivered, failed, uncertain);
         }
     }
 
@@ -355,21 +363,27 @@ public class DailyDigestJob extends TriggerableJob {
      * <p>다만 <b>사유는 버리지 않는다.</b> 이름만 남기면 "환율 실패"까지만 알 수 있어
      * 설정이 틀린 것인지 외부 API가 죽은 것인지 구분하려면 배포처 로그를 뒤져야 한다.
      */
-    private void send(Section section, List<String> delivered, List<DigestResult.Failure> failed) {
+    private void send(Section section, List<String> delivered, List<DigestResult.Failure> failed,
+                      List<String> uncertain) {
         if (section.failure() != null) {
             failed.add(new DigestResult.Failure(section.name(), section.failure()));
             return;
         }
-        // 통 단위가 아니라 이름 단위로 센다. 뉴스 세 통이 '뉴스'로 한 번만 남아야
-        // 결과가 "무엇이 나갔나"로 읽힌다
-        DigestNotifier.Delivery delivery = notifier.send(section.message(), section.charts(), () -> {
-            if (!delivered.contains(section.name())) {
-                delivered.add(section.name());
-            }
-        });
+        // 둘 다 통 안에서 **즉시** 기록한다 — 돌려받은 뒤에 적으면, 그 통의 다음 글에서 Error가 새는 순간
+        // 「나갔다」·「모른다」가 사라져 슬롯이 풀리고 같은 글이 또 나간다
+        DigestNotifier.Delivery delivery = notifier.send(section.message(), section.charts(),
+                () -> addOnce(delivered, section.name()),
+                () -> addOnce(uncertain, section.name()));
         if (delivery.failure() != null) {
             log.error("[digest] {} 통 발송 실패: {}", section.name(), delivery.failure().toString());
             failed.add(DigestResult.Failure.of(section.name(), delivery.failure()));
+        }
+    }
+
+    /** 통 단위가 아니라 이름 단위로 센다 — 뉴스 세 통이 '뉴스'로 한 번만 남아야 결과가 "무엇이 나갔나"로 읽힌다. */
+    private static void addOnce(List<String> names, String name) {
+        if (!names.contains(name)) {
+            names.add(name);
         }
     }
 

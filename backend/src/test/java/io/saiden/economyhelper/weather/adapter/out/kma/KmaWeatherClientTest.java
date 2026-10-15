@@ -279,7 +279,8 @@ class KmaWeatherClientTest extends WireMockTest {
     @Test
     @DisplayName("오전 8시 알람의 네 격자가 모두 오늘을 낸다 — 05시 발표 + 02시 보충")
     void everyAlarmGridAnswersTodayAtEight() {
-        // 2026-10-14 08:00 알람부터 미금역만 나왔다(원인 미확정). 격자로 갈리는 분기가 없다는 것을
+        // 2026-10-14 08:00 알람부터 미금역만 나왔다 — 10:23 실측에서 기상청이 세 격자에 NO_DATA를 줬다
+        // (아래 stepsBackOnePublicationWhenTheLatestHasNoData). 격자로 갈리는 분기가 코드에 없다는 것을
         // 그 시각·그 격자 넷으로 못 박는다. 픽스처는 2026-08-26 서현 격자의 실측이라 날짜만 그날로 옮긴다
         // (06:30 테스트가 시계를 픽스처 날에 맞춘 것의 거울상이다)
         Instant eight = Instant.parse("2026-10-13T23:00:00Z");
@@ -311,6 +312,86 @@ class KmaWeatherClientTest extends WireMockTest {
                     .withQueryParam("nx", WireMock.equalTo(String.valueOf(grid[0])))
                     .withQueryParam("ny", WireMock.equalTo(String.valueOf(grid[1]))));
         }
+    }
+
+    // --- 발표에 자료가 없을 때 (2026-10-14 실측) ------------------------------------------
+
+    /** 실측 그대로 — 봉투는 정상이고 {@code body}만 없다. HTTP 200이다. */
+    private static final String NO_DATA = """
+            {"response":{"header":{"resultCode":"03","resultMsg":"NO_DATA"}}}""";
+    /** 2026-10-14 10:23 KST — 감사에서 세 격자가 NO_DATA를 받은 시각. 최신 발표는 08시다. */
+    private static final Instant AUDIT = Instant.parse("2026-10-14T01:23:00Z");
+    private static final LocalDate AUDIT_DAY = LocalDate.of(2026, 10, 14);
+
+    @Test
+    @DisplayName("최신 발표가 NO_DATA면 한 판 앞 발표를 한 번 더 묻는다 — 셋 중 하나만 답하던 그 아침")
+    void stepsBackOnePublicationWhenTheLatestHasNoData() {
+        // 2026-10-14 10:23: 08시 발표가 62,122·62,123·62,126에는 03 NO_DATA, 61,126에는 정상이었다
+        // (/tmp 감사 로그). 앞 판(05시)은 시각의 상위집합이라 그것으로 오늘을 온전히 낸다
+        KmaWeatherClient client = clientAt(AUDIT);
+        int[][] empty = {{62, 122}, {62, 123}, {62, 126}};
+        for (int[] grid : empty) {
+            stubAt(grid, "0800", NO_DATA);
+            stubAt(grid, "0500", shiftedTo(AUDIT_DAY, "fixtures/kma-vilage-20260826-0500.json"));
+            stubAt(grid, "0200", shiftedTo(AUDIT_DAY, "fixtures/kma-vilage-20260826-0200.json"));
+        }
+        int[] answering = {61, 126};
+        stubAt(answering, "0800", shiftedTo(AUDIT_DAY, "fixtures/kma-vilage-20260826-0500.json"));
+        stubAt(answering, "0200", shiftedTo(AUDIT_DAY, "fixtures/kma-vilage-20260826-0200.json"));
+        GeoLocation[] places = {
+            KmaFixtures.domestic("미금역", KmaFixtures.MIGEUM_LATITUDE, KmaFixtures.MIGEUM_LONGITUDE),
+            KmaFixtures.domestic("서현역", KmaFixtures.SEOHYEON_LATITUDE, KmaFixtures.SEOHYEON_LONGITUDE),
+            KmaFixtures.domestic("잠실역", KmaFixtures.JAMSIL_LATITUDE, KmaFixtures.JAMSIL_LONGITUDE),
+            KmaFixtures.domestic("삼성중앙역", KmaFixtures.SAMSEONG_LATITUDE, KmaFixtures.SAMSEONG_LONGITUDE),
+        };
+
+        for (GeoLocation place : places) {
+            Weather.Daily today = client.forecast(place, WeatherPeriod.of(AUDIT_DAY, null, null, 1))
+                    .days().get(0);
+            assertThat(today.date()).as(place.name()).isEqualTo(AUDIT_DAY);
+            assertThat(today.halves()).as(place.name() + " — 오전·오후 두 줄").hasSize(2);
+            assertThat(today.low()).as(place.name() + " — 02시 발표의 TMN").isEqualByComparingTo("24.0");
+        }
+        for (int[] grid : empty) {
+            server.verify(1, villageRequest(grid, "0800"));
+            server.verify(1, villageRequest(grid, "0500"));
+        }
+        server.verify(1, villageRequest(answering, "0800"));
+        server.verify(0, villageRequest(answering, "0500"));
+    }
+
+    @Test
+    @DisplayName("한 판 앞도 NO_DATA면 던진다 — 두 판을 넘어 되짚지 않고 다음 출처로")
+    void failsOverWhenThePreviousPublicationHasNoDataToo() {
+        stubBodyAt("0800", NO_DATA);
+        stubBodyAt("0500", NO_DATA);
+
+        assertThatThrownBy(() -> clientAt(AUDIT).forecast(SEOHYEON, WeatherPeriod.of(AUDIT_DAY, null, null, 1)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("NO_DATA");
+
+        assertThat(server.getAllServeEvents()).as("08시·05시 두 번뿐이다").hasSize(2);
+        server.verify(0, getRequestedFor(urlPathEqualTo(VILLAGE_PATH))
+                .withQueryParam("base_time", WireMock.equalTo("0200")));
+    }
+
+    @Test
+    @DisplayName("02시 발표가 NO_DATA면 어제 23시 발표를 묻는다 — 자정을 넘어도 한 판 앞이다")
+    void stepsBackAcrossMidnightToYesterdaysLastPublication() {
+        // 2026-10-14 02:15 KST — 최신은 오늘 02시, 한 판 앞은 어제 23시(base_date가 바뀐다)
+        Instant quarterPastTwo = Instant.parse("2026-10-13T17:15:00Z");
+        stubBodyAt("0200", NO_DATA);
+        stubBodyAt("2300", shiftedTo(AUDIT_DAY, "fixtures/kma-vilage-20260826-0200.json"));
+
+        Weather.Daily today = clientAt(quarterPastTwo)
+                .forecast(SEOHYEON, WeatherPeriod.of(AUDIT_DAY, null, null, 1)).days().get(0);
+
+        assertThat(today.date()).isEqualTo(AUDIT_DAY);
+        assertThat(today.halves()).hasSize(2);
+        server.verify(1, getRequestedFor(urlPathEqualTo(VILLAGE_PATH))
+                .withQueryParam("base_date", WireMock.equalTo("20261013"))
+                .withQueryParam("base_time", WireMock.equalTo("2300")));
+        assertThat(server.getAllServeEvents()).as("앞 판이 오늘을 온전히 들고 있어 02시 보충을 안 부른다").hasSize(2);
     }
 
     @Test
@@ -538,11 +619,24 @@ class KmaWeatherClientTest extends WireMockTest {
     }
 
     private void stubAt(String baseTime, String fixture) {
+        stubBodyAt(baseTime, TestFixtures.text(fixture));
+    }
+
+    /** 본문을 그대로 — 픽스처 파일이 아니라 글자로 든 응답(NO_DATA 봉투·날짜를 옮긴 픽스처)에 쓴다. */
+    private void stubBodyAt(String baseTime, String body) {
         server.stubFor(get(urlPathEqualTo(VILLAGE_PATH))
                 .withQueryParam("base_time", WireMock.equalTo(baseTime))
                 .willReturn(aResponse().withStatus(200)
                         .withHeader("Content-Type", "application/json")
-                        .withBody(TestFixtures.text(fixture))));
+                        .withBody(body)));
+    }
+
+    private static com.github.tomakehurst.wiremock.matching.RequestPatternBuilder villageRequest(
+            int[] grid, String baseTime) {
+        return getRequestedFor(urlPathEqualTo(VILLAGE_PATH))
+                .withQueryParam("base_time", WireMock.equalTo(baseTime))
+                .withQueryParam("nx", WireMock.equalTo(String.valueOf(grid[0])))
+                .withQueryParam("ny", WireMock.equalTo(String.valueOf(grid[1])));
     }
 
     /** 격자 하나의 한 발표 — 격자마다 따로 스텁해야 어느 격자가 무엇을 받았는지 갈린다. */

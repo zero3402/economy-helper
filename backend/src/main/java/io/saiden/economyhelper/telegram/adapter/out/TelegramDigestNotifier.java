@@ -35,8 +35,10 @@ public class TelegramDigestNotifier implements DigestNotifier {
     }
 
     @Override
-    public Delivery send(DigestMessage message, List<DigestMessage.Chart> charts, Runnable onDelivered) {
+    public Delivery send(DigestMessage message, List<DigestMessage.Chart> charts, Runnable onDelivered,
+                         Runnable onUncertain) {
         boolean delivered = false;
+        boolean uncertain = false;
         RuntimeException failure = null;
         try {
             // 뉴스 통만 미리보기를 켠다 — 링크가 있는 통이 여기뿐이다
@@ -48,6 +50,12 @@ public class TelegramDigestNotifier implements DigestNotifier {
                     telegram.send(text, preview);
                 } catch (RuntimeException e) {
                     failure = failure == null ? e : failure;
+                    // 닿았는지 모르는 실패는 따로 세고 **즉시** 알린다 — 잡이 슬롯을 되돌릴지 이것으로 정하는데,
+                    //    다음 글에서 Error가 새면 돌려줄 값이 없다(onDelivered와 같은 이유)
+                    if (e instanceof TelegramClient.TelegramUnknownOutcome) {
+                        uncertain = true;
+                        onUncertain.run();
+                    }
                     continue;
                 }
                 delivered = true;
@@ -56,16 +64,16 @@ public class TelegramDigestNotifier implements DigestNotifier {
             // ⚠️ 글이 하나도 안 나갔으면 사진도 보내지 않는다 — 무엇의 그림인지 모르고, 잡이 슬롯을 풀어
             //    다음 틱에 통째로 다시 보내면 사진만 두 번 간다
             if (!delivered) {
-                return new Delivery(false, failure);
+                return new Delivery(false, failure, uncertain);
             }
             // 사진은 글 다음에 종목마다 한 장씩. 못 그린 것은 그 한 장만 빠진다 — 보충이지 폴백이 아니다
             for (DigestMessage.Chart chart : charts) {
                 Charts.of(CHART_TAG, chart.subject(), chart.unit(), chart.bars())
                         .ifPresent(image -> sendChartQuietly(chart.subject(), image));
             }
-            return new Delivery(delivered, failure);
+            return new Delivery(delivered, failure, uncertain);
         } catch (RuntimeException e) {
-            return new Delivery(delivered, failure == null ? e : failure);
+            return new Delivery(delivered, failure == null ? e : failure, uncertain);
         }
     }
 

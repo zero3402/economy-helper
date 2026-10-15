@@ -210,6 +210,52 @@ class DailyDigestJobTest {
     }
 
     @Test
+    @DisplayName("닿았는지 모르는 발송 실패는 슬롯을 잡은 채 둔다 — 되돌리면 다음 틱에 네 통이 또 간다")
+    void keepsTheSlotWhenEveryOutcomeIsUnknown() {
+        // 읽기 타임아웃: 텔레그램이 받고 응답만 잃었을 수 있다. 확인된 발송은 없지만 되돌리면 두 번 갈 수 있다
+        InMemoryHistory history = new InMemoryHistory();
+        TelegramClient unknown = new RecordingTelegram() {
+            @Override
+            public void send(String text, boolean preview) {
+                throw new TelegramClient.TelegramUnknownOutcome("텔레그램 sendMessage 결과를 모릅니다", null);
+            }
+        };
+
+        DigestResult result = job(unknown, history, new CountingFacade(List.of(item("유가 상승"))),
+                fx(true), stock(true), crypto(true)).run(false);
+
+        assertThat(result.sent()).isFalse();
+        assertThat(result.reason()).contains("모르는");
+        assertThat(result.failed()).hasSize(4);
+        assertThat(history.claimed).as("두 번 가는 것보다 한 번 빠지는 쪽이 낫다").contains(SLOT);
+    }
+
+    @Test
+    @DisplayName("「모름」 다음 글에서 Error가 새도 슬롯을 잡은 채 둔다 — 돌려줄 값이 없어도 기록은 이미 됐다")
+    void keepsTheSlotWhenAnErrorFollowsAnUnknownOutcome() {
+        // 뉴스 두 통: 첫 통은 닿았는지 모르고(텔레그램이 받았을 수 있다), 둘째 통에서 종료 신호(Error)가 샌다.
+        // 결과를 모아서 돌려주는 구조면 「모름」이 사라져 슬롯이 풀리고 다음 틱에 첫 통이 또 간다
+        InMemoryHistory history = new InMemoryHistory();
+        java.util.concurrent.atomic.AtomicInteger calls = new java.util.concurrent.atomic.AtomicInteger();
+        TelegramClient unknownThenError = new RecordingTelegram() {
+            @Override
+            public void send(String text, boolean preview) {
+                if (calls.incrementAndGet() == 1) {
+                    throw new TelegramClient.TelegramUnknownOutcome("텔레그램 sendMessage 결과를 모릅니다", null);
+                }
+                throw new AssertionError("종료 신호");
+            }
+        };
+
+        assertThatThrownBy(() -> job(unknownThenError, history,
+                new CountingFacade(List.of(item("유가 상승"), item("금리 동결"))),
+                fx(false), stock(false), crypto(false)).run(false))
+                .isInstanceOf(AssertionError.class);
+
+        assertThat(history.claimed).as("첫 통이 실제로 갔다면 되돌리는 순간 중복이다").contains(SLOT);
+    }
+
+    @Test
     @DisplayName("마지막 실행 결과를 들고 있는다 — 확인하려고 방송을 한 번 더 쏘지 않게")
     void remembersLastResult() {
         DailyDigestJob job = job(new RecordingTelegram(), new InMemoryHistory(),

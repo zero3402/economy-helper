@@ -52,8 +52,11 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -70,6 +73,7 @@ import org.springframework.cache.annotation.Caching;
 import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.data.redis.cache.RedisCacheManager.RedisCacheManagerBuilder;
 import org.springframework.data.redis.cache.RedisCacheManager;
+import org.springframework.data.redis.cache.RedisCacheWriter;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.serializer.JacksonJsonRedisSerializer;
 import tools.jackson.core.type.TypeReference;
@@ -562,6 +566,35 @@ class CacheConfigTest {
         assertThat(List.of(CacheNames.KIS_OUTLOOK, CacheNames.US_OUTLOOK, CacheNames.US_DIVIDEND))
                 .allSatisfy(name -> assertThat(builder.getCacheConfigurationFor(name).orElseThrow().getTtlFunction())
                         .as(name).isInstanceOf(UntilMidnightTtl.class));
+    }
+
+    @Test
+    @DisplayName("미국 일봉(us:)은 뉴욕 자정을 넘기지 않는다 — 진행 중인 오늘 봉이 1분 시세와 12시간 어긋난다(ADR-0007)")
+    void usSeriesEndAtNewYorkMidnight() {
+        RedisCacheManagerBuilder builder = RedisCacheManager.builder(new LettuceConnectionFactory());
+        new CacheConfig().cacheCustomizer(propertiesWithTtl()).customize(builder);
+        RedisCacheWriter.TtlFunction ttl =
+                builder.getCacheConfigurationFor(CacheNames.STOCK_SERIES).orElseThrow().getTtlFunction();
+
+        assertThat(ttl).isInstanceOf(KeyPrefixTtl.class);
+        // 국내는 시세 호출이 매번 다시 채운다(seedSeries) — 설정 수명 그대로다
+        assertThat(ttl.getTimeToLive("stock:005930", null)).isEqualTo(Duration.ofMinutes(1));
+        assertThat(ttl.getTimeToLive("index:코스피", null)).isEqualTo(Duration.ofMinutes(1));
+        assertThat(ttl.getTimeToLive("us:AAPL", null)).isLessThanOrEqualTo(Duration.ofMinutes(1));
+    }
+
+    @Test
+    @DisplayName("접두사로 수명을 가른다 — us:만 뉴욕 자정, 나머지는 설정 수명")
+    void keyPrefixTtlSplitsByPrefix() {
+        Clock at = Clock.fixed(Instant.parse("2026-10-01T00:00:00Z"), ZoneOffset.UTC); // EDT 20:00
+        RedisCacheWriter.TtlFunction ttl = new KeyPrefixTtl("us:",
+                new UntilMidnightTtl(Duration.ofHours(12), ZoneId.of("America/New_York"), at),
+                RedisCacheWriter.TtlFunction.just(Duration.ofHours(12)));
+
+        assertThat(ttl.getTimeToLive("us:AAPL", null)).isEqualTo(Duration.ofHours(4));
+        assertThat(ttl.getTimeToLive("us:^IXIC", null)).as("미국 지수도 같은 접두사다").isEqualTo(Duration.ofHours(4));
+        assertThat(ttl.getTimeToLive("stock:005930", null)).isEqualTo(Duration.ofHours(12));
+        assertThat(ttl.getTimeToLive("index:코스피", null)).isEqualTo(Duration.ofHours(12));
     }
 
     /** {@code CacheConfig}가 실제로 등록한 이름. TTL 값은 여기서 보지 않는다. */

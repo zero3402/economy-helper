@@ -1,7 +1,7 @@
 # shared
 
 누구나 쓰는 값(`domain`: `Price` · `PercentChange` · `DailyBar` · `DailySeries`)과 도구
-(`support`: `Failover` · `Concurrently` · `Fetched` · `Permit` · `FailureReason` · `QueryNormalizer`).
+(`support`: `Failover` · `Concurrently` · `Fetched` · `Permit` · `FailureReason` · `QueryNormalizer` · `Outage`).
 
 ## 검증
 

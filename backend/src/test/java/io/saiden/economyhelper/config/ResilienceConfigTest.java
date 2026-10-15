@@ -212,7 +212,7 @@ class ResilienceConfigTest {
                 .as("설정이 틀린 것은 세 번 불러도 같은 답이다")
                 .isFalse();
         assertThat(predicate.test(new io.saiden.economyhelper.telegram.adapter.out.TelegramClient
-                .TelegramRateLimited("429")))
+                .TelegramRateLimited("429", null)))
                 .as("우리가 빨리 물은 것이다 — 더 빨리 다시 쏘면 429를 우리가 만든다")
                 .isFalse();
     }
@@ -366,7 +366,7 @@ class ResilienceConfigTest {
         // ignoreExceptions가 걸러 낸다(안 그러면 10회 창에 5번이면 멀쩡한 발송까지 60초 막힌다)
         CircuitBreaker breaker = registry.circuitBreaker("telegram");
         Throwable rateLimited = new io.saiden.economyhelper.telegram.adapter.out.TelegramClient
-                .TelegramRateLimited("텔레그램 sendMessage 거절: 429 Too Many Requests");
+                .TelegramRateLimited("텔레그램 sendMessage 거절: 429 Too Many Requests", null);
 
         long before = breaker.getMetrics().getNumberOfFailedCalls();
         breaker.onError(0, java.util.concurrent.TimeUnit.MILLISECONDS, rateLimited);
@@ -419,7 +419,7 @@ class ResilienceConfigTest {
 
         // ⚠️ ignoreExceptions를 따로 적은 브레이커(binance·weatherGeocoding)를 반드시 포함한다 —
         // 그 설정은 baseConfig의 것을 덮어쓰므로 RequestNotPermitted가 조용히 빠질 수 있다(binance가 그랬다)
-        for (String name : new String[] {"translation", "telegram", "fmp", "fmpOutlook",
+        for (String name : new String[] {"gemini", "telegram", "fmp", "fmpOutlook",
                 "upbit", "binance", "kisFx", "kisStock", "kisOutlook", "polygon",
                 "weatherKma", "weatherAccuWeather",
                 "weatherOpenMeteo", "weatherOpenMeteoHourly",
@@ -518,13 +518,30 @@ class ResilienceConfigTest {
     @Test
     @DisplayName("진짜 장애는 그대로 센다 — 무시 목록이 넓어져 브레이커가 무력해지면 안 된다")
     void realFailuresStillCount() {
-        CircuitBreaker breaker = registry.circuitBreaker("translation");
+        CircuitBreaker breaker = registry.circuitBreaker("gemini");
         long before = breaker.getMetrics().getNumberOfFailedCalls();
 
         breaker.onError(0, java.util.concurrent.TimeUnit.MILLISECONDS,
                 new IllegalStateException("Gemini 500"));
 
         assertThat(breaker.getMetrics().getNumberOfFailedCalls()).isEqualTo(before + 1);
+    }
+
+    @Test
+    @DisplayName("Gemini 브레이커는 429를 세지 않는다 — 무료 티어를 스칠 때마다 120초씩 번역·해석이 통째로 막히면 안 된다")
+    void geminiBreakerIgnoresTooManyRequests() {
+        // ⚠️ yml의 무시 목록은 중첩 클래스를 $로 적는다. 점으로 적어도 스프링이 풀어 주지만 그 호의가
+        //    사라지는 날 조용히 목록에서 빠진다 — 그래서 레지스트리에서 꺼내 실제로 안 세는지 본다
+        CircuitBreaker breaker = registry.circuitBreaker("gemini");
+        long before = breaker.getMetrics().getNumberOfFailedCalls();
+
+        breaker.onError(0, java.util.concurrent.TimeUnit.MILLISECONDS,
+                org.springframework.web.client.HttpClientErrorException.create(
+                        org.springframework.http.HttpStatus.TOO_MANY_REQUESTS, "", null, null, null));
+
+        assertThat(breaker.getMetrics().getNumberOfFailedCalls())
+                .as("429는 「우리가 너무 빨리 물었다」지 Gemini 장애가 아니다")
+                .isEqualTo(before);
     }
 
 

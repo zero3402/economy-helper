@@ -30,6 +30,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
@@ -82,9 +83,10 @@ import tools.jackson.databind.ObjectReader;
  *   <li><b>에러가 HTTP 200 본문에 온다</b>({@code rt_cd=1}). {@link KisCall}이 막는다
  * </ol>
  *
- * <p><b>시각 필드를 주지 않는다</b>(미국 종목엔 날짜조차 없다). 그래서 {@code at}은 <b>읽은
+ * <p><b>시각 필드를 주지 않는다</b>(미국 종목엔 날짜조차 없다). 오늘 값이면 {@code at}은 <b>읽은
  * 시각</b>이고 {@code realtime=true}다 — {@link KisFxClient}가 이미 세운 규칙이다. 캐시가
- * 1분이라 표시 오차도 그 안이다.
+ * 1분이라 표시 오차도 그 안이다. 오늘 값이 아닌지는 국내·지수는 일봉 날짜({@link #basisOf}), 미국 종목은
+ * 뉴욕 정규장 달력({@link #usStockBasis})으로 가른다.
  *
  * <p><b>못 주는 것은 던진다.</b> 설정에 KIS 대응이 없는 미국 심볼, 업종코드가 없는 지수가
  * 그렇다 — 빈 값을 돌려주면 {@code StockService}가 폴백하지 못하고 그대로 빈손이 나간다.
@@ -348,9 +350,20 @@ public class KisStockApi implements DomesticStockClient, UsStockClient, StockDai
         //    폴백이 돌고 kisStock 브레이커에 실패가 쌓인다. 시세는 output2를 몰라도 나가야 한다
         try {
             List<Bar> parsed = BAR_ROWS.readValue(rows);
-            List<DailyBar> bars = barsOf(parsed);
+            seedBars(key, barsOf(parsed));
+        } catch (RuntimeException e) {
+            log.warn("[kis] {} 차트 캐시를 못 채웠습니다 — 차트 조회가 따로 부릅니다: {}", key, FailureReason.of(e));
+        }
+    }
+
+    /** 이미 받은 일봉을 차트 캐시에 넣는다 — 미국 종목은 종가일을 알려고 받은 그 일봉이다. 캐시 실패는 삼킨다. */
+    private void seedBars(String key, List<DailyBar> bars) {
+        if (caches == null || bars.isEmpty()) {
+            return;
+        }
+        try {
             Cache cache = caches.getCache(CacheNames.STOCK_SERIES);
-            if (!bars.isEmpty() && cache != null) {
+            if (cache != null) {
                 cache.put(key, bars);
             }
         } catch (RuntimeException e) {
@@ -527,12 +540,43 @@ public class KisStockApi implements DomesticStockClient, UsStockClient, StockDai
                     if (quote == null) {
                         return Optional.empty();
                     }
+                    Basis basis = usStockBasis(symbol);
                     // 달러 등락률 필드가 없다. t_xrat은 원화 환산가 기준이라 쓰면 틀린 값이 나간다
                     return Price.of(quote.price()).map(price -> new StockQuote(symbol.name(), price,
                             PercentChange.between(quote.price(), quote.previousClose()).orElse(null),
                             StockQuote.Money.USD, StockQuote.Market.US, StockSource.KIS,
-                            clock.instant(), true));
+                            basis.at(), basis.live()));
                 });
+    }
+
+    /**
+     * 미국 <b>종목</b>의 기준 — {@code price-detail}에는 날짜가 없다({@link UsStock.Quote}).
+     *
+     * <p>장중({@link UsSession})이면 읽은 시각의 실시간. 그 밖에는 <b>일봉({@code dailyprice})의 마지막 날짜</b>가
+     * 종가일이다 — <b>출처가 확인한 거래일만 적는다.</b> 달력으로 날짜를 만들면 평일 휴장일이 종가일로 찍힌다(틀린 값).
+     * 일봉을 못 받으면 실시간으로 둔다 — 지수({@link #basisOf})처럼 모른다고 낡았다고 단정하지 않는다.
+     * 받은 일봉은 시리즈 캐시에 심어 차트 조회({@link #dailyBarsOfUs})가 다시 묻지 않게 한다 — /stock과 브리핑은
+     * 어차피 차트를 그리므로 추가 호출이 0이다.
+     *
+     * <p>남는 한계: 평일 휴장일의 장중 시각에는 전 거래일 종가가 실시간으로 나간다(휴장일 표를 두지 않는다 —
+     * {@link UsSession}).
+     */
+    private Basis usStockBasis(UsSymbol symbol) {
+        Instant now = clock.instant();
+        if (UsSession.isOpen(now)) {
+            return new Basis(now, true);
+        }
+        List<DailyBar> bars;
+        try {
+            bars = usStockSeries(symbol.symbol());
+        } catch (RuntimeException e) {
+            log.info("[kis] 미국 종목 {} 일봉을 못 받아 종가일을 모릅니다 — 실시간으로 둡니다: {}",
+                    symbol.symbol(), FailureReason.of(e));
+            return new Basis(now, true);
+        }
+        seedBars("us:" + symbol.symbol(), bars);
+        LocalDate latest = bars.stream().map(DailyBar::date).max(Comparator.naturalOrder()).orElse(null);
+        return latest == null ? new Basis(now, true) : new Basis(KisHeaders.startOfDay(latest), false);
     }
 
     /**

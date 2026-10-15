@@ -11,6 +11,8 @@ import io.saiden.economyhelper.testsupport.TestProperties;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -65,6 +67,36 @@ class FmpStockClientTest {
         assertThat(quote.price().value()).isEqualByComparingTo("232.78");
         assertThat(quote.realtime()).isTrue();
         assertThat(quote.at()).isEqualTo(NOW);
+    }
+
+    @Test
+    @DisplayName("체결 시각이 뉴욕 달력으로 어제면 종가다 — 토요일에 금요일 체결가를 실시간이라 찍지 않는다")
+    void marksYesterdaysTradeAsClosing() {
+        // 금요일(2026-08-21) 16:00 EDT 체결. 지금은 KST 토요일 20:00 = 뉴욕 토요일 07:00
+        long friday = Instant.parse("2026-08-21T20:00:00Z").getEpochSecond();
+        FmpStockClient client = new FmpStockClient(
+                new FixedApi(new FmpQuote("AAPL", "Apple Inc.", new BigDecimal("232.78"), new BigDecimal("1.2"), friday)),
+                Clock.fixed(Instant.parse("2026-08-22T11:00:00Z"), ZoneOffset.UTC));
+
+        StockQuote quote = client.quote(new UsSymbol("AAPL", "애플"));
+
+        assertThat(quote.realtime()).isFalse();
+        assertThat(quote.at()).as("종가일 00시(KST) — 화면에는 날짜만 나간다")
+                .isEqualTo(LocalDate.of(2026, 8, 21).atStartOfDay(ZoneId.of("Asia/Seoul")).toInstant());
+    }
+
+    @Test
+    @DisplayName("체결 시각이 뉴욕의 오늘이면 그 시각의 실시간이다")
+    void keepsTodaysTradeLive() {
+        long trade = Instant.parse("2026-08-19T16:59:00Z").getEpochSecond(); // 뉴욕 수요일 12:59 EDT
+        FmpStockClient client = new FmpStockClient(
+                new FixedApi(new FmpQuote("AAPL", "Apple Inc.", new BigDecimal("232.78"), null, trade)),
+                Clock.fixed(Instant.parse("2026-08-19T17:00:00Z"), ZoneOffset.UTC));
+
+        StockQuote quote = client.quote(new UsSymbol("AAPL", "애플"));
+
+        assertThat(quote.realtime()).isTrue();
+        assertThat(quote.at()).isEqualTo(Instant.ofEpochSecond(trade));
     }
 
     private static FmpStockClient client(FmpQuote quote) {

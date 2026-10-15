@@ -3,6 +3,7 @@ package io.saiden.economyhelper.crypto.adapter.out.binance;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -49,8 +50,13 @@ public class BinanceBanGate {
     private final StringRedisTemplate redis;
     private final Clock clock;
 
-    /** 프로세스 사본. Redis가 죽어도 이 인스턴스만은 물러선다. */
-    private volatile Instant localUntil = Instant.EPOCH;
+    /**
+     * 프로세스 사본. Redis가 죽어도 이 인스턴스만은 물러선다.
+     *
+     * <p>비교와 대입을 한 동작으로 한다({@link AtomicReference#accumulateAndGet}) — 둘로 나뉘면 겹쳐 온 두 밴
+     * (418 기본 2분과 {@code Retry-After} 5분)이 서로의 비교를 지난 뒤 짧은 쪽이 나중에 대입돼 밴 중에 문이 열린다.
+     */
+    private final AtomicReference<Instant> localUntil = new AtomicReference<>(Instant.EPOCH);
 
     /**
      * @param redis 밴 시각을 나눠 가질 곳. <b>테스트에서는 {@code null}</b>이고 그때는
@@ -68,7 +74,7 @@ public class BinanceBanGate {
      */
     Instant bannedUntil() {
         Instant now = clock.instant();
-        Instant local = localUntil;
+        Instant local = localUntil.get();
         if (local.isAfter(now)) {
             return local;
         }
@@ -83,9 +89,7 @@ public class BinanceBanGate {
      */
     void ban(Duration duration) {
         Instant until = clock.instant().plus(duration);
-        if (until.isAfter(localUntil)) {
-            localUntil = until;
-        }
+        localUntil.accumulateAndGet(until, BinanceBanGate::later);
         if (redis == null) {
             return;
         }

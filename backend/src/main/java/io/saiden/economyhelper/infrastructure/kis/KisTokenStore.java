@@ -100,6 +100,15 @@ public class KisTokenStore {
     /** 발급 락을 쥐고 있는 시간. 발급 한 번은 1초대이므로 넉넉하고, 죽어도 곧 풀린다. */
     private static final Duration LOCK_TTL = Duration.ofSeconds(30);
 
+    /**
+     * 발급이 <b>실패한</b> 뒤 쉬는 시간 — 1분에 한 번뿐인 발급이라 그 안의 재시도는 거절만 더 받는다.
+     *
+     * <p>기억하지 않으면 KIS 호출마다 {@code tokenP}를 다시 POST한다 — 장애 중 브리핑 한 번이 KIS 호출 열 번이라
+     * 발급을 열 번 연타했고, 그것이 곧 이 클래스가 지키려는 「1분에 한 번만 발급」을 우리 손으로 어기는 길이다.
+     * {@code StockListings.REFRESH_BACKOFF}와 같은 모양이다. 짧게 잡는 이유는 상대가 살아나면 곧 받으려는 것이다.
+     */
+    private static final Duration ISSUE_BACKOFF = Duration.ofMinutes(1);
+
     /** 값이 내 것일 때만 지운다 — {@link #releaseIssuingLock()}. */
     private static final RedisScript<Long> RELEASE_IF_OWNER = new DefaultRedisScript<>(
             "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
@@ -117,6 +126,13 @@ public class KisTokenStore {
 
     /** 재발급 시각 도장의 프로세스 사본 — Redis가 죽거나 비워져도 이 인스턴스만은 기다린다. */
     private volatile Instant localReissueAfter = Instant.EPOCH;
+
+    /**
+     * 발급 실패 뒤 쉬는 시간의 끝({@link #ISSUE_BACKOFF}). <b>프로세스 사본뿐이다</b> — Redis에 쓰지 않는다.
+     * 죽은 토큰의 6시간 창과 달리 인스턴스끼리 나눌 사실이 아니다(실패는 저마다 겪고, 성공한 쪽의 토큰은 Redis로 공유된다).
+     * 발급이 성공하면 지운다.
+     */
+    private volatile Instant issueFailedUntil = Instant.EPOCH;
 
     /**
      * 이 프로세스 안의 발급 줄. <b>Redis 락만으로는 모자란다</b> — Redis가 죽으면 락이 늘 「잡혔다」를 줘서
@@ -291,6 +307,14 @@ public class KisTokenStore {
             if (cached != null && cached.usableAt(clock.instant())) {
                 return cached.token();
             }
+            // 방금 실패했으면 간격 문도 POST도 타지 않고 던진다 — 던져야 상위 서비스가 다음 출처로 넘어간다.
+            // 락 안에서 보는 이유는 쿨다운과 같다: 줄 선 요청들이 앞의 실패를 못 본 채 차례로 발급하면 안 된다
+            Instant failedUntil = issueFailedUntil;
+            Instant at = clock.instant();
+            if (at.isBefore(failedUntil)) {
+                throw new IllegalStateException("KIS 토큰 발급이 방금 실패해 " + Duration.between(at, failedUntil).toSeconds()
+                        + "초 뒤에 다시 시도합니다 (1분에 한 번만 발급됩니다)");
+            }
             return issueAcrossInstances(now);
         } finally {
             issuing.unlock();
@@ -326,7 +350,9 @@ public class KisTokenStore {
             }
             Issued issued = request();
             if (issued == null || issued.accessToken() == null || issued.accessToken().isBlank()) {
-                throw new IllegalStateException("KIS 토큰 응답에 접근토큰이 없습니다");
+                // 200이어도 토큰이 없으면 발급 실패다 — 여기서도 쉬어야 다음 호출이 또 POST하지 않는다
+                issueFailedUntil = clock.instant().plus(ISSUE_BACKOFF);
+                throw new IllegalStateException("KIS 토큰 응답에 접근토큰이 없습니다 (1분에 한 번만 발급됩니다)");
             }
             Cached fresh = new Cached(issued.accessToken(), expiryOf(issued, now), now);
             // ⚠️ 만료가 **이미 지난** 토큰이 온다 — 죽은 토큰을 돌려줄 때의 모양이다(→ ADR-0001).
@@ -341,6 +367,7 @@ public class KisTokenStore {
                                 + ") — 앞서 발급한 토큰이 죽었다는 뜻입니다. 6시간 뒤에 다시 받습니다");
             }
             memory = fresh;
+            issueFailedUntil = Instant.EPOCH;
             writeShared(fresh, now);
             log.info("[kis] 접근토큰을 발급했습니다 — 만료 {}", fresh.expiresAt());
             return fresh.token();
@@ -445,8 +472,9 @@ public class KisTokenStore {
                     .retrieve()
                     .body(Issued.class);
         } catch (RuntimeException e) {
-            // 1분에 한 번뿐이라 연타하면 여기로 떨어진다. 그 사실을 메시지로 구분해 둔다
-            log.warn("[kis] 토큰 발급 실패: {}", e.getClass().getSimpleName());
+            // 1분에 한 번뿐이라 연타하면 여기로 떨어진다. 그 사실을 메시지로 구분해 두고, 1분은 다시 부르지 않는다
+            issueFailedUntil = clock.instant().plus(ISSUE_BACKOFF);
+            log.warn("[kis] 토큰 발급 실패 — {} 동안 다시 발급하지 않습니다: {}", ISSUE_BACKOFF, e.getClass().getSimpleName());
             throw new IllegalStateException(
                     "KIS 토큰 발급 실패 (1분에 한 번만 발급됩니다): " + e.getClass().getSimpleName());
         }

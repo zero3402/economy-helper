@@ -52,6 +52,19 @@ class BinanceBanGateTest {
     }
 
     @Test
+    @DisplayName("Retry-After 5분 뒤에 차례로 온 418 기본값 2분이 그것을 깎지 않는다 — 겹친 경쟁은 재현하지 않고 원자적 갱신으로 막는다")
+    void keepsRetryAfterWhenTheDefaultBanFollows() {
+        // 겹친 두 밴(스레드 둘)은 순서를 고정할 수 없어 여기서 재현하지 않는다 — 비교와 대입이 한 동작
+        // (AtomicReference.accumulateAndGet)인 것으로 막고, 이 테스트는 차례로 올 때의 산수만 고정한다
+        BinanceBanGate gate = gate();
+
+        gate.ban(Duration.ofMinutes(5));
+        gate.ban(BinanceBanGate.MIN_BAN);
+
+        assertThat(gate.bannedUntil()).isEqualTo(NOW.plus(Duration.ofMinutes(5)));
+    }
+
+    @Test
     @DisplayName("더 긴 밴은 늘린다 — 밴 중에 또 418을 받으면 실제로 연장된 것이다")
     void extendsWhenTheNewBanIsLonger() {
         BinanceBanGate gate = gate();

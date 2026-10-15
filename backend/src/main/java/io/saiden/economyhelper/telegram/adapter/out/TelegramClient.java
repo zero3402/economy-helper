@@ -7,6 +7,10 @@ import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import io.saiden.economyhelper.config.EconomyHelperProperties.Telegram;
 import io.saiden.economyhelper.config.EconomyHelperProperties;
+import java.io.IOException;
+import java.net.ConnectException;
+import java.net.UnknownHostException;
+import java.net.http.HttpConnectTimeoutException;
 import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -17,6 +21,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.UnaryOperator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.net.ssl.SSLHandshakeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +32,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClientException;
 
 /**
@@ -39,10 +45,12 @@ import org.springframework.web.client.RestClientException;
  * <p><b>닿지 못한 것만 다시 시도한다.</b> 웹훅은 텔레그램에 200을 이미 줬으므로 저쪽이 다시
  * 보내지 않는다 — 우리가 재시도하지 않으면 그 답은 영영 없다. 다만 {@code ok:false} 거절
  * ({@code chat not found})은 설정이 틀린 것이라 세 번 불러도 같은 답이고, 그동안 브리핑이
- * 통마다 늦어진다. 그래서 {@link TelegramUnavailable}만 재시도한다.
+ * 통마다 늦어진다. 그래서 {@link TelegramUnavailable}만 재시도한다. <b>닿았는지 모르는 것</b>
+ * (요청을 쓴 뒤의 타임아웃·본문 읽기 실패)은 {@link TelegramUnknownOutcome}로 갈라 재시도하지
+ * 않는다 — 이미 보내졌으면 다시 보낸 통이 구독자 전원에게 두 번 간다.
  *
- * <p>⚠️ <b>{@code send} 셋에 {@code @Retry}·{@code @CircuitBreaker}가 전부 붙어 있는데 겹쳐
- * 걸리지 않는다 — 자기 호출은 프록시를 타지 않기 때문이다.</b> 짧은 오버로드 둘은
+ * <p>⚠️ <b>{@code send} 둘에 {@code @Retry}·{@code @CircuitBreaker}가 전부 붙어 있는데 겹쳐
+ * 걸리지 않는다 — 자기 호출은 프록시를 타지 않기 때문이다.</b> 짧은 오버로드는
  * {@code this.send(...)}로 넘기므로 안쪽 애너테이션이 발동하지 않고, 바깥에서 불린 하나만
  * 걸린다. 그래서 어느 오버로드로 들어와도 시도는 최대 세 번이다.
  * <b>이걸 "중복이니 정리하자"며 자기 주입·{@code @Lazy}로 프록시를 타게 만들면 재시도가
@@ -230,19 +238,12 @@ public class TelegramClient {
      *
      * <p><b>{@code send(chatId, text)} 꼴은 두지 않는다.</b> 있으면 토픽을 깜빡한 호출이 조용히
      * General로 떨어지고, 그건 아무 오류도 내지 않아 발견이 늦다. {@code replyTo}도 같은 이유로
-     * 뺄 수 없게 두었다 — 답글을 깜빡하면 여럿이 함께 쓸 때 답이 섞인다.
-     * (정기 발송용 {@code send(text, preview)}는 예외다. 대상이 설정에 박힌 방·토픽 하나뿐이라
-     * 깜빡할 인자가 없다.)
-     */
-    @Retry(name = "telegram")
-    @CircuitBreaker(name = "telegram")
-    public void send(String chatId, Integer topicId, Integer replyTo, String text) {
-        send(chatId, topicId, replyTo, text, false);
-    }
-
-    /**
-     * @param preview 링크 미리보기를 띄울지. <b>기본은 끈다</b> — 시세 통에는 링크 자체가
-     *                없어 켜 봐야 달라지는 것이 없다. 기사를 담은 통만 켠다.
+     * 뺄 수 없게 두었고, {@code preview}를 생략하는 꼴도 두지 않는다 — 운영 코드가 부르지 않는
+     * 오버로드는 공개 표면만 넓힌다. (정기 발송용 {@code send(text, preview)}는 예외다. 대상이
+     * 설정에 박힌 방·토픽 하나뿐이라 깜빡할 인자가 없다.)
+     *
+     * @param preview 링크 미리보기를 띄울지. 시세 통에는 링크 자체가 없어 켜 봐야 달라지는 것이
+     *                없고, 기사를 담은 통만 켠다.
      *                <p><b>텔레그램은 한 메시지에 미리보기를 하나만, 그것도 맨 아래에 붙인다</b> —
      *                그래서 {@code NewsFormatter}가 기사마다 통을 쪼갠다
      */
@@ -273,7 +274,7 @@ public class TelegramClient {
      * caption 상한은 {@link #MAX_CAPTION_LENGTH}다.
      *
      * <p>⚠️ <b>{@code sendPhoto(chatId, png)} 꼴의 짧은 오버로드를 두지 않는다</b> — 토픽을
-     * 깜빡한 호출이 조용히 General로 떨어진다({@link #send} 셋과 같은 규칙). 자기 호출 경고는
+     * 깜빡한 호출이 조용히 General로 떨어진다({@link #send} 둘과 같은 규칙). 자기 호출 경고는
      * 클래스 javadoc.
      *
      * @param png 그림 바이트. <b>비어 있으면 아무것도 보내지 않는다</b> — 점이 하나뿐인
@@ -417,6 +418,44 @@ public class TelegramClient {
         }
     }
 
+    /** 봇 토큰이 든 글자를 지운다 — {@code bot<token>/sendMessage}가 메시지에 그대로 실린다. */
+    private String withoutToken(String text) {
+        return text == null || botToken.isBlank() ? text : text.replace(botToken, "***");
+    }
+
+    /**
+     * 원인을 <b>토큰 없는 사본</b>으로 옮긴다 — 타입과 첫 {@code IOException}(JDK 클라이언트 것이라 URL을 안 싣는다)은
+     * 남겨 {@code FailureReason}과 연결 단계 판정이 그대로 읽는다.
+     */
+    private RestClientException tokenless(RestClientException e) {
+        IOException io = null;
+        for (Throwable cause = e.getCause(); cause != null && cause != e; cause = cause.getCause()) {
+            if (cause instanceof IOException found) {
+                io = found;
+                break;
+            }
+        }
+        return e instanceof ResourceAccessException
+                ? new ResourceAccessException(withoutToken(e.getMessage()), io)
+                : new RestClientException(withoutToken(e.getMessage()), io);
+    }
+
+    /**
+     * 요청이 나가기 <b>전에</b> 끊겼는가 — 연결 거부·이름 풀기 실패·연결 타임아웃·TLS 악수 실패. 이것만
+     * 다시 보내도 두 번 가지 않는다. 읽기 타임아웃({@code HttpTimeoutException}의 연결 아닌 쪽)·본문
+     * 읽기 실패·요청을 쓴 뒤의 리셋은 전부 「모름」이다. 원인 사슬을 따라 내려가며 본다
+     * ({@code KmaRequest.ioCauseOf}와 같은 걸음).
+     */
+    private static boolean failedBeforeSending(Throwable e) {
+        for (Throwable cause = e.getCause(); cause != null && cause != e; cause = cause.getCause()) {
+            if (cause instanceof ConnectException || cause instanceof UnknownHostException
+                    || cause instanceof HttpConnectTimeoutException || cause instanceof SSLHandshakeException) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private <T extends Ack> T exchangeOnce(String method, Class<T> responseType,
                                            UnaryOperator<RestClient.RequestBodySpec> body) {
         T response;
@@ -426,11 +465,21 @@ public class TelegramClient {
                     .onStatus(HttpStatusCode::isError, (request, res) -> { })
                     .body(responseType);
         } catch (RestClientException e) {
-            // 닿지 못한 것이다 — 거절이 아니라서 다시 시도할 값이 있다(TelegramUnavailable javadoc)
-            throw new TelegramUnavailable("텔레그램 " + method + " 호출 실패: " + e.getMessage(), e);
+            // ⚠️ 메시지에 URL이 들어 있고 거기 봇 토큰이 있다(DefaultRestClient의 ResourceAccessException) —
+            //    로그로 새지 않게 지운 사본으로 바꾼다(KmaRequest.keyless·KeximFxClient와 같은 규칙). 분류는 원본의 사슬로 한다
+            String reason = withoutToken(e.getMessage());
+            RestClientException cause = tokenless(e);
+            if (failedBeforeSending(e)) {
+                // 닿지 못한 것이다 — 거절이 아니라서 다시 시도할 값이 있다(TelegramUnavailable javadoc)
+                throw new TelegramUnavailable("텔레그램 " + method + " 호출 실패: " + reason, cause);
+            }
+            // 요청은 나갔는데 답을 못 받았다 — 이미 보내졌을 수 있어 다시 보내지 않는다(TelegramUnknownOutcome javadoc)
+            throw new TelegramUnknownOutcome("텔레그램 " + method + " 결과를 모릅니다 — 요청이 전달됐을 수 있어 "
+                    + "다시 보내지 않습니다: " + reason, cause);
         }
         if (response == null) {
-            throw new TelegramUnavailable("텔레그램 " + method + " 응답이 비어 있습니다");
+            // 200에 본문이 없다 — 텔레그램이 받고 답만 잃은 것일 수 있으니 역시 다시 보내지 않는다
+            throw new TelegramUnknownOutcome("텔레그램 " + method + " 결과를 모릅니다 — 응답이 비어 있습니다", null);
         }
         if (!response.ok()) {
             String reason = "텔레그램 " + method + " 거절: "
@@ -463,11 +512,8 @@ public class TelegramClient {
         /** 텔레그램이 알려 준 기다릴 시간({@code parameters.retry_after}). 안 줬으면 {@code null}. */
         private final Duration retryAfter;
 
-        public TelegramRateLimited(String message) {
-            this(message, null);
-        }
-
-        TelegramRateLimited(String message, Duration retryAfter) {
+        /** @param retryAfter 텔레그램이 알려 준 시간. 안 줬으면 {@code null} — 기본값 생성자는 두지 않는다 */
+        public TelegramRateLimited(String message, Duration retryAfter) {
             super(message);
             this.retryAfter = retryAfter;
         }
@@ -482,7 +528,9 @@ public class TelegramClient {
      *
      * <p>따로 두는 이유는 <b>재시도가 이 둘을 구분해야</b> 하기 때문이다. {@code ok:false}로
      * 오는 거절({@code chat not found}·{@code message thread not found})은 설정이 틀린 것이라
-     * 세 번 불러도 같은 답이다. 게이트웨이 502나 읽기 타임아웃만 다시 시도한다.
+     * 세 번 불러도 같은 답이다. 연결 거부·이름 풀기 실패·연결 타임아웃·TLS 악수 실패처럼 <b>요청이
+     * 나가기 전에</b> 끊긴 것만 다시 시도한다({@link #failedBeforeSending}). 요청을 쓴 뒤의 실패는
+     * {@link TelegramUnknownOutcome}다.
      *
      * <p>{@link TelegramException}의 하위이므로 <b>브레이커 설정은 손대지 않는다</b> —
      * 닿지 못한 것은 여전히 상대 장애로 세어야 한다.
@@ -494,6 +542,27 @@ public class TelegramClient {
         }
 
         TelegramUnavailable(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
+
+    /**
+     * <b>텔레그램에 닿았는지 모른다</b> — 요청은 나갔는데 답을 못 받았다. 읽기 타임아웃, 200 뒤 본문
+     * 읽기 실패, 요청을 쓴 뒤의 연결 리셋이 여기다.
+     *
+     * <p>따로 두는 이유는 <b>재시도하면 안 되기</b> 때문이다. 텔레그램이 이미 보냈을 수 있고, 그러면
+     * 다시 보낸 통이 구독자 전원에게 두 번 간다 — 이 프로젝트는 한 통 빠지는 쪽을 택했다
+     * ({@code digest/AGENTS.md}). 그래서 {@link TelegramException}의 하위가 <b>아니다</b> —
+     * {@code application.yml}의 {@code telegram} 재시도 목록에 {@link TelegramUnavailable}만 있어 안
+     * 걸리고, 브레이커의 무시 목록에는 없어 상대 장애로는 그대로 센다.
+     *
+     * <p>원인을 싣는다 — {@code FailureReason}이 그 사슬을 읽어 「타임아웃」인지 「연결 실패」인지 적는다.
+     * 원인에 {@code IOException}이 있어도 {@code BodyReadFailure}는 {@code RestClientException}이 아닌
+     * 것을 보지 않으므로 재시도되지 않는다({@code TelegramRetryLiveTest}가 지킨다).
+     */
+    public static class TelegramUnknownOutcome extends IllegalStateException {
+
+        public TelegramUnknownOutcome(String message, Throwable cause) {
             super(message, cause);
         }
     }

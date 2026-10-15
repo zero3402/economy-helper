@@ -136,8 +136,12 @@ public class CacheConfig {
                         cache(ttl.cryptoSeries(),
                                 new TypeReference<List<
                                         DailyBar>>() {}))
+                // ⚠️ 미국('us:')만 뉴욕 자정까지다 — 종목 경로가 진행 중인 오늘 봉을 담아 1분 시세와 어긋난다
+                //    (KeyPrefixTtl). 국내('stock:'·'index:')는 시세 호출이 매번 다시 채우므로 설정 수명 그대로다
                 .withCacheConfiguration(CacheNames.STOCK_SERIES,
-                        cache(ttl.stockSeries(),
+                        cache(new KeyPrefixTtl("us:",
+                                        new UntilMidnightTtl(ttl.stockSeries(), NEW_YORK),
+                                        RedisCacheWriter.TtlFunction.just(ttl.stockSeries())),
                                 new TypeReference<List<
                                         DailyBar>>() {}))
                 .withCacheConfiguration(CacheNames.FX,

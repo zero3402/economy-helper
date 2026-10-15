@@ -18,6 +18,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -114,6 +115,8 @@ public class DataGoStockClient implements DomesticStockClient, StockNameSearch {
      *
      * @return 시가총액 1위 후보. 걸리는 것이 없으면 {@link Optional#empty()} —
      *         <b>이건 장애가 아니라 "그런 종목이 없다"이므로 던지지 않는다</b>
+     * @throws IllegalStateException 주식·ETF API가 <b>둘 다</b> 못 물었을 때 — {@link #stock}과 같은 계약이다.
+     *                               한쪽이라도 답했으면(비어 있어도) 그 쪽 후보가 답이다
      */
     @Override
     public Optional<StockQuote> byName(String name) {
@@ -123,9 +126,16 @@ public class DataGoStockClient implements DomesticStockClient, StockNameSearch {
         // ⚠️ 기준일은 API마다 따로 자른다 — 두 API가 같은 날 갱신되지 않는다. 합친 뒤 자르면 ETF가 하루 먼저
         //    올라온 날 주식 후보가 전부 떨어져 「삼성」이 KODEX 삼성그룹이 된다
         // 두 API는 서로 기다릴 까닭이 없어 겹쳐 묻는다 — 둘 다 삼키므로(quietly) 한쪽 실패가 다른 쪽을 버리지 않는다
+        // ⚠️ 실패는 양쪽이 **한 목록**에 모은다 — 둘 다 죽었는데 빈손을 돌려주면 StockService가 장애를 볼 길이 없어
+        //    브레이커 열림·5xx 중에 「잠시 후 다시」가 아니라 「못 찾음」으로 답한다. 두 스레드가 더하므로 동기화한 목록이다
+        List<RuntimeException> failures = Collections.synchronizedList(new ArrayList<>());
         Concurrently.Pair<List<StockPrice>, List<StockPrice>> found = Concurrently.both(
-                () -> quietly("주식", name, () -> stocks.searchByName(name)),
-                () -> quietly("ETF", name, () -> etfs.searchByName(name)));
+                () -> quietly("주식", name, () -> stocks.searchByName(name), failures),
+                () -> quietly("ETF", name, () -> etfs.searchByName(name), failures));
+        if (failures.size() >= 2) {
+            throw new IllegalStateException("'" + name + "' 이름 검색 실패 — 주식·ETF API가 모두 죽었습니다: "
+                    + FailureReason.of(failures.getFirst()));
+        }
         List<StockPrice> candidates = new ArrayList<>(onlyLatestDate(found.first()));
         candidates.addAll(onlyLatestDate(found.second()));
         return largest(candidates);
@@ -136,12 +146,9 @@ public class DataGoStockClient implements DomesticStockClient, StockNameSearch {
      * ETF는 활용신청 전이면 늘 403이고, 주식은 {@code dataGo} 브레이커가 열려 있을 수 있다.
      * {@code @CircuitBreaker}는 {@link StockPriceApi}·{@link EtfPriceApi} 쪽에 있어 여기서 삼켜도
      * 브레이커는 실패를 먼저 센다.
+     *
+     * @param failures 삼킨 실패를 여기 모은다 — 빈손이 「모른다」인지 「못 물었다」인지 {@link #stock}·{@link #byName}이 가른다
      */
-    private static List<StockPrice> quietly(String what, String query, Supplier<List<StockPrice>> search) {
-        return quietly(what, query, search, new ArrayList<>());
-    }
-
-    /** @param failures 삼킨 실패를 여기 모은다 — 빈손이 「모른다」인지 「못 물었다」인지 {@link #stock}이 가른다 */
     private static List<StockPrice> quietly(String what, String query, Supplier<List<StockPrice>> search,
                                             List<RuntimeException> failures) {
         try {

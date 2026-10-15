@@ -70,6 +70,31 @@ class TelegramDigestNotifierTest {
     }
 
     @Test
+    @DisplayName("닿았는지 모르는 실패는 그 자리에서 알린다 — 모아서 돌려주면 다음 글의 Error에 기록이 사라진다")
+    void reportsAnUnknownOutcomeImmediately() {
+        RecordingTelegram telegram = new RecordingTelegram() {
+            private int calls;
+
+            @Override
+            public void send(String text, boolean preview) {
+                if (++calls == 1) {
+                    throw new TelegramClient.TelegramUnknownOutcome("읽기 타임아웃", null);
+                }
+                super.send(text, preview);
+            }
+        };
+        DigestMessage message = new DigestMessage.News(List.of(news("첫째 기사"), news("둘째 기사")));
+        List<String> events = new java.util.ArrayList<>();
+
+        Delivery delivery = new TelegramDigestNotifier(telegram).send(message, List.of(),
+                () -> events.add("나감"), () -> events.add("모름"));
+
+        assertThat(events).as("첫 통의 「모름」이 둘째 통의 「나감」보다 먼저 기록된다").containsExactly("모름", "나감");
+        assertThat(delivery.uncertain()).isTrue();
+        assertThat(delivery.delivered()).isTrue();
+    }
+
+    @Test
     @DisplayName("글이 하나도 안 나갔으면 차트도 보내지 않는다 — 무엇의 그림인지 모를 사진만 가고, 재발송 때 또 간다")
     void sendsNoChartsWhenNoTextWentOut() {
         RecordingTelegram telegram = new RecordingTelegram("USD");

@@ -13,6 +13,7 @@ import io.saiden.economyhelper.crypto.domain.UpbitMarketIndex;
 import io.saiden.economyhelper.crypto.domain.UpbitTicker;
 import io.saiden.economyhelper.shared.domain.DailyBar;
 import io.saiden.economyhelper.shared.support.Concurrently;
+import io.saiden.economyhelper.shared.support.Outage;
 import io.saiden.economyhelper.shared.support.FailureReason;
 import io.saiden.economyhelper.shared.support.QueryNormalizer;
 import java.time.Clock;
@@ -80,18 +81,47 @@ public class CryptoService {
 
     /**
      * @return 두 거래소 시세. 어느 쪽에도 없으면 {@link Optional#empty()}
-     * @throws Unavailable 업비트 이름에 안 걸렸는데 티커 해석(LLM)이 죽었을 때 — 「못 찾음」이라 단정할 수 없다
+     * @throws Unavailable 업비트 이름에 안 걸렸는데 티커 해석(LLM)이 죽었을 때, 또는 업비트 마켓 목록을 못 받은 채
+     *                     LLM도 못 가렸을 때 — 둘 다 「못 찾음」이라 단정할 수 없다
      */
     public Optional<CryptoQuote> quote(String query) {
-        Optional<CryptoQuote> byName = byUpbitName(query).map(this::withBinance);
+        // 목록은 여기서 한 번만 읽는다 — 이름 매칭·상장 확인이 저마다 읽으면 /crypto 한 번에 63KB 캐시 판을 두세 번 푼다
+        MarketList markets = marketList(query);
+        Optional<CryptoQuote> byName = byUpbitName(query, markets.markets()).map(this::withBinance);
         if (byName.isPresent()) {
             return byName;
         }
         // 업비트에 걸리는 것이 없다. 여기서만 LLM에게 티커를 묻는다
-        return resolve(query)
-                .map(ResolvedCoin::symbol)
-                .filter(Objects::nonNull)
-                .flatMap(this::quoteOf);
+        Optional<String> symbol = resolve(query).map(ResolvedCoin::symbol).filter(Objects::nonNull);
+        if (symbol.isEmpty()) {
+            if (markets.failed()) {
+                // 목록이 살아 있었다면 한글 이름이 걸렸을 수 있다 — 빈손이면 「찾지 못했다」가 나가는데, 그건 모르는 것이다
+                throw new Unavailable("업비트 마켓 목록 '" + query + "'", markets.failure());
+            }
+            return Optional.empty();
+        }
+        return quoteOf(symbol.get(), markets.markets());
+    }
+
+    /**
+     * 업비트 원화 마켓 목록 한 판. 못 받았으면 {@code markets}가 {@code null}이고 {@code failure}가 그 이유다 —
+     * 받는 쪽은 {@code null}을 「상장 여부를 모른다」로 읽는다(미상장이 아니다).
+     */
+    private record MarketList(List<UpbitMarket> markets, RuntimeException failure) {
+
+        boolean failed() {
+            return markets == null;
+        }
+    }
+
+    private MarketList marketList(String query) {
+        try {
+            return new MarketList(upbit.krwMarkets(), null);
+        } catch (RuntimeException e) {
+            // 이름을 맞출 수도 상장 여부를 알 수도 없다 — LLM이 티커를 주면 두 거래소를 각각 묻고(quoteOf), 못 주면 장애다
+            log.warn("[crypto] '{}' 업비트 마켓 목록 조회 실패: {}", query, FailureReason.of(e));
+            return new MarketList(null, e);
+        }
     }
 
     /**
@@ -113,14 +143,16 @@ public class CryptoService {
      *
      * <p>한쪽이 없어도 다른 쪽을 내보낸다 — 그게 이 명령의 요지다. 다만 없는 쪽을 빼지 않고
      * {@code NOT_LISTED}로 적는다. 둘 다 없을 때만 "찾지 못했다"가 된다.
+     *
+     * @param markets 업비트 마켓 목록. {@code null}이면 못 받은 것이라 업비트 칸은 「조회 실패」다
      */
-    private Optional<CryptoQuote> quoteOf(String symbol) {
+    private Optional<CryptoQuote> quoteOf(String symbol, List<UpbitMarket> markets) {
         String market = "KRW-" + symbol;
         // 두 거래소를 겹쳐 묻는다 — 둘 다 실패를 값으로 삼키고 서로를 기다리지 않는다. 호출 수는 그대로다.
         // 심볼 조립을 여기서 하지 않는다 — 테더만 USDTUSD인 규칙이 두 군데로 갈리면
         // 이 경로(LLM이 티커를 준 코인)만 조용히 옛 규칙을 따르게 된다
         var sides = Concurrently.both(
-                () -> upbitSide(market),
+                () -> upbitSide(market, markets),
                 () -> BinanceSymbol.of(market).map(this::binancePrice).orElse(Quote.NOT_LISTED));
         UpbitSide upbit = sides.first();
         Quote binance = sides.second();
@@ -152,16 +184,13 @@ public class CryptoService {
      * <p><b>마켓 목록을 못 받은 것과 목록에 없는 것을 가른다.</b> 전자는 상장 여부를 "모르는"
      * 것이지 "없는" 것이 아니다 — 업비트가 잠깐 죽었다고 화면에 {@code 미상장}이 찍히면
      * 사용자는 영영 안 나오는 코인으로 읽고 다시 시도하지 않는다.
+     *
+     * @param markets 업비트 마켓 목록. {@code null}이면 못 받은 것이다({@link #marketList}가 이미 경고를 남겼다)
      */
-    private UpbitSide upbitSide(String market) {
-        List<UpbitMarket> markets;
-        try {
-            markets = upbit.krwMarkets();
-        } catch (RuntimeException e) {
-            log.warn("[crypto] 업비트 마켓 목록 조회 실패: {}", FailureReason.of(e));
+    private UpbitSide upbitSide(String market, List<UpbitMarket> markets) {
+        if (markets == null) {
             return new UpbitSide(null, Quote.FAILED, null);
         }
-
         UpbitMarket listed = markets.stream()
                 .filter(m -> m.market().equalsIgnoreCase(market)).findFirst().orElse(null);
         if (listed == null) {
@@ -206,20 +235,18 @@ public class CryptoService {
         }
     }
 
-    /** 1순위 — 업비트 이름 매칭 + 거래대금 1위. 캐시된 목록에 대한 순수 계산이라 공짜다. */
-    private Optional<CryptoQuote> byUpbitName(String query) {
+    /**
+     * 1순위 — 업비트 이름 매칭 + 거래대금 1위. 캐시된 목록에 대한 순수 계산이라 공짜다.
+     *
+     * @param markets 업비트 마켓 목록. {@code null}이면 못 받은 것이라 맞출 것이 없다 — 그 빈손을 「못 찾음」으로
+     *                읽지 않는 것은 {@link #quote}의 몫이다
+     */
+    private Optional<CryptoQuote> byUpbitName(String query, List<UpbitMarket> markets) {
         List<String> forms = QueryNormalizer.forLookup(query);
-        if (forms.isEmpty()) {
+        if (forms.isEmpty() || markets == null) {
             return Optional.empty();
         }
-        List<UpbitMarket> candidates;
-        try {
-            candidates = UpbitMarketIndex.candidates(forms, upbit.krwMarkets());
-        } catch (RuntimeException e) {
-            // 목록을 못 받았다 — 이름을 맞출 수 없을 뿐이다. LLM이 준 티커로 두 거래소를 각각 묻는다(quoteOf)
-            log.warn("[crypto] '{}' 업비트 마켓 목록 조회 실패 — 티커 해석으로 넘어갑니다: {}", query, FailureReason.of(e));
-            return Optional.empty();
-        }
+        List<UpbitMarket> candidates = UpbitMarketIndex.candidates(forms, markets);
         if (candidates.isEmpty()) {
             log.info("[crypto] '{}'에 걸리는 업비트 마켓이 없습니다", query);
             return Optional.empty();
@@ -406,7 +433,7 @@ public class CryptoService {
      * <p>{@link #quote}만 던진다. 웹훅이 이것을 받아 「잠시 후 다시」로 답한다({@code StockService.Unavailable}과
      * 같은 자리다).
      */
-    public static final class Unavailable extends RuntimeException {
+    public static final class Unavailable extends Outage {
 
         public Unavailable(String what, RuntimeException cause) {
             super(what + "를 장애로 마치지 못했습니다: " + FailureReason.of(cause), cause);

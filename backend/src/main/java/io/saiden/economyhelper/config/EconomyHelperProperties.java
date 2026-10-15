@@ -285,11 +285,11 @@ public record EconomyHelperProperties(
      * 지명 검색이 죽어도 아침 알람은 나간다. 브리핑이 종목코드를 박아 LLM을 안 타는 것과
      * 같은 구조다.
      *
-     * <p><b>{@code cron}은 담지 않는다.</b> yml 키는 살아 있지만 {@code @Scheduled}의 SpEL
-     * 문자열이 직접 읽으므로({@code "${economy-helper.weather.cron}"}) 자바 쪽에서 꺼내는
-     * 곳이 없다 — {@code Digest}와 같다.
+     * <p><b>{@code cron}도 담는다</b> — {@code @Scheduled}의 SpEL이 같은 키를 읽지만, 잡이 「오늘 창에
+     * 다음 틱이 더 있나」를 그 식으로 묻는다({@code WeatherDigestJob}). 브리핑({@code Digest})은 그 물음이
+     * 없어 담지 않는다. 테스트는 {@code -}(끔)라 파싱하지 않는다.
      */
-    public record Weather(String zone, List<WeatherLocation> locations,
+    public record Weather(String zone, String cron, List<WeatherLocation> locations,
                           Kma kma, AccuWeather accuWeather, OpenMeteo openMeteo) {}
 
     /** 알람에 넣을 지점 하나. */

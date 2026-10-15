@@ -193,6 +193,27 @@ class NewsServiceTest {
     }
 
     @Test
+    @DisplayName("미래로 찍힌 기사는 뺀다 — 시간대 오프셋이 틀린 피드(+9h)는 늘 「방금」이라 신선도 만점으로 1위를 독차지한다")
+    void dropsArticlesDatedWellIntoTheFuture() {
+        NewsService service = service(Map.of(NewsSource.CNBC, List.of(
+                article(NewsSource.CNBC, "Rate cut today", 0),
+                ahead(NewsSource.CNBC, "Rate story from the future", 1, Duration.ofHours(2)))));
+
+        List<ScoredArticle> result = service.search(groups("rate"), "금리", service.fetchAll());
+
+        assertThat(result).extracting(scored -> scored.article().title()).containsExactly("Rate cut today");
+    }
+
+    @Test
+    @DisplayName("30분 앞선 기사는 살아남는다 — 매체 시계와 우리 시계의 오차까지 버리면 방금 난 기사가 빠진다")
+    void keepsArticleSlightlyAheadOfOurClock() {
+        NewsService service = service(Map.of(NewsSource.CNBC, List.of(
+                ahead(NewsSource.CNBC, "Rate cut in thirty minutes", 0, Duration.ofMinutes(30)))));
+
+        assertThat(service.search(groups("rate"), "금리", service.fetchAll())).hasSize(1);
+    }
+
+    @Test
     @DisplayName("브리핑은 코인과 경제를 각자 제 할당량만큼 채운다 — 통틀어 상위 N건이 아니다")
     void digestFillsEachCategoryQuota() {
         NewsService service = service(Map.of(
@@ -437,6 +458,13 @@ class NewsServiceTest {
         return new Article(source, title, null,
                 "https://example.com/" + source + "/" + title.hashCode(),
                 NOW.minus(age), feedRank);
+    }
+
+    /** 발행 시각이 지금보다 {@code ahead}만큼 앞선 기사 — 시간대가 틀린 피드를 흉내 낸다. */
+    private static Article ahead(NewsSource source, String title, int feedRank, Duration ahead) {
+        return new Article(source, title, null,
+                "https://example.com/" + source + "/" + title.hashCode(),
+                NOW.plus(ahead), feedRank);
     }
 
     /** 실제 HTTP 없이 소스별 결과를 정해 준다. */

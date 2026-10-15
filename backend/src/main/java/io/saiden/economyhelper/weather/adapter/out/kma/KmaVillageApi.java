@@ -72,6 +72,14 @@ class KmaVillageApi {
     /**
      * 격자 하나의 단기예보 — <b>오전·오후가 다 있는 날만</b> 담는다(오늘도 예외가 아니다).
      *
+     * <p><b>최신 발표에 자료가 없으면 한 판 앞을 한 번만 더 묻는다.</b> 앞 판은 시각의 상위집합이고
+     * (발표시각 + 1시간부터 주므로 이른 판이 더 많이 든다) 같은 시각은 최신이 이기게 합치므로
+     * ({@link VillageBlock.Axis#under}) 틀린 값이 섞이지 않는다 — 기상청이 그 격자에 실제로 낸
+     * 가장 최근 예보다. 실측(2026-10-14 10:23)에서 08시 발표가 네 격자 중 셋에 {@code NO_DATA}를
+     * 줬고, 그날 08:00 알람은 한 곳만 나갔다. 두 판 연속 없으면 던진다 — 폴백은 {@code WeatherService}가.
+     * 자정을 넘으면 어제 23시 판이고, 그때 넷째 날은 00시 한 칸뿐이라 {@code requireEveryDay}가
+     * 던져 폴백한다(ADR-0010 7번 그대로). 알람은 하루라 무관하다.
+     *
      * @param from 요청 범위의 시작일. <b>오늘을 안 묻는 조회에는 일 극값 보충을 안 부른다</b>
      * @throws IllegalStateException 조회 실패나 정상이 아닌 응답
      */
@@ -79,7 +87,17 @@ class KmaVillageApi {
         LocalDateTime now = LocalDateTime.ofInstant(clock.instant(), KmaRequest.SEOUL);
         LocalDate today = now.toLocalDate();
         // 발표마다 축을 한 번만 세운다 — 이른 발표가 필요한지 묻는 것과 접는 것이 같이 쓴다
-        VillageBlock.Axis latest = fetch(grid, latestPublication(now), "단기예보").axis();
+        LocalDateTime published = latestPublication(now);
+        VillageBlock.Axis latest;
+        try {
+            latest = fetch(grid, published, "단기예보").axis();
+        } catch (KmaRequest.NoData e) {
+            LocalDateTime previous = previousPublication(published);
+            log.warn("[weather] 기상청 {},{} {} 발표에 자료가 없어 한 판 앞 {} 발표를 묻습니다",
+                    grid.nx(), grid.ny(), published, previous);
+            // 여기서도 NoData면 그대로 새어 나간다 — 두 판 연속이면 이 출처의 실패다
+            latest = fetch(grid, previous, "단기예보(한 판 앞)").axis();
+        }
 
         // ⚠️ 오늘을 안 묻는 조회(`내일 서현`)에는 보충을 부르지 않는다 — 이른 발표가 메우는
         //    것은 오늘의 오전과 오늘의 일 극값뿐이라 그 조회에는 헛호출이 된다
@@ -151,7 +169,15 @@ class KmaVillageApi {
      * 고르면 아직 안 실린 것을 받아 빈손이 된다.
      */
     private static LocalDateTime latestPublication(LocalDateTime now) {
-        LocalDateTime usable = now.minusMinutes(PUBLISH_DELAY_MINUTES);
+        return publicationAtOrBefore(now.minusMinutes(PUBLISH_DELAY_MINUTES));
+    }
+
+    /** 한 판 앞 — 08시면 05시, 02시면 어제 23시. */
+    private static LocalDateTime previousPublication(LocalDateTime published) {
+        return publicationAtOrBefore(published.minusMinutes(1));
+    }
+
+    private static LocalDateTime publicationAtOrBefore(LocalDateTime usable) {
         for (int i = BASE_HOURS.length - 1; i >= 0; i--) {
             if (usable.getHour() >= BASE_HOURS[i]) {
                 return usable.toLocalDate().atTime(BASE_HOURS[i], 0);
