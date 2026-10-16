@@ -124,7 +124,7 @@ TAG=sha-abc1234 docker compose -f docker-compose.prod.yml up -d
 | Dockerfile Path | `./Dockerfile` |
 | Health Check Path | **`/actuator/health/liveness`** |
 
-- ⚠️ **헬스체크에 `/actuator/health`를 쓰지 않는다.** 여기엔 Redis 상태가 포함돼서 Redis가 끊기면 503이 되고, Render가 앱을 재시작한다. **Redis 장애가 재시작 무한 반복이 된다.** `liveness`에는 Redis가 없다.
+- ⚠️ **헬스체크에 `/actuator/health`를 쓰지 않는다.** 여기엔 Redis 상태가 포함돼서 Redis가 끊기면 503이 되고, Render가 앱을 재시작한다. **Redis 장애가 재시작 무한 반복이 된다.** `liveness`에는 Redis가 없다. compose 헬스체크도 같은 경로다.
 - GHCR 이미지를 그대로 받아 쓰면 빌드 시간을 아낀다.
 
 **무료 티어의 제약과 대응**
