@@ -67,6 +67,19 @@ class KisFxClientTest extends WireMockTest {
     }
 
     @Test
+    @DisplayName("일별 행의 종가가 깨져도 환율은 나간다 — 이 응답에서 환율이 읽는 것은 현재가와 날짜뿐이다")
+    void aBrokenBarNeverKillsTheRate() {
+        // astra6 리뷰(2026-10-15): 미국 지수가 같은 레코드(KisChartPrice)의 output2 종가를 차트에 쓰기 시작하면서,
+        // 그 칸을 숫자로 받으면 환율까지 한 행에 던지게 된다 — 글자로 받고 변환은 쓰는 쪽이 행마다 한다
+        stub("""
+                {"rt_cd":"0","output1":{"ovrs_nmix_prpr":"1412.5000","prdy_ctrt":"-0.22"},
+                 "output2":[{"stck_bsop_date":"20260818","ovrs_nmix_prpr":"숫자아님"}]}
+                """);
+
+        assertThat(client.usdToKrw().rate().value()).isEqualByComparingTo("1412.5");
+    }
+
+    @Test
     @DisplayName("기준 시각은 '읽은 시각'이다 — 계속 움직이는 값이라 저쪽이 시각을 주지 않는다")
     void stampsTheReadTimeBecauseTheSourceGivesNone() {
         stubRealShape();

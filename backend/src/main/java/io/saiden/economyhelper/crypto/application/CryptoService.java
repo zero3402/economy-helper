@@ -21,7 +21,6 @@ import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -92,7 +91,7 @@ public class CryptoService {
             return byName;
         }
         // 업비트에 걸리는 것이 없다. 여기서만 LLM에게 티커를 묻는다
-        Optional<String> symbol = resolve(query).map(ResolvedCoin::symbol).filter(Objects::nonNull);
+        Optional<String> symbol = resolve(query).map(ResolvedCoin::symbol);
         if (symbol.isEmpty()) {
             if (markets.failed()) {
                 // 목록이 살아 있었다면 한글 이름이 걸렸을 수 있다 — 빈손이면 「찾지 못했다」가 나가는데, 그건 모르는 것이다

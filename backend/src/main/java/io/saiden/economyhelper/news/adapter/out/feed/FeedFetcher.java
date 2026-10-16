@@ -45,7 +45,7 @@ public class FeedFetcher implements ArticleFeed {
      * 브라우저가 아니다.
      *
      * <p>헤더를 비우지는 않는다. 야후가 자바 기본 UA({@code Java-http-client})를 429로 막기
-     * 때문이다(2026-08-14 실측, 두 번 다 429). 이 값으로는 다섯 매체 전부 200이다.
+     * 때문이다(2026-08-14 실측, 두 번 다 429). 이 값으로는 매체 전부 200이다.
      */
     private static final String USER_AGENT = "economy-helper/1.0";
 
@@ -91,7 +91,7 @@ public class FeedFetcher implements ArticleFeed {
 
         CircuitBreaker breaker = circuitBreakers.circuitBreaker("feed-" + source);
         try {
-            // 재시도가 브레이커 **바깥**이다 — 애너테이션을 쓰는 일곱과 같은 순서다.
+            // 재시도가 브레이커 **바깥**이다 — 애너테이션을 쓰는 곳들과 같은 순서다.
             // 브레이커가 열리면 CallNotPermittedException이 나고 그건 retry의 무시 목록에
             // 있어 재시도가 즉시 멈춘다(열린 문을 두 번 두드리지 않는다)
             return Retry.decorateCallable(retries.retry("feed"),

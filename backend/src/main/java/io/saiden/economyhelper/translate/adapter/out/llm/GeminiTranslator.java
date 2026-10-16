@@ -27,9 +27,7 @@ public class GeminiTranslator implements Translator {
      * <i>"국채 금리는 하락했습니다"</i>로 뒤집었다 — 재테크 판단을 정반대로 이끄는 오역이라
      * 문장이 매끄러운 것보다 이쪽이 중요하다. 문체도 섞여 나와("~했습니다"/"~했다") 못박았다.
      */
-    private static final String PROMPT = """
-            다음 영문 경제 뉴스를 한국어로 번역하세요.
-
+    private static final String RULES = """
             규칙:
             - 원문에 없는 사실, 배경, 해설을 절대 추가하지 마세요.
             - 요약하거나 줄이지 말고 원문의 내용을 그대로 옮기세요.
@@ -37,6 +35,12 @@ public class GeminiTranslator implements Translator {
             - 가격·금리·수익률이 오르내리는 방향을 원문 그대로 유지하세요.
             - 경제·금융 용어는 한국 언론에서 통용되는 표현을 쓰세요.
             - 요약문이 비어 있으면 body도 빈 문자열로 두세요.
+            """;
+
+    private static final String PROMPT = """
+            다음 영문 경제 뉴스를 한국어로 번역하세요.
+
+            """ + RULES + """
             - 다른 말 없이 JSON만 출력하세요: {"title": "...", "body": "..."}
 
             제목: %s
@@ -44,19 +48,13 @@ public class GeminiTranslator implements Translator {
             """;
 
     /**
-     * 여러 건을 한 번에 옮기는 프롬프트. 규칙은 {@link #PROMPT}와 <b>한 글자도 다르지 않아야
-     * 한다</b> — 갈리면 같은 기사가 묶였는지 아닌지에 따라 다른 문체로 나온다.
+     * 여러 건을 한 번에 옮기는 프롬프트. 규칙({@link #RULES})은 {@link #PROMPT}와 <b>한 글자도 다르지 않아야
+     * 한다</b> — 갈리면 같은 기사가 묶였는지 아닌지에 따라 다른 문체로 나온다. 그래서 상수 하나를 나눠 쓴다.
      */
     private static final String BATCH_PROMPT = """
             다음 영문 경제 뉴스 %d건을 각각 한국어로 번역하세요.
 
-            규칙:
-            - 원문에 없는 사실, 배경, 해설을 절대 추가하지 마세요.
-            - 요약하거나 줄이지 말고 원문의 내용을 그대로 옮기세요.
-            - 뉴스 기사체(~다)로 쓰세요. 존댓말을 쓰지 마세요.
-            - 가격·금리·수익률이 오르내리는 방향을 원문 그대로 유지하세요.
-            - 경제·금융 용어는 한국 언론에서 통용되는 표현을 쓰세요.
-            - 요약문이 비어 있으면 body도 빈 문자열로 두세요.
+            """ + RULES + """
             - **입력 순서 그대로, 개수를 정확히 %<d개** 돌려주세요.
             - 다른 말 없이 JSON만: {"articles": [{"title": "...", "body": "..."}, ...]}
 

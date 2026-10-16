@@ -69,8 +69,8 @@ final class OpenMeteoRequest {
     /**
      * <b>시간별만</b> 묻는다 — 1순위가 일별을 맡았을 때의 보충이다.
      *
-     * <p>일별을 안 받으므로 {@code daily}가 없어도 실패가 아니다. <b>예외를 올리지 않는다</b> —
-     * 보충이 답을 죽이면 안 된다({@code OpenMeteoHourlyClient} javadoc 참고).
+     * <p>일별을 안 받으므로 {@code daily}가 없어도 실패가 아니고, {@code hourly}가 없으면 빈 맵이다(캐시에는 안
+     * 담긴다). HTTP 실패는 그대로 던진다 — 삼키는 쪽은 부르는 {@code WeatherService}다({@code OpenMeteoHourlyClient} javadoc 참고).
      */
     static Map<LocalDate, List<HalfDay>> hourly(RestClient restClient, String path,
                                                            String hourlyFields, GeoLocation place,

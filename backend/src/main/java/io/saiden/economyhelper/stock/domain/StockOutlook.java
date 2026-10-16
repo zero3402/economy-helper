@@ -50,7 +50,7 @@ public record StockOutlook(LocalDate earningsDate, Price targetPrice, Dividend d
     /**
      * 배당 한 건 — 출처가 준 행 하나이기도 하고, 그 행들을 접은 <b>「다음 배당」</b>이기도 하다.
      *
-     * <p><b>배당락일이 아니라 기준일이다.</b> 두 출처가 다 기준일을 <b>직접</b> 준다(FMP {@code recordDate} ·
+     * <p><b>배당락일이 아니라 기준일이다.</b> 두 출처가 다 기준일을 <b>직접</b> 준다(Polygon {@code record_date} ·
      * 예탁원 {@code record_date}). 배당락일은 기준일의 <b>전 거래일</b>이라 휴장일 달력이 있어야 맞게
      * 나오는데(12/31 기준일이면 락일은 12/30이 아니라 12/29다 — 12/31이 휴장이다) 우리는 그 달력이 없다.
      * 지어내면 틀린 날이 화면에 나가므로, 있는 값을 제 이름으로 적는다.

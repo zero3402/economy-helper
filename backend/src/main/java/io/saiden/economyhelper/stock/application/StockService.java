@@ -100,11 +100,6 @@ public class StockService {
                 && candidate.chars().allMatch(c -> (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'));
     }
 
-    /** 한글이 한 자라도 있으면 화면에 그대로 쓴다 — {@link #displayName}. */
-    private static boolean containsHangul(String name) {
-        return name.chars().anyMatch(c -> c >= '가' && c <= '힣');
-    }
-
     private final List<DomesticStockClient> domestic;
     private final List<UsStockClient> us;
     private final StockNameSearch names;
@@ -685,7 +680,8 @@ public class StockService {
         if (name == null || name.isBlank()) {
             return resolved.code();
         }
-        if (containsHangul(name)) {
+        // 한글이 한 자라도 있으면 화면에 그대로 쓴다
+        if (QueryNormalizer.hasHangul(name)) {
             return name;
         }
         // ⚠️ 지수는 예외다 — 티커({@code ^GSPC})는 짧지도 읽히지도 않는다. 「S&P 500」이 그 지수의 이름이다

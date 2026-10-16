@@ -7,7 +7,6 @@ import io.saiden.economyhelper.config.CacheNames;
 import io.saiden.economyhelper.infrastructure.kis.KisCall;
 import io.saiden.economyhelper.infrastructure.kis.KisHeaders;
 import io.saiden.economyhelper.infrastructure.kis.KisResponse;
-import io.saiden.economyhelper.infrastructure.kis.KisThrottle;
 import io.saiden.economyhelper.shared.domain.Price;
 import io.saiden.economyhelper.shared.support.Fetched;
 import io.saiden.economyhelper.stock.application.port.out.DomesticOutlookClient;
@@ -234,7 +233,7 @@ public class KisDomesticOutlookClient implements DomesticOutlookClient {
      * 실패한 다리의 <b>예외를 그대로</b> 올린다 — 감싸지 않는다.
      *
      * <p>감싸면 타입이 사라져 브레이커의 {@code ignoreExceptions}가 안 맞고 원인 사슬도 끊긴다
-     * ({@link KisThrottle.Congested}가 그 목록에 있는 이유가 「우리 문이 우리를 거절한 것을 상대
+     * ({@code KisThrottle.Congested}가 그 목록에 있는 이유가 「우리 문이 우리를 거절한 것을 상대
      * 장애로 세지 않는다」인데, 맨 {@code IllegalStateException}으로 바꿔 던지면 그 보호에서 빠진다).
      * 둘이 다 실패했으면 첫째를 던지고 둘째를 {@code addSuppressed}로 붙인다 — 로그에 둘 다 남는다.
      *

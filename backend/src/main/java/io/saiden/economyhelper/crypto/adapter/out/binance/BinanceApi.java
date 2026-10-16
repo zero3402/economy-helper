@@ -198,7 +198,7 @@ public class BinanceApi implements BinanceClient {
      * {@code /api/v3/ticker/24hr?symbols=["BTCUSDT","ETHUSDT"]} 를 인코딩한다(등락률이 24hr에만 있다).
      *
      * <p><b>직접 조립해 완성된 URI로 넘긴다.</b> {@code uriBuilder}에 맡기면 이 값이 한 번 더
-     * 인코딩돼 {@code %255B}가 되고 400이 난다 — {@code StockPriceApi}·{@code FmpApi}가
+     * 인코딩돼 {@code %255B}가 되고 400이 난다 — {@code DataGoRequest}·{@code FmpApi}가
      * 같은 이유로 같은 방식을 쓴다.
      *
      * <p>심볼이 하나뿐이어도 배열로 보낸다. 단수 {@code symbol=}은 객체를, 복수 {@code symbols=}는

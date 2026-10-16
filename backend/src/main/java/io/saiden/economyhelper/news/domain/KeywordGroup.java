@@ -2,6 +2,7 @@ package io.saiden.economyhelper.news.domain;
 
 import io.saiden.economyhelper.shared.support.QueryNormalizer;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 
@@ -68,5 +69,16 @@ public record KeywordGroup(List<String> terms) {
 
     public boolean isEmpty() {
         return terms.isEmpty();
+    }
+
+    /** 빈 묶음과 겹치는 묶음을 걷는다 — 목록 하나를 매길 때 기사마다 다시 걷지 않게 한 번만 부른다. */
+    public static List<KeywordGroup> usable(Collection<KeywordGroup> keywords) {
+        if (keywords == null) {
+            return List.of();
+        }
+        return keywords.stream()
+                .filter(group -> group != null && !group.isEmpty())
+                .distinct()
+                .toList();
     }
 }

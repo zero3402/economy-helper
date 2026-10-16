@@ -36,7 +36,6 @@ import io.saiden.economyhelper.weather.domain.SkyCondition;
 import io.saiden.economyhelper.weather.domain.Weather;
 import io.saiden.economyhelper.weather.domain.WeatherSource;
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -582,6 +581,19 @@ class MessageFormattingTest {
 
         // 85,000,000 ÷ 87,544,000 − 1 = -2.9059…%
         assertThat(crypto(cheap, FX_FLAT)).contains("김프\n🔵 -2.91%");
+    }
+
+    @Test
+    @DisplayName("김프는 한 번만 반올림한다 — 비율을 여섯 자리로 먼저 접으면 0.0949…%가 0.10%로 올라간다")
+    void roundsThePremiumOnce() {
+        // 11,590 ÷ 11,579 − 1 = 0.0949995…% → 0.09%. 비율을 1.000950으로 먼저 접고 다시 두 자리로 접으면 0.10%이다
+        // (PercentChange.between이 존재하는 이유 — astra6 리뷰 2026-10-15)
+        CryptoQuote hairline = new CryptoQuote("비트코인", "KRW-BTC", NOW,
+                Quote.of(new Price(new BigDecimal("11590")), null),
+                Quote.of(new Price(new BigDecimal("11579")), null));
+        FxRate one = new FxRate("USD", "KRW", new Price(BigDecimal.ONE), FxSource.FRANKFURTER, BASIS);
+
+        assertThat(crypto(hairline, one)).contains("김프\n🔴 +0.09%");
     }
 
     @Test

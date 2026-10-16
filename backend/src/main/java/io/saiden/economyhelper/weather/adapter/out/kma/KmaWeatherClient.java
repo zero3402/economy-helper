@@ -98,7 +98,7 @@ public class KmaWeatherClient implements WeatherClient {
     }
 
     /**
-     * ⚠️ <b>캐시 접두사가 {@code kma:}다.</b> 세 출처가 {@code weather} 캐시 하나를 접두사로만
+     * ⚠️ <b>캐시 접두사가 {@code kma:}다.</b> 출처들이 {@code weather} 캐시 하나를 접두사로만
      * 나눠 쓰므로({@code OpenMeteoCacheKeyTest}) 겹치면 남의 답이 우리 이름으로 나간다.
      */
     @Override
@@ -119,7 +119,7 @@ public class KmaWeatherClient implements WeatherClient {
             }
         }
         requireEveryDay(period, days);
-        return new Weather(place, List.copyOf(days), source());
+        return new Weather(place, days, source());
     }
 
     /**

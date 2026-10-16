@@ -1,13 +1,12 @@
 package io.saiden.economyhelper.stock.application.port.out;
 
 import io.saiden.economyhelper.config.EconomyHelperProperties.Index;
-import io.saiden.economyhelper.fx.application.port.out.FxRateClient;
 import io.saiden.economyhelper.stock.domain.StockQuote;
 
 /**
  * 국내 시세 한 곳 — <b>{@code StockService}가 순서대로 시도한다.</b>
  *
- * <p>{@link FxRateClient}와 같은 규칙이다: <b>값을 주거나 던진다.</b> 빈 결과를 돌려주면
+ * <p>{@code FxRateClient}와 같은 규칙이다: <b>값을 주거나 던진다.</b> 빈 결과를 돌려주면
  * 이중화가 폴백하지 않고 그대로 빈손이 나간다. 못 주는 이유가 상대 장애든(브레이커 열림)
  * 우리 사정이든(조회 키가 없다) 전부 예외다 — 판단은 부르는 쪽이 한다.
  *

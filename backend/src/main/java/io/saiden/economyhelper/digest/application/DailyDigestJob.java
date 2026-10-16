@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.FutureTask;
 import java.util.function.Supplier;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.slf4j.Logger;
@@ -175,20 +176,30 @@ public class DailyDigestJob extends TriggerableJob {
                                 List<String> delivered, List<DigestResult.Failure> failed,
                                 List<String> uncertain) {
         // 환율은 세 통이 함께 쓴다 — 한 번만 조회해 증시·코인 통까지 들고 간다. 통마다
-        // 따로 조회하면 환율 통에 찍힌 값과 원화 환산이 서로 다를 수 있다(ADR-0006)
-        FxRate fx = fxService.orNull();
+        // 따로 조회하면 환율 통에 찍힌 값과 원화 환산이 서로 다를 수 있다(ADR-0006).
+        // 환율 통이 조회를 돌리고 증시·코인은 제 조회를 끝낸 뒤 기다린다 — 먼저 받아 놓고 넷을 띄우면
+        // 가장 긴 뉴스가 환율(세 출처가 다 죽으면 23초)까지 기다린다. run()이 예외도 담아 늘 끝나므로 매달릴 일이 없다
+        FutureTask<FxRate> fx = new FutureTask<>(fxService::orNull);
 
         // 네 통의 수집을 겹친다 — 서로 무관한 외부 호출이고 뉴스(피드 + Gemini)가 가장 길다.
         List<Section> sections = Concurrently.map(List.of(
-                section("환율", () -> fx == null ? null : new DigestMessage.Fx(fx),
-                        () -> List.of(chartOf("환율", "KRW", fxService::dailyBars))),
+                section("환율", () -> {
+                    fx.run();
+                    FxRate rate = Concurrently.await(fx);
+                    return rate == null ? null : new DigestMessage.Fx(rate);
+                }, () -> List.of(chartOf("환율", "KRW", fxService::dailyBars))),
                 // ⚠️ 글과 차트가 조회를 **한 번만** 나눠 쓴다. 따로 부르면 증시 통 하나가 KIS를
                 //    시세 9회 + 일봉 8회(호출 사이 1초) 쓰는 사이 1분 시세 캐시가 식어 호출을 다시
                 //    태우고, 글의 값과 차트 캡션이 서로 다른 조회에서 온다
-                section("증시", () -> stockMessage(fx, domestic.get(), american.get()),
-                        () -> stockCharts(domestic.get(), american.get())),
-                section("코인", () -> cryptoMessage(fx, coins.get()),
-                        () -> cryptoCharts(coins.get())),
+                section("증시", () -> {
+                    List<StockService.Answer> kr = domestic.get();
+                    List<StockService.Answer> us = american.get();
+                    return stockMessage(Concurrently.await(fx), kr, us);
+                }, () -> stockCharts(domestic.get(), american.get())),
+                section("코인", () -> {
+                    List<CryptoQuote> quotes = coins.get();
+                    return cryptoMessage(Concurrently.await(fx), quotes);
+                }, () -> cryptoCharts(coins.get())),
                 section("뉴스", this::newsMessage, List::of)), Supplier::get);
 
         // 발송은 순서대로 — 텔레그램이 같은 방에 초당 한 통을 권고한다(간격은 창구가 지킨다)

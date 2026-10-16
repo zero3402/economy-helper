@@ -180,6 +180,25 @@ class StockPriceApiTest extends WireMockTest {
 
         assertThat(api.searchByName("삼성전자")).hasSize(1);
     }
+
+    @Test
+    @DisplayName("HTTP 200에 실린 오류 코드는 장애다 — 빈 목록으로 읽으면 열흘을 되짚고 「못 찾음」이 한 시간 캐시된다")
+    void treatsAnErrorCodeInA200AsAnOutage() {
+        // data.go.kr 표준 봉투 — 기상청이 같은 머리로 03 NO_DATA를 줬다(2026-10-14 실측). 금융위가 200에 오류 코드를
+        // 실어 보낸 실물은 아직 없다(ADR-0003). 머리가 아예 없는 봉투는 지금처럼 「행 없음」이다
+        server.stubFor(get(urlPathEqualTo(PATH)).willReturn(aResponse().withStatus(200)
+                .withHeader("Content-Type", "application/json")
+                .withBody("""
+                        {"response":{"header":{"resultCode":"22",
+                                               "resultMsg":"LIMITED_NUMBER_OF_SERVICE_REQUESTS_EXCEEDS_ERROR"},
+                                     "body":{"totalCount":0}}}""")));
+
+        assertThatThrownBy(() -> api.searchByName("삼성전자"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("22");
+        server.verify(1, getRequestedFor(urlPathEqualTo(PATH)));
+    }
+
     @Test
     @DisplayName("리미터가 퍼밋을 안 주면 HTTP를 아예 안 보낸다 — 반환값을 버리면 스로틀이 장식이 된다")
     void neverCallsWhenThePermitIsDenied() {

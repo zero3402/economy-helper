@@ -58,10 +58,10 @@ import tools.jackson.databind.json.JsonMapper;
 @Configuration
 public class CacheConfig {
 
-    // 값 객체를 맨 숫자로 쓴다 — 캐시 JSON이 값 객체 도입 전과 같아 판 번호를 올리지 않는다
     private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
     private static final ZoneId NEW_YORK = ZoneId.of("America/New_York");
 
+    // 값 객체를 맨 숫자로 쓴다 — 캐시 JSON이 값 객체 도입 전과 같아 판 번호를 올리지 않는다
     private static final JsonMapper MAPPER = JsonMapper.builder()
             .addModule(new ValueObjectModule())
             .build();

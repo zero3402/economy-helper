@@ -101,6 +101,22 @@ class HackerNewsApiTest extends WireMockTest {
     }
 
     @Test
+    @DisplayName("댓글 수가 null인 글 하나가 그 매체의 반응 전부를 지우지 않는다 — 없는 값은 0으로 더한다")
+    void toleratesANullCount() {
+        // Jackson 3은 기본값이 FAIL_ON_NULL_FOR_PRIMITIVES=true다 — int 칸에 null이 오면 그 한 건이 아니라
+        // 응답 전체가 던져지고, 브레이커에는 실패가 쌓인다. 2026-10-15 실측(cnbc.com 스토리 100건)에는 null이
+        // 없었다 — 그래서 이것은 실물 재현이 아니라 한 칸의 결측이 매체 전체를 지우지 않게 하는 방어다
+        server.stubFor(get(urlPathEqualTo(PATH)).willReturn(json("""
+                {"hits":[
+                  {"url":"https://cnbc.com/a","points":7,"num_comments":null},
+                  {"url":"https://cnbc.com/b","points":1,"num_comments":2}
+                ]}""")));
+
+        assertThat(api().storiesForDomain("cnbc.com", Instant.EPOCH))
+                .containsExactlyInAnyOrderEntriesOf(Map.of("cnbc.com/a", 7, "cnbc.com/b", 3));
+    }
+
+    @Test
     @DisplayName("외부 URL이 없는 자체 글(Ask HN)은 뺀다 — 맞출 기사가 없다")
     void skipsSelfPosts() {
         server.stubFor(get(urlPathEqualTo(PATH)).willReturn(json("""

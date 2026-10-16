@@ -15,7 +15,6 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.format.ResolverStyle;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.regex.MatchResult;
@@ -91,7 +90,7 @@ public class RssFeedClient implements FeedClient {
         String link = entry.getLink() == null ? null : entry.getLink().trim();
         Instant publishedAt = entry.getPublishedDate() == null
                 ? null
-                : toInstant(entry.getPublishedDate());
+                : entry.getPublishedDate().toInstant();
 
         if (title.isBlank() || link == null || link.isBlank() || publishedAt == null) {
             log.warn("[{}] 필수 필드가 없어 항목을 건너뜁니다 (title={}, link={}, pubDate={})",
@@ -169,10 +168,6 @@ public class RssFeedClient implements FeedClient {
      */
     static String decodeEntities(String text) {
         return HtmlUtils.htmlUnescape(text).replace('\u00A0', ' ');
-    }
-
-    private static Instant toInstant(Date date) {
-        return date.toInstant();
     }
 
     /**

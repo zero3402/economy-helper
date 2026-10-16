@@ -37,6 +37,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -424,6 +428,45 @@ class DailyDigestJobTest {
                 .isInstanceOf(AssertionError.class);
 
         assertThat(history.claimed).as("아무것도 못 보냈으니 다음 틱이 다시 시도할 수 있어야 한다").doesNotContain(SLOT);
+    }
+
+    @Test
+    @DisplayName("뉴스 수집은 환율을 기다리지 않는다 — 환율 세 출처가 다 타임아웃이면 가장 긴 뉴스가 23초 늦게 시작했다")
+    void collectsNewsWithoutWaitingForTheFxRate() {
+        // 환율은 「뉴스가 시작했다」는 신호를 받고서야 돌아온다. 환율을 먼저 받고 네 통을 띄우던 때는 뉴스가
+        // 시작조차 못 해 신호가 안 오고(5초 상한은 실패를 끝내려는 경계일 뿐 시간 단언이 아니다 — 그때는 거짓이
+        // 기록된다), 겹쳐 띄우면 뉴스가 먼저 시작해 신호를 준다. 환율은 그래도 한 번만 조회돼야 한다(ADR-0006)
+        CountDownLatch newsStarted = new CountDownLatch(1);
+        AtomicBoolean newsStartedBeforeFxReturned = new AtomicBoolean();
+        AtomicInteger fxCalls = new AtomicInteger();
+        FxService waiting = new FxService(List.of(), null) {
+            @Override
+            public Optional<FxRate> usdToKrw() {
+                fxCalls.incrementAndGet();
+                try {
+                    newsStartedBeforeFxReturned.set(newsStarted.await(5, TimeUnit.SECONDS));
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                return Optional.of(new FxRate("USD", "KRW", new Price(new BigDecimal("1415")), FxSource.KEXIM, NOW));
+            }
+        };
+        NewsFacade signalling = new CountingFacade(List.of(item("기사"))) {
+            @Override
+            public List<NewsItem> digest() {
+                newsStarted.countDown();
+                return super.digest();
+            }
+        };
+        RecordingTelegram telegram = new RecordingTelegram();
+
+        DigestResult result = job(telegram, new InMemoryHistory(), signalling, waiting,
+                stock(false, false), cryptoWithBinance()).run(false);
+
+        assertThat(newsStartedBeforeFxReturned).as("환율이 돌아오기 전에 뉴스가 시작해야 한다").isTrue();
+        assertThat(fxCalls).as("통마다 따로 부르면 한 화면의 환산 기준이 갈린다").hasValue(1);
+        assertThat(result.delivered()).containsExactly("환율", "코인", "뉴스");
+        assertThat(telegram.sent.get(1)).as("코인 통이 같은 환율로 환산했다").contains("90,140,721 KRW");
     }
 
     private static DailyDigestJob job(TelegramClient telegram, SendHistory history,
