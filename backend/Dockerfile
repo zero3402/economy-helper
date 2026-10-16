@@ -11,11 +11,11 @@
 FROM --platform=$BUILDPLATFORM eclipse-temurin:21-jdk AS build
 WORKDIR /build
 
-# 래퍼와 빌드 스크립트를 먼저 넣어 의존성 해석을 캐시한다.
-# 소스만 바뀌면 이 아래 레이어만 다시 돈다.
+# 래퍼와 빌드 스크립트를 먼저 넣어 의존성 jar를 캐시한다. 소스만 바뀌면 이 아래 레이어만 다시 돈다.
+# `dependencies` 태스크로는 안 된다 — 그래프(메타데이터)만 풀고 jar는 안 받아서 bootJar 단계가 매번 60MB를 다시 받았다
 COPY gradlew settings.gradle build.gradle ./
 COPY gradle gradle
-RUN chmod +x gradlew && ./gradlew --no-daemon dependencies --quiet || true
+RUN chmod +x gradlew && ./gradlew --no-daemon resolveDependencies --quiet
 
 COPY src src
 # 테스트는 CI가 별도 잡에서 돌린다. 여기서 또 돌리면 이미지 빌드가 두 배로 느려진다
@@ -51,7 +51,8 @@ EXPOSE 8080 8081
 
 # -Xmx를 박지 않는다. 숫자를 박는 순간 그게 특정 호스트에 대한 종속이 된다 —
 # MaxRAMPercentage면 512MB 호스트든 4GB 호스트든 컨테이너 한도를 보고 알아서 맞춘다.
-ENV JAVA_OPTS="-XX:MaxRAMPercentage=70 -XX:TieredStopAtLevel=1 -XX:+UseSerialGC -Xss512k"
+# OOM이면 절뚝이며 남는 대신 죽는다 — compose(restart: unless-stopped)와 PaaS가 다시 띄운다.
+ENV JAVA_OPTS="-XX:MaxRAMPercentage=70 -XX:TieredStopAtLevel=1 -XX:+UseSerialGC -Xss512k -XX:+ExitOnOutOfMemoryError"
 
 # 코드가 ZoneId.of("Asia/Seoul")을 명시하므로 동작은 TZ와 무관하지만,
 # 로그 타임스탬프가 KST여야 발송 시각을 눈으로 대조할 수 있다.

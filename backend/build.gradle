@@ -65,6 +65,11 @@ dependencies {
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+// Dockerfile이 의존성 레이어를 캐시하려고 부른다 — `dependencies` 태스크는 그래프(메타데이터)만 풀고 jar는 안 받는다
+tasks.register('resolveDependencies') {
+	doLast { [configurations.compileClasspath, configurations.runtimeClasspath]*.resolve() }
+}
+
 tasks.named('test') {
 	useJUnitPlatform()
 
