@@ -27,10 +27,10 @@ import org.springframework.web.client.RestClient;
  *
  * <p>Open-Meteo는 <b>키도 한도도 없고</b> 기간 전체를 시간별로 준다. 그래서 시각만 이쪽에 묻는다.
  *
- * <p>⚠️ <b>이것은 폴백이 아니라 보충이다.</b> 그래서 규칙이 하나 다르다 — 실패를 <b>삼킨다.</b>
- * 일별은 이미 손에 있으므로 여기서 예외를 올리면 <b>답이 통째로 죽는다.</b> 「실패를 삼키지
- * 않는다」는 {@code WeatherClient}의 규칙이고 그건 <b>폴백 상대</b>의 이야기다. 그래서 이 클래스는
- * {@code WeatherClient}를 구현하지 않고 {@code HourlyPrecipitationClient}를 따로 구현한다 — 그 계약을 따를 수 없기 때문이다.
+ * <p>⚠️ <b>이것은 폴백이 아니라 보충이다.</b> 일별은 이미 손에 있으므로 이 실패가 답을 죽이면 안 되는데,
+ * 삼키는 자리는 여기가 아니라 <b>부르는 쪽</b>이다({@code WeatherService.halvesOf}가 값으로 바꾼다). 여기서는
+ * 던진다 — 안 던지면 아래 브레이커가 영영 안 열린다. 「값을 주거나 던진다」는 {@code WeatherClient}의 규칙은
+ * <b>폴백 상대</b>의 이야기라, 이 클래스는 {@code WeatherClient}가 아니라 {@code HourlyPrecipitationClient}를 구현한다.
  *
  * <p>⚠️ <b>{@code weather} 캐시를 쓰지 않는다.</b> 그쪽은 {@code TypeReference<Weather>}로 못
  * 박혀 있어 다른 타입을 담으면 <b>쓸 때는 넘어가고 읽을 때 깨진다</b>. 「캐시 이름 하나에 타입
@@ -49,7 +49,7 @@ public class OpenMeteoHourlyClient implements HourlyPrecipitationClient {
     }
 
     /**
-     * @return 날짜별 강수 토막. <b>실패하면 빈 map</b> — 화면에서 그 줄만 빠진다
+     * @return 날짜별 강수 토막. 못 받으면 던진다 — 부르는 쪽이 삼켜 화면에서 그 줄만 빠진다
      */
     // ⚠️ 빈 map을 담지 않는다. 「마른 기간」이라서 비는 것이 아니다 — 마른 날도 제 봉우리
     //    확률을 든 반나절이 만들어지므로(HalfDay.dry) 값이 있다. 빈 map은 **쓸 것을 하나도

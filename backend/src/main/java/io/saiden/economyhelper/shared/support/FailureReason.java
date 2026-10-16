@@ -116,7 +116,7 @@ public final class FailureReason {
                     ? "연결 실패 (" + io.getClass().getSimpleName() + ")"
                     : "연결 실패";
         }
-        // 감싸여 온 것을 한 겹 벗겨 본다 — Failover가 IllegalStateException으로 다시 던지는 자리가 있다
+        // 감싸여 온 것을 한 겹 벗겨 본다 — Concurrently.await·KmaRequest가 원인을 달아 다시 던지는 자리가 있다
         return e.getCause() == null || e.getCause() == e || depth <= 0
                 ? e.getClass().getSimpleName()
                 : e.getClass().getSimpleName() + " — " + of(e.getCause(), depth - 1);

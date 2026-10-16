@@ -9,7 +9,6 @@ import io.saiden.economyhelper.config.EconomyHelperProperties.Index;
 import io.saiden.economyhelper.config.EconomyHelperProperties.KisIndex;
 import io.saiden.economyhelper.config.EconomyHelperProperties.UsSymbol;
 import io.saiden.economyhelper.config.EconomyHelperProperties;
-import io.saiden.economyhelper.fx.adapter.out.kis.KisFxClient;
 import io.saiden.economyhelper.infrastructure.kis.KisCall;
 import io.saiden.economyhelper.infrastructure.kis.KisChartPrice;
 import io.saiden.economyhelper.infrastructure.kis.KisHeaders;
@@ -30,7 +29,6 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.Comparator;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
@@ -43,7 +41,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.Cacheable;
@@ -84,7 +81,7 @@ import tools.jackson.databind.ObjectReader;
  * </ol>
  *
  * <p><b>시각 필드를 주지 않는다</b>(미국 종목엔 날짜조차 없다). 오늘 값이면 {@code at}은 <b>읽은
- * 시각</b>이고 {@code realtime=true}다 — {@link KisFxClient}가 이미 세운 규칙이다. 캐시가
+ * 시각</b>이고 {@code realtime=true}다 — {@code KisFxClient}가 이미 세운 규칙이다. 캐시가
  * 1분이라 표시 오차도 그 안이다. 오늘 값이 아닌지는 국내·지수는 일봉 날짜({@link #basisOf}), 미국 종목은
  * 뉴욕 정규장 달력({@link #usStockBasis})으로 가른다.
  *
@@ -155,7 +152,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient, StockDai
 
     /**
      * 조회 기간. 오늘만 물으면 휴일·이른 아침에 빈 배열이 온다 — {@code output1}의 현재가는
-     * 어차피 하나뿐이라 넉넉히 물어도 파싱은 그대로다({@link KisFxClient}와 같은 이유).
+     * 어차피 하나뿐이라 넉넉히 물어도 파싱은 그대로다({@code KisFxClient}와 같은 이유).
      */
     private static final int LOOKBACK_DAYS = 7;
 
@@ -179,12 +176,6 @@ public class KisStockApi implements DomesticStockClient, UsStockClient, StockDai
      *                   (NAS → NYS → AMS, 30일 기억). 브리핑 목록({@code digest.us-symbols})이 이 표를
      *                   겸하면 목록에 없는 심볼을 통째로 거절한다
      */
-    public KisStockApi(KisCall kis, Clock clock,
-                       EconomyHelperProperties properties, KisExchangeCache exchanges) {
-        this(kis, clock, properties, exchanges, null);
-    }
-
-    @Autowired
     public KisStockApi(KisCall kis, Clock clock, EconomyHelperProperties properties,
                        KisExchangeCache exchanges, CacheManager caches) {
         this.caches = caches;
@@ -356,6 +347,16 @@ public class KisStockApi implements DomesticStockClient, UsStockClient, StockDai
         }
     }
 
+    /**
+     * 해외지수 시세의 {@code output2} — 환율과 같은 스키마라 이미 레코드로 읽혀 있어 변환만 한다({@link #toBars}).
+     * 종가는 글자로 와 있고({@code KisChartPrice.Bar}) 못 읽는 행은 그 행만 빠지므로 시세가 여기서 던질 일은 없다.
+     */
+    private void seedSeries(String key, KisChartPrice response) {
+        if (response.bars() != null) {
+            seedBars(key, toBars(response.bars(), KisChartPrice.Bar::on, KisChartPrice.Bar::closeOrNull));
+        }
+    }
+
     /** 이미 받은 일봉을 차트 캐시에 넣는다 — 미국 종목은 종가일을 알려고 받은 그 일봉이다. 캐시 실패는 삼킨다. */
     private void seedBars(String key, List<DailyBar> bars) {
         if (caches == null || bars.isEmpty()) {
@@ -377,17 +378,19 @@ public class KisStockApi implements DomesticStockClient, UsStockClient, StockDai
     }
 
     private static List<DailyBar> barsOf(List<Bar> rows) {
-        if (rows == null) {
-            return List.of();
-        }
+        return rows == null ? List.of() : toBars(rows, Bar::on, Bar::close);
+    }
+
+    /** 일별 행을 일봉으로 — 국내·미국 종목({@link Bar})과 해외지수({@link KisChartPrice.Bar})가 칸 이름만 다르다. */
+    private static <T> List<DailyBar> toBars(List<T> rows, Function<T, String> date, Function<T, BigDecimal> close) {
         List<DailyBar> bars = new ArrayList<>();
-        for (Bar bar : rows) {
+        for (T row : rows) {
             // ⚠️ 날짜를 못 읽는 행은 그 행만 뺀다 — 빈 날짜 하나가 던지면 차트가 통째로 빠진다
-            LocalDate on = bar == null ? null : KisHeaders.dateOf(bar.on());
-            if (on == null || bar.close() == null) {
+            LocalDate on = row == null ? null : KisHeaders.dateOf(date.apply(row));
+            if (on == null || close.apply(row) == null) {
                 continue;
             }
-            bars.add(new DailyBar(on, bar.close()));
+            bars.add(new DailyBar(on, close.apply(row)));
         }
         return DailySeries.recent(bars, DailySeries.WINDOW);
     }
@@ -495,12 +498,14 @@ public class KisStockApi implements DomesticStockClient, UsStockClient, StockDai
 
     /** 해외지수 — 환율과 같은 엔드포인트·같은 스키마다. 다른 것은 시장 코드와 심볼뿐이다. */
     private StockQuote usIndex(UsSymbol symbol, String kisSymbol) {
+        // 차트 창으로 부른다 — 국내와 같이 output2가 그대로 차트가 되어 지수 일봉 호출이 따로 안 나간다
         KisChartPrice response = kis.get(KisChartPrice.class, US_INDEX_TR,
                 "미국 지수 " + symbol.name(),
-                uri -> chart(uri, US_INDEX_PATH, OVERSEAS_INDEX, kisSymbol).build());
+                uri -> chartWindow(uri, US_INDEX_PATH, OVERSEAS_INDEX, kisSymbol).build());
         KisChartPrice.Quote quote = response.output();
 
         Price price = require(quote == null ? null : quote.price(), "미국 지수 " + symbol.name());
+        seedSeries("us:" + symbol.symbol(), response);
         // 일봉 날짜는 미국 날짜다 — 미국 달력의 오늘과 견준다
         Basis basis = basisOf(response.latestDate(), NEW_YORK);
         return new StockQuote(symbol.name(), price, PercentChange.ofNullable(quote.changePercent()),
@@ -540,12 +545,15 @@ public class KisStockApi implements DomesticStockClient, UsStockClient, StockDai
                     if (quote == null) {
                         return Optional.empty();
                     }
-                    Basis basis = usStockBasis(symbol);
                     // 달러 등락률 필드가 없다. t_xrat은 원화 환산가 기준이라 쓰면 틀린 값이 나간다
-                    return Price.of(quote.price()).map(price -> new StockQuote(symbol.name(), price,
-                            PercentChange.between(quote.price(), quote.previousClose()).orElse(null),
-                            StockQuote.Money.USD, StockQuote.Market.US, StockSource.KIS,
-                            basis.at(), basis.live()));
+                    return Price.of(quote.price()).map(price -> {
+                        // 기준은 값이 있는 거래소에서만 정한다 — 빈 거래소의 일봉까지 물으면 없는 티커 하나가 장 밖에서 KIS 열두 번이다
+                        Basis basis = usStockBasis(symbol);
+                        return new StockQuote(symbol.name(), price,
+                                PercentChange.between(quote.price(), quote.previousClose()).orElse(null),
+                                StockQuote.Money.USD, StockQuote.Market.US, StockSource.KIS,
+                                basis.at(), basis.live());
+                    });
                 });
     }
 
@@ -575,8 +583,8 @@ public class KisStockApi implements DomesticStockClient, UsStockClient, StockDai
             return new Basis(now, true);
         }
         seedBars("us:" + symbol.symbol(), bars);
-        LocalDate latest = bars.stream().map(DailyBar::date).max(Comparator.naturalOrder()).orElse(null);
-        return latest == null ? new Basis(now, true) : new Basis(KisHeaders.startOfDay(latest), false);
+        // DailySeries.recent가 오름차순으로 돌려주고, overExchanges는 빈 목록을 값으로 돌려주지 않는다
+        return new Basis(KisHeaders.startOfDay(bars.getLast().date()), false);
     }
 
     /**

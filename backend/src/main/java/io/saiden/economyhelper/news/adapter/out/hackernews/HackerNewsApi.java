@@ -86,8 +86,9 @@ public class HackerNewsApi {
     @JsonIgnoreProperties(ignoreUnknown = true)
     record SearchResponse(List<Hit> hits) {}
 
+    /** 칸이 {@code null}이어도 그 글만 0이다 — 기본형이면 Jackson 3이 응답 전체를 던진다({@code FAIL_ON_NULL_FOR_PRIMITIVES}). */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record Hit(String url, int points, @JsonProperty("num_comments") int numComments) {
+    record Hit(String url, Integer points, @JsonProperty("num_comments") Integer numComments) {
 
         /**
          * ADR-0015이 말한 "조회수 또는 댓글"을 대신하는 값 — <b>둘 중 하나가 아니라 둘을 더한다.</b>
@@ -96,7 +97,7 @@ public class HackerNewsApi {
          * 추천과 댓글이 둘 다 온다. 하나만 쓸 이유가 없다.
          */
         int buzz() {
-            return points + numComments;
+            return (points == null ? 0 : points) + (numComments == null ? 0 : numComments);
         }
     }
 }

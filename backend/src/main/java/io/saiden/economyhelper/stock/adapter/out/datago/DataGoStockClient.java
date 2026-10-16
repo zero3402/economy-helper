@@ -201,7 +201,7 @@ public class DataGoStockClient implements DomesticStockClient, StockNameSearch {
     /**
      * 등락률 전용 파서 — 없거나 깨진 값은 {@code null}이다.
      *
-     * <p><b>{@link #parse}를 쓰면 안 된다.</b> 그쪽의 폴백인 {@code 0}은 등락률에서
+     * <p><b>{@link #amountForRanking}처럼 {@code 0}으로 받으면 안 된다.</b> 그 폴백 {@code 0}은 등락률에서
      * "보합"이라는 <b>값</b>이지 "모른다"가 아니다. 못 구한 것을 보합으로 찍으면 화면이
      * 거짓말을 한다.
      */

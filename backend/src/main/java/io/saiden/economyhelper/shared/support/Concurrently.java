@@ -40,7 +40,7 @@ public final class Concurrently {
             List<Future<R>> futures = items.stream()
                     .map(item -> executor.submit(() -> work.apply(item)))
                     .toList();
-            return futures.stream().map(Concurrently::join).toList();
+            return futures.stream().map(Concurrently::await).toList();
         }
     }
 
@@ -55,17 +55,20 @@ public final class Concurrently {
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
             Future<A> a = executor.submit(first::get);
             Future<B> b = executor.submit(second::get);
-            return new Pair<>(join(a), join(b));
+            return new Pair<>(await(a), await(b));
         }
     }
 
     public record Pair<A, B>(A first, B second) {}
 
     /**
+     * 결과를 기다려 <b>원래 예외 그대로</b> 돌려받는다 — 한 조회를 여러 갈래가 나눠 기다릴 때도 쓴다
+     * ({@code DailyDigestJob}의 환율).
+     *
      * <p>인터럽트를 삼키지 않는다 — 삼키면 종료 신호가 무시돼 배포 때 컨테이너가
      * 강제 종료될 때까지 남는다.
      */
-    private static <R> R join(Future<R> future) {
+    public static <R> R await(Future<R> future) {
         try {
             return future.get();
         } catch (InterruptedException e) {

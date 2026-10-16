@@ -43,10 +43,5 @@ public interface DigestNotifier {
      * @param uncertain <b>닿았는지 모르는</b> 실패가 있었는가 — 텔레그램이 받고 응답만 유실된 모양(읽기 타임아웃 등).
      *                  잡이 이것을 보고 슬롯을 되돌리지 않는다. 되돌려 다음 틱에 다시 보내면 구독자 전원에게 두 번 간다
      */
-    record Delivery(boolean delivered, RuntimeException failure, boolean uncertain) {
-
-        Delivery(boolean delivered, RuntimeException failure) {
-            this(delivered, failure, false);
-        }
-    }
+    record Delivery(boolean delivered, RuntimeException failure, boolean uncertain) {}
 }

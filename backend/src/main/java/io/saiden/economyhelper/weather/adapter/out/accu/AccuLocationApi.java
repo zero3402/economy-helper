@@ -2,7 +2,6 @@ package io.saiden.economyhelper.weather.adapter.out.accu;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.saiden.economyhelper.config.CacheNames;
 import io.saiden.economyhelper.config.EconomyHelperProperties.AccuWeather;
 import io.saiden.economyhelper.config.EconomyHelperProperties;
@@ -50,9 +49,10 @@ public class AccuLocationApi {
      * @throws IllegalStateException 키가 없거나, 호출이 실패했거나, 짚어 준 지점이 없을 때.
      *                               던져야 {@code WeatherService}가 다음 출처로 넘어간다
      */
+    // 브레이커를 여기 걸지 않는다 — 예보({@code AccuWeatherClient.forecast}) 안에서만 불리고 그쪽이 weatherAccuWeather로
+    // 센다. 여기도 걸면 한 실패가 둘로 세여 다섯에 열리고, half-open 허용 셋 중 둘을 한 요청이 먹는다(AccuBreakerLiveTest)
     @Cacheable(cacheNames = CacheNames.ACCU_LOCATION,
             key = "#a0.latitude() + ',' + #a0.longitude()")
-    @CircuitBreaker(name = "weatherAccuWeather")
     public String keyOf(GeoLocation place) {
         if (apiKey.isBlank()) {
             throw new IllegalStateException("AccuWeather API 키가 없습니다");

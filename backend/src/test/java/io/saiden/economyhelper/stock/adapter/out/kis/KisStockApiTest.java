@@ -389,6 +389,54 @@ class KisStockApiTest extends WireMockTest {
     }
 
     @Test
+    @DisplayName("미국 지수 시세 한 번이 차트까지 채운다 — 국내와 같은 규칙이고, 지수 둘이면 브리핑에서 KIS 2초다")
+    void aUsIndexQuoteSeedsItsChart() {
+        // 지수 일봉(usIndexSeries)은 시세와 같은 FHKST03030100을 창만 넓혀 한 번 더 불렀다 — 국내 종목(2026-09-29)과 같은 자리
+        stub(US_INDEX_PATH, """
+                {"rt_cd":"0","msg_cd":"MCA00000","msg1":"정상처리 되었습니다.",
+                 "output1":{"prdy_ctrt":"-0.32","hts_kor_isnm":"나스닥 종합","ovrs_nmix_prpr":"26644.91"},
+                 "output2":[{"stck_bsop_date":"20260817","ovrs_nmix_prpr":"26644.91"},
+                            {"stck_bsop_date":"20260814","ovrs_nmix_prpr":"26588.49"}]}
+                """);
+        org.springframework.cache.CacheManager caches =
+                new org.springframework.cache.concurrent.ConcurrentMapCacheManager(
+                        io.saiden.economyhelper.config.CacheNames.STOCK_SERIES);
+        KisStockApi seeding = apiWith(List.of(KOSPI), List.of(NASDAQ_KIS), caches);
+
+        seeding.quote(NASDAQ);
+
+        assertThat(caches.getCache(io.saiden.economyhelper.config.CacheNames.STOCK_SERIES)
+                .get("us:^IXIC", List.class))
+                .as("dailyBarsOfUs의 @Cacheable 키와 같은 칸이어야 뒤이은 차트 조회가 적중한다")
+                .isEqualTo(seeding.dailyBarsOfUs("^IXIC"));
+        server.verify(getRequestedFor(urlPathEqualTo(US_INDEX_PATH))
+                // 차트 창(25일)으로 묻는다 — 시세 창(7일)이면 열나흘 차트가 안 된다
+                .withQueryParam("FID_INPUT_DATE_1", WireMock.equalTo("20260724")));
+    }
+
+    @Test
+    @DisplayName("미국 지수의 일별 행이 망가져도 시세는 나간다 — 차트를 미리 채우는 것은 보충이다")
+    void aBrokenUsIndexRowNeverKillsTheQuote() {
+        // astra6 리뷰(2026-10-15): 해외지수 응답의 종가를 숫자로 받으면 output2의 한 행이 시세(output1)까지 던진다 —
+        // 국내 경로가 output2를 JsonNode로 받아 늦게 변환하는 것과 같은 자리. 환율도 같은 레코드를 읽는다
+        stub(US_INDEX_PATH, """
+                {"rt_cd":"0","output1":{"prdy_ctrt":"-0.32","ovrs_nmix_prpr":"26644.91"},
+                 "output2":[{"stck_bsop_date":"20260817","ovrs_nmix_prpr":"숫자아님"},
+                            {"stck_bsop_date":"20260814","ovrs_nmix_prpr":"26588.49"}]}
+                """);
+        org.springframework.cache.CacheManager caches =
+                new org.springframework.cache.concurrent.ConcurrentMapCacheManager(
+                        io.saiden.economyhelper.config.CacheNames.STOCK_SERIES);
+
+        assertThat(apiWith(List.of(KOSPI), List.of(NASDAQ_KIS), caches).quote(NASDAQ).price().value())
+                .isEqualByComparingTo("26644.91");
+        assertThat(caches.getCache(io.saiden.economyhelper.config.CacheNames.STOCK_SERIES).get("us:^IXIC", List.class))
+                .as("못 읽은 행만 빠진다 — 날짜를 못 읽는 행과 같은 규칙")
+                .extracting(bar -> ((io.saiden.economyhelper.shared.domain.DailyBar) bar).date().toString())
+                .containsExactly("2026-08-14");
+    }
+
+    @Test
     @DisplayName("미리 채우는 키가 @Cacheable 키와 글자까지 같다 — 어긋나면 조용히 호출이 둘로 돌아간다")
     void seededKeysMatchTheCacheableKeys() throws NoSuchMethodException {
         assertThat(KisStockApi.class.getMethod("dailyBars", String.class)
@@ -397,6 +445,9 @@ class KisStockApiTest extends WireMockTest {
         assertThat(KisStockApi.class.getMethod("dailyBarsOfIndex", String.class)
                 .getAnnotation(org.springframework.cache.annotation.Cacheable.class).key())
                 .isEqualTo("'index:' + #name");
+        assertThat(KisStockApi.class.getMethod("dailyBarsOfUs", String.class)
+                .getAnnotation(org.springframework.cache.annotation.Cacheable.class).key())
+                .isEqualTo("'us:' + #symbol");
     }
 
     @Test
@@ -681,6 +732,24 @@ class KisStockApiTest extends WireMockTest {
 
         assertThatThrownBy(() -> api.quote(new UsSymbol("ZZZZ", "없는것")))
                 .isInstanceOf(KisStockApi.Unsupported.class);
+    }
+
+    @Test
+    @DisplayName("값이 없는 거래소에는 종가일을 묻지 않는다 — 없는 티커 하나가 장 밖에서 KIS를 열두 번 붙들었다")
+    void neverAsksTheBasisOfAnEmptyExchange() {
+        // 장 밖(토요일)에는 값이 있는 거래소의 일봉으로 종가일을 정한다. 값이 비어 온 거래소는 「여기 없다」일 뿐인데
+        // 그 거래소에서도 일봉을 물으면 거래소 셋 × 일봉 셋 = 아홉 번을 간격 문(1초)에서 더 기다린다 —
+        // 그 사이 브리핑·다른 /stock이 Congested 폴백으로 밀린다
+        KisStockApi weekend = apiAt(Instant.parse("2026-08-22T11:00:00Z"));
+        stub(US_STOCK_PATH, """
+                {"rt_cd":"0","msg_cd":"MCA00000","msg1":"정상처리 되었습니다.",
+                 "output":{"rsym":"","curr":"","last":"","base":""}}""");
+
+        assertThatThrownBy(() -> weekend.quote(new UsSymbol("ZZZZ", "없는것")))
+                .isInstanceOf(KisStockApi.Unsupported.class);
+
+        server.verify(3, getRequestedFor(urlPathEqualTo(US_STOCK_PATH)));
+        server.verify(0, getRequestedFor(urlPathEqualTo(US_STOCK_SERIES_PATH)));
     }
 
     @Test

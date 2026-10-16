@@ -67,7 +67,7 @@ public class FmpUsOutlookClient implements UsOutlookClient {
     private static final String EARNINGS = "/stable/earnings";
 
     /**
-     * 실적발표일·배당 날짜를 자르는 달력 — <b>그 시장의 것</b>이다.
+     * 실적발표일을 자르는 달력 — <b>그 시장의 것</b>이다.
      *
      * <p>FMP가 주는 날짜는 미국 거래일이므로 KST로 자르면 하루가 어긋난다. 오전 9시 브리핑에서
      * 어제(현지) 발표를 「다음 예정」으로 적는 일이 생긴다 — 날씨가 「조회한 지역의 현지
@@ -122,7 +122,7 @@ public class FmpUsOutlookClient implements UsOutlookClient {
         boolean earningsPermitted = permit(symbol, "실적발표일");
 
         // HTTP만 겹친다 — 두 호출은 서로를 모르고 콜드 1.7초씩이라(실측 p50 1,678ms) 겹치면 하나가 된다.
-        // 리미터는 이 메서드에 걸려 있어 퍼밋 수는 그대로다. 각자 HTTP 실패를 값(Fetched.failed)으로
+        // 리미터는 이 메서드에 걸려 있어 퍼밋 수는 그대로다. 각자 HTTP 실패를 값(Fetched.attempt)으로
         // 삼키므로 한쪽이 죽어도 다른 쪽이 버려지지 않는다
         Concurrently.Pair<Fetched<Target>, Fetched<List<Earnings>>> fetched = Concurrently.both(
                 () -> fetch(TARGET, symbol, new ParameterizedTypeReference<List<Target>>() {}),

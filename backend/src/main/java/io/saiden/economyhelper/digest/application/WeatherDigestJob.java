@@ -100,7 +100,7 @@ public class WeatherDigestJob extends TriggerableJob {
      * {@code 서현역}이 알람을 받는 사람에게 정확하다. 나라는 적지 않는다(전부 국내다).
      */
     private static List<GeoLocation> toPlaces(EconomyHelperProperties.Weather weather, ZoneId zone) {
-        if (weather == null || weather.locations() == null) {
+        if (weather.locations() == null) {
             return List.of();
         }
         List<GeoLocation> places = new ArrayList<>(weather.locations().size());

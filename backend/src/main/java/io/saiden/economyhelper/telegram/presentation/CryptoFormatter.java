@@ -17,7 +17,6 @@ import io.saiden.economyhelper.fx.domain.FxRate;
 import io.saiden.economyhelper.shared.domain.PercentChange;
 import io.saiden.economyhelper.telegram.adapter.in.web.Command;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.time.format.ResolverStyle;
@@ -171,12 +170,8 @@ public final class CryptoFormatter {
             return null;
         }
         BigDecimal global = quote.binance().price().value().multiply(fx.rate().value());
-        if (global.signum() == 0) {
-            return null;
-        }
-        return new PercentChange(quote.upbit().price().value().divide(global, 6, RoundingMode.HALF_UP)
-                .subtract(BigDecimal.ONE)
-                .multiply(BigDecimal.valueOf(100)));
+        // 반올림은 between이 표시 자리에서 한 번만 한다 — 여기서 여섯 자리로 접고 change()가 또 접으면 경계에서 0.01이 어긋난다
+        return PercentChange.between(quote.upbit().price().value(), global).orElse(null);
     }
 
     /**

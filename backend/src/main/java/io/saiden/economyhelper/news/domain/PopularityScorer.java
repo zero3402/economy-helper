@@ -62,7 +62,7 @@ public class PopularityScorer {
                                     Collection<KeywordGroup> keywords,
                                     Map<String, Integer> buzzByLink,
                                     Instant now) {
-        List<KeywordGroup> usable = usable(keywords);
+        List<KeywordGroup> usable = KeywordGroup.usable(keywords);
         return rankBy(articles, article -> matchScore(article.title(), article.description(), usable),
                 buzzByLink, now);
     }
@@ -151,17 +151,6 @@ public class PopularityScorer {
             return 1.0;
         }
         return clamp(Math.pow(0.5, ageSeconds / recencyHalfLife.toSeconds()));
-    }
-
-    /** 빈 묶음과 겹치는 묶음을 걷는다 — 목록 하나를 매길 때 기사마다 다시 걷지 않게 한 번만 부른다. */
-    private static List<KeywordGroup> usable(Collection<KeywordGroup> keywords) {
-        if (keywords == null || keywords.isEmpty()) {
-            return List.of();
-        }
-        return keywords.stream()
-                .filter(group -> group != null && !group.isEmpty())
-                .distinct()
-                .toList();
     }
 
     /**

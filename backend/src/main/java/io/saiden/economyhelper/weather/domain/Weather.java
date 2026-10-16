@@ -1,6 +1,5 @@
 package io.saiden.economyhelper.weather.domain;
 
-import io.saiden.economyhelper.weather.application.port.out.WeatherClient;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -30,7 +29,7 @@ public record Weather(GeoLocation place, List<Daily> days, WeatherSource source,
     /**
      * 보충이 없는 평상시 — <b>출처가 하나뿐인 조회</b>가 이것으로 만든다.
      *
-     * <p>{@link WeatherClient} 구현들이 전부 이쪽이다. 강수 줄까지 제 응답에서 나오므로
+     * <p>{@code WeatherClient} 구현들이 전부 이쪽이다. 강수 줄까지 제 응답에서 나오므로
      * 밝힐 두 번째 출처가 없다.
      */
     public Weather(GeoLocation place, List<Daily> days, WeatherSource source) {
@@ -51,7 +50,7 @@ public record Weather(GeoLocation place, List<Daily> days, WeatherSource source,
     /**
      * 받은 날이 <b>물은 첫날부터 빈칸 없이 이어지는지</b> — 출처가 기온 없는 날을 버린 뒤에 부른다.
      *
-     * <p>뒤가 짧은 것은 실패가 아니다({@link WeatherClient#forecast} 계약 — 출처마다 예보 길이가 다르다).
+     * <p>뒤가 짧은 것은 실패가 아니다({@code WeatherClient.forecast} 계약 — 출처마다 예보 길이가 다르다).
      * 하지만 <b>앞이나 가운데가 빈 답</b>을 성공으로 주면 이중화가 거기서 멈춰 온전한 출처가 안 불리고,
      * 그 반쪽이 캐시에 굳는다. 기상청은 이보다 엄해서 뒤가 짧은 것도 실패로 본다.
      *

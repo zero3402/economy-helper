@@ -1,6 +1,5 @@
 package io.saiden.economyhelper.weather.application.port.out;
 
-import io.saiden.economyhelper.weather.application.WeatherService;
 import io.saiden.economyhelper.weather.domain.GeoLocation;
 import io.saiden.economyhelper.weather.domain.Weather;
 import io.saiden.economyhelper.weather.domain.WeatherPeriod;
@@ -12,7 +11,7 @@ import java.time.LocalDate;
  *
  * <p>기상청·AccuWeather·Open-Meteo(예보·재분석)가 같은 자리를 번갈아 채운다.
  *
- * <p><b>실패를 값으로 돌려주지 않는다.</b> {@link WeatherService}가 "이 출처가 죽었다"와
+ * <p><b>실패를 값으로 돌려주지 않는다.</b> {@code WeatherService}가 "이 출처가 죽었다"와
  * "이 지점에 값이 없다"를 예외로 가르기 때문이다. 조용히 빈 결과를 돌려주면 폴백이 일어나지
  * 않고 사용자는 이유 없이 빈손을 받는다.
  */
@@ -41,7 +40,7 @@ public interface WeatherClient {
      * 있다. 그건 실패가 아니므로 받은 만큼 담아 돌려준다. 화면에는 실제 날짜가 적히므로
      * 어디까지인지 사용자가 본다.
      *
-     * @throws RuntimeException 조회 실패. 서킷브레이커가 이걸 세고 {@link WeatherService}가 폴백한다
+     * @throws RuntimeException 조회 실패. 서킷브레이커가 이걸 세고 {@code WeatherService}가 폴백한다
      */
     Weather forecast(GeoLocation place, WeatherPeriod period);
 

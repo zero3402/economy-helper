@@ -3,7 +3,6 @@ package io.saiden.economyhelper.news.adapter.out.hackernews;
 import io.saiden.economyhelper.config.EconomyHelperProperties;
 import io.saiden.economyhelper.news.application.port.out.ArticleBuzz;
 import io.saiden.economyhelper.news.domain.Article;
-import io.saiden.economyhelper.news.domain.PopularityScorer;
 import io.saiden.economyhelper.shared.support.Concurrently;
 import io.saiden.economyhelper.shared.support.FailureReason;
 import java.time.Duration;
@@ -24,7 +23,7 @@ import org.springframework.stereotype.Component;
  * <p>매체 어디도 조회수·댓글 수를 공개하지 않아(Most Read 페이지도 전부 403/404)
  * HN이 유일하게 얻을 수 있는 <b>실측 댓글 수</b>다. 다만 커버리지가 20~30%,
  * 금융 매체는 사실상 0이라 대부분의 기사는 여기 없다 — 없으면 그냥 빠지고
- * {@link PopularityScorer}가 나머지 세 지표로 순위를 매긴다.
+ * {@code PopularityScorer}가 나머지 세 지표로 순위를 매긴다.
  */
 @Component
 public class HackerNewsBuzzClient implements ArticleBuzz {
@@ -60,7 +59,7 @@ public class HackerNewsBuzzClient implements ArticleBuzz {
 
     /**
      * {@code 기사 링크 -> points + num_comments}. HN에 없는 기사는 아예 담기지 않는다
-     * ({@link PopularityScorer}가 0으로 본다).
+     * ({@code PopularityScorer}가 0으로 본다).
      */
     @Override
     public Map<String, Integer> buzzByLink(List<Article> articles, Instant now) {
@@ -72,7 +71,7 @@ public class HackerNewsBuzzClient implements ArticleBuzz {
         for (Article article : articles) {
             // 링크가 목적지를 감추는 매체는 조회해 봐야 못 맞힌다 — AP의 구글 뉴스 프록시
             // 주소는 HN에 올라간 실제 AP 주소와 절대 같아지지 않는다
-            if (article.source() != null && article.source().opaqueLinks()) {
+            if (article.source().opaqueLinks()) {
                 continue;
             }
             String domain = domainOf(article.link());

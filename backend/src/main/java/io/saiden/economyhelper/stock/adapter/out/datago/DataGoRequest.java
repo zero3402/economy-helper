@@ -104,16 +104,46 @@ final class DataGoRequest {
      * 하루치 행 목록 — 봉투를 열어 {@code item} 배열만 돌려준다. 세 API(주식·ETF·지수)가 같은 봉투다.
      *
      * @return 어느 단이 비어 있든 빈 목록 — 「그날은 행이 없다」다
+     * @throws IllegalStateException 머리의 {@code resultCode}가 오류일 때 — 빈 목록으로 읽으면 되짚기가 열흘을
+     *                               태우고 「못 찾음」이 한 시간 캐시된다(장애를 못 찾음으로 답하는 것)
      */
     static <T> List<T> items(RestClient restClient, RateLimiter limiter, String uri,
                              ParameterizedTypeReference<Response<T>> type, LocalDate date, String tag) {
         Response<T> response = fetch(restClient, limiter, uri, type, date, tag);
-        return response == null ? List.of() : response.items();
+        if (response == null) {
+            return List.of();
+        }
+        requireNormal(response.header(), date, tag);
+        return response.items();
     }
 
-    /** 응답 봉투 {@code {"response":{"body":{"items":{"item":[…]}}}}} — 필요한 줄기만. */
+    /** 정상. */
+    private static final String OK = "00";
+    /** 그날 행이 없다 — 되짚기가 다음 날로 넘어가는 빈 목록이 맞다({@code KmaRequest}의 NO_DATA와 같은 코드다). */
+    private static final String NO_DATA = "03";
+
+    /**
+     * HTTP 200에 실려 오는 오류 코드를 가른다. 머리가 없는 봉투는 지금처럼 통과한다 — 그 모양의 실물이 없어
+     * 장애로 단정하지 않는다(ADR-0003). 기상청 {@code KmaRequest.opened}가 같은 게이트웨이에서 세운 규칙이다.
+     */
+    private static void requireNormal(Header header, LocalDate date, String tag) {
+        if (header == null || header.resultCode() == null
+                || OK.equals(header.resultCode()) || NO_DATA.equals(header.resultCode())) {
+            return;
+        }
+        String reason = header.resultCode() + " " + header.resultMsg();
+        log.warn("[{}] {} 응답이 정상이 아닙니다: {}", tag, date.format(BAS_DT), reason);
+        throw new IllegalStateException(
+                "공공데이터포털 응답이 정상이 아닙니다 (basDt=" + date.format(BAS_DT) + ", " + reason + ")");
+    }
+
+    /** 응답 봉투 {@code {"response":{"header":{…},"body":{"items":{"item":[…]}}}}} — 필요한 줄기만. */
     @JsonIgnoreProperties(ignoreUnknown = true)
     record Response<T>(Envelope<T> response) {
+
+        Header header() {
+            return response == null ? null : response.header();
+        }
 
         List<T> items() {
             if (response == null || response.body() == null || response.body().items() == null
@@ -125,7 +155,11 @@ final class DataGoRequest {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record Envelope<T>(Body<T> body) {}
+    record Envelope<T>(Header header, Body<T> body) {}
+
+    /** 봉투의 머리 — data.go.kr 표준이라 기상청({@code KmaRequest.Header})과 같은 모양이다. */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record Header(String resultCode, String resultMsg) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     record Body<T>(Items<T> items) {}

@@ -270,7 +270,7 @@ public class NewsService {
      *              {@code /news 금리}의 1위가 되곤 했다. {@code null}이면 검증을 건너뛴다
      */
     public List<ScoredArticle> search(Collection<KeywordGroup> keywords, String query, List<Article> fetched) {
-        List<KeywordGroup> groups = usable(keywords);
+        List<KeywordGroup> groups = KeywordGroup.usable(keywords);
         if (groups.isEmpty()) {
             return List.of();
         }
@@ -340,16 +340,6 @@ public class NewsService {
     private static <T> List<T> distinctByLink(List<T> items, Function<T, String> link) {
         Set<String> seen = new LinkedHashSet<>();
         return items.stream().filter(item -> seen.add(link.apply(item))).toList();
-    }
-
-    private static List<KeywordGroup> usable(Collection<KeywordGroup> keywords) {
-        if (keywords == null) {
-            return List.of();
-        }
-        return keywords.stream()
-                .filter(group -> group != null && !group.isEmpty())
-                .distinct()
-                .toList();
     }
 
     private static boolean matchesAny(Article article, List<KeywordGroup> keywords) {

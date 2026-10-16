@@ -295,7 +295,7 @@ public class TelegramWebhookController {
      * <p>{@code Charts.of}가 이미 {@code RuntimeException}을 삼켜 빈 값으로 주지만, 겹치면서
      * 생기는 실패가 둘 더 있다 — 인터럽트와 {@code Error}다. 인터럽트는 플래그를 되살리고
      * 넘어간다(종료 신호이지 차트의 문제가 아니다). {@code Error}는 그대로 올린다:
-     * {@code Concurrently.join}이 {@code OutOfMemoryError}를 「이 출처 실패」로 만들지 않는 것과
+     * {@code Concurrently.await}가 {@code OutOfMemoryError}를 「이 출처 실패」로 만들지 않는 것과
      * 같은 판단이다.
      */
     private Optional<ChartImage> chartOf(Future<Optional<ChartImage>> pending) {
@@ -308,7 +308,7 @@ public class TelegramWebhookController {
         } catch (ExecutionException e) {
             Throwable cause = e.getCause();
             if (cause instanceof Error error) {
-                // OutOfMemoryError를 「차트 실패」로 삼키지 않는다 — Concurrently.join과 같은 판단이다
+                // OutOfMemoryError를 「차트 실패」로 삼키지 않는다 — Concurrently.await와 같은 판단이다
                 throw error;
             }
             log.info("[webhook] 차트 조회 실패 — 값은 이미 나갔습니다: {}",

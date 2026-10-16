@@ -169,8 +169,8 @@ public final class MessageLayout {
      *
      * <p>제목 문자열이 {@link Command}에만 있으므로 검색 답과 브리핑 답의 제목이 갈릴 수 없다.
      *
-     * <p>부르는 곳은 뉴스({@code NewsFormatter}의 제목)·증시·날씨·도움말, 그리고 {@link #section}이다 —
-     * 코인은 {@link #section}을 거쳐 간접적으로 쓴다.
+     * <p>부르는 곳은 뉴스({@code NewsFormatter}의 제목)·증시·날씨·도움말, 그리고 {@link #head}다 —
+     * 코인은 {@link #head}를 거쳐 간접적으로 쓴다.
      *
      * <p><b>검색어를 붙이지 않는다</b>({@code 증시 '삼성전자'}가 아니다). 답이 <b>답글로</b> 나가
      * 텔레그램이 원 명령을 바로 위에 인용해 그리므로 같은 말을 두 번 하게 된다. 덕분에 검색 답과
