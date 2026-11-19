@@ -31,8 +31,8 @@ import io.saiden.economyhelper.stock.adapter.out.polygon.PolygonDividendClient;
 import io.saiden.economyhelper.stock.domain.StockOutlook;
 import io.saiden.economyhelper.stock.domain.StockSource;
 import io.saiden.economyhelper.testsupport.TestProperties;
+import io.saiden.economyhelper.translate.adapter.out.cache.SpringSearchTermCache;
 import io.saiden.economyhelper.translate.adapter.out.cache.SpringTranslationCache;
-import io.saiden.economyhelper.translate.adapter.out.llm.QueryTranslator;
 import io.saiden.economyhelper.translate.domain.Translation;
 import io.saiden.economyhelper.weather.adapter.out.accu.AccuLocationApi;
 import io.saiden.economyhelper.weather.adapter.out.accu.AccuWeatherClient;
@@ -166,8 +166,7 @@ class CacheConfigTest {
                         io.saiden.economyhelper.stock.domain.StockOutlook.Dividend.row(
                                 java.time.LocalDate.of(2026, 9, 10),
                                 java.time.LocalDate.of(2026, 10, 1),
-                                new java.math.BigDecimal("0.25")),
-                        io.saiden.economyhelper.stock.domain.StockSource.FMP, NOW);
+                                new java.math.BigDecimal("0.25")));
 
         assertThat(serializer.deserialize(serializer.serialize(original))).isEqualTo(original);
     }
@@ -197,29 +196,29 @@ class CacheConfigTest {
     }
 
     @Test
-    @DisplayName("fx 캐시 셋 — FxRate의 환율·등락률이 전처럼 맨 숫자로 읽히고 같은 바이트로 쓰인다")
+    @DisplayName("fx 캐시 셋 — FxRate의 환율·등락률이 맨 숫자로 읽히고 같은 바이트로 쓰인다")
     void fxRateKeepsTheBareNumberShape() {
+        // base·quote 칸을 뺀 모양이다(늘 USD·KRW였고 아무도 읽지 않았다) — 모양이 바뀌어 fx 캐시 셋을 v3로 올렸다
         assertSameBytes(new TypeReference<io.saiden.economyhelper.fx.domain.FxRate>() {},
-                "{\"base\":\"USD\",\"quote\":\"KRW\",\"rate\":1412.17,\"changePercent\":0.22,"
+                "{\"rate\":1412.17,\"changePercent\":0.22,"
                         + "\"source\":\"KIS\",\"asOf\":\"2026-08-11T00:00:00Z\",\"live\":true}");
         assertSameBytes(new TypeReference<io.saiden.economyhelper.fx.domain.FxRate>() {},
-                "{\"base\":\"USD\",\"quote\":\"KRW\",\"rate\":1415.00,\"changePercent\":null,"
+                "{\"rate\":1415.00,\"changePercent\":null,"
                         + "\"source\":\"KEXIM\",\"asOf\":\"2026-08-11T00:00:00Z\",\"live\":false}");
     }
 
     @Test
-    @DisplayName("전망 캐시 — StockOutlook의 목표가가 전처럼 맨 숫자로 읽히고 같은 바이트로 쓰인다")
+    @DisplayName("전망 캐시 — StockOutlook의 목표가가 맨 숫자로 읽히고 같은 바이트로 쓰인다")
     void stockOutlookKeepsTheBareNumberShape() {
         io.saiden.economyhelper.stock.domain.StockOutlook back = assertSameBytes(
                 new TypeReference<io.saiden.economyhelper.stock.domain.StockOutlook>() {},
                 "{\"earningsDate\":\"2026-10-29\",\"targetPrice\":340.72,\"dividend\":{\"recordDate\":\"2026-09-10\","
                         + "\"payDate\":\"2026-10-01\",\"amount\":0.25,\"past\":false,\"empty\":false},"
-                        + "\"source\":\"FMP\",\"at\":\"2026-08-11T00:00:00Z\",\"empty\":false}");
+                        + "\"empty\":false}");
         assertThat(back.targetPrice().value()).isEqualByComparingTo("340.72");
         // 목표가가 없는 전망 — 국내 ETF가 늘 이 모양이다
         assertSameBytes(new TypeReference<io.saiden.economyhelper.stock.domain.StockOutlook>() {},
-                "{\"earningsDate\":null,\"targetPrice\":null,\"dividend\":null,\"source\":\"KIS\","
-                        + "\"at\":\"2026-08-11T00:00:00Z\",\"empty\":true}");
+                "{\"earningsDate\":null,\"targetPrice\":null,\"dividend\":null,\"empty\":true}");
     }
 
     /** 전 모양의 JSON을 새 타입으로 읽고, 다시 쓰면 <b>같은 바이트</b>가 나오는지. */
@@ -237,8 +236,7 @@ class CacheConfigTest {
                 CacheConfig.serializer(
                         new TypeReference<io.saiden.economyhelper.stock.domain.StockOutlook>() {});
         io.saiden.economyhelper.stock.domain.StockOutlook original =
-                io.saiden.economyhelper.stock.domain.StockOutlook.none(
-                        io.saiden.economyhelper.stock.domain.StockSource.KIS, NOW);
+                io.saiden.economyhelper.stock.domain.StockOutlook.NONE;
 
         io.saiden.economyhelper.stock.domain.StockOutlook back =
                 serializer.deserialize(serializer.serialize(original));
@@ -343,7 +341,7 @@ class CacheConfigTest {
             KisDomesticOutlookClient.class, FmpUsOutlookClient.class,
             io.saiden.economyhelper.stock.adapter.out.polygon.PolygonDividendClient.class,
             FeedFetcher.class, HackerNewsApi.class, RelevanceScorer.class,
-            QueryTranslator.class, SpringTranslationCache.class,
+            SpringTranslationCache.class, SpringSearchTermCache.class,
             OpenMeteoForecastClient.class, OpenMeteoArchiveClient.class,
             AccuWeatherClient.class, AccuLocationApi.class,
             GeocodingApi.class, WeatherResolver.class, KmaWeatherClient.class,
@@ -519,10 +517,11 @@ class CacheConfigTest {
                 .flatMap(type -> cacheNamesOf(type).stream())
                 .collect(Collectors.toCollection(java.util.HashSet::new));
 
-        // ⚠️ 애너테이션이 없는 캐시는 위 훑기에 안 걸린다. translation은 CacheManager로 직접
+        // ⚠️ 애너테이션이 없는 캐시는 위 훑기에 안 걸린다. 기사 번역과 검색어 번역은 CacheManager로 직접
         // 읽고 쓰는데(캐시 미스만 골라 묶어 번역하려면 그래야 한다), 그렇다고 감시에서 빠지면
         // 등록 누락이 조용히 지나간다 — 이름을 직접 더해 그물을 유지한다
         declared.add(SpringTranslationCache.CACHE);
+        declared.add(SpringSearchTermCache.CACHE);
 
         assertThat(configuredCacheNames())
                 .as("등록이 빠지면 Redis 기본값(JDK 직렬화·무기한)으로 떨어져 레코드를 담는 순간 "

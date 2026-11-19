@@ -18,7 +18,7 @@ import org.springframework.stereotype.Component;
  *
  * <p><b>Boot가 주는 {@code /actuator/caches}를 대신하지 않고 <i>보탠다</i>.</b> 그쪽은 이름
  * 목록과 <b>캐시 통째로 비우기</b>까지 해 주는데 <b>키 하나를 지목하지 못한다</b>. 우리가
- * 버려야 하는 것은 대개 항목 하나({@code geocode-v2::성남시|KR})이고, 통째로 비우면 멀쩡한
+ * 버려야 하는 것은 대개 항목 하나({@code geocode-v3::성남시|KR})이고, 통째로 비우면 멀쩡한
  * 나머지까지 무료 티어 쿼터를 다시 태워 채워야 한다. 그래서 <b>없는 것만</b> 만든다 —
  * 목록과 전체 비우기는 그쪽을 쓴다.
  *
@@ -35,7 +35,7 @@ import org.springframework.stereotype.Component;
  *
  * <pre>
  * curl localhost:8081/actuator/caches                      # 이름 목록 (Boot 것)
- * curl -X DELETE 'localhost:8081/actuator/evict?name=geocode-v2&key=성남시|KR'
+ * curl -X DELETE 'localhost:8081/actuator/evict?name=geocode-v3&key=성남시|KR'
  * </pre>
  */
 @Component
@@ -57,7 +57,7 @@ public class CacheEvictEndpoint {
      * 하고, 여기서 겸하면 {@code key}를 빠뜨린 호출이 전체 삭제가 되어 버린다 — 되돌릴 수
      * 없고 다음 조회가 쿼터를 태우는 일을 오타 하나로 일으키게 하지 않는다.
      *
-     * @param name {@link CacheNames}의 값. <b>판 번호까지</b> 적어야 한다({@code geocode-v2})
+     * @param name {@link CacheNames}의 값. <b>판 번호까지</b> 적어야 한다({@code geocode-v3})
      * @param key  {@code @Cacheable}이 만든 키 그대로({@code 성남시|KR})
      * @return 무엇을 했는지. 이름이나 키가 어긋나도 예외를 내지 않고 이유를 담아 돌려준다 —
      *         진단하러 부르는 자리에서 500을 받으면 이름이 틀린 것인지 앱이 죽은 것인지 모른다

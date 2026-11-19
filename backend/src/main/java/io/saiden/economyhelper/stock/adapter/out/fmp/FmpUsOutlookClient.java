@@ -13,7 +13,6 @@ import io.saiden.economyhelper.shared.support.FailureReason;
 import io.saiden.economyhelper.shared.support.Fetched;
 import io.saiden.economyhelper.stock.application.port.out.UsOutlookClient;
 import io.saiden.economyhelper.stock.domain.StockOutlook;
-import io.saiden.economyhelper.stock.domain.StockSource;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.net.URLEncoder;
@@ -146,7 +145,7 @@ public class FmpUsOutlookClient implements UsOutlookClient {
                 // 이 한 줄이 「그래서 내 한도를 계속 태우나」에 답한다 — 담으므로 안 태운다
                 log.info("[fmp] '{}' 전망이 없는 심볼입니다 — 빈 값을 담아 12시간 동안 다시 묻지 않습니다",
                         symbol);
-                return StockOutlook.none(StockSource.FMP, clock.instant());
+                return StockOutlook.NONE;
             }
             throw new IllegalStateException("FMP 전망 조회 실패 (" + symbol + ")");
         }
@@ -158,7 +157,7 @@ public class FmpUsOutlookClient implements UsOutlookClient {
                 nextEarnings(schedule.value(), today),
                 // 목표가 0은 값이 아니다 — 평균에 넣으면 실제보다 낮은 값이 화면에 나간다
                 target.value() == null ? null : Price.of(target.value().targetConsensus()).orElse(null),
-                null, StockSource.FMP, clock.instant());
+                null);
         // 비어도 돌려준다 — 값이라 캐시된다
         return outlook;
     }

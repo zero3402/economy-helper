@@ -69,6 +69,39 @@ class UpbitApiTest extends WireMockTest {
     }
 
     @Test
+    @DisplayName("목록에 null 한 칸이 섞여도 나머지 마켓을 읽는다 — 한 칸이 목록 전체를 NPE로 던지지 않는다")
+    void survivesANullMarketRow() {
+        stub("/v1/market/all", """
+                [null,
+                 {"market":"KRW-BTC","korean_name":"비트코인","english_name":"Bitcoin"}]""");
+
+        assertThat(api.krwMarkets()).extracting(UpbitMarket::market).containsExactly("KRW-BTC");
+    }
+
+    @Test
+    @DisplayName("시세에 null 한 칸이 섞여도 나머지 시세를 읽는다")
+    void survivesANullTickerRow() {
+        stub("/v1/ticker", """
+                [null,
+                 {"market":"KRW-ETH","trade_price":3117000.0,"acc_trade_price_24h":194497300539.0,
+                  "signed_change_rate":0.0064578624,"trade_timestamp":1787186239692}]""");
+
+        assertThat(api.tickers(List.of("KRW-ETH"))).extracting(UpbitTicker::market).containsExactly("KRW-ETH");
+    }
+
+    @Test
+    @DisplayName("날짜가 깨진 일봉 한 칸은 그 칸만 뺀다 — 한 칸이 차트 전체를 던지지 않는다")
+    void dropsOnlyTheCandleWithABrokenDate() {
+        stub("/v1/candles/days", """
+                [{"candle_date_time_kst":"2026-08-21T00:00:00","trade_price":161000000},
+                 {"candle_date_time_kst":"2026-02-31T00:00:00","trade_price":158500000},
+                 {"candle_date_time_kst":"2026-08-19T00:00:00","trade_price":159200000}]""");
+
+        assertThat(api.dailyBars("KRW-BTC")).extracting(bar -> bar.date().toString())
+                .containsExactly("2026-08-19", "2026-08-21");
+    }
+
+    @Test
     @DisplayName("후보 여럿을 한 호출로 묶는다 — 따로 부르면 초당 10회 제한에 금방 닿는다")
     void asksForEveryMarketInOneCall() {
         stub("/v1/ticker", """

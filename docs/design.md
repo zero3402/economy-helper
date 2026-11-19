@@ -26,7 +26,7 @@
 | **무리** | 뉴스 카테고리 (코인 / 경제) |
 | **빈손** | 출처가 「결과 없음」을 돌려준 상태 |
 | **슬롯** | 정기 발송 하루치의 이름표. 「오늘 보냈나」를 판단하는 단위 (`2026-08-19` 등) |
-| **판 번호** | 캐시 이름 끝의 버전 (`geocode-v2`). 규칙을 바꾸면 올린다 — [4.2](#42-캐시) |
+| **판 번호** | 캐시 이름 끝의 버전 (`geocode-v3`). 규칙을 바꾸면 올린다 — [4.2](#42-캐시) |
 | **간격 문** | KIS 호출 사이에 1초를 지키게 하는 장치 (`KisThrottle`) |
 | **실물 감사** | 실제 키로 앱을 띄워 진짜 답을 받아 보는 점검 — [runbook](runbook.md#실물-감사) |
 | **(종가) · (고시) · (예보)** | 화면에서 값의 성격을 밝히는 꼬리표. 실시간 값이 아니라는 뜻 |
@@ -162,11 +162,11 @@ flowchart LR
 | `crypto` | `CryptoService` | `UpbitClient` · `BinanceClient` · `CoinResolver` | `upbit` · `binance` · `llm` |
 | `weather` | `WeatherService` · `WeatherFacade` | `WeatherClient` · `HourlyPrecipitationClient` · `Geocoder` · `PlaceResolver` | `kma` · `accu` · `openmeteo` · `llm` |
 | `news` | `NewsService` · `NewsFacade` · `QueryExpander` | `ArticleFeed` · `ArticleBuzz` · `RelevanceJudge` | `feed` · `hackernews` · `llm` |
-| `translate` | `TranslationService` · `QueryTranslationService` | `Translator` · `SearchTermTranslator` · `TranslationCache` | `llm` · `cache` |
+| `translate` | `TranslationService` · `QueryTranslationService` | `Translator` · `SearchTermTranslator` · `TranslationCache` · `SearchTermCache` | `llm` · `cache` |
 | `digest` | `DailyDigestJob` · `WeatherDigestJob` | `SendHistory` · `DigestNotifier` | `redis` (+ `adapter/in/actuator`) |
 | `telegram` | — | — | `adapter/in/web` 웹훅·명령 파싱 · `adapter/out` `TelegramClient`·`TelegramDigestNotifier` · `presentation` 포매터·차트 |
 
-`shared`에 있는 것: 값 `Price` · `PercentChange` · `DailyBar` · `DailySeries`, 도구 `Failover` · `Concurrently` · `Fetched` · `Permit` · `FailureReason` · `QueryNormalizer`.
+`shared`에 있는 것: 값 `Price` · `PercentChange` · `DailyBar` · `DailySeries`, 도구 `Failover` · `Concurrently` · `Fetched` · `Permit` · `FailureReason` · `QueryNormalizer` · `Outage`.
 
 **경계 규칙** — ArchUnit이 컴파일된 코드를 검사한다(`config/ArchitectureTest`가 정본).
 
@@ -358,14 +358,14 @@ flowchart LR
 그래서 `@EnableCaching(order = LOWEST_PRECEDENCE - 10)`이고, `ResilienceConfigTest`가 순서를 검사한다. 전체 순서는 [4.4](#44-리미터는-앱키-단위-브레이커는-출처-단위-재시도는-폴백-없는-곳만)의 그림 참고.
 
 **캐시는 부가 기능이다 — Redis가 죽어도 답은 나간다.**
-`CacheErrorConfig`가 읽기 실패는 캐시 미스로, 쓰기 실패는 건너뛰기로 바꾼다. 캐시를 직접 부르는 곳(`SpringTranslationCache`)도 똑같이 처리한다.
+`CacheErrorConfig`가 읽기 실패는 캐시 미스로, 쓰기 실패는 건너뛰기로 바꾼다. 캐시를 직접 부르는 곳(`SpringTranslationCache` · `SpringSearchTermCache`)도 똑같이 처리한다.
 
 **무엇을 캐시에 담고, 무엇을 안 담나**
 
 | 경우 | 규칙 | 이유 |
 |---|---|---|
 | `Optional`을 돌려주는 메서드 | 값만 저장하고 `unless = "#result == null"`을 **반드시** 단다 | 빈 Optional은 안 담겨야 LLM 일시 실패가 7일 동안 남지 않는다. `unless`가 없으면 `disableCachingNullValues`가 예외를 호출자까지 올린다 |
-| 「없다」 자체가 값인 경우 | Optional 대신 빈 값 객체로 담는다 (`StockOutlook.none` · `Dividend.none()`) | 「의견 낸 증권사 없음」은 12시간 안 바뀌는 **값**이다 |
+| 「없다」 자체가 값인 경우 | Optional 대신 빈 값 객체로 담는다 (`StockOutlook.NONE` · `Dividend.none()`) | 「의견 낸 증권사 없음」은 12시간 안 바뀌는 **값**이다 |
 | 컬렉션·맵을 돌려주는 메서드 | 빈 것은 안 담는다 (`unless = "#result.isEmpty()"`) | 상대가 한순간 빈 결과를 주면 TTL 내내 남는다. 예외: 공공데이터포털 `searchBy*` — 열흘을 되짚어도 없으면 정말 없는 것이다 |
 | LLM이 막혔을 때의 대체값 | 안 담는다 | 「전부 통과」 관련도, 번역 안 된 원문 같은 강등 결과다 |
 
@@ -374,11 +374,11 @@ flowchart LR
 실제 사고: `/weather 미금`을 고쳤는데도 옛 프롬프트로 만든 해석(7일)과 옛 규칙으로 고른 지오코딩(30일)이 캐시에 남아 200km 떨어진 곳 날씨를 답했다. Redis가 AOF라 재시작해도 안 지워진다.
 
 1. **판 번호를 올리는 때는 둘이다** (`CacheNames`). 옛 키는 아무도 안 읽으니 TTL이 지나면 사라진다.
-   - **규칙이 바뀌었다** — 파생 규칙이나 프롬프트를 고쳤을 때. `geocode-v2`, `stock-resolve-v5`처럼
+   - **규칙이 바뀌었다** — 파생 규칙이나 프롬프트를 고쳤을 때. `geocode-v3`, `stock-resolve-v5`처럼
      **우리 규칙으로 만든 값**을 담는 캐시(지오코딩·해석기)가 여기다.
    - **담는 모양이 바뀌었다** — 수명이 짧아도 올린다. 롤링 배포 중에는 옛 인스턴스가 담은 옛 모양을
      새 인스턴스가 **캐시 적중**으로 읽어 필드가 `null`이 되거나 역직렬화가 터진다.
-     `crypto-price-v2`·`binance-price-v2`와 환율 셋(`fx-v2`·`fx-kexim-v2`·`fx-kis-v2`)이 그래서 붙었다 —
+     `crypto-price-v2`·`binance-price-v2`와 환율 셋(`fx-v3`·`fx-kexim-v3`·`fx-kis-v3`)이 그래서 붙었다 —
      전부 상대가 준 시세인데도 판이 있는 이유다.
 
    둘 다 아니면 안 매긴다. **담는 모양이 그대로인 한** 시세나 상대가 준 값을 담는 캐시(전망)에는 매기지 않는다.
@@ -448,7 +448,7 @@ Spring Boot 4에는 직접 만든 `RestClient`에 이름별 타임아웃을 거�
 - **상대 API 보호를 스레드 수로 하지 않는다.** 그건 리미터의 일이다. 두 곳에 나눠 두면 한쪽만 고쳐진다.
 - **`Concurrently`는 실패를 숨기지 않는다.** 「하나가 죽어도 나머지는 보낸다」를 정하는 건 호출하는 쪽이다.
 
-병렬로 도는 곳: 브리핑 네 통의 수집(환율은 환율 통이 조회하고 증시·코인이 그 결과를 기다린다), FMP 목표가와 실적발표일, HN 반응(도메인별), 검색어 번역(단어별), 검색 답의 차트(글 발송과 동시), 국외 날씨의 시간별 강수.
+병렬로 도는 곳: 브리핑 네 통의 수집(환율은 환율 통이 조회하고 증시·코인이 그 결과를 기다린다), FMP 목표가와 실적발표일, HN 반응(도메인별), 검색 답의 차트(글 발송과 동시), 국외 날씨의 시간별 강수.
 
 - 텔레그램 발송 간격은 「메시지 사이에 1초 쉬기」가 아니라 **같은 방에서 발송 시작 사이 1초**다.
 - KIS는 간격 문이 호출 사이 1초를 지키므로 병렬로 돌려도 빨라지지 않는다.
@@ -483,7 +483,7 @@ Spring Boot 4에는 직접 만든 `RestClient`에 이름별 타임아웃을 거�
 🔵 -5.40%
 
 한국투자증권                      ← 출처: 여러 개면 한 줄에 하나씩
-2026년 8월 19일(수) 09:00:12     ← 기준: 실시간이면 시각, 종가면 날짜 + (종가)
+2026.08.19(수) 09:00:12     ← 기준: 실시간이면 시각, 종가면 날짜 + (종가)
 ```
 
 | 규칙 | 이유 |
@@ -530,7 +530,7 @@ Spring Boot 4에는 직접 만든 `RestClient`에 이름별 타임아웃을 거�
 - **KIS 앱키가 없으면 브리핑이 헛호출로 간격 문을 기다린다.** 호출 사이 1초씩 늦어진다.
 - **KIS의 초당 한도는 리미터로 표현할 수 없다.** 「호출 사이 몇 초」 방식이라 `KisThrottle`이 지킨다. 실전 계정으로 옮겨 간격이 줄면 재시도 계산을 다시 본다.
 - **미국 종목의 2순위는 사실상 없다.** FMP 무료 티어는 허용된 심볼만 준다. 미국 목표가·실적발표일에도 2순위가 없다.
-- **Gemini 무료 한도(60초에 12회)가 실제 병목이다.** 브리핑 한 번에 9회를 써서 여유가 3회다. 넘치면 번역은 원문으로, 검색어 해석은 원문 검색으로 조용히 강등된다.
+- **Gemini 무료 한도(60초에 12회)가 실제 병목이다.** 브리핑 한 번이 관련도 채점 1회(전 매체 후보를 모아 한 번)와 번역 묶음 1회를 쓰고, `/news 검색어`가 검색어 번역·관련도·번역을 한 번씩 쓴다. 넘치면 번역은 원문으로, 검색어 해석은 원문 검색으로 조용히 강등된다.
 - **프론트엔드·REST API·애드센스·k8s는 아직 없다.** HTTP 입구는 웹훅 하나다. `NewsFacade`·`WeatherFacade`가 단일 진입점이라 컨트롤러만 얹으면 된다.
 - **안 하기로 한 구조 정리** (한 번씩 들여다보고 닫았다 — 다시 밟지 않으려고 이유를 남긴다)
   - **벤더 요청 골격(DataGo·KMA·Open-Meteo) 합치기 — 안 한다.** 셋은 이미 각자 벤더 안에서

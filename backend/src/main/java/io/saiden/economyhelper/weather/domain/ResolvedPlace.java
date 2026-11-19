@@ -64,14 +64,6 @@ public record ResolvedPlace(String query, String country, String date,
     }
 
     /**
-     * 나라 코드. 해석기가 {@code query}와 같은 정규화를 거쳐 담는다 —
-     * 안 거르면 {@code countryCode=null}이 쿼리에 실려 헛호출을 한 번 태운다.
-     */
-    public String countryCode() {
-        return country;
-    }
-
-    /**
      * 절대 날짜. LLM이 엉뚱한 문자열을 주면 {@code null}로 떨어뜨린다 —
      * 여기서 던지면 검색 전체가 죽는데, 날짜 하나 때문에 그럴 이유가 없다.
      */

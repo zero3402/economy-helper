@@ -58,7 +58,7 @@ class TelegramClientTest extends WireMockTest {
     void trimsPastedWhitespaceFromTokenAndChatId() {
         // .env·대시보드에서 복사한 값은 끝에 개행·공백이 붙기 쉽다. 토큰은 URI 경로에 그대로
         // 들어가므로 한 글자가 봇 전체를 죽인다 — KIS가 같은 자리에서 403 EGW00105를 맞았고
-        // (KisTokenStore.trimmed), 웹훅 secret도 같은 이유로 다듬는다
+        // (EconomyHelperProperties가 키를 다듬는다), 웹훅 secret도 같은 이유로 다듬는다
         new TelegramClient(RestClient.builder(), TestProperties.builder()
                 .telegramBaseUrl(server.baseUrl()).botToken("test-token\n")
                 .chatId(" default-chat ").telegramMinInterval(Duration.ZERO)

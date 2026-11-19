@@ -33,10 +33,10 @@ final class PresentationFixtures {
             .atStartOfDay(ZoneId.of("Asia/Seoul")).toInstant();
     /** 미국 현재가의 조회 시각 — KST 08-13 07:00. */
     static final Instant US_AT = Instant.parse("2026-08-12T22:00:00Z");
-    static final FxRate FX = new FxRate("USD", "KRW", new Price(new BigDecimal("1412.17")),
+    static final FxRate FX = new FxRate(new Price(new BigDecimal("1412.17")), null,
             FxSource.FRANKFURTER, BASIS);
     /** 김프 산수를 눈으로 검산하려고 소수점을 턴 환율. */
-    static final FxRate FX_FLAT = new FxRate("USD", "KRW", new Price(new BigDecimal("1412.00")),
+    static final FxRate FX_FLAT = new FxRate(new Price(new BigDecimal("1412.00")), null,
             FxSource.FRANKFURTER, BASIS);
 
     private PresentationFixtures() {

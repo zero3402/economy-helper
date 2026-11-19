@@ -71,8 +71,6 @@ class KeximFxClientTest extends WireMockTest {
         FxRate rate = client.usdToKrw();
 
         assertThat(rate.rate().value()).isEqualByComparingTo("1415");
-        assertThat(rate.base()).isEqualTo("USD");
-        assertThat(rate.quote()).isEqualTo("KRW");
         assertThat(rate.source()).isEqualTo(FxSource.KEXIM);
     }
 

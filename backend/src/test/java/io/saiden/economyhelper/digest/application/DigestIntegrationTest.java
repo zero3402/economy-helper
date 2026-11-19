@@ -57,8 +57,7 @@ import tools.jackson.databind.json.JsonMapper;
  * 진짜 Redis 위에서 두 가지를 확인한다.
  *
  * <ol>
- *   <li><b>2인스턴스가 동시에 돌아도 발송은 1회</b> — {@code AGENTS.md}의 이중화 요구를
- *       지키면서 구독자가 같은 뉴스를 두 번 받지 않는다는, 이 단계의 핵심 보장이다.
+ *   <li><b>2인스턴스가 동시에 돌아도 발송은 1회</b> — 구독자가 같은 뉴스를 두 번 받지 않는다는 보장이다.
  *   <li><b>애노테이션이 런타임에 실제로 프록시를 건다</b> — Boot 4에는 AOP 스타터가 없어
  *       {@code aspectjweaver}를 직접 걸었으므로 {@code @Cacheable}·{@code @CircuitBreaker}·
  *       {@code @SchedulerLock}이 정말 동작하는지를 여기서 본다.
@@ -167,8 +166,8 @@ class DigestIntegrationTest {
     }
 
     @Test
-    @DisplayName("@Cacheable이 런타임에 동작한다 — 같은 기사를 두 번 번역하지 않는다")
-    void cacheableAnnotationIsLive() {
+    @DisplayName("번역 캐시가 런타임에 동작한다 — 같은 기사를 두 번 번역하지 않는다")
+    void translationCacheIsLive() {
         Article article = new Article(NewsSource.CNBC, "Oil holds advance", "Oil kept gains.",
                 "https://example.com/cache-proof-" + System.nanoTime(), NOW, 0);
 
@@ -186,7 +185,7 @@ class DigestIntegrationTest {
     /**
      * 캐시 기록이 보일 때까지 짧게 기다린다.
      *
-     * <p>측정해 보면 {@code @Cacheable}의 쓰기는 <b>호출 직후의 읽기에 곧바로 보이지 않는다</b>
+     * <p>측정해 보면 캐시 쓰기는 <b>호출 직후의 읽기에 곧바로 보이지 않는다</b>
      * (여기서는 20ms 안에 반영됐다). 운영에서는 다음 조회가 최소 몇 분 뒤라 무해하지만,
      * 이걸 모르고 테스트를 짜면 "캐시가 안 걸린다"로 잘못 읽게 된다.
      */
@@ -243,7 +242,7 @@ class DigestIntegrationTest {
         return new TranslationRequest(article.link(), article.title(), article.description());
     }
 
-    /** 실제 Gemini 대신 호출 횟수를 세어 {@code @Cacheable}이 걸렸는지 관측한다. */
+    /** 실제 Gemini 대신 호출 횟수를 세어 번역 캐시가 걸렸는지 관측한다. */
     @TestConfiguration
     static class CountingTranslatorConfig {
 

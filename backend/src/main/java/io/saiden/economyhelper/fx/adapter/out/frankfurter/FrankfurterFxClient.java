@@ -17,6 +17,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -100,7 +101,7 @@ public class FrankfurterFxClient implements FxRateClient, FxDailyBarClient {
         }
 
         // 고시일 00:00(KST)로 맞춘다 — 시각 정보가 없으므로 있는 척하지 않는다
-        return new FxRate(USD, KRW, Price.require(rate, "Frankfurter 환율"), changeOf(response, dates),
+        return new FxRate(Price.require(rate, "Frankfurter 환율"), changeOf(response, dates),
                 FxSource.FRANKFURTER, latest.atStartOfDay(SEOUL).toInstant());
     }
 
@@ -133,12 +134,22 @@ public class FrankfurterFxClient implements FxRateClient, FxDailyBarClient {
         List<DailyBar> bars = new ArrayList<>();
         response.rates().forEach((date, byCurrency) -> {
             BigDecimal rate = byCurrency == null ? null : byCurrency.get(KRW);
-            if (rate != null) {
-                bars.add(new DailyBar(LocalDate.parse(date), rate));
+            LocalDate on = dateOrNull(date);
+            if (rate != null && on != null) {
+                bars.add(new DailyBar(on, rate));
             }
         });
         // 걸러내기와 정렬은 한 곳에서 한다 — 출처마다 순서와 쓰레기 모양이 다르다
         return DailySeries.recent(bars, DailySeries.WINDOW);
+    }
+
+    /** 일봉의 날짜 키 — 못 읽으면 {@code null}이고 그 칸만 빠진다(한 칸이 던지면 차트가 통째로 빠진다). */
+    private static LocalDate dateOrNull(String date) {
+        try {
+            return LocalDate.parse(date);
+        } catch (DateTimeParseException e) {
+            return null;
+        }
     }
 
     /** 오늘(KST)에서 {@code lookbackDays}일 전부터 지금까지의 USD→KRW 고시 — 값과 일봉이 같은 요청 모양을 쓴다. */

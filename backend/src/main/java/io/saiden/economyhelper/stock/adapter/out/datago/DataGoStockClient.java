@@ -195,6 +195,9 @@ public class DataGoStockClient implements DomesticStockClient, StockNameSearch {
 
     /** 종가일을 시각으로 옮긴다. 그날 장이 끝난 값이므로 KST 자정으로 두고 표기는 날짜만 쓴다. */
     private static Instant atSeoulMidnight(String basDt) {
+        if (basDt == null) {
+            throw new IllegalStateException("공공데이터포털 응답에 기준일이 없습니다 — 어느 날의 종가인지 모릅니다");
+        }
         return LocalDate.parse(basDt, BAS_DT).atStartOfDay(SEOUL).toInstant();
     }
 

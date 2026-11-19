@@ -27,6 +27,10 @@ public record KisChartPrice(@JsonProperty("rt_cd") String resultCode,
                      @JsonProperty("output1") Quote output,
                      @JsonProperty("output2") List<Bar> bars) implements KisResponse {
 
+    /** 환율과 미국 지수가 함께 부르는 경로와 거래 ID — 두 어댑터가 따로 적으면 한쪽만 고쳐지는 날이 온다. */
+    public static final String PATH = "/uapi/overseas-price/v1/quotations/inquire-daily-chartprice";
+    public static final String TR_ID = "FHKST03030100";
+
     /**
      * 가장 최근 일봉의 날짜 — <b>현재가가 그날의 값이다.</b> 주말·휴일에는 마지막 영업일이 온다.
      *

@@ -18,15 +18,17 @@ import io.saiden.economyhelper.shared.domain.Price;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Stream;
+import java.util.Objects;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 /**
- * 업비트 시세 API. 인증이 없어 공개 엔드포인트 두 개만 부른다.
+ * 업비트 시세 API. 인증이 없는 공개 엔드포인트(마켓 목록·시세·일봉)만 부른다.
  *
  * <p><b>초당 10회 / IP 제한이 있다</b>(quotation 그룹 공유). {@code @RateLimiter}로 8회로
  * 낮춰 잡고, 마켓 목록은 6시간 캐시해 아예 부르지 않는다.
@@ -69,7 +71,8 @@ public class UpbitApi implements UpbitClient {
         if (response == null) {
             throw new IllegalStateException("업비트 마켓 목록 응답이 비어 있습니다");
         }
-        return List.of(response).stream()
+        return Arrays.stream(response)
+                .filter(Objects::nonNull)
                 .filter(market -> market.market() != null && market.market().startsWith(KRW_PREFIX))
                 .map(market -> UpbitMarket.of(market.market(), market.koreanName(), market.englishName()))
                 .toList();
@@ -116,8 +119,10 @@ public class UpbitApi implements UpbitClient {
         }
         List<DailyBar> bars = new ArrayList<>();
         for (Candle candle : response) {
-            if (candle != null && candle.date() != null && candle.close() != null) {
-                bars.add(new DailyBar(LocalDate.parse(candle.date()), candle.close()));
+            // 날짜를 못 읽는 칸은 그 칸만 뺀다 — 한 칸이 던지면 차트가 통째로 빠진다
+            LocalDate date = candle == null ? null : candle.date();
+            if (date != null && candle.close() != null) {
+                bars.add(new DailyBar(date, candle.close()));
             }
         }
         // 업비트는 최근 것이 먼저 온다 — 정렬과 걸러내기는 한 곳에서 한다
@@ -152,7 +157,7 @@ public class UpbitApi implements UpbitClient {
         if (response == null) {
             throw new IllegalStateException("업비트 시세 응답이 비어 있습니다: " + markets);
         }
-        return Stream.of(response).map(TickerResponse::toTicker).toList();
+        return Arrays.stream(response).filter(Objects::nonNull).map(TickerResponse::toTicker).toList();
     }
 
     // --- 응답 스키마 (필요한 필드만) ---
@@ -194,9 +199,16 @@ public class UpbitApi implements UpbitClient {
     record Candle(@JsonProperty("candle_date_time_kst") String dateTime,
                   @JsonProperty("trade_price") BigDecimal close) {
 
-        /** {@code 2026-08-21T00:00:00} → {@code 2026-08-21}. */
-        String date() {
-            return dateTime == null || dateTime.length() < 10 ? null : dateTime.substring(0, 10);
+        /** {@code 2026-08-21T00:00:00} → {@code 2026-08-21}. 못 읽으면 {@code null}이다({@code 2026-02-31}도). */
+        LocalDate date() {
+            if (dateTime == null || dateTime.length() < 10) {
+                return null;
+            }
+            try {
+                return LocalDate.parse(dateTime.substring(0, 10));
+            } catch (DateTimeParseException e) {
+                return null;
+            }
         }
     }
 }

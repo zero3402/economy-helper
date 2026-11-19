@@ -46,7 +46,7 @@ public class WeatherService {
      * {@code supports}가 정한다(표는 ADR-0009).
      *
      * <p>재분석이 목록 맨 뒤인 것은 우선순위가 낮아서가 아니라 <b>맡는 기간이 다르기</b>
-     * 때문이다 — 지난 날짜에서는 앞의 둘이 {@code supports}에서 빠져 이쪽만 남는다.
+     * 때문이다 — 지난 날짜에서는 앞의 셋이 {@code supports}에서 빠져 이쪽만 남는다.
      */
     private static final List<WeatherSource> ORDER = List.of(
             WeatherSource.KMA, WeatherSource.ACCU_WEATHER,

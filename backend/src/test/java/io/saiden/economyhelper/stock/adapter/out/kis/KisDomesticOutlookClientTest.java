@@ -10,7 +10,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import io.saiden.economyhelper.infrastructure.kis.KisFixtures;
 import io.saiden.economyhelper.infrastructure.kis.KisThrottle;
 import io.saiden.economyhelper.stock.domain.StockOutlook;
-import io.saiden.economyhelper.stock.domain.StockSource;
 import io.saiden.economyhelper.testsupport.WireMockTest;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -109,7 +108,6 @@ class KisDomesticOutlookClientTest extends WireMockTest {
         assertThat(outlook.targetPrice().value())
                 .as("(350000 + 400000 + 650000) / 3")
                 .isEqualByComparingTo(new BigDecimal("466667"));
-        assertThat(outlook.source()).isEqualTo(StockSource.KIS);
         assertThat(outlook.earningsDate())
                 .as("두 엔드포인트 어느 쪽도 실적발표일을 주지 않는다 — 0이 아니라 null이어야 한다")
                 .isNull();

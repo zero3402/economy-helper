@@ -215,4 +215,27 @@ class CommandParserTest {
                     .contains(command);
         }
     }
+
+    @Test
+    @DisplayName("가장자리 모양 — 앞 공백·탭·전각 공백·인자 속 줄바꿈·이름 없는 @·명령 없는 @")
+    void keepsTheEdgeShapes() {
+        assertThat(CommandParser.parse("\t /fx")).contains(new ParsedCommand(Command.FX, ""));
+        assertThat(CommandParser.parse("/stock\t삼성전자")).contains(new ParsedCommand(Command.STOCK, "삼성전자"));
+        assertThat(CommandParser.parse("/stock\u3000삼성전자")).contains(new ParsedCommand(Command.STOCK, "삼성전자"));
+        assertThat(CommandParser.parse("/news 금리\n인하")).contains(new ParsedCommand(Command.NEWS, "금리\n인하"));
+        // 인자 속 NBSP도 보통 공백이 된다 — 뒤 단계의 공백 규칙이 비켜 가지 않게
+        assertThat(CommandParser.parse("/stock 삼성\u00A0전자")).contains(new ParsedCommand(Command.STOCK, "삼성 전자"));
+        // 이름 없는 @ — 명령은 그대로고 부른 봇은 없다
+        assertThat(CommandParser.parse("/fx@")).contains(new ParsedCommand(Command.FX, ""));
+        assertThat(CommandParser.mentionOf("/fx@")).isEmpty();
+        // 명령 없는 @ — 모르는 명령이고, 부른 봇 이름은 읽힌다
+        assertThat(CommandParser.parse("/@bot")).isEmpty();
+        assertThat(CommandParser.isUnknownCommand("/@bot")).isTrue();
+        assertThat(CommandParser.mentionOf("/@bot")).contains("bot");
+        // 첫 @에서만 자른다
+        assertThat(CommandParser.mentionOf("/news@a@b 금리")).contains("a@b");
+        assertThat(CommandParser.parse(null)).isEmpty();
+        assertThat(CommandParser.isUnknownCommand(null)).isFalse();
+        assertThat(CommandParser.mentionOf(null)).isEmpty();
+    }
 }

@@ -20,7 +20,7 @@ class KmaGridTest {
     }
 
     @Test
-    @DisplayName("알람 지역 넷이 모두 격자 안이다 — 오전 6시 알람이 기상청을 타는 조건이다")
+    @DisplayName("알람 지역 넷이 모두 격자 안이다 — 아침 날씨 알람이 기상청을 타는 조건이다")
     void coversTheAlarmLocations() {
         assertThat(KmaGrid.of(KmaFixtures.MIGEUM_LATITUDE, KmaFixtures.MIGEUM_LONGITUDE)).isEqualTo(new KmaGrid(62, 122));
         assertThat(KmaGrid.of(KmaFixtures.SEOHYEON_LATITUDE, KmaFixtures.SEOHYEON_LONGITUDE)).isEqualTo(new KmaGrid(62, 123));

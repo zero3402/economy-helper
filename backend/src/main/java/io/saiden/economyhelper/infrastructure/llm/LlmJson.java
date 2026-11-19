@@ -49,7 +49,7 @@ public final class LlmJson {
         boolean readable;
         try {
             reply = api.generate(prompt);
-            parsed = mapper.readValue(unwrapSingle(mapper, reply), type);
+            parsed = read(mapper, reply, type);
             // usable도 여기 안이다 — 모양이 어긋난 값에 그 판정이 던지는 것도 못 읽은 것이다
             readable = parsed != null && usable.test(parsed);
         } catch (Exception e) {
@@ -65,6 +65,16 @@ public final class LlmJson {
             return Optional.empty();
         }
         return Optional.of(parsed);
+    }
+
+    /**
+     * 받은 글을 {@code type}으로 읽는다 — 배열로 감싸 온 객체 하나({@code [{…}]})는 벗겨서 읽는다.
+     *
+     * <p>{@link #ask}를 쓰지 않는 호출자(관련도·번역)의 자리다. 그쪽은 실패했을 때의 수(전부 통과·원문)가
+     * 제각각이라 <b>읽기만 여기에 맡기고</b> 못 읽은 예외는 각자 받는다.
+     */
+    public static <T> T read(ObjectMapper mapper, String reply, Class<T> type) {
+        return mapper.readValue(unwrapSingle(mapper, reply), type);
     }
 
     /**

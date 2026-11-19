@@ -121,7 +121,7 @@ class TelegramWebhookControllerTest {
     @DisplayName("/fx는 출처를 함께 알린다 — 폴백이 일어난 걸 숨기면 거짓말이 된다")
     void routesFxCommandWithSource() {
         RecordingTelegram client = new RecordingTelegram();
-        FxRate kexim = new FxRate("USD", "KRW", new Price(new BigDecimal("1415")), FxSource.KEXIM, NOW);
+        FxRate kexim = new FxRate(new Price(new BigDecimal("1415")), null, FxSource.KEXIM, NOW);
         var controller = defaultController(
                 facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.of(kexim)),
                 stock(Optional.empty()), client);
@@ -295,7 +295,7 @@ class TelegramWebhookControllerTest {
     @DisplayName("/fx 답에 차트가 따라간다 — 글이 먼저, 사진이 나중")
     void sendsAChartWithTheFxAnswer() {
         RecordingTelegram client = new RecordingTelegram();
-        FxRate rate = new FxRate("USD", "KRW", new Price(new BigDecimal("1412.17")), FxSource.KIS, NOW);
+        FxRate rate = new FxRate(new Price(new BigDecimal("1412.17")), null, FxSource.KIS, NOW);
         var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()),
                 fxWithSeries(rate, bars("1398.20", "1412.17")),
                 stock(Optional.empty()), client);
@@ -412,7 +412,7 @@ class TelegramWebhookControllerTest {
             @Override
             public Optional<FxRate> usdToKrw() {
                 fxStarted.countDown();
-                return Optional.of(new FxRate("USD", "KRW", new Price(new BigDecimal("1415")),
+                return Optional.of(new FxRate(new Price(new BigDecimal("1415")), null,
                         FxSource.KEXIM, NOW));
             }
         };
@@ -494,7 +494,7 @@ class TelegramWebhookControllerTest {
     @DisplayName("일봉 조회가 던져도 값은 나간다 — 차트는 보충이지 폴백이 아니다")
     void stillAnswersWhenTheChartFails() {
         RecordingTelegram client = new RecordingTelegram();
-        FxRate rate = new FxRate("USD", "KRW", new Price(new BigDecimal("1412.17")), FxSource.KIS, NOW);
+        FxRate rate = new FxRate(new Price(new BigDecimal("1412.17")), null, FxSource.KIS, NOW);
         var controller = defaultController(facade(Optional.empty()), crypto(Optional.empty()),
                 // series가 null이면 dailyBars()가 던진다 — 실제로 Frankfurter가 죽었을 때 그렇다.
                 // ⚠️ 환율 차트는 이중화가 없다: 시세는 KIS로 폴백하는데 일봉은 Frankfurter뿐이다
@@ -652,7 +652,7 @@ class TelegramWebhookControllerTest {
         var controller = defaultController(
                 facade(Optional.empty()), crypto(Optional.empty()), fx(Optional.empty()), stock(Optional.empty()), new RecordingTelegram());
 
-        assertThat(controller.onUpdate(null,new Update(null)).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(controller.onUpdate(null, new Update(null, null)).getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(controller.onUpdate(null,null).getStatusCode()).isEqualTo(HttpStatus.OK);
     }
 
@@ -948,7 +948,7 @@ class TelegramWebhookControllerTest {
     private static final int MESSAGE_ID = 4821;
 
     private static Update update(long chatId, Integer topicId, String text) {
-        return new Update(new Message(new Chat(chatId), text, MESSAGE_ID, topicId));
+        return new Update(null, new Message(new Chat(chatId), text, MESSAGE_ID, topicId));
     }
 
     private static NewsItem item(String title) {
@@ -983,7 +983,7 @@ class TelegramWebhookControllerTest {
         @Override
         public Optional<FxRate> usdToKrw() {
             calls++;
-            return Optional.of(new FxRate("USD", "KRW", new Price(new BigDecimal("1412.17")),
+            return Optional.of(new FxRate(new Price(new BigDecimal("1412.17")), null,
                     io.saiden.economyhelper.fx.domain.FxSource.KIS, NOW));
         }
     }

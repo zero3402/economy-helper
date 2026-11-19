@@ -26,14 +26,14 @@ import org.junit.jupiter.api.Test;
  *
  * <p>그 창은 <b>테스트마다 서버를 새로 띄우는 모양에서만</b> 열린다. 그래서 규칙이 하나다 —
  * 서버는 {@code @BeforeAll}에서 한 번 띄우고, 테스트 사이에는 {@code resetAll()}로 상태만
- * 되돌린다. {@code docs/testing.md}가 그 규칙과 그 실패 기록이다.
+ * 되돌린다. 테스트 {@code AGENTS.md}가 그 규칙과 그 실패 기록이다.
  *
  * <p><b>왜 사람이 아니라 테스트가 보는가.</b> 이 결함은 <b>간헐적</b>이라 리뷰에서 안 보이고,
  * 새 클라이언트 테스트를 쓰는 사람은 옆 파일을 베낀다. 서버 수명주기는
  * {@code testsupport.WireMockTest} 한 곳에 있으므로 규칙은 「상속하라」이고, 세는 것도 「상속하는 파일」이다.
  *
- * <p><b>허용 목록을 두지 않는다</b> — 손으로 적은 예외 목록은 낡는다. {@code @Test} 본문에서
- * 서버를 만드는 것은 그대로 통과한다({@code BinanceApiTest}의 미러 — 「이 테스트만의 서버」가 곧 단언의 일부다).
+ * <p><b>허용 목록을 두지 않는다</b> — 손으로 적은 예외 목록은 낡는다. 상속하지 않는 파일이 제 서버를
+ * 만들 수 있는 자리는 {@code @BeforeAll}뿐이다({@code BinanceApiTest}의 미러가 그렇게 둘째 서버를 띄운다).
  *
  * <p>⚠️ <b>이 그물이 정말 무는지 확인할 때는 {@code --rerun-tasks}를 붙일 것.</b> 그레이들이
  * {@code :test}를 UP-TO-DATE로 넘기면 옛 모양으로 되돌려도 <b>초록이 그대로 나온다</b>.
@@ -61,7 +61,7 @@ class WireMockLifecycleTest {
     private static final Set<String> SELF = Set.of("WireMockLifecycleTest.java", "WireMockTest.java");
 
     @Test
-    @DisplayName("WireMock을 쓰는 테스트는 WireMockTest를 상속하거나 @Test 안에서만 제 서버를 만든다")
+    @DisplayName("WireMock을 쓰는 테스트는 WireMockTest를 상속하고, 제 서버는 @BeforeAll에서만 만든다")
     void everyWireMockUserInheritsThePerClassServer() throws IOException {
         List<Path> files;
         try (Stream<Path> walk = Files.walk(TESTS)) {
@@ -104,7 +104,7 @@ class WireMockLifecycleTest {
         assertThat(offenders)
                 .as("서버는 WireMockTest가 @BeforeAll에서 한 번 띄운다. 새 클라이언트 테스트는 그것을 상속할 것 "
                         + "(선례: RetryLiveTest · HackerNewsApiTest · FmpUsOutlookClientTest). "
-                        + "@Test 본문 안의 서버(BinanceApiTest 미러)만 예외다")
+                        + "제 서버가 더 필요하면 @BeforeAll에서 만든다(BinanceApiTest 미러)")
                 .isEmpty();
     }
 

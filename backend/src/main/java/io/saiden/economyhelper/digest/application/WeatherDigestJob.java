@@ -178,22 +178,31 @@ public class WeatherDigestJob extends TriggerableJob {
             return DigestResult.deferred(claim.id(), failed);
         }
 
+        return deliver(claim, collected, failed);
+    }
+
+    /**
+     * 모은 날씨를 한 통으로 보내고 결과를 정한다 — <b>닿지 못했으면 슬롯을 되돌리고, 닿았는지 모르면 잡은 채 둔다.</b>
+     *
+     * @param failed 수집에서 빠진 지역들. 발송이 실패하면 그 사유가 여기 더해진다
+     */
+    private DigestResult deliver(DigestSlot.Claim claim, List<Weather> collected, List<DigestResult.Failure> failed) {
         DigestNotifier.Delivery delivery = notifier.send(new DigestMessage.WeatherAlarm(collected));
-        if (delivery.failure() != null) {
-            failed.add(DigestResult.Failure.of("날씨", delivery.failure()));
-            if (delivery.uncertain()) {
-                // 텔레그램이 받았을 수 있다 — 되돌리면 다음 틱에 같은 알람이 또 간다. 잡은 채 두고 사람에게 남긴다
-                log.error("[weather] {} 슬롯 발송 결과를 모릅니다 — 중복을 피해 슬롯을 잡은 채 둡니다: {}",
-                        claim.id(), delivery.failure().toString());
-                return DigestResult.uncertain(claim.id(), failed);
-            }
-            // 한 통짜리라 닿지 못한 실패면 아무것도 안 나갔다
-            slot.release(claim);
-            log.error("[weather] {} 슬롯 발송 실패: {}", claim.id(), delivery.failure().toString());
-            return DigestResult.allFailed(claim.id(), failed);
+        if (delivery.failure() == null) {
+            log.info("[weather] {} 슬롯 발송 완료 — {}곳 (실패 {})", claim.id(), collected.size(), failed);
+            return DigestResult.completed(claim.id(), List.of("날씨"), failed);
         }
-        log.info("[weather] {} 슬롯 발송 완료 — {}곳 (실패 {})", claim.id(), collected.size(), failed);
-        return DigestResult.completed(claim.id(), List.of("날씨"), failed);
+        failed.add(DigestResult.Failure.of("날씨", delivery.failure()));
+        if (delivery.uncertain()) {
+            // 텔레그램이 받았을 수 있다 — 되돌리면 다음 틱에 같은 알람이 또 간다. 잡은 채 두고 사람에게 남긴다
+            log.error("[weather] {} 슬롯 발송 결과를 모릅니다 — 중복을 피해 슬롯을 잡은 채 둡니다: {}",
+                    claim.id(), delivery.failure().toString());
+            return DigestResult.uncertain(claim.id(), failed);
+        }
+        // 한 통짜리라 닿지 못한 실패면 아무것도 안 나갔다
+        slot.release(claim);
+        log.error("[weather] {} 슬롯 발송 실패: {}", claim.id(), delivery.failure().toString());
+        return DigestResult.allFailed(claim.id(), failed);
     }
 
     /**

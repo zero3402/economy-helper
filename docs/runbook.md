@@ -109,7 +109,7 @@ TAG=sha-abc1234 docker compose -f docker-compose.prod.yml up -d
 
 - Redis도 함께 뜬다.
 - 액추에이터(8081)는 `127.0.0.1`에만 열린다. `/actuator/digest`는 구독자 전원에게 즉시 발송하는 버튼이라 공개하면 안 된다.
-- 이미지를 ARM용으로도 만드는 이유: 배포 후보인 Oracle Cloud Always Free가 ARM(Ampere)이다.
+- 이미지를 ARM용으로도 만드는 이유: ARM 호스트(Oracle Cloud Always Free의 Ampere 등)로 옮겨도 다시 굽지 않기 위해서다.
 
 ### CI
 
@@ -132,7 +132,7 @@ TAG=sha-abc1234 docker compose -f docker-compose.prod.yml up -d
 | 제약 | 대응 |
 |---|---|
 | 15분 동안 요청이 없으면 잠든다 | `SELF_PING_URL`을 주면 앱이 10분마다 자기 자신을 호출한다(`SelfPing`). ⚠️ 반드시 공개 주소여야 한다 — `localhost`는 잠들기 타이머를 초기화하지 못한다 |
-| 포트를 하나만 열 수 있다 | `PORT`와 `MANAGEMENT_PORT`를 같은 값으로 주고, `digest`·`weather` 엔드포인트를 공개 목록에서 뺀다 |
+| 포트를 하나만 열 수 있다 | `PORT`와 `MANAGEMENT_PORT`를 같은 값으로 주고, 쓰기 엔드포인트(`digest`·`weather`·`caches`·`evict`)를 공개 목록에서 뺀다 |
 | Key Value(Redis)가 메모리 전용이다 | 재시작하면 발송 기록이 사라질 수 있다. 발송 시간대를 두 시간으로 좁혀 피해를 줄였다. 중복을 완전히 없애려면 영속 Redis로 `REDIS_*`만 바꾼다 |
 | 한 달 750 인스턴스-시간 (워크스페이스 전체) | 24시간 × 31일 = 744시간, 여유 6시간뿐이다. **무료 웹 서비스는 이것 하나만 둔다** |
 
@@ -148,7 +148,7 @@ TAG=sha-abc1234 docker compose -f docker-compose.prod.yml up -d
 | 변수 | 값 | 주의할 점 |
 |---|---|---|
 | `PORT` · `MANAGEMENT_PORT` | 포트를 하나만 여는 호스트면 **같은 값**(예: 8080) | 액추에이터가 같은 포트로 합쳐진다 |
-| `MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE` | `health,info,metrics` | 포트를 합칠 때는 **`digest`·`weather`를 뺀다** — 안 빼면 누구나 발송 버튼을 누를 수 있다 |
+| `MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE` | `health,info,metrics` | 포트를 합칠 때는 **쓰기 엔드포인트(`digest`·`weather`·`caches`·`evict`)를 뺀다** — 안 빼면 누구나 발송 버튼을 누르고 캐시를 비워 한도를 태울 수 있다 |
 | `TELEGRAM_WEBHOOK_SECRET` | `openssl rand -hex 32` | 웹훅의 유일한 잠금장치. `setWebhook`의 `secret_token`과 같아야 한다 |
 | `TELEGRAM_CHAT_ID` | 그룹 ID | 다른 방의 명령은 무시한다. 그룹이 슈퍼그룹으로 바뀌면 ID도 바뀐다 |
 | `TELEGRAM_NOTICE_TOPIC_ID` · `TELEGRAM_SEARCH_TOPIC_ID` | 토픽 번호 | 포럼(토픽) 그룹일 때만. [아래](#포럼토픽-그룹) 참고 |
@@ -156,7 +156,7 @@ TAG=sha-abc1234 docker compose -f docker-compose.prod.yml up -d
 | `DATA_API_KEY` | data.go.kr 일반 인증키 | 주식·ETF 2순위와 기상청 1순위가 같이 쓴다. **활용신청은 API마다 따로** 해야 한다 — 안 한 API는 403 `SERVICE_KEY_IS_NOT_REGISTERED_ERROR` |
 | `ACCU_API_KEY` | AccuWeather 키 | 국외 날씨 1순위·국내 2순위. 비우면 Open-Meteo가 대신한다 |
 | `MASSIVE_API_KEY` | Polygon 무료 키 | 미국 배당 출처. 변수 이름과 발급처 이름이 다르니 주의. 없으면 미국 배당 줄만 빠진다 |
-| `REDIS_HOST` · `REDIS_PORT` · `REDIS_PASSWORD` · `REDIS_SSL` | 관리형 Redis 접속 정보 | |
+| `REDIS_HOST` · `REDIS_PORT` · `REDIS_USERNAME` · `REDIS_PASSWORD` · `REDIS_SSL` | 관리형 Redis 접속 정보 | 기본값은 로컬 Redis다 — 바꿀 때만 준다 |
 | `SELF_PING_URL` | `${RENDER_EXTERNAL_URL}/actuator/health/liveness` | 잠들지 않는 호스트면 비운다 |
 | `TZ` | `Asia/Seoul` | 이미지 기본값이지만 명시한다 |
 
@@ -217,7 +217,7 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST "$SERVICE_URL/telegram/webhook"
 | 항목 하나 | `DELETE /actuator/evict?name=…&key=…` — `name`과 `key` **둘 다** 필요하다. 하나만 주면 `{"evicted":false}` |
 | 캐시 하나 전체 | `DELETE /actuator/caches/{이름}` (Spring Boot 기본 기능) |
 
-- 전망 캐시(`us-outlook` · `kis-outlook` · `us-dividend`)는 TTL 12시간이고 판 번호(버전)를 붙이지 않는다. 그래서 필드를 새로 추가해 배포하면 최대 12시간 동안 옛 항목이 그 칸을 빈 채로 보여 준다. 기다리면 풀리고, 바로 보려면 그 캐시만 비운다.
+- 전망 캐시(`us-outlook-v2` · `kis-outlook-v2` · `us-dividend`)는 TTL 12시간이다. 담는 모양이 바뀔 때만 판 번호(버전)를 올린다([design.md 4.2](design.md#42-캐시)) — 올리지 않고 필드를 새로 추가해 배포하면 최대 12시간 동안 옛 항목이 그 칸을 빈 채로 보여 준다. 기다리면 풀리고, 바로 보려면 그 캐시만 비운다.
 - ⚠️ 캐시를 비우면 다음 조회가 API 한도를 다시 쓴다. 미국 종목은 심볼마다 FMP 2회 + Polygon 1회, 국내 종목은 종목마다 KIS 1~2초가 든다.
 - ⚠️ **KIS 토큰(`kis:token`)과 운영 캐시 삭제는 사람의 확인을 받는다.** 토큰은 1분에 한 번만 발급된다.
 

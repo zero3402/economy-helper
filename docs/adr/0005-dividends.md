@@ -25,7 +25,7 @@
    - **기준일과 지급일을 각각 따로 고르지 않는다.** 그러면 지급일이 기준일보다 앞서는 메시지가 나온다.
 3. 앞으로 올 기준일을 먼저 찾고, 없으면 지급만 남은 건을 고른다. 고른 건 안에서도 지난 날짜는 적지 않는다.
 4. **앞으로 올 배당이 없으면 지난 건을 보여 주고 라벨에 그렇게 쓴다** — `지난 배당기준일` · `지난 배당지급일` · `지난 배당금`. 세 줄 모두 붙인다(한 줄만 따로 읽어도 뜻이 통해야 한다).
-5. **「오늘」은 그 시장의 달력으로 자른다**(미국 `America/New_York`, 국내 `Asia/Seoul`). 전망 캐시 셋(`kis-outlook` · `us-outlook` · `us-dividend`)은 그 시장의 자정을 넘기지 않는다(`UntilMidnightTtl`).
+5. **「오늘」은 그 시장의 달력으로 자른다**(미국 `America/New_York`, 국내 `Asia/Seoul`). 전망 캐시 셋(`CacheNames`의 `KIS_OUTLOOK` · `US_OUTLOOK` · `US_DIVIDEND`)은 그 시장의 자정을 넘기지 않는다(`UntilMidnightTtl`).
 6. **세 줄은 각각 빠질 수 있다.** 미정 값(`"0"` · `""`)은 값이 아니다. 빈 답은 `Dividend.none()`으로 캐시에 담는다.
 7. **국내 — 예탁원 배당일정**(`/uapi/domestic-stock/v1/ksdinfo/dividend`, `HHKDB669102C0`)
    - 배열 이름은 `output1`.

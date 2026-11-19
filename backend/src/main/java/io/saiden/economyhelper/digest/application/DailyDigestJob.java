@@ -189,7 +189,7 @@ public class DailyDigestJob extends TriggerableJob {
                     return rate == null ? null : new DigestMessage.Fx(rate);
                 }, () -> List.of(chartOf("환율", "KRW", fxService::dailyBars))),
                 // ⚠️ 글과 차트가 조회를 **한 번만** 나눠 쓴다. 따로 부르면 증시 통 하나가 KIS를
-                //    시세 9회 + 일봉 8회(호출 사이 1초) 쓰는 사이 1분 시세 캐시가 식어 호출을 다시
+                //    시세와 일봉으로 따로(호출 사이 1초) 쓰는 사이 1분 시세 캐시가 식어 호출을 다시
                 //    태우고, 글의 값과 차트 캡션이 서로 다른 조회에서 온다
                 section("증시", () -> {
                     List<StockService.Answer> kr = domestic.get();

@@ -9,10 +9,9 @@ version = '0.0.1-SNAPSHOT'
 
 java {
 	toolchain {
-		// 21이어야 하는 이유는 가상 스레드다. 외부 호출(피드 5 + HN + Gemini 10)이 전부
-		// 순차라 브리핑 한 번이 1분을 넘었는데, 이 호출들은 계산이 아니라 기다림이라
-		// 스레드를 늘리는 것만으로 줄어든다. 플랫폼 스레드 풀을 손으로 관리하는 대신
-		// Executors.newVirtualThreadPerTaskExecutor()를 쓴다.
+		// 21이어야 하는 이유는 가상 스레드다. 브리핑의 외부 호출(피드·HN·Gemini·시세)은
+		// 계산이 아니라 기다림이라 스레드를 늘리는 것만으로 줄어든다. 플랫폼 스레드 풀을
+		// 손으로 관리하는 대신 Executors.newVirtualThreadPerTaskExecutor()를 쓴다.
 		languageVersion = JavaLanguageVersion.of(21)
 	}
 }
@@ -47,10 +46,10 @@ dependencies {
 	// RSS/Atom 파싱 — 매체마다 형식 변형이 있어 관대한 파서가 필요하다
 	implementation "com.rometools:rome:${romeVersion}"
 
-	// 피드 소스별 / 번역 / 텔레그램 각각에 서킷브레이커를 건다
+	// 출처마다 서킷브레이커·재시도·리미터를 건다(src/main/resources/application.yml)
 	implementation "io.github.resilience4j:resilience4j-spring-boot4:${resilience4jVersion}"
 
-	// replicas 2에서 09/21시 정기 발송이 두 번 나가는 것을 막는다
+	// 인스턴스가 둘 이상일 때 정기 발송(브리핑·날씨 알람)이 두 번 나가는 것을 막는다
 	implementation "net.javacrumbs.shedlock:shedlock-spring:${shedlockVersion}"
 	implementation "net.javacrumbs.shedlock:shedlock-provider-redis-spring:${shedlockVersion}"
 
@@ -74,7 +73,7 @@ tasks.named('test') {
 	useJUnitPlatform()
 
 	// 대부분이 외부 호출 없는 단위 테스트라 서로 기다릴 이유가 없다(개수는 적지 않는다 —
-	// docs/testing.md가 그 이유를 적어 뒀다. 여기 적힌 숫자가 이미 한 번 낡았다).
+	// docs/testing.md가 그 이유를 적어 뒀다).
 	// 절반만 쓰는 이유는 WireMock·Testcontainers가 포트와 도커를 잡기 때문이다 —
 	// 코어를 다 쓰면 그쪽이 먼저 흔들린다.
 	maxParallelForks = Math.max(1, (int) (Runtime.runtime.availableProcessors() / 2))

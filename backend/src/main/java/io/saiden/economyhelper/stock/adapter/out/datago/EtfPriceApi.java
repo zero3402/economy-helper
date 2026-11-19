@@ -94,8 +94,8 @@ public class EtfPriceApi {
             new ParameterizedTypeReference<>() {};
 
     /**
-     * 주식 응답과 다른 점은 {@code srtnCd}를 <b>읽는다</b>는 것 하나다 — 코드 필터가 무시되는지
-     * 우리가 확인해야 해서다. 화면으로 나가는 것은 {@link #toStockPrice}가 옮긴 다섯 값뿐이다.
+     * 주식 응답({@code StockPriceApi.StockRow})과 같은 모양이다. {@code srtnCd}를 읽는 것은 코드 필터가
+     * 무시되는지 우리가 확인해야 해서다. 화면으로 나가는 것은 {@link #toStockPrice}가 옮긴 다섯 값뿐이다.
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     record EtfPrice(String basDt, String srtnCd, String itmsNm, String clpr, String fltRt,

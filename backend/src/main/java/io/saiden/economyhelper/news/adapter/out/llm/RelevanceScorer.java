@@ -3,14 +3,21 @@ package io.saiden.economyhelper.news.adapter.out.llm;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.saiden.economyhelper.config.CacheNames;
 import io.saiden.economyhelper.infrastructure.llm.GeminiApi;
+import io.saiden.economyhelper.infrastructure.llm.LlmJson;
 import io.saiden.economyhelper.news.application.port.out.RelevanceJudge;
 import io.saiden.economyhelper.news.domain.Article;
 import io.saiden.economyhelper.news.domain.PopularityScorer;
 import io.saiden.economyhelper.shared.support.FailureReason;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.function.IntFunction;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.slf4j.Logger;
@@ -30,7 +37,7 @@ import tools.jackson.databind.ObjectMapper;
  *
  * <p><b>비용을 어떻게 통제하는가.</b> 기사 전체(최대 ~200건)를 하나씩 물으면 무료 티어를 태운다.
  * 호출자가 <b>로컬 점수로 후보를 좁혀</b> 넘기고, 여기서 <b>한 번에 묶어</b> 묻는다 —
- * 매체당 1회이고 정기 발송이 하루 한 번이라 이걸로 충분하다.
+ * 브리핑은 전 매체의 후보를 모아 한 번, 검색은 검색어 하나에 한 번이다.
  *
  * <p><b>실패하면 전부 통과시킨다</b>({@link #passAll}). 후보 자체가 이미 금융 섹션 기사라
  * 걸러내지 않아도 엉뚱한 기사가 1위가 되지는 않는다.
@@ -94,14 +101,14 @@ public class RelevanceScorer implements RelevanceJudge {
     /**
      * 후보들의 관련도를 한 번에 매긴다.
      *
-     * <p>배치 전체를 캐시한다 — 같은 기사 묶음이면 같은 키다. 피드 캐시가 10분이라
+     * <p>배치 전체를 캐시한다 — 링크와 제목이 같은 묶음이면 같은 키다({@link #fingerprintOf}). 피드 캐시가 10분이라
      * 그 안에 발송을 다시 트리거해도 Gemini를 또 부르지 않는다. 기사별로 캐시하면
      * 배치가 쪼개져 호출 수가 늘어난다.
      *
      * @return 기사 링크 → 0~1. 실패해도 예외를 던지지 않는다 — 발송이 멈추면 안 된다
      */
     @Override
-    @Cacheable(cacheNames = CacheNames.RELEVANCE, key = "#candidates.![link]", unless = UNLESS)
+    @Cacheable(cacheNames = CacheNames.RELEVANCE, key = KEY, unless = UNLESS)
     public Map<String, Double> scoreAll(List<Article> candidates) {
         return score(candidates, size -> PROMPT.formatted(size, titlesOf(candidates)),
                 "재테크 관련도");
@@ -119,8 +126,7 @@ public class RelevanceScorer implements RelevanceJudge {
      * 검색어와 후보 목록이 같으면 캐시가 받는다.
      */
     @Override
-    @Cacheable(cacheNames = CacheNames.RELEVANCE, key = "#query + '|' + #candidates.![link]",
-            unless = UNLESS)
+    @Cacheable(cacheNames = CacheNames.RELEVANCE, key = SEARCH_KEY, unless = UNLESS)
     public Map<String, Double> scoreAll(List<Article> candidates, String query) {
         return score(candidates, size -> SEARCH_PROMPT.formatted(query, size, titlesOf(candidates)),
                 "'" + query + "' 관련도");
@@ -146,7 +152,7 @@ public class RelevanceScorer implements RelevanceJudge {
     }
 
     private Map<String, Double> byLlm(List<Article> candidates, String prompt) {
-        Scores parsed = objectMapper.readValue(api.generate(prompt), Scores.class);
+        Scores parsed = LlmJson.read(objectMapper, api.generate(prompt), Scores.class);
 
         if (parsed == null || parsed.scores() == null || parsed.scores().size() != candidates.size()) {
             // 개수가 어긋나면 어느 점수가 어느 기사인지 알 수 없다. 짝을 잘못 맞추느니 폴백이 낫다
@@ -175,6 +181,47 @@ public class RelevanceScorer implements RelevanceJudge {
             byLink.put(article.link(), 1.0);
         }
         return byLink;
+    }
+
+    private static final String SELF = "T(io.saiden.economyhelper.news.adapter.out.llm.RelevanceScorer)";
+
+    /** 재테크 관련도의 캐시 키 — {@link #fingerprintOf}. */
+    static final String KEY = "'finance|' + " + SELF + ".fingerprintOf(#candidates)";
+
+    /** 검색 관련도의 캐시 키 — 접은 검색어({@link #foldedQuery}) + {@link #fingerprintOf}. */
+    static final String SEARCH_KEY = "'search|' + " + SELF + ".foldedQuery(#query) + '|' + "
+            + SELF + ".fingerprintOf(#candidates)";
+
+    private static final Pattern SPACES = Pattern.compile("\\s+");
+
+    /**
+     * 후보 묶음의 지문 — <b>링크와 제목</b>을 순서대로 넣는다.
+     *
+     * <p>채점하는 것은 제목이다. 링크만 넣으면 매체가 같은 URL 아래 제목을 고쳤을 때(Yahoo·CNBC가 그런다)
+     * 옛 제목의 점수가 새 제목에 TTL 내내 붙는다 — 틀린 값이다({@code NewsFacade.requestOf}가 번역 키에
+     * 지문을 넣는 것과 같은 이유). 판 번호는 안 올린다 — 담는 값의 모양은 그대로이고, 옛 키(링크 목록)는
+     * 새 키와 겹치지 않아 아무도 안 읽은 채 TTL 뒤 사라진다.
+     */
+    public static String fingerprintOf(List<Article> candidates) {
+        MessageDigest sha256;
+        try {
+            sha256 = MessageDigest.getInstance("SHA-256");
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256을 지원하지 않는 JVM입니다", e);
+        }
+        for (Article candidate : candidates) {
+            sha256.update((candidate.link() + "\n" + candidate.title() + "\n").getBytes(StandardCharsets.UTF_8));
+        }
+        return HexFormat.of().formatHex(sha256.digest(), 0, 16);
+    }
+
+    /**
+     * 검색어를 키에 넣을 모양으로 — <b>대소문자와 공백만</b> 접는다.
+     *
+     * <p>⚠️ 기호는 지우지 않는다. 지우면 {@code S&P}와 {@code SP}가 한 키가 되어 남의 점수를 받는다.
+     */
+    public static String foldedQuery(String query) {
+        return SPACES.matcher(query.strip().toLowerCase(Locale.ROOT)).replaceAll(" ");
     }
 
     /**

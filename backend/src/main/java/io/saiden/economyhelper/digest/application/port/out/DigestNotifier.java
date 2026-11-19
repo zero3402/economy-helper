@@ -24,10 +24,6 @@ public interface DigestNotifier {
     Delivery send(DigestMessage message, List<DigestMessage.Chart> charts, Runnable onDelivered,
                   Runnable onUncertain);
 
-    default Delivery send(DigestMessage message, List<DigestMessage.Chart> charts, Runnable onDelivered) {
-        return send(message, charts, onDelivered, () -> { });
-    }
-
     default Delivery send(DigestMessage message) {
         return send(message, List.of(), () -> { }, () -> { });
     }

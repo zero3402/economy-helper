@@ -48,11 +48,11 @@ public record GeoLocation(String name, String country,
      * 들어가기 때문이다. 담을 때 정하면 파생된 표기가 캐시에 굳어 규칙을 고쳐도 안 따라온다.
      * 매번 만들면 규칙을 고치는 순간 옛 항목까지 함께 낫는다(docs/design.md 4.2 「긴 TTL 캐시가 고침보다 오래 산다」).
      *
-     * @param queried 지오코딩에 넘긴 지명. 비어 있으면 바꾸지 않는다
+     * @param queried 지오코딩에 넘긴 지명. 한글이 없으면 바꾸지 않는다 — 확정된 이름을 사용자 철자({@code tokyo})로 덮지 않는다
      */
     public GeoLocation labelledFor(String queried) {
         // 한글이 한 글자라도 있으면 한글 표기로 본다 — 섞여 와도 그렇다
-        if (QueryNormalizer.hasHangul(name) || queried == null || queried.isBlank()) {
+        if (QueryNormalizer.hasHangul(name) || queried == null || !QueryNormalizer.hasHangul(queried)) {
             return this;
         }
         return new GeoLocation(queried.strip(), country, latitude, longitude, zone);

@@ -78,19 +78,10 @@ public class WeatherFacade {
     }
 
     private Lookup lookup(String query) {
-        // 친 그대로 넘긴다 — 캐시 키는 해석기가 다듬는다(PlaceResolver)
-        Optional<ResolvedPlace> resolved;
-        boolean resolverDown = false;
-        try {
-            resolved = resolver.resolve(query);
-        } catch (RuntimeException e) {
-            // 해석기(LlmJson.Failed)나 거기 걸린 @Cacheable 프록시가 던졌다 — 원문 지오코딩은 그래도 해 본다
-            log.warn("[weather] '{}' 해석 실패 — 원문으로 찾습니다: {}", query, FailureReason.of(e));
-            resolved = Optional.empty();
-            resolverDown = true;
-        }
+        Resolution resolution = resolve(query);
+        Optional<ResolvedPlace> resolved = resolution.resolved();
 
-        if (resolverDown && saysWhen(query)) {
+        if (resolution.resolverDown() && saysWhen(query)) {
             // ⚠️ 원문 지오코딩이 지명을 찾더라도 답하지 않는다 — 「미금 내일」의 「내일」을 펼 해석기가 없어
             //    오늘 예보가 나간다. 묻지 않은 날의 값은 틀린 값이고, 틀린 값은 빈칸보다 나쁘다
             log.warn("[weather] '{}'에 날짜·기간이 있는데 해석기가 죽어 펼 수 없습니다 — 잠시 후 다시", query);
@@ -98,35 +89,67 @@ public class WeatherFacade {
         }
 
         Optional<GeoLocation> place = locate(query, resolved.orElse(null));
-        if (place.isEmpty() && resolverDown) {
+        if (place.isEmpty()) {
+            return placeMissing(resolution);
+        }
+        return forecastAt(place.get(), resolved.orElse(null));
+    }
+
+    /**
+     * 해석 한 번의 결과.
+     *
+     * @param resolved     해석기가 읽은 것. 못 읽었거나 해석기가 죽었으면 비어 있다
+     * @param resolverDown 해석기가 <b>고장으로</b> 못 읽었나 — 「특정하지 못했다」와 다르다
+     */
+    private record Resolution(Optional<ResolvedPlace> resolved, boolean resolverDown) {}
+
+    /** 친 그대로 해석기에 넘긴다(캐시 키는 해석기가 다듬는다 — {@code PlaceResolver}). 고장이면 그 사실을 함께 돌려준다. */
+    private Resolution resolve(String query) {
+        try {
+            return new Resolution(resolver.resolve(query), false);
+        } catch (RuntimeException e) {
+            // 해석기(LlmJson.Failed)나 거기 걸린 @Cacheable 프록시가 던졌다 — 원문 지오코딩은 그래도 해 본다
+            log.warn("[weather] '{}' 해석 실패 — 원문으로 찾습니다: {}", query, FailureReason.of(e));
+            return new Resolution(Optional.empty(), true);
+        }
+    }
+
+    /** 지점을 못 정했을 때의 답 — 「잠시 후 다시」·「지역을 적어 주세요」·「찾지 못했다」를 가른다. */
+    private static Lookup placeMissing(Resolution resolution) {
+        if (resolution.resolverDown()) {
             // ⚠️ 「찾지 못했다」가 아니다 — 살아 있는 해석기라면 「서현역 내일」에서 「서현역」을 떼어 물었다.
             //    못 찾음으로 답하면 사용자가 다시 묻지 않는다(실물 감사 2026-10-14, Gemini 503 중)
             return Lookup.unavailable();
         }
-        if (place.isEmpty()) {
-            // ⚠️ 둘을 반드시 가른다. '내일 서현'처럼 지역을 적었는데 못 찾은 경우까지
-            // "지역을 적어 주세요"로 답하면, 이미 적은 사용자에게 적으라고 하는 꼴이 된다.
-            // LLM이 지역을 못 읽었을 때만 물어본다
-            return resolved.isPresent() && !resolved.get().hasPlace()
-                    ? Lookup.noPlace()
-                    : Lookup.notFound();
-        }
+        // ⚠️ 둘을 반드시 가른다. '내일 서현'처럼 지역을 적었는데 못 찾은 경우까지
+        // "지역을 적어 주세요"로 답하면, 이미 적은 사용자에게 적으라고 하는 꼴이 된다.
+        // LLM이 지역을 못 읽었을 때만 물어본다
+        Optional<ResolvedPlace> resolved = resolution.resolved();
+        return resolved.isPresent() && !resolved.get().hasPlace()
+                ? Lookup.noPlace()
+                : Lookup.notFound();
+    }
 
+    /**
+     * 정해진 지점의 예보 — 기간을 펴고, 못 펴거나 예보가 닿지 않으면 그렇게 답한다.
+     *
+     * @param resolved 해석기가 읽은 것. 없으면({@code null}) 오늘 하루치다
+     */
+    private Lookup forecastAt(GeoLocation place, ResolvedPlace resolved) {
         // 그 지역의 오늘은 한 번만 잰다 — 자정을 걸친 조회가 날짜마다 다른 「오늘」을 쓰지 않게
-        LocalDate today = weatherService.today(place.get());
+        LocalDate today = weatherService.today(place);
 
         // 날짜를 적었는데 우리가 못 폈으면 그렇게 말한다(ResolvedPlace.mentionsDate)
-        if (resolved.isPresent() && resolved.get().mentionsDate()
-                && dateOf(today, resolved.get()) == null) {
+        if (resolved != null && resolved.mentionsDate() && dateOf(today, resolved) == null) {
             return Lookup.unreadableDate();
         }
 
-        WeatherPeriod period = periodOf(today, resolved.orElse(null));
+        WeatherPeriod period = periodOf(today, resolved);
         if (period.beyondForecast(today)) {
             // 빈손으로 두지 않고 며칠까지 되는지 밝힌다
             return Lookup.tooFarAhead();
         }
-        return weatherService.forecast(place.get(), period, today)
+        return weatherService.forecast(place, period, today)
                 .map(weather -> Lookup.found(List.of(weather)))
                 .orElseGet(Lookup::unavailable);
     }
@@ -141,7 +164,7 @@ public class WeatherFacade {
         if (resolved != null && resolved.hasPlace()) {
             String asked = resolved.query().trim();
             Optional<GeoLocation> byResolved =
-                    geocoding.find(asked, resolved.countryCode())
+                    geocoding.find(asked, resolved.country())
                             // 로마자로 온 이름을 물어본 한국어 지명으로 바꾼다. 지오코딩이
                             // 담을 때가 아니라 여기서 하는 이유는 그 결과가 30일 캐시에
                             // 들어가기 때문이다 — GeoLocation.labelledFor javadoc 참고

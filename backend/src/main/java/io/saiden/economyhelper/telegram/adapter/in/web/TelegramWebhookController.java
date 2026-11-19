@@ -51,7 +51,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 텔레그램 웹훅 수신 — 명령({@link Command})을 받아 답한다.
  *
- * <p><b>어떤 경우에도 200을 돌려준다.</b> 텔레그램은 비-200을 받으면 같은 업데이트를
+ * <p><b>처리가 어떻게 끝나든 200을 돌려준다</b>(시크릿 토큰이 다를 때만 403이다). 텔레그램은 비-200을 받으면 같은 업데이트를
  * 계속 재전송하는데, 우리 쪽 오류로 재시도 폭풍이 나면 복구가 더 어려워진다.
  * 실패는 사용자에게 메시지로 알리고 로그에 남긴다.
  *
@@ -504,13 +504,7 @@ public class TelegramWebhookController {
      * @param updateId 텔레그램이 업데이트마다 매기는 번호 — 재전송을 가리는 열쇠다({@link ProcessedUpdates})
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Update(@JsonProperty("update_id") Long updateId, Message message) {
-
-        /** 번호 없는 업데이트 — 테스트가 명령 하나를 보낼 때 쓴다. */
-        public Update(Message message) {
-            this(null, message);
-        }
-    }
+    public record Update(@JsonProperty("update_id") Long updateId, Message message) {}
 
     /**
      * <b>{@code @JsonProperty}가 필요하다.</b> 이 프로젝트는 전역 snake_case 전략을 쓰지 않아

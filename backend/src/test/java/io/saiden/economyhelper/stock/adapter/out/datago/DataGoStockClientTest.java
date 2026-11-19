@@ -145,6 +145,17 @@ class DataGoStockClientTest {
         assertThat(quote.currency()).isEqualTo(StockQuote.Money.NONE);
     }
 
+    @Test
+    @DisplayName("기준일이 없는 지수 행은 제 이름으로 실패한다 — 어느 날의 종가인지 모르는 값은 내지 않는다")
+    void failsByNameWhenTheIndexRowHasNoBasisDate() {
+        RecordingIndexApi indices = new RecordingIndexApi(
+                new MarketIndex(null, "코스피", "6345.53", "0.42"));
+
+        assertThatThrownBy(() -> client(Map.of(), indices).index(new Index("코스피", "0001")))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("기준일");
+    }
+
     // --- ETF는 다른 API다 ---
 
     private static final List<StockPrice> TIME_NASDAQ =

@@ -2,7 +2,6 @@ package io.saiden.economyhelper.stock.domain;
 
 import io.saiden.economyhelper.shared.domain.Price;
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
@@ -25,22 +24,14 @@ import java.util.Objects;
  * @param targetPrice  목표주가. 통화는 {@link StockQuote#currency()}를 따른다. 목표가 {@code 0}은 값이 아니라
  *                     {@link Price#of}가 걸러 {@code null}이 된다
  * @param dividend     다음 배당(기준일·지급일·배당금). 두 시장 다 있다 — 없으면 {@code null}
- * @param source       조회처. 시세 출처와 다를 수 있어 화면이 따로 밝힌다
- * @param at           조회 시각
  */
-public record StockOutlook(LocalDate earningsDate, Price targetPrice, Dividend dividend,
-                           StockSource source, Instant at) {
-
-    /** 아무 값도 없는 전망 — 테스트와 「전망을 묻지 않는」 자리가 쓴다. */
-    public static final StockOutlook NONE = new StockOutlook(null, null, null, null, null);
+public record StockOutlook(LocalDate earningsDate, Price targetPrice, Dividend dividend) {
 
     /**
-     * 「이 출처가 이 시각에 물었는데 아무것도 없었다」 — <b>값이다.</b> {@code Optional.empty()}는 스프링이
+     * 「물었는데 아무것도 없었다」 — <b>값이다.</b> {@code Optional.empty()}는 스프링이
      * {@code null}로 벗겨 캐시에 못 담아 전망 없는 종목마다 상대를 다시 부른다. 빈 값 객체는 담긴다.
      */
-    public static StockOutlook none(StockSource source, Instant at) {
-        return new StockOutlook(null, null, null, source, at);
-    }
+    public static final StockOutlook NONE = new StockOutlook(null, null, null);
 
     /** 하나도 못 구했으면 붙일 것이 없다 — 그때는 아예 안 붙인다. */
     public boolean isEmpty() {

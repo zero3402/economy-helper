@@ -63,7 +63,7 @@ public class OpenMeteoHourlyClient implements HourlyPrecipitationClient {
     @Retry(name = "weatherOpenMeteoHourly")
     @CircuitBreaker(name = "weatherOpenMeteoHourly")
     public Map<LocalDate, List<HalfDay>> halves(GeoLocation place, WeatherPeriod period) {
-        return OpenMeteoRequest.hourly(restClient, "/v1/forecast",
+        return OpenMeteoRequest.hourly(restClient, OpenMeteoRequest.FORECAST_PATH,
                 OpenMeteoRequest.FORECAST_HOURLY_FIELDS, place, period);
     }
 }

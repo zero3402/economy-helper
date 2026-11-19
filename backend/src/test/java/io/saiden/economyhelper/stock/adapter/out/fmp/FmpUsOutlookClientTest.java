@@ -116,9 +116,8 @@ class FmpUsOutlookClientTest extends WireMockTest {
 
         StockOutlook outlook = client().outlook("ORCL");
 
+        assertThat(outlook).as("null이 아니라 빈 값 객체다 — 값이라 캐시된다").isNotNull();
         assertThat(outlook.isEmpty()).isTrue();
-        assertThat(outlook.source()).as("빈 값도 조회처와 시각을 든다 — 값이라 캐시된다")
-                .isEqualTo(io.saiden.economyhelper.stock.domain.StockSource.FMP);
     }
 
     @Test

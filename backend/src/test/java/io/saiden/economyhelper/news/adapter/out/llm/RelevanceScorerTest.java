@@ -63,6 +63,17 @@ class RelevanceScorerTest {
     }
 
     @Test
+    @DisplayName("객체를 배열로 감싸 온 답도 읽는다 — Gemini가 가끔 [{…}]로 주고, 못 읽으면 전부 통과가 된다")
+    void readsAnAnswerWrappedInAnArray() {
+        RecordingApi api = new RecordingApi("[{\"scores\":[0.95,0.1,0.8]}]");
+
+        Map<String, Double> scores = new RelevanceScorer(api, MAPPER).scoreAll(CANDIDATES);
+
+        assertThat(scores.get("https://example.com/1")).isEqualTo(0.1);
+        assertThat(unless(scores)).as("진짜 점수다 — 대체값이 아니다").isFalse();
+    }
+
+    @Test
     @DisplayName("응답 개수가 다르면 폴백한다 — 짝을 잘못 맞추면 엉뚱한 기사가 1위가 된다")
     void fallsBackWhenCountMismatches() {
         RecordingApi api = new RecordingApi("{\"scores\":[0.9,0.1]}");   // 3개인데 2개만 왔다
@@ -94,6 +105,40 @@ class RelevanceScorerTest {
     void cachesRealScores() {
         assertThat(unless(Map.of("https://a", 0.9))).isFalse();
         assertThat(unless(Map.of())).isTrue();
+    }
+
+    @Test
+    @DisplayName("같은 링크라도 제목이 바뀌면 키가 바뀐다 — 채점한 것은 제목이라 옛 점수를 새 제목에 달면 틀린 값이다")
+    void keysOnTheTitleNotOnlyTheLink() {
+        List<Article> edited = List.of(
+                article(0, "Fed signals caution on rate cuts"),
+                article(1, "Airport queues ease as EU border checks settle"),
+                article(2, "Dollar strength pressures emerging markets"));
+
+        assertThat(key(RelevanceScorer.KEY, CANDIDATES, null))
+                .isEqualTo(key(RelevanceScorer.KEY, List.copyOf(CANDIDATES), null))
+                .isNotEqualTo(key(RelevanceScorer.KEY, edited, null));
+    }
+
+    @Test
+    @DisplayName("검색 키는 검색어의 대소문자·공백만 접는다 — 기호는 지키고(S&P ≠ SP) 재테크 채점 키와 섞이지 않는다")
+    void foldsOnlyCaseAndSpacesOfTheQuery() {
+        assertThat(key(RelevanceScorer.SEARCH_KEY, CANDIDATES, " Rate  Cuts "))
+                .isEqualTo(key(RelevanceScorer.SEARCH_KEY, CANDIDATES, "rate cuts"))
+                .isNotEqualTo(key(RelevanceScorer.SEARCH_KEY, CANDIDATES, "ratecuts"))
+                .isNotEqualTo(key(RelevanceScorer.KEY, CANDIDATES, null));
+        assertThat(key(RelevanceScorer.SEARCH_KEY, CANDIDATES, "S&P"))
+                .isNotEqualTo(key(RelevanceScorer.SEARCH_KEY, CANDIDATES, "SP"));
+    }
+
+    /** {@code @Cacheable(key = ...)}를 스프링이 평가하는 그대로 — 식이 틀리면 여기서 깨진다. */
+    private static Object key(String expression, List<Article> candidates, String query) {
+        org.springframework.expression.spel.support.StandardEvaluationContext context =
+                new org.springframework.expression.spel.support.StandardEvaluationContext();
+        context.setVariable("candidates", candidates);
+        context.setVariable("query", query);
+        return new org.springframework.expression.spel.standard.SpelExpressionParser()
+                .parseExpression(expression).getValue(context);
     }
 
     /** {@code @Cacheable(unless = ...)}를 스프링이 평가하는 그대로 — 중첩 클래스 이름이 틀리면 여기서 깨진다. */

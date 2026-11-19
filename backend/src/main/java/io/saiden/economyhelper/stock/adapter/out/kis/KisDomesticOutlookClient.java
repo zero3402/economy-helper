@@ -12,7 +12,6 @@ import io.saiden.economyhelper.shared.support.Fetched;
 import io.saiden.economyhelper.stock.application.port.out.DomesticOutlookClient;
 import io.saiden.economyhelper.stock.domain.StockOutlook.Dividend;
 import io.saiden.economyhelper.stock.domain.StockOutlook;
-import io.saiden.economyhelper.stock.domain.StockSource;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -76,7 +75,7 @@ import org.springframework.stereotype.Component;
  *       연속조회({@code tr_cont=M})는 일어나지 않는다(실측 {@code E})
  * </ul>
  *
- * <p>⚠️ <b>종목당 KIS 호출이 둘이 됐다</b> — 간격 1초가 하나 더 든다. 12시간 캐시({@code kis-outlook})가
+ * <p>⚠️ <b>종목당 KIS 호출이 둘이 됐다</b> — 간격 1초가 하나 더 든다. 12시간 캐시({@code CacheNames.KIS_OUTLOOK})가
  * 그 대가의 방어이고, 브리핑의 국내 종목 둘은 첫 조회에 2초를 더 낸다.
  *
  * <p>⚠️ <b>ETF·ETN에는 투자의견만 건너뛴다 — 배당은 묻는다.</b> 색인이 알려 준 종목에 목표가를 물으면
@@ -195,14 +194,14 @@ public class KisDomesticOutlookClient implements DomesticOutlookClient {
         }
         // 비어도 돌려준다 — 값이라 캐시된다(ETF·ETN이 늘 그렇다).
         // 실적발표일은 어느 엔드포인트도 주지 않는다. 국내에 무료 출처가 없어 null로 남고, 화면은 그 줄을 안 적는다
-        return new StockOutlook(null, target.value(), dividend.value(), StockSource.KIS, clock.instant());
+        return new StockOutlook(null, target.value(), dividend.value());
     }
 
     /** 증권사별 최신 발표를 접은 평균 목표가 — 발표한 곳이 없으면 {@code null}. */
     private Price targetOf(String code) {
         Opinions response = kis.get(Opinions.class, OPINION_TR_ID, code + " 투자의견", uriBuilder -> uriBuilder
                 .path(OPINION_PATH)
-                .queryParam("FID_COND_MRKT_DIV_CODE", "J")
+                .queryParam("FID_COND_MRKT_DIV_CODE", KisStockApi.KRX_STOCK)
                 .queryParam("FID_COND_SCR_DIV_CODE", SCREEN_DIV)
                 .queryParam("FID_INPUT_ISCD", code)
                 .queryParam("FID_INPUT_DATE_1", KisHeaders.daysAgo(clock, OPINION_LOOKBACK_DAYS))

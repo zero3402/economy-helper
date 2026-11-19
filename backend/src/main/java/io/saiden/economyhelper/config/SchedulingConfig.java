@@ -11,8 +11,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 /**
  * 정기 발송 스케줄과 분산 락.
  *
- * <p>{@code AGENTS.md}의 이중화 요구(replicas 2) 때문에 필요하다 — 스케줄러는 모든
- * 인스턴스에서 똑같이 09시에 깨어난다. 락이 없으면 구독자는 같은 뉴스를 두 번 받는다.
+ * <p>인스턴스가 둘 이상이면 필요하다 — 스케줄러는 모든 인스턴스에서 같은 시각에 깨어난다. 락이 없으면 구독자는 같은 뉴스를 두 번 받는다.
  *
  * <p>{@code defaultLockAtMostFor}는 <b>인스턴스가 락을 쥔 채 죽었을 때</b>의 안전장치다.
  * 이 시간이 지나면 락이 강제로 풀린다. 잡의 최악 실행 시간(피드 수집 + 번역 + KIS 간격 대기)보다

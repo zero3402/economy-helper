@@ -26,11 +26,11 @@ public class TranslationService {
 
     private static final Logger log = LoggerFactory.getLogger(TranslationService.class);
 
-    private final Translator gemini;
+    private final Translator translator;
     private final TranslationCache cache;
 
-    public TranslationService(Translator gemini, TranslationCache cache) {
-        this.gemini = gemini;
+    public TranslationService(Translator translator, TranslationCache cache) {
+        this.translator = translator;
         this.cache = cache;
     }
 
@@ -73,7 +73,7 @@ public class TranslationService {
     /** 실패는 여기서 값으로 바꾼다 — 미스가 원문으로 내려갈 뿐 발송은 멈추지 않는다. */
     private List<Translation> translateMisses(List<TranslationRequest> misses) {
         try {
-            return gemini.translateAll(misses);
+            return translator.translateAll(misses);
         } catch (Exception e) {
             log.warn("[translate] {}건 묶음 번역 실패 — 원문 그대로 내보냅니다: {}",
                     misses.size(), FailureReason.of(e));

@@ -17,7 +17,7 @@ final class KmaFixtures {
 
     static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
 
-    // 알람 지역 넷 — 전부 국내이므로 오전 6시 알람이 기상청을 탄다
+    // 알람 지역 넷 — 전부 국내이므로 아침 날씨 알람이 기상청을 탄다
     static final double MIGEUM_LATITUDE = 37.35;
     static final double MIGEUM_LONGITUDE = 127.10889;
     static final double SEOHYEON_LATITUDE = 37.3851167;

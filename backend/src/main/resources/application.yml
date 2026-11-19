@@ -63,7 +63,7 @@ management:
       show-details: when-authorized
 
 economy-helper:
-  # 출처마다 타임아웃을 따로 준다. 전역 하나(spring.http.clients, 위)로는 스물셋을 못 맞춘다 —
+  # 출처마다 타임아웃을 따로 준다. 전역 하나(spring.http.clients, 위)로는 출처 전부를 못 맞춘다 —
   # 실측 p50이 업비트 37ms에서 FMP 1.7초까지 벌어지고, Gemini는 조회가 아니라 생성이다.
   #
   # ⚠️ **키가 호스트다.** 출처 이름이 아니다. Boot 4에는 손으로 만든 RestClient용 이름별
@@ -108,8 +108,8 @@ economy-helper:
     - host: archive-api.open-meteo.com       # 970ms
       connect: 3s
       read: 6s
-    # 키·한도 있는 조회 — read만 15초에서 좁혔다. 효과가 가장 큰 칸이다: 브리핑의 KIS 9회가
-    # 최악 135초 → 90초, 환율 3단 완전 장애가 45초 → 23초(10+3+10).
+    # 키·한도 있는 조회 — read만 15초에서 좁혔다. 효과가 가장 큰 칸이다: 브리핑의 KIS 호출이
+    # 호출당 최악 15초 → 10초, 환율 3단 완전 장애가 45초 → 23초(10+3+10).
     # ⚠️ 이 아래로는 못 내린다. KIS가 **잘못된 키를 거절하는 데** 2.2~3.5초를 쓴다
     #    (실측 2026-08-20, 웜 커넥션 3회: 3.55s · 2.26s · 2.45s).
     - host: openapivts.koreainvestment.com   # 모의
@@ -313,7 +313,7 @@ economy-helper:
     # 창이 없으면 저장소가 오후에 비었을 때 "오늘 안 보냄"으로 보여 브리핑을 다시 쏜다.
     cron: "0 0/10 9-10 * * *"
     # 지수는 종목코드가 없어 이름으로 쓴다. 값(List 원소)이라 한글이어도 안전하다 —
-    # relaxed binding이 한글을 걸러내는 건 Map "키"일 때뿐이다(6단계에서 별칭 표가 그렇게 사라졌다).
+    # relaxed binding이 한글을 걸러내는 건 Map "키"일 때뿐이다.
     # 출처마다 조회 키가 다르다 — 공공데이터포털은 이름으로만 찾고 한국투자증권은 이름을
     # 못 받는다(업종코드를 요구한다). 그래서 둘을 함께 든다.
     # ⚠️ 이 목록은 /stock 검색의 KIS 대응표도 겸한다. 여기 없는 지수는 검색에서 2순위로 간다.
@@ -433,13 +433,13 @@ economy-helper:
       # 지명 검색. AccuWeather 지점 검색은 지명이 아니라 좌표를 받아, 이쪽도 이중화 상대가 없다.
       geocoding-base-url: https://geocoding-api.open-meteo.com
 
-  # 시크릿은 환경변수로만 주입한다. 로컬은 backend/.env(gitignore), Phase 3는 k8s Secret.
+  # 시크릿은 환경변수로만 주입한다. 로컬은 backend/.env(gitignore), 배포는 플랫폼의 시크릿 설정.
   # 저장소에 값을 넣으면 지운 뒤에도 git 이력에 영원히 남는다.
   translation:
     gemini:
       api-key: ${GEMINI_API_KEY:}
       # 버전을 고정하지 않고 별칭을 쓴다. gemini-2.5-flash-lite로 고정했다가
-      # "no longer available to new users" 404를 맞았다(8단계에서 실제로 겪음) —
+      # "no longer available to new users" 404를 맞았다(실제로 겪음) —
       # 무료 티어 모델은 조용히 은퇴한다. 별칭은 품질이 조금 바뀔 수 있지만 죽지는 않고,
       # 바뀌어도 폴백(원문 그대로)이 받쳐 준다.
       model: gemini-flash-lite-latest
@@ -468,7 +468,7 @@ economy-helper:
     data-go:
       # 공공데이터포털 — 금융위원회 주식시세정보. 국내(KOSPI·KOSDAQ·KONEX)만 다룬다.
       # ⚠️ 발급된 키는 이미 URL 인코딩된 형태다. 다시 인코딩하면 403 "등록되지 않은 서비스키"가 난다
-      #    (StockPriceApi가 URI를 직접 조립하는 이유다).
+      #    (DataGoRequest가 URI를 직접 조립하는 이유다).
       base-url: https://apis.data.go.kr
       api-key: ${DATA_API_KEY:}
 
@@ -529,7 +529,7 @@ economy-helper:
       #    상대 쪽 요동이므로, 실전으로 옮기더라도 간격만 깎아서는 얻을 것이 없다.
       min-interval: 1s
       # 줄 서는 것까지 이 시간을 넘기면 기다리지 않고 던진다(옛 리미터의 timeoutDuration).
-      # 브리핑이 KIS를 9번 연달아 부르므로 마지막 호출이 ~8초를 기다린다 — 넉넉해야 한다.
+      # 브리핑이 KIS를 연달아 부르므로 뒤쪽 호출은 여러 초를 기다린다 — 넉넉해야 한다.
       max-wait: 20s
       # 미국 지수의 KIS 심볼. ^IXIC → COMP 같은 규칙이 없어 이 표가 유일한 길이다.
       # ⚠️ 종목과 달리 지수는 탐색할 수 없다. 표에 없으면 2순위(FMP)가 맡는다 —
@@ -654,8 +654,8 @@ resilience4j:
         # 밴이 최소 2분이다. 기본 60초로는 아직 밴인 상태에서 반쯤 열려 다시 찌른다 —
         # 그 찌름이 밴을 연장하므로 밴 최소치보다 길게 잡는다
         waitDurationInOpenState: 150s
-      # 환율은 출처별로 따로 연다. 하나로 묶으면 토스 장애가 수출입은행까지 끊어
-      # docs/design.md 1절이 목표로 한 이중화가 성립하지 않는다.
+      # 환율은 출처별로 따로 연다. 하나로 묶으면 한 출처의 장애가 다른 출처까지 끊어
+      # 이중화(docs/design.md 4.1)가 성립하지 않는다.
       fxFrankfurter:
         baseConfig: default
       fxKexim:
@@ -667,7 +667,7 @@ resilience4j:
       #    (1) KisThrottle$Congested — 우리가 스스로 건 간격 문이 거절한 것이다. 위 default
       #        블록이 RequestNotPermitted를 빼 둔 이유가 바로 이것인데, **KIS는 그 리미터를
       #        걷어내고 KisThrottle로 바꿨다** — 그 순간 거절이 맨 IllegalStateException이 되어
-      #        보호에서 조용히 빠졌다. 브리핑이 KIS를 9번 연달아 부르는 동안 사용자의 /stock
+      #        보호에서 조용히 빠졌다. 브리핑이 KIS를 연달아 부르는 동안 사용자의 /stock
       #        하나가 max-wait(20s)를 넘겨 밀리면 그것이 상대 장애로 기록된다.
       #    (2) KisStockApi$Unsupported — 업종코드가 없는 지수, KIS 해외 표에 없는 심볼이다.
       #        같은 입력이면 영원히 같은 실패이고, **HTTP 호출조차 없이** 난다 — 상대를
@@ -694,8 +694,8 @@ resilience4j:
       #    예보에서 가른 것과 **똑같은 자리**다 — 전망은 보충이고(실패해도 그 줄만 빠진다) 시세는
       #    답 자체다. 한 브레이커면 보충의 실패가 쌓여 열리는 순간 **국내 시세가 전일 종가로 강등되고
       #    미국 시세는 2순위(FMP)가 대부분 402라 통째로 빈손**이 된다 — 「보충이 폴백을 죽이는」 모양이다.
-      #    배당일정(예탁원정보)이 붙어 이 브레이커에 걸린 엔드포인트가 여섯에서 일곱이 됐고,
-      #    새것은 시세와 **다른 KIS 계열**이라 장애도 따로 온다.
+      #    배당일정(예탁원정보)도 이 브레이커에 걸리는데, 그쪽은 시세와 **다른 KIS 계열**이라
+      #    장애도 따로 온다.
       # ⚠️ ignoreExceptions는 configs.default의 것을 **덮으므로** 둘을 다시 적는다.
       #    Unsupported는 없다 — 그건 미국 시세 경로가 「KIS가 모르는 심볼」에 쓰는 타입이다
       kisOutlook:
@@ -759,7 +759,7 @@ resilience4j:
       # 열려 멀쩡한 지오코딩이 60초 끊긴다 — 바이낸스가 미상장 심볼의 400을 빼는 것과 같다.
       # ⚠️ 한동안 HttpClientErrorException **통째**를 뺐다 — 저장소의 마지막 「4xx 한 덩이」였고,
       #    그러면 429·403이 브레이커를 절대 못 열어 물러서지 못한다. 바이낸스가 418·429를 세게
-      #    고친 그 사고(docs/design.md 6)의 재현 조건이었다. 400만 좁은 타입으로 뺀다
+      #    고친 그 사고(ADR-0008)의 재현 조건이었다. 400만 좁은 타입으로 뺀다
       weatherGeocoding:
         baseConfig: default
         # ⚠️ 아래 목록이 configs.default의 것을 덮어쓴다 — 위 default 블록 주석 참조
@@ -769,11 +769,11 @@ resilience4j:
   # 재시도 — **폴백이 없거나 한도가 없는 곳에만** 건다.
   #
   # 규칙 하나로 압축하면: **한도가 있으면 안 걸고, 다음 출처가 있으면 안 걸고, 실패가 영구인
-  # 게 흔하면 안 건다.** 아래 여덟이 그 셋 다 아니다. 안 거는 이유는 instances 끝에 적었다.
+  # 게 흔하면 안 건다.** 아래 인스턴스들이 그 셋 다 아니다. 안 거는 이유는 instances 끝에 적었다.
   #
   # ⚠️ configs.default가 없으면 ratelimiter보다 나쁜 함정이다. 선언 없는 인스턴스는 라이브러리
   #    기본값(3회 · 500ms · **모든 예외 재시도**)으로 만들어진다. 리미터는 아무것도 막지 않는
-  #    쪽으로 조용히 망가졌지만(met.no가 그 상태였다) 이쪽은 **우리 잘못(4xx)까지 세 번 부르는**
+  #    쪽으로 조용히 망가지지만 이쪽은 **우리 잘못(4xx)까지 세 번 부르는**
   #    쪽으로 망가진다. 그래서 default를 먼저 적고 전부 baseConfig로 물려받는다.
   #
   # ⚠️ 애스펙트 order는 적지 않는다 — 기본값이 이미 원하는 순서다: 재시도(LOWEST_PRECEDENCE-5) ⊃
@@ -816,7 +816,7 @@ resilience4j:
           #    순간 재시도가 즉시 멈춘다 — 그게 원하는 것이다
           - io.github.resilience4j.circuitbreaker.CallNotPermittedException
     instances:
-      # ── 이중화 상대가 없는 곳 셋. 재시도가 가장 값을 하는 자리다 ──
+      # ── 이중화 상대가 없는 곳들. 재시도가 가장 값을 하는 자리다 ──
       # 지오코딩은 AccuWeather 지점 검색이 좌표를 받아 이중화 상대가 아예 없다.
       # /weather 검색의 첫 단계라 여기가 죽으면 그 명령이 통째로 빈손이다. 키도 한도도 없다
       weatherGeocoding:
@@ -887,12 +887,12 @@ resilience4j:
       # 매체 하나가 곧 출처 하나다 — 빠지면 그 매체가 브리핑 후보에서 통째로 사라진다.
       # 키도 한도도 없고 캐시가 10분이다. 실측 최대 1.5초(BBC는 콜드 DNS가 1.3초).
       # ⚠️ 애너테이션이 아니다. 이유가 둘이고 브레이커의 것과 다르다 — 브레이커는 이름이
-      #    매체별이어야 해서이고, 재시도는 fetch()가 예외를 스스로 삼켜 빈 목록을 주므로
-      #    @Retry를 달아도 **발동조차 하지 않기** 때문이다
+      #    매체별이어야 해서이고, 재시도는 fetch()가 실패를 ArticleFeed.Unavailable로 감싸기 **전에**
+      #    돌아야 해서다 — @Retry를 달면 감싼 예외를 보게 되어 무시 목록(열린 브레이커)이 먹지 않는다
       feed:
         baseConfig: default
         waitDuration: 500ms
-      # ⚠️ 여기 **없는** 출처가 아홉이고, 없는 이유가 이 설계의 절반이다 —
+      # ⚠️ 여기 **없는** 출처가 여럿이고, 없는 이유가 이 설계의 절반이다 —
       #    KIS(주식·환율·토큰) · FMP · AccuWeather · 수출입은행 · 공공데이터포털 ·
       #    Gemini · Hacker News. 규칙 하나로: **한도가 있으면 안 걸고, 다음 출처가 있으면
       #    안 걸고, 실패가 영구인 게 흔하면 안 건다.** 출처별 근거는 docs/design.md 4.4의
@@ -905,7 +905,7 @@ resilience4j:
         limitForPeriod: 12
         limitRefreshPeriod: 60s
         # 허가가 날 때까지 기다린다. 짧게 잡으면 거절이 곧 실패가 되는데, 그 실패는 언제나
-        # 번역 쪽으로 떨어진다 — 관련도 채점(매체당 1회)이 먼저 줄을 서고 번역이 그 뒤라서다.
+        # 번역 쪽으로 떨어진다 — 관련도 채점이 먼저 줄을 서고 번역이 그 뒤라서다.
         # 브리핑은 백그라운드이고 /news도 이미 수 초를 기다리므로, 몇 초 더 기다리는 편이
         # 영문 원문으로 강등되는 것보다 낫다.
         timeoutDuration: 20s

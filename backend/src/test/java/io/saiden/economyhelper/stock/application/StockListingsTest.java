@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.saiden.economyhelper.stock.domain.Listing;
+import io.saiden.economyhelper.testsupport.ServiceStubs;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -30,7 +31,7 @@ class StockListingsTest {
     private static final Listing TIME_NASDAQ_BOND =
             new Listing("0019K0", "TIME 미국나스닥100채권혼합50액티브", "EF", 5597);
 
-    private static final StockListings LISTINGS = new StockListings(() -> List.of(
+    private static final StockListings LISTINGS = ServiceStubs.listingsOf(() -> List.of(
             SAMSUNG, SAMSUNG_PREFERRED, NAVER, TIGER_NASDAQ, KODEX_NASDAQ, TIME_NASDAQ, TIME_NASDAQ_BOND));
 
     @Test
@@ -135,7 +136,7 @@ class StockListingsTest {
     @DisplayName("수명이 0이면 부를 때마다 읽는다 — 테스트가 목록을 바꿔 가며 쓰는 길이다")
     void reloadsEveryTimeWithoutALifetime() {
         AtomicInteger loads = new AtomicInteger();
-        StockListings listings = new StockListings(() -> {
+        StockListings listings = ServiceStubs.listingsOf(() -> {
             loads.incrementAndGet();
             return List.of(SAMSUNG);
         });

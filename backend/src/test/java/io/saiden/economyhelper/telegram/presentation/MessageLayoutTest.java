@@ -71,7 +71,7 @@ class MessageLayoutTest {
     @Test
     @DisplayName("krw는 1원 미만만 소수를 남긴다 — 원화에 소수점을 적을 일이 없다")
     void krwKeepsDecimalsOnlyBelowOneWon() {
-        FxRate fx = new FxRate("USD", "KRW", new Price(new BigDecimal("1412.17")), FxSource.KIS,
+        FxRate fx = new FxRate(new Price(new BigDecimal("1412.17")), null, FxSource.KIS,
                 Instant.parse("2026-08-25T00:00:00Z"));
 
         assertThat(MessageLayout.krw(new BigDecimal("232.14"), fx))

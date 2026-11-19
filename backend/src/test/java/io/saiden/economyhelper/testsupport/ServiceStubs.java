@@ -10,6 +10,7 @@ import io.saiden.economyhelper.news.domain.NewsItem;
 import io.saiden.economyhelper.shared.domain.DailyBar;
 import io.saiden.economyhelper.stock.application.StockListings;
 import io.saiden.economyhelper.stock.application.StockService;
+import io.saiden.economyhelper.stock.application.port.out.ListingSource;
 import io.saiden.economyhelper.stock.domain.StockOutlook;
 import io.saiden.economyhelper.stock.domain.StockQuote;
 import java.time.Clock;
@@ -35,6 +36,11 @@ public final class ServiceStubs {
             Clock.fixed(Instant.parse("2026-08-11T00:00:00Z"), ZoneOffset.UTC);
 
     private ServiceStubs() {
+    }
+
+    /** 종목 색인 — 사본을 두지 않아 물을 때마다 {@code source}를 다시 읽는다. 테스트가 목록을 직접 준다. */
+    public static StockListings listingsOf(ListingSource source) {
+        return new StockListings(source, Duration.ZERO, Clock.systemUTC());
     }
 
     // --- 환율 ---------------------------------------------------------------
@@ -84,7 +90,7 @@ public final class ServiceStubs {
                     name -> {
                         throw new AssertionError("가짜가 덮지 않은 경로가 이름 검색을 불렀습니다: " + name);
                     },
-                    new StockListings(List::of),
+                    listingsOf(List::of),
                     query -> {
                         throw new AssertionError("가짜가 덮지 않은 경로가 LLM 해석을 불렀습니다: " + query);
                     },

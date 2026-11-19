@@ -20,7 +20,7 @@ package io.saiden.economyhelper.weather.domain;
  * {@link #UNKNOWN}으로 떨어지고 화면에는 그 줄만 빠진다 — 아무 날씨나 골라 찍는 것보다 낫다.
  *
  * <p>⚠️ <b>선언 순서가 곧 심각도다</b> — {@code WeatherSource}에서 「선언 순서가 곧 이중화
- * 순서」인 것과 같은 자리이고, 여기는 그것을 적지 않고 있었다. 두 곳이 {@code compareTo}로
+ * 순서」인 것과 같은 자리다. 두 곳이 {@code compareTo}로
  * 이 순서를 읽는다: {@code Weather.Daily.skyAgreeingWith}가 요약을 반나절 쪽으로 <b>올릴</b> 때
  * {@code max}를 쓰고, {@code HalfDays.skyOf}가 같은 횟수일 때 뒤쪽을 고른다.
  *

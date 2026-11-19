@@ -191,38 +191,50 @@ public class StockService {
         boolean resolverDown = outages.any();
 
         if (resolved.filter(ResolvedStock::isUs).isPresent()) {
-            Optional<Answer> found = outages.attempt(() -> usAnswer(resolved.get()));
-            if (found.isPresent()) {
-                return found;
-            }
-            // LLM이 US라고는 했는데 티커를 못 냈거나 그 티커가 시세에 없다.
-            // 국내가 코드 → 이름 → 원문으로 세 번 시도하는 것과 같은 자리다.
-            // ⚠️ 국내 상장을 US로 잘못 읽었을 수도 있다 — 이름이 딱 맞는 국내 상장만 받는다
-            return outages.settle(outages.attempt(() -> usByTicker(query, forms, resolved.get().code()))
-                    .or(() -> outages.attempt(() -> byExactListing(resolved.get().name(), forms))));
+            return usOrFallback(resolved.get(), query, forms, outages);
         }
-        // 국내 지수는 조회가 통째로 다르다 — 종목코드가 없고 시가총액도 없다
         if (resolved.filter(ResolvedStock::isIndex).isPresent()) {
-            // 업종코드는 비워 보낸다. 설정에 있는 지수면 KIS가 제 표에서 채우고,
-            // 없으면 이름으로 찾는 2순위가 맡는다 — LLM에게 지수코드를 지어내게 두지 않는다.
-            // 목표주가는 없다(낼 주체가 없다). 차트는 붙는다 — 열쇠가 그 이름이다
-            // ⚠️ 이름 없는 지수 해석은 조회할 열쇠가 없다. 그대로 넘기면 KIS 표 조회가 null 키로
-            //    NPE를 kisStock 브레이커 안에서 던져 HTTP 없이 실패가 쌓인다(Unsupported가 막으려던 모양)
-            String name = resolved.get().name();
-            Optional<Answer> byIndex = resolved.get().hasName()
-                    ? outages.attempt(() -> indexAnswer(name))
-                    : Optional.empty();
-            // ⚠️ 여기서 무조건 돌려주면 한 방향 문이 된다 — LLM이 ETF를 INDEX로 잘못 읽으면(「코덱스 코스피」)
-            //    국내 지수 조회가 빈손인 채로 끝난다. 다만 부분일치로는 받지 않는다: 지수 장애 중에
-            //    「코스피」가 「KODEX 코스피」 ETF로 바뀌어 나가면 틀린 값이다
-            return outages.settle(byIndex
-                    .or(() -> outages.attempt(() -> byExactListing(name, forms)))
-                    .or(() -> outages.attempt(() -> usByTicker(query, forms, null))));
+            return indexOrFallback(resolved.get(), query, forms, outages);
         }
         Optional<Answer> found = search(resolved, forms, query, outages, resolverDown);
         // ⚠️ 국내 이름 검색까지 다 빈손이다. 원문이 미국 티커 모양이면 한 번 더 —
         //    LLM이 죽거나 거절해도 사용자가 친 글자로 찾을 수 있어야 한다
         return outages.settle(found.isPresent() ? found : outages.attempt(() -> usByTicker(query, forms, null)));
+    }
+
+    /** 해석이 미국 종목일 때 — 그 티커로 묻고, 빈손이면 원문 티커 → 이름이 딱 맞는 국내 상장 순으로 내려간다. */
+    private Optional<Answer> usOrFallback(ResolvedStock us, String query, List<String> forms, Outages outages) {
+        Optional<Answer> found = outages.attempt(() -> usAnswer(us));
+        if (found.isPresent()) {
+            return found;
+        }
+        // LLM이 US라고는 했는데 티커를 못 냈거나 그 티커가 시세에 없다.
+        // 국내가 코드 → 이름 → 원문으로 세 번 시도하는 것과 같은 자리다.
+        // ⚠️ 국내 상장을 US로 잘못 읽었을 수도 있다 — 이름이 딱 맞는 국내 상장만 받는다
+        return outages.settle(outages.attempt(() -> usByTicker(query, forms, us.code()))
+                .or(() -> outages.attempt(() -> byExactListing(us.name(), forms))));
+    }
+
+    /**
+     * 해석이 국내 지수일 때 — 조회가 통째로 다르다(종목코드가 없고 시가총액도 없다).
+     *
+     * <p>업종코드는 비워 보낸다. 설정에 있는 지수면 KIS가 제 표에서 채우고, 없으면 이름으로 찾는 2순위가 맡는다 —
+     * LLM에게 지수코드를 지어내게 두지 않는다. 목표주가는 없다(낼 주체가 없다). 차트는 붙는다 — 열쇠가 그 이름이다.
+     */
+    private Optional<Answer> indexOrFallback(ResolvedStock index, String query, List<String> forms,
+                                             Outages outages) {
+        // ⚠️ 이름 없는 지수 해석은 조회할 열쇠가 없다. 그대로 넘기면 KIS 표 조회가 null 키로
+        //    NPE를 kisStock 브레이커 안에서 던져 HTTP 없이 실패가 쌓인다(Unsupported가 막으려던 모양)
+        String name = index.name();
+        Optional<Answer> byIndex = index.hasName()
+                ? outages.attempt(() -> indexAnswer(name))
+                : Optional.empty();
+        // ⚠️ 여기서 무조건 돌려주면 한 방향 문이 된다 — LLM이 ETF를 INDEX로 잘못 읽으면(「코덱스 코스피」)
+        //    국내 지수 조회가 빈손인 채로 끝난다. 다만 부분일치로는 받지 않는다: 지수 장애 중에
+        //    「코스피」가 「KODEX 코스피」 ETF로 바뀌어 나가면 틀린 값이다
+        return outages.settle(byIndex
+                .or(() -> outages.attempt(() -> byExactListing(name, forms)))
+                .or(() -> outages.attempt(() -> usByTicker(query, forms, null))));
     }
 
     /**
@@ -330,37 +342,50 @@ public class StockService {
     private Optional<Answer> search(Optional<ResolvedStock> resolved, List<String> forms, String query,
                                     Outages outages, boolean exactOnly) {
         if (resolved.isPresent()) {
-            ResolvedStock found = resolved.get();
-            CodeTrust trust = codeTrust(found);
-            boolean codeFirst = trust == CodeTrust.AGREES;
-            if (codeFirst && found.hasCode()) {
-                Optional<Answer> byCode = outages.attempt(() -> stockAnswer(found.code()));
-                if (byCode.isPresent()) {
-                    return byCode;
-                }
-                log.info("[stock] LLM이 준 코드 {}가 시세에 없습니다 — 이름으로 다시 찾습니다", found.code());
-            }
-            if (found.hasName()) {
-                // ⚠️ 코드가 **일반 종목**을 가리키는데 이름과 어긋나면, 이름은 딱 맞을 때만 이긴다 —
-                //    부분일치는 형제 회사를 집는다(「포스코」+005490 → 이름에 포스코가 든 시총 1위 포스코퓨처엠).
-                //    이름을 먼저 믿는 규칙은 ETF의 것이다: 이름이 비슷한 코드가 수십 개라 존재하는 틀린 코드가 흔하다
-                Optional<Answer> byName = trust == CodeTrust.DISAGREES_WITH_STOCK
-                        ? outages.attempt(() -> byExactListing(found.name(), List.of()))
-                        : outages.attempt(() -> byListing(found.name()))
-                                .or(() -> outages.attempt(() -> byName(found.name()).map(Answer::of)));
-                if (byName.isPresent()) {
-                    return byName;
-                }
-            }
-            if (!codeFirst) {
-                // 이름으로는 못 찾았다 — 상장명이 영문인 종목(NAVER·POSCO홀딩스)이 여기다. 코드를 믿는다
-                Optional<Answer> byCode = outages.attempt(() -> stockAnswer(found.code()));
-                if (byCode.isPresent()) {
-                    return byCode;
-                }
+            Optional<Answer> byResolved = byResolved(resolved.get(), outages);
+            if (byResolved.isPresent()) {
+                return byResolved;
             }
         }
-        // LLM이 죽었거나 특정하지 못했다.
+        // LLM이 죽었거나 특정하지 못했다
+        return byRawQuery(forms, query, outages, exactOnly);
+    }
+
+    /** LLM의 해석으로 찾는다 — 코드와 이름 중 무엇을 먼저 믿을지는 둘이 색인에서 맞는지({@link CodeTrust})가 정한다. */
+    private Optional<Answer> byResolved(ResolvedStock found, Outages outages) {
+        CodeTrust trust = codeTrust(found);
+        boolean codeFirst = trust == CodeTrust.AGREES;
+        if (codeFirst && found.hasCode()) {
+            Optional<Answer> byCode = outages.attempt(() -> stockAnswer(found.code()));
+            if (byCode.isPresent()) {
+                return byCode;
+            }
+            log.info("[stock] LLM이 준 코드 {}가 시세에 없습니다 — 이름으로 다시 찾습니다", found.code());
+        }
+        if (found.hasName()) {
+            // ⚠️ 코드가 **일반 종목**을 가리키는데 이름과 어긋나면, 이름은 딱 맞을 때만 이긴다 —
+            //    부분일치는 형제 회사를 집는다(「포스코」+005490 → 이름에 포스코가 든 시총 1위 포스코퓨처엠).
+            //    이름을 먼저 믿는 규칙은 ETF의 것이다: 이름이 비슷한 코드가 수십 개라 존재하는 틀린 코드가 흔하다
+            Optional<Answer> byName = trust == CodeTrust.DISAGREES_WITH_STOCK
+                    ? outages.attempt(() -> byExactListing(found.name(), List.of()))
+                    : outages.attempt(() -> byListing(found.name()))
+                            .or(() -> outages.attempt(() -> byName(found.name()).map(Answer::of)));
+            if (byName.isPresent()) {
+                return byName;
+            }
+        }
+        if (!codeFirst) {
+            // 이름으로는 못 찾았다 — 상장명이 영문인 종목(NAVER·POSCO홀딩스)이 여기다. 코드를 믿는다
+            Optional<Answer> byCode = outages.attempt(() -> stockAnswer(found.code()));
+            if (byCode.isPresent()) {
+                return byCode;
+            }
+        }
+        return Optional.empty();
+    }
+
+    /** 원문으로 찾는다 — 해석기가 죽었으면({@code exactOnly}) 이름이 딱 맞는 것만 받는다. */
+    private Optional<Answer> byRawQuery(List<String> forms, String query, Outages outages, boolean exactOnly) {
         // ⚠️ 설정에 박힌 지수 이름이면 지수다 — 색인 부분일치로 가면 「코스피」가 「KODEX 코스피」 ETF가 된다
         Optional<Answer> asIndex = forms.stream()
                 .filter(form -> domestic.stream().anyMatch(client -> client.knowsIndex(form)))
@@ -736,12 +761,9 @@ public class StockService {
                 Concurrently.both(() -> usTargetsOf(symbol), () -> usDividendOf(symbol));
         StockOutlook outlook = both.first();
         StockOutlook.Dividend dividend = both.second();
-        // 조회처·시각은 화면이 안 읽는다(StockOutlook javadoc). FMP가 빈손이면 그 둘을 지어내지
-        // 않고 null로 둔다 — StockOutlook.NONE이 이미 그 모양이다
         StockOutlook merged = outlook == null
-                ? new StockOutlook(null, null, dividend, null, null)
-                : new StockOutlook(outlook.earningsDate(), outlook.targetPrice(), dividend,
-                        outlook.source(), outlook.at());
+                ? new StockOutlook(null, null, dividend)
+                : new StockOutlook(outlook.earningsDate(), outlook.targetPrice(), dividend);
         return merged.isEmpty() ? null : merged;
     }
 

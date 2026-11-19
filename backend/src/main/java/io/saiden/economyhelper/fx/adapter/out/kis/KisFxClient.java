@@ -39,11 +39,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class KisFxClient implements FxRateClient {
 
-
-    /** <b>미국 지수와 같은 경로다</b>({@code KisStockApi}). 구분은 시장 코드뿐이라 스키마도 함께 쓴다. */
-    private static final String PATH = "/uapi/overseas-price/v1/quotations/inquire-daily-chartprice";
-    private static final String TR_ID = "FHKST03030100";
-
     /**
      * 시장 분류 코드 — 환율은 {@code X}다.
      *
@@ -71,9 +66,9 @@ public class KisFxClient implements FxRateClient {
     @Cacheable(cacheNames = CacheNames.FX_KIS)
     @CircuitBreaker(name = "kisFx")
     public FxRate usdToKrw() {
-        KisChartPrice response = kis.get(KisChartPrice.class, TR_ID, "환율",
+        KisChartPrice response = kis.get(KisChartPrice.class, KisChartPrice.TR_ID, "환율",
                 uriBuilder -> uriBuilder
-                        .path(PATH)
+                        .path(KisChartPrice.PATH)
                         .queryParam("FID_COND_MRKT_DIV_CODE", FX_MARKET)
                         .queryParam("FID_INPUT_ISCD", USD_KRW)
                         // 오늘만 물으면 휴일·이른 아침에 빈 배열이 온다. 일주일을 물어도
@@ -99,10 +94,10 @@ public class KisFxClient implements FxRateClient {
             throw new IllegalStateException("KIS 환율 응답에 일봉 날짜가 없어 현재가가 어느 날 값인지 모릅니다");
         }
         if (KisHeaders.closedBefore(latest, clock)) {
-            return new FxRate("USD", "KRW", rate, change, FxSource.KIS, KisHeaders.startOfDay(latest), false);
+            return new FxRate(rate, change, FxSource.KIS, KisHeaders.startOfDay(latest), false);
         }
         // 시각을 주지 않는다 — 계속 움직이는 값이라 '읽은 시각'이 곧 이 값의 시각이다
-        return new FxRate("USD", "KRW", rate, change, FxSource.KIS, clock.instant(), true);
+        return new FxRate(rate, change, FxSource.KIS, clock.instant(), true);
     }
 
 }

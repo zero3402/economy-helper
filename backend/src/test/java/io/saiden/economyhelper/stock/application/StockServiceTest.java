@@ -19,6 +19,7 @@ import io.saiden.economyhelper.stock.domain.ResolvedStock;
 import io.saiden.economyhelper.stock.domain.StockOutlook;
 import io.saiden.economyhelper.stock.domain.StockQuote;
 import io.saiden.economyhelper.stock.domain.StockSource;
+import io.saiden.economyhelper.testsupport.ServiceStubs;
 import io.saiden.economyhelper.testsupport.TestGemini;
 import io.saiden.economyhelper.testsupport.TestProperties;
 import java.math.BigDecimal;
@@ -125,7 +126,7 @@ class StockServiceTest {
                 throw new IllegalStateException("공공데이터포털 503");
             }
         };
-        StockListings deadIndex = new StockListings(() -> {
+        StockListings deadIndex = ServiceStubs.listingsOf(() -> {
             throw new IllegalStateException("종목 마스터 다운로드 실패");
         });
         StockService service = service(List.of(domestic(StockSource.KIS, Map.of())), List.of(), noResolver(),
@@ -150,7 +151,7 @@ class StockServiceTest {
     @DisplayName("색인이 죽어도 이름 검색이 찾으면 그 답을 낸다 — 장애는 다른 길을 다 해 본 뒤에야 알린다")
     void answersByNameWhileTheIndexIsDown() {
         RecordingNames names = new RecordingNames(Map.of("삼성전자", krStock("삼성전자", "268500", StockSource.DATA_GO)));
-        StockListings deadIndex = new StockListings(() -> {
+        StockListings deadIndex = ServiceStubs.listingsOf(() -> {
             throw new IllegalStateException("종목 마스터 다운로드 실패");
         });
         StockService service = service(List.of(), List.of(), noResolver(), names, deadIndex);
@@ -606,7 +607,7 @@ class StockServiceTest {
     @DisplayName("색인을 못 받아도 검색은 산다 — 공공데이터포털 이름 검색이 다음 수다")
     void survivesAListingsOutage() {
         RecordingNames names = new RecordingNames(Map.of("삼성전자", krStock("삼성전자", "268500", StockSource.DATA_GO)));
-        StockListings dead = new StockListings(() -> {
+        StockListings dead = ServiceStubs.listingsOf(() -> {
             throw new IllegalStateException("kisMaster 브레이커 열림");
         });
         StockService service = service(List.of(domestic(StockSource.KIS, Map.of())), List.of(),
@@ -778,7 +779,7 @@ class StockServiceTest {
     @DisplayName("해석기가 죽어도 이름이 딱 맞으면 답한다 — 색인이 죽었으면 공공데이터포털의 딱 맞는 이름까지")
     void stillAnswersAnExactNameWhileTheResolverIsDown() {
         RecordingNames names = new RecordingNames(Map.of("삼성전자", krStock("삼성전자", "268500", StockSource.DATA_GO)));
-        StockListings deadIndex = new StockListings(() -> {
+        StockListings deadIndex = ServiceStubs.listingsOf(() -> {
             throw new IllegalStateException("종목 마스터 다운로드 실패");
         });
         StockService service = service(List.of(), List.of(), deadResolver(), names, deadIndex);
@@ -795,7 +796,7 @@ class StockServiceTest {
 
     private static StockService service(List<DomesticStockClient> domestic, List<UsStockClient> us,
                                         StockResolver resolver, DataGoStockClient names) {
-        return service(domestic, us, resolver, names, new StockListings(List::of));
+        return service(domestic, us, resolver, names, ServiceStubs.listingsOf(List::of));
     }
 
     private static StockService service(List<DomesticStockClient> domestic, List<UsStockClient> us,
@@ -807,7 +808,7 @@ class StockServiceTest {
     }
 
     private static StockListings listings(Listing... listings) {
-        return new StockListings(() -> List.of(listings));
+        return ServiceStubs.listingsOf(() -> List.of(listings));
     }
 
     /** 공공데이터포털 주식 API가 죽은 모양 — dataGo 브레이커가 열렸거나 5xx다. HTTP는 타지 않는다. */

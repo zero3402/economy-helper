@@ -101,7 +101,7 @@ public class PopularityScorer {
      * @param relevance 0~1. {@code ScoreBreakdown}에서는 여전히 {@code keywordMatch} 자리에 들어간다 —
      *                  가중치({@code keyword-match: 0.25})가 그 자리를 가리키기 때문이다
      */
-    public ScoredArticle score(Article article,
+    ScoredArticle score(Article article,
                                int feedSize,
                                double relevance,
                                int buzzRaw,

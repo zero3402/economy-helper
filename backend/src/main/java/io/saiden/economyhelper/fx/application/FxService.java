@@ -95,8 +95,7 @@ public class FxService {
      * 과하다. 그래서 예외를 여기서 삼키고 {@code null}로 떨어뜨린다. 받는 쪽은 이미
      * {@code null}이면 환산 줄을 빼도록 만들어져 있다({@code StockFormatter.convertible}).
      *
-     * <p>브리핑과 웹훅이 이 한 자리를 쓴다 — 각자 받던 동안 웹훅 쪽 태그가 {@code [stock]}이라
-     * {@code /crypto} 요청의 실패까지 증시 실패로 기록됐다.
+     * <p>브리핑과 웹훅이 이 한 자리를 쓴다 — 따로 받으면 로그 태그가 갈려 어느 요청의 실패인지 흐려진다.
      *
      * <p>{@code catch}가 없는 것은 {@link #usdToKrw()}가 출처마다 예외를 삼키고 빈 {@code Optional}을
      * 주기 때문이다. 전부 실패한 사실은 그쪽이 이미 남긴다.

@@ -20,7 +20,7 @@ public record ParsedCommand(Command command, String argument) {
      * 없이 와도 그 명령의 기본 답이 있으므로 통과시키고, 갈래는 호출부가
      * {@link #hasArgument()}로 고른다.
      */
-    public boolean missingRequiredArgument() {
+    boolean missingRequiredArgument() {
         return command.argument() == Command.Argument.REQUIRED && !hasArgument();
     }
 

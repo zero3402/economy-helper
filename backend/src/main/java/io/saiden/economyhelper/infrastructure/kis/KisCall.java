@@ -31,7 +31,7 @@ import org.springframework.web.util.UriBuilder;
  * 없다. {@code kisStock}·{@code kisFx}·{@code kisOutlook}이 그대로 갈려 있어야 전망(보충)의
  * 실패가 시세(답 자체)를 끊지 않는다. 여기서 공유하는 것은 <b>호출 한 번의 기계</b>뿐이다.
  *
- * <p>⚠️ <b>KIS 실패 경고는 전부 이 로거({@code [kis]})에서 난다</b> — 클라이언트 이름으로 로그를
+ * <p>⚠️ <b>KIS 호출 실패 경고는 이 로거({@code [kis]})에서 난다</b> — 클라이언트 이름으로 로그를
  * 거르면 못 찾는다. 어느 조회인지는 {@code what}({@code "국내 종목 005930"}·{@code "환율"}·
  * {@code "005930 배당일정"})이 클래스 이름보다 좁게 가리킨다.
  *
@@ -109,6 +109,7 @@ public class KisCall {
         // ⚠️ 빈 본문을 rt_cd로 읽으면 「rt_cd=null」이라는 헷갈리는 메시지가 나간다 —
         //    원인을 KIS의 응답 코드 탓으로 오해하게 만드는 자리라 제 이름으로 던진다
         if (response == null) {
+            log.warn("[kis] {} 조회 실패: 응답이 비어 있습니다", what);
             throw new IllegalStateException("KIS " + what + " 응답이 비어 있습니다");
         }
         if (!KisHeaders.isOk(response.resultCode())) {

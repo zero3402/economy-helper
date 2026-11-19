@@ -32,6 +32,9 @@ final class OpenMeteoRequest {
      */
     static final String FORECAST_HOURLY_FIELDS = "precipitation_probability,precipitation,weather_code";
 
+    /** 예보 API의 경로 — 위 목록과 같은 이유로 예보와 보충이 한 곳을 쓴다. */
+    static final String FORECAST_PATH = "/v1/forecast";
+
     private OpenMeteoRequest() {
     }
 

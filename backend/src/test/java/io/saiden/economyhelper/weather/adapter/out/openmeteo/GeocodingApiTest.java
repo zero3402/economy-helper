@@ -66,21 +66,28 @@ class GeocodingApiTest extends WireMockTest {
     }
 
     @Test
-    @DisplayName("모르는 시간대는 UTC로 둔다 — 시간대 하나 때문에 그 도시의 /weather가 통째로 죽지 않는다")
-    void unknownTimezoneFallsBackToUtc() {
-        // ⚠️ ZoneId.of는 형식이 맞아도 JDK의 tzdb에 없는 이름이면 던진다. 새 시간대가 생기면
-        //    출처가 먼저 알고 JDK가 나중에 따라오므로 실재하는 길이다. 던지면 그 도시의 조회가 통째로 실패하고
-        //    멀쩡한 지오코딩 브레이커에 실패가 쌓인다
+    @DisplayName("모르는 시간대면 빈손이다 — UTC로 대신하면 남의 하루를 엉뚱한 달력으로 자른 예보가 나간다")
+    void unknownTimezoneFindsNothing() {
+        // ⚠️ ZoneId.of는 형식이 맞아도 JDK의 tzdb에 없는 이름이면 던진다(새 시간대는 출처가 먼저 안다).
+        //    던지지 않고 빈손으로 돌려준다 — 예외면 재시도가 돌고 멀쩡한 지오코딩 브레이커에 실패가 쌓인다
         stub("""
                 {"results":[{"name":"어딘가","latitude":31.7,"longitude":-106.4,
                  "country":"멕시코","timezone":"Mars/Olympus_Mons","population":1500000}]}""");
 
-        var place = api.find("어딘가", null);
+        assertThat(api.find("어딘가", null)).isEmpty();
+        server.verify(1, getRequestedFor(urlPathEqualTo("/v1/search")));
+    }
 
-        assertThat(place).isPresent();
-        assertThat(place.get().zone())
-                .as("모르는 시간대에 KST를 채우면 남의 하루를 우리 달력으로 자르게 된다")
-                .isEqualTo(java.time.ZoneId.of("UTC"));
+    @Test
+    @DisplayName("인구 1위의 시간대를 모르면 2위로 넘어가지 않는다 — 다음 후보는 다른 곳이다")
+    void neverFallsThroughToASmallerNamesake() {
+        stub("""
+                {"results":[{"name":"큰곳","latitude":31.7,"longitude":-106.4,
+                 "country":"멕시코","population":1500000},
+                {"name":"작은곳","latitude":10.0,"longitude":10.0,
+                 "country":"다른나라","timezone":"Asia/Seoul","population":1000}]}""");
+
+        assertThat(api.find("어딘가", null)).isEmpty();
     }
 
     @Test
@@ -178,14 +185,12 @@ class GeocodingApiTest extends WireMockTest {
     }
 
     @Test
-    @DisplayName("시간대가 없으면 UTC로 둔다 — KST로 채우면 남의 하루를 우리 달력으로 자른다")
-    void neverAssumesSeoulWhenTheZoneIsMissing() {
+    @DisplayName("시간대가 없으면 빈손이다 — KST로도 UTC로도 채우지 않는다")
+    void findsNothingWhenTheZoneIsMissing() {
         stub("""
                 {"results":[{"name":"어딘가","latitude":1.0,"longitude":1.0,
                  "country":"어느나라","population":50000}]}""");
 
-        Optional<GeoLocation> place = api.find("어딘가", null);
-
-        assertThat(place.orElseThrow().zone()).isEqualTo(ZoneId.of("UTC"));
+        assertThat(api.find("어딘가", null)).isEmpty();
     }
 }

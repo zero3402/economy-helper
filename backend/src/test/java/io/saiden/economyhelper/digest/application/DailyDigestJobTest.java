@@ -448,7 +448,7 @@ class DailyDigestJobTest {
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
-                return Optional.of(new FxRate("USD", "KRW", new Price(new BigDecimal("1415")), FxSource.KEXIM, NOW));
+                return Optional.of(new FxRate(new Price(new BigDecimal("1415")), null, FxSource.KEXIM, NOW));
             }
         };
         NewsFacade signalling = new CountingFacade(List.of(item("기사"))) {
@@ -488,7 +488,7 @@ class DailyDigestJobTest {
 
     private static FxService fx(boolean alive) {
         return ServiceStubs.fx(alive
-                ? Optional.of(new FxRate("USD", "KRW", new Price(new BigDecimal("1415")), FxSource.KEXIM, NOW))
+                ? Optional.of(new FxRate(new Price(new BigDecimal("1415")), null, FxSource.KEXIM, NOW))
                 : Optional.empty());
     }
 
@@ -518,7 +518,7 @@ class DailyDigestJobTest {
     @Test
     @DisplayName("증시 통이 같은 조회를 두 번 하지 않는다 — 글이 쓴 답을 차트가 그대로 받는다")
     void asksForTheStockAnswersOnlyOnce() {
-        // ⚠️ 두 번 부르면 시세 캐시(1분)가 그 사이 식어 KIS 호출(시세 9회 + 일봉 8회, 간격 1초)을
+        // ⚠️ 두 번 부르면 시세 캐시(1분)가 그 사이 식어 KIS 호출(시세와 일봉, 간격 1초)을
         //    통째로 다시 태우고, 글의 값과 차트 캡션이 서로 다른 조회에서 온 것이 된다
         CountingStock stock = new CountingStock();
 

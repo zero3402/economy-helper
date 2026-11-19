@@ -204,10 +204,9 @@ class StockOutlookTest {
     @Test
     @DisplayName("배당이 있으면 전망은 비어 있지 않다 — 목표가·실적발표일이 없어도 그 블록은 나간다")
     void dividendAloneMakesTheOutlookNonEmpty() {
-        StockOutlook outlook = new StockOutlook(null, null, row("2026-09-10", null, "0.25"),
-                StockSource.FMP, null);
+        StockOutlook outlook = new StockOutlook(null, null, row("2026-09-10", null, "0.25"));
 
         assertThat(outlook.isEmpty()).isFalse();
-        assertThat(StockOutlook.none(StockSource.FMP, null).isEmpty()).isTrue();
+        assertThat(StockOutlook.NONE.isEmpty()).isTrue();
     }
 }

@@ -105,7 +105,7 @@ public class KeximFxClient implements FxRateClient {
             throw new IllegalStateException("수출입은행 API 키가 없습니다");
         }
         Quoted current = findAt(LocalDate.ofInstant(clock.instant(), SEOUL));
-        return new FxRate(USD, "KRW", Price.require(current.rate(), "수출입은행 환율"), changeOf(current),
+        return new FxRate(Price.require(current.rate(), "수출입은행 환율"), changeOf(current),
                 FxSource.KEXIM, current.date().atStartOfDay(SEOUL).toInstant());
     }
 

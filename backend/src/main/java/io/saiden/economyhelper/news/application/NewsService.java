@@ -46,10 +46,10 @@ public class NewsService {
     /** 발행 시각이 이보다 더 미래면 피드의 시간대가 틀린 것이다 — {@link #recent}. */
     private static final Duration CLOCK_SKEW_TOLERANCE = Duration.ofHours(1);
 
-    private final ArticleFeed fetcher;
+    private final ArticleFeed feed;
     private final ArticleBuzz buzzClient;
     private final PopularityScorer scorer;
-    private final RelevanceJudge relevanceScorer;
+    private final RelevanceJudge relevanceJudge;
     private final Clock clock;
     private final Duration window;
     private final int llmCandidates;
@@ -58,17 +58,17 @@ public class NewsService {
     private final int cryptoResults;
     private final int economyResults;
 
-    public NewsService(ArticleFeed fetcher,
+    public NewsService(ArticleFeed feed,
                        ArticleBuzz buzzClient,
                        PopularityScorer scorer,
-                       RelevanceJudge relevanceScorer,
+                       RelevanceJudge relevanceJudge,
                        Clock clock,
                        EconomyHelperProperties properties) {
         Digest digest = properties.digest();
-        this.fetcher = fetcher;
+        this.feed = feed;
         this.buzzClient = buzzClient;
         this.scorer = scorer;
-        this.relevanceScorer = relevanceScorer;
+        this.relevanceJudge = relevanceJudge;
         this.clock = clock;
         this.window = digest.window();
         this.llmCandidates = digest.llmCandidates();
@@ -115,9 +115,19 @@ public class NewsService {
         // (Investing.com 본 섹션·암호화폐 섹션)가 같은 도메인을 동시에 묻는다. 캐시가 비어 있으면 둘 다 나간다
         Map<String, Integer> buzz = buzzClient.buzzByLink(
                 recentBySource.stream().flatMap(List::stream).toList(), now);
-        // 매체 안에서는 순차다: 후보가 있어야 관련도를 잰다
-        List<ScoredArticle> all = Concurrently.map(IntStream.range(0, sources.size()).boxed().toList(),
-                        i -> relevantOf(sources.get(i), recentBySource.get(i), buzz, now)).stream()
+        // 1) 매체마다 관련도 없이 먼저 줄을 세워 상위 몇 건만 후보로 남긴다
+        List<List<Article>> candidatesBySource = IntStream.range(0, sources.size())
+                .mapToObj(i -> candidatesOf(sources.get(i), recentBySource.get(i), buzz, now))
+                .toList();
+        // 2) 전 매체의 후보를 모아 재테크 관련도를 **한 번에** 매긴다 — 매체마다 물으면 브리핑 한 번이 Gemini 한도
+        //    (60초에 12회)를 매체 수만큼 쓴다. 두 피드에 실린 같은 기사는 한 번만 묻는다(점수는 링크로 되찾는다).
+        //    LLM이 실패하면 **전 매체가** 전부 통과다 — 피드가 이미 금융 전용이고, 한 매체만 통과해 그 매체가
+        //    브리핑을 차지하는 것보다 고르게 번지는 쪽이 낫다. 대체값은 캐시되지 않아 다음 틱이 다시 묻는다
+        Map<String, Double> relevance = relevanceJudge.scoreAll(
+                distinctByLink(candidatesBySource.stream().flatMap(List::stream).toList(), Article::link));
+        // 3) 문턱과 순위는 다시 매체별로 — 피드 순위 정규화가 매체 단위다
+        List<ScoredArticle> all = IntStream.range(0, sources.size())
+                .mapToObj(i -> relevantOf(sources.get(i), candidatesBySource.get(i), relevance, buzz, now))
                 .flatMap(List::stream)
                 .sorted(Comparator.comparingDouble(ScoredArticle::score).reversed())
                 .toList();
@@ -163,30 +173,36 @@ public class NewsService {
     }
 
     /**
-     * 매체 하나에서 최근 창 안의 재테크 기사들을 점수순으로. 그 매체가 죽거나 그 사이 재테크 기사가
-     * 없으면 비어 있다. 상위 몇 건을 고르는 것은 {@link #digest()}가 전 매체를 모아 한다.
+     * 매체 하나의 관련도 후보 — 관련도 없이 줄을 세운 상위 몇 건이다. LLM에 전부 넣으면 프롬프트만 길어지고,
+     * 이 단계의 점수는 주제를 모르지만(노출 순서·최신성·반응) 후보를 좁히는 데는 충분하다.
      *
      * @param articles 그 매체의 최근 창 안 발행분
      * @param buzz     전 매체를 모아 한 번에 물은 HN 반응
      */
-    private List<ScoredArticle> relevantOf(NewsSource source, List<Article> articles,
-                                           Map<String, Integer> buzz, Instant now) {
+    private List<Article> candidatesOf(NewsSource source, List<Article> articles,
+                                       Map<String, Integer> buzz, Instant now) {
         if (articles.isEmpty()) {
             log.warn("[{}] 최근 {} 발행분이 없어 이번 발송에서 제외합니다", source, window);
             return List.of();
         }
-
-        // 1) 관련도 없이 먼저 줄을 세워 상위 몇 건만 남긴다 — LLM에 전부 넣으면 무료 티어를 태운다.
-        //    이 단계의 점수는 주제를 모르지만(노출 순서·최신성·반응) 후보를 좁히는 데는 충분하다
-        List<Article> candidates = scorer.rankByRelevance(articles, Map.of(), buzz, now).stream()
+        return scorer.rankByRelevance(articles, Map.of(), buzz, now).stream()
                 .limit(llmCandidates)
                 .map(ScoredArticle::article)
                 .toList();
+    }
 
-        // 2) 후보들의 재테크 관련도를 한 번에 매긴다 (LLM 실패 시 전부 통과 — 피드가 이미 금융 전용이다)
-        Map<String, Double> relevance = relevanceScorer.scoreAll(candidates);
-
-        // 3) 임계값 미만은 버린다
+    /**
+     * 매체 하나의 후보 중 재테크 관련도가 문턱 이상인 것들을 점수순으로. 그 매체가 죽거나 그 사이 재테크 기사가
+     * 없으면 비어 있다. 상위 몇 건을 고르는 것은 {@link #digest()}가 전 매체를 모아 한다.
+     *
+     * @param relevance 전 매체 후보를 모아 한 번에 매긴 관련도(링크 → 0~1)
+     */
+    private List<ScoredArticle> relevantOf(NewsSource source, List<Article> candidates,
+                                           Map<String, Double> relevance,
+                                           Map<String, Integer> buzz, Instant now) {
+        if (candidates.isEmpty()) {
+            return List.of();
+        }
         List<Article> relevant = candidates.stream()
                 .filter(article -> relevance.getOrDefault(article.link(), 0.0) >= relevanceThreshold)
                 .toList();
@@ -195,7 +211,6 @@ public class NewsService {
                     source, relevanceThreshold, candidates.size());
             return List.of();
         }
-
         return scorer.rankByRelevance(relevant, relevance, buzz, now);
     }
 
@@ -255,7 +270,7 @@ public class NewsService {
     /** 한 매체의 실패는 그 매체만 빠진다 — 캐시 프록시가 던지는 것(Redis 장애)도 여기서 받는다. */
     private Optional<List<Article>> fetchOrSkip(NewsSource source) {
         try {
-            return Optional.of(fetcher.fetch(source));
+            return Optional.of(feed.fetch(source));
         } catch (RuntimeException e) {
             log.warn("[{}] 피드 수집 실패 — 이 매체는 건너뜁니다: {}", source, FailureReason.of(e));
             return Optional.empty();
@@ -301,7 +316,7 @@ public class NewsService {
             return ranked;
         }
         List<ScoredArticle> candidates = ranked.stream().limit(llmCandidates).toList();
-        Map<String, Double> relevance = relevanceScorer.scoreAll(
+        Map<String, Double> relevance = relevanceJudge.scoreAll(
                 candidates.stream().map(ScoredArticle::article).toList(), query);
 
         List<ScoredArticle> relevant = candidates.stream()

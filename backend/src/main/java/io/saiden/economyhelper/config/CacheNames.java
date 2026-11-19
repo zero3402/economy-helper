@@ -21,7 +21,7 @@ package io.saiden.economyhelper.config;
  *       해석기 셋(LLM 프롬프트)이다. 이것들은 상대가 준 것을 그대로 담지 않는다
  *   <li><b>담는 모양이 바뀌었다</b> — 수명이 짧아도 올린다. 롤링 배포 중 옛 인스턴스가 담은
  *       옛 모양을 새 인스턴스가 <b>적중</b>으로 읽어 {@code null}이나 예외가 된다
- *       ({@code crypto-price} · {@code binance-price} · 환율 셋이 그래서 v2다)
+ *       ({@code crypto-price} · {@code binance-price} · 환율 셋에 판이 붙은 이유다)
  * </ul>
  *
  * <p>둘 다 아니면 안 매긴다 — 상대가 준 값을 그대로 담고 수명이 초·분 단위면 규칙을 고쳐도
@@ -40,11 +40,11 @@ public final class CacheNames {
     // ── 규칙이 바뀌어 판을 올린 것: 값이 우리 규칙의 산물이다 ──────────────────
 
     /**
-     * 지명 → 좌표. <b>v2</b> — {@code 72076e8}이 후보 선택 규칙을 바꿨다(인구 없는 후보를
-     * 첫 줄로 집던 것을 빈손으로) 그리고 표시 이름도 바꿨다(로마자면 물어본 이름으로).
-     * v1에는 그 전 규칙이 만든 {@code Seongnam} 같은 값이 30일 남아 있다.
+     * 지명 → 좌표. <b>v3</b> — 시간대를 못 읽은 지점을 UTC로 대신 담던 것을 빈손으로 바꿨다
+     * ({@code GeocodingApi}). v2에는 UTC가 든 지점이 30일 남아 그 도시의 하루를 엉뚱하게 자른다.
+     * (v2는 후보 선택 규칙 — 인구 없는 후보를 첫 줄로 집던 것을 빈손으로 — 을 바꾸며 올렸다.)
      */
-    public static final String GEOCODE = "geocode-v2";
+    public static final String GEOCODE = "geocode-v3";
 
     /**
      * 날씨 검색어 해석. <b>v5</b> — 친 글자의 「N일 뒤·후」를 며칠 뒤로 덮는다. v4에는 「10일 뒤」를 그달 10일로
@@ -79,8 +79,11 @@ public final class CacheNames {
     /** Hacker News 반응. 1시간 — 천천히 쌓인다. */
     public static final String HN_BUZZ = "hn-buzz";
 
-    /** 검색어 번역. 30일 — {@code 비트코인 → bitcoin}은 낡지 않는다. */
-    public static final String QUERY = "query";
+    /**
+     * 검색어 번역. 30일 — {@code 비트코인 → bitcoin}은 낡지 않는다. <b>v2</b> — 프롬프트가 토큰 여럿을
+     * 한 번에 묻게 바뀌었다({@code QueryTranslator}). 담는 것은 전과 같이 토큰 하나의 표현들이다.
+     */
+    public static final String QUERY = "query-v2";
 
     /** 기사 관련도. 7일 — 배치 단위다. 기사별로 쪼개면 Gemini 호출이 늘어난다. */
     public static final String RELEVANCE = "relevance";
@@ -132,10 +135,10 @@ public final class CacheNames {
      * 이 기능의 실질 방어다: 브리핑이 종목마다 <b>조회를 둘</b> 더 하는데(투자의견·배당일정)
      * KIS는 <b>호출 사이 1초</b>를 지키므로, 캐시가 없으면 브리핑이 종목 수의 두 배만큼 더 늦어진다.
      *
-     * <p><b>판은 안 매긴다</b> — 담기는 것이 상대가 준 값이다. 모양이 바뀌면 옛 항목의 새 필드가
-     * {@code null}로 읽혀 최대 12시간 그 블록이 안 나오고 스스로 낫는다.
+     * <p><b>v2</b> — 담는 모양이 바뀌었다({@code StockOutlook}에서 아무도 읽지 않던 조회처·시각 칸을 뺐다).
+     * 담기는 것이 상대가 준 값이라 규칙이 바뀌어서 올릴 일은 없고, 모양이 바뀔 때만 올린다.
      */
-    public static final String KIS_OUTLOOK = "kis-outlook";
+    public static final String KIS_OUTLOOK = "kis-outlook-v2";
 
     /**
      * 미국 종목의 <b>목표주가·실적발표일</b>(FMP). <b>심볼당 FMP 호출이 둘</b>
@@ -143,9 +146,9 @@ public final class CacheNames {
      * 막혔다)이라 하루 250회에서 심볼 하나가 2회를 쓴다 — 이 캐시가 그 한도의 실질 방어다.
      * 배당은 {@link #US_DIVIDEND}에 따로 담긴다.
      *
-     * <p><b>판은 안 매긴다</b> — 담기는 것이 상대가 준 값이다.
+     * <p><b>v2</b> — {@link #KIS_OUTLOOK}과 같은 이유다(같은 {@code StockOutlook}을 담는다).
      */
-    public static final String US_OUTLOOK = "us-outlook";
+    public static final String US_OUTLOOK = "us-outlook-v2";
 
     /**
      * 미국 종목의 <b>배당</b> — Polygon. {@link #US_OUTLOOK}과 <b>따로 둔다.</b>
@@ -179,17 +182,18 @@ public final class CacheNames {
      */
     public static final String STOCK_SERIES = "stock-series";
 
-    // ⚠️ 환율 셋은 v2다 — 담는 모양이 바뀌었다(FxRate에 live가 붙었다). 옛 판의 항목은 live가 없어
-    //    거짓으로 읽히고, 실시간 값이 「(종가)」로 찍힌다. 수명이 짧아도 모양이 바뀌면 올린다(CRYPTO_PRICE와 같다)
+    // ⚠️ 환율 셋은 v3다 — 담는 모양이 바뀌었다(FxRate에서 늘 USD·KRW였고 아무도 읽지 않던 base·quote 칸을 뺐다).
+    //    수명이 짧아도 모양이 바뀌면 올린다(CRYPTO_PRICE와 같다). v2는 live가 붙으며 올렸다 — 옛 항목은 live가
+    //    없어 거짓으로 읽히고 실시간 값이 「(종가)」로 찍혔다
 
     /** 유럽중앙은행 환율. */
-    public static final String FX = "fx-v2";
+    public static final String FX = "fx-v3";
 
     /** 수출입은행 환율. 1시간 — 하루 1,000회 한도의 실질 방어다. */
-    public static final String FX_KEXIM = "fx-kexim-v2";
+    public static final String FX_KEXIM = "fx-kexim-v3";
 
     /** KIS 환율. 1분 — 화면에 '읽은 시각'을 찍으므로 이보다 길면 안 된다. */
-    public static final String FX_KIS = "fx-kis-v2";
+    public static final String FX_KIS = "fx-kis-v3";
 
     /** 예보. 10분 — 길게 잡으면 '오늘 날씨'가 어제 예보가 된다. */
     public static final String WEATHER = "weather";

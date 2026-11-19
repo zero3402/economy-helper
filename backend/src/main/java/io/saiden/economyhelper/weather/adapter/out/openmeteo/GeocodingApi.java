@@ -104,7 +104,7 @@ public class GeocodingApi implements Geocoder {
                     query, countryCode, response.results().size());
             return Optional.empty();
         }
-        return picked.map(GeocodingApi::toLocation);
+        return picked.flatMap(GeocodingApi::toLocation);
     }
 
     /**
@@ -125,10 +125,12 @@ public class GeocodingApi implements Geocoder {
     }
 
     /**
-     * <b>시간대를 못 읽으면 UTC로 둔다.</b>
+     * <b>시간대를 못 읽으면 그 지점은 없는 것이다.</b>
      *
-     * <p>지오코딩은 늘 {@code timezone}을 주지만, 없다고 KST로 채우면 <b>남의 하루를 우리
-     * 달력으로 자르게 된다.</b> UTC는 적어도 어느 한쪽으로 치우치지 않는다.
+     * <p>시간대가 「그 지역의 오늘」과 하루의 경계를 정한다. UTC나 KST로 대신하면 남의 하루를 엉뚱한
+     * 달력으로 자른 예보가 나간다 — 틀린 값은 빈손보다 나쁘다. 사용자는 「결과 없음」을 보고 더 큰 지명으로 다시 친다.
+     *
+     * <p>⚠️ <b>다음 후보로 넘어가지 않는다.</b> 인구 2위의 같은 이름은 다른 곳이다({@link #best}).
      *
      * <p><b>이름은 상대가 준 것을 날것으로 담는다.</b> {@code language=ko}로 불러도 일부는
      * 로마자로 오는데({@code 제주시} → {@code Jejudo}, 실측) 그걸 한국어로 바꾸는 판단은
@@ -137,29 +139,29 @@ public class GeocodingApi implements Geocoder {
      * <p>⚠️ <b>여기서 정하면 안 된다.</b> 이 결과가 {@code geocode} 캐시에 30일 들어가므로
      * 파생된 표기가 캐시에 굳는다 — 담는 것은 상대가 준 것만, 만드는 것은 읽을 때다.
      */
-    private static GeoLocation toLocation(Place place) {
-        return new GeoLocation(place.name(), place.country(),
-                place.latitude(), place.longitude(), zoneOf(place.timezone()));
+    private static Optional<GeoLocation> toLocation(Place place) {
+        return zoneOf(place.timezone()).map(zone -> new GeoLocation(place.name(), place.country(),
+                place.latitude(), place.longitude(), zone));
     }
 
     /**
      * ⚠️ <b>「못 읽으면」에는 「모르는 이름」도 든다.</b> {@code ZoneId.of}는 형식이 맞아도
-     * <b>JDK의 tzdb에 없는 이름이면 던진다</b>
-     * ({@code ZoneRulesException}). 그러면 그 도시의 {@code /weather}가 통째로 실패하고
-     * (호출자는 「조회 실패」로 답한다) 멀쩡한 지오코딩 브레이커에 실패가 쌓인다.
+     * <b>JDK의 tzdb에 없는 이름이면 던진다</b>({@code ZoneRulesException}) — 새 시간대가 생기면 출처가 먼저
+     * 알고 JDK가 나중에 따라온다({@code America/Ciudad_Juarez}가 그런 예다).
      *
-     * <p>드물지만 실재하는 길이다 — 새 시간대가 생기면 출처가 먼저 알고 JDK가 나중에 따라온다
-     * ({@code America/Ciudad_Juarez}가 그런 예다). 지점을 못 쓰게 만들 만한 일이 아니다.
+     * <p><b>던지지 않고 빈손으로 돌려준다.</b> 예외면 재시도가 돌고 멀쩡한 지오코딩 브레이커에 실패가 쌓인다 —
+     * 다시 물어도 같은 답이라 장애가 아니다.
      */
-    private static ZoneId zoneOf(String timezone) {
+    private static Optional<ZoneId> zoneOf(String timezone) {
         if (timezone == null || timezone.isBlank()) {
-            return ZoneId.of("UTC");
+            log.warn("[weather] 지오코딩 응답에 시간대가 없습니다 — 그 지점을 쓰지 않습니다");
+            return Optional.empty();
         }
         try {
-            return ZoneId.of(timezone);
+            return Optional.of(ZoneId.of(timezone));
         } catch (DateTimeException e) {
-            log.warn("[weather] 모르는 시간대 '{}' — UTC로 둡니다", timezone);
-            return ZoneId.of("UTC");
+            log.warn("[weather] 모르는 시간대 '{}' — 그 지점을 쓰지 않습니다", timezone);
+            return Optional.empty();
         }
     }
 

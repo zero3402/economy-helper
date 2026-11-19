@@ -10,7 +10,6 @@ import static io.saiden.economyhelper.telegram.presentation.MessageLayout.head;
 import static io.saiden.economyhelper.telegram.presentation.MessageLayout.inKrw;
 import static io.saiden.economyhelper.telegram.presentation.MessageLayout.krwAmount;
 import static io.saiden.economyhelper.telegram.presentation.MessageLayout.money;
-import static io.saiden.economyhelper.telegram.presentation.MessageLayout.title;
 
 import io.saiden.economyhelper.crypto.domain.CryptoQuote;
 import io.saiden.economyhelper.fx.domain.FxRate;

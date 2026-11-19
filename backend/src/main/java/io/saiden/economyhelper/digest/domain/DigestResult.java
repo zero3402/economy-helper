@@ -6,7 +6,7 @@ import java.util.List;
  * 발송 시도 한 번의 결과.
  *
  * <p>왜 값으로 돌려주는지는 {@code TriggerableJob.execute}. <b>부분 성공이 정상 상태다</b> —
- * 성패를 통 단위로 담고, 전부 실패했을 때만 {@code sent}가 거짓이다.
+ * 성패를 통 단위로 담는다. {@code sent}는 한 통이라도 나갔을 때만 참이다(전부 실패·건너뜀·미룸·닿았는지 모름은 거짓).
  *
  * @param delivered 실제로 나간 통의 이름
  * @param failed    실패했거나 보낼 내용이 없던 통 — <b>이름과 사유를 함께</b> 담는다
@@ -15,7 +15,7 @@ public record DigestResult(boolean sent, String slot,
                            List<String> delivered, List<Failure> failed, String reason) {
 
     /**
-     * @param section 통 이름 ({@code 환율}·{@code 증시}·{@code 코인}·{@code 뉴스})
+     * @param section 통 이름 — 브리핑은 {@code 환율}·{@code 증시}·{@code 코인}·{@code 뉴스}, 날씨 알람은 {@code 날씨}나 지역 이름
      * @param reason  실패 사유. 텔레그램이 거절했으면 그쪽 {@code description}이 그대로 온다
      */
     public record Failure(String section, String reason) {

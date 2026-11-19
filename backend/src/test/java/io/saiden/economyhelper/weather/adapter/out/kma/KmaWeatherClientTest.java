@@ -50,7 +50,6 @@ class KmaWeatherClientTest extends WireMockTest {
     private static final ZoneId SEOUL = KmaFixtures.SEOUL;
     /**
       * 2026-08-26 <b>06:30 KST</b> — 픽스처가 05시 발표라 그것이 가장 최근인 시각으로 맞췄다.
-      * 오전 6시 알람이 도는 그 시각이기도 하다.
       */
     private static final Instant NOW = Instant.parse("2026-08-25T21:30:00Z");
     /** 2026-08-26 <b>14:30 KST</b> — 최신 발표가 14시이고 오늘 오전 슬롯이 0개인 시각. */

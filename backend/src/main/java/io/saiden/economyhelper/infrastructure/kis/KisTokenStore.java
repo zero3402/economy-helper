@@ -103,8 +103,8 @@ public class KisTokenStore {
     /**
      * 발급이 <b>실패한</b> 뒤 쉬는 시간 — 1분에 한 번뿐인 발급이라 그 안의 재시도는 거절만 더 받는다.
      *
-     * <p>기억하지 않으면 KIS 호출마다 {@code tokenP}를 다시 POST한다 — 장애 중 브리핑 한 번이 KIS 호출 열 번이라
-     * 발급을 열 번 연타했고, 그것이 곧 이 클래스가 지키려는 「1분에 한 번만 발급」을 우리 손으로 어기는 길이다.
+     * <p>기억하지 않으면 KIS 호출마다 {@code tokenP}를 다시 POST한다 — 장애 중 브리핑 한 번이
+     * KIS 호출마다 발급을 연타했고, 그것이 곧 이 클래스가 지키려는 「1분에 한 번만 발급」을 우리 손으로 어기는 길이다.
      * {@code StockListings.REFRESH_BACKOFF}와 같은 모양이다. 짧게 잡는 이유는 상대가 살아나면 곧 받으려는 것이다.
      */
     private static final Duration ISSUE_BACKOFF = Duration.ofMinutes(1);
@@ -186,7 +186,7 @@ public class KisTokenStore {
                     "KIS 토큰이 무효로 확인돼 버렸습니다 — " + Duration.between(now, reissueAfter).toMinutes()
                             + "분 뒤에 다시 발급합니다 (6시간 안에는 같은 죽은 토큰이 돌아옵니다)");
         }
-        return issue(now);
+        return issue();
     }
 
     /**
@@ -289,7 +289,7 @@ public class KisTokenStore {
         }
     }
 
-    private String issue(Instant now) {
+    private String issue() {
         if (appKey.isBlank() || appSecret.isBlank()) {
             throw new IllegalStateException("KIS 앱키가 없습니다");
         }
@@ -315,13 +315,13 @@ public class KisTokenStore {
                 throw new IllegalStateException("KIS 토큰 발급이 방금 실패해 " + Duration.between(at, failedUntil).toSeconds()
                         + "초 뒤에 다시 시도합니다 (1분에 한 번만 발급됩니다)");
             }
-            return issueAcrossInstances(now);
+            return issueAcrossInstances();
         } finally {
             issuing.unlock();
         }
     }
 
-    private String issueAcrossInstances(Instant now) {
+    private String issueAcrossInstances() {
         // ⚠️ 인스턴스가 둘이면 동시 발급이 서로를 무효화한다 — 앱키당 활성 토큰이 하나이고
         //    1분 안의 두 번째 발급이 뒤의 것을 죽인다. 그 상태를 우리 손으로 만들지 않는다.
         //    락을 못 잡으면 기다리지 않고 던진다: 상대가 곧 Redis에 넣을 것이고, 그때까지
@@ -354,6 +354,8 @@ public class KisTokenStore {
                 issueFailedUntil = clock.instant().plus(ISSUE_BACKOFF);
                 throw new IllegalStateException("KIS 토큰 응답에 접근토큰이 없습니다 (1분에 한 번만 발급됩니다)");
             }
+            // 발급 시각은 응답을 받은 지금이다 — 락·간격 문을 기다리기 전의 시각을 쓰면 6시간 창이 그만큼 일찍 열린다
+            Instant now = clock.instant();
             Cached fresh = new Cached(issued.accessToken(), expiryOf(issued, now), now);
             // ⚠️ 만료가 **이미 지난** 토큰이 온다 — 죽은 토큰을 돌려줄 때의 모양이다(→ ADR-0001).
             //    담으면 usableAt()이 즉시 거짓이 되어 **호출마다 발급을 시도**하고, 그건 1분 1회

@@ -99,11 +99,6 @@ public class StockListings {
         this.clock = clock;
     }
 
-    /** 목록을 직접 주고 사본은 두지 않는다 — 테스트와, 마스터 없이 돌아야 하는 자리가 쓴다. */
-    public StockListings(ListingSource source) {
-        this(source, Duration.ZERO, Clock.systemUTC());
-    }
-
     /**
      * @return 이름으로 찾은 상장 하나. 없으면 빈손 — 「없다」는 장애가 아니다
      * @throws RuntimeException 마스터를 못 받았을 때(브레이커 열림 포함). 부르는 쪽이 삼킨다
@@ -189,7 +184,7 @@ public class StockListings {
     }
 
     /** {@code name}의 토큰이 전부 상장명에 들어 있는가 — {@code 삼성전자}↔{@code 삼성전자}는 참, {@code 네이버}↔{@code NAVER}는 거짓. */
-    public static boolean agrees(Listing listing, String name) {
+    static boolean agrees(Listing listing, String name) {
         String wanted = QueryNormalizer.normalize(name);
         return !wanted.isEmpty() && containsAll(QueryNormalizer.normalize(listing.name()), tokens(wanted));
     }

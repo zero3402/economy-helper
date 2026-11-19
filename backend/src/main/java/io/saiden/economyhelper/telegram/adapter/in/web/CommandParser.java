@@ -23,16 +23,8 @@ public final class CommandParser {
      *         {@link ParsedCommand#hasArgument()}로 구분한다
      */
     public static Optional<ParsedCommand> parse(String text) {
-        if (!looksLikeCommand(text)) {
-            return Optional.empty();
-        }
-
-        String trimmed = normalizeSpaces(text).strip();
-        int firstSpace = indexOfWhitespace(trimmed);
-        String argument = firstSpace < 0 ? "" : trimmed.substring(firstSpace).strip();
-
-        return Command.of(commandTokenOf(trimmed, firstSpace))
-                .map(command -> new ParsedCommand(command, argument));
+        return split(text).flatMap(parts -> Command.of(parts.commandToken())
+                .map(command -> new ParsedCommand(command, parts.argument())));
     }
 
     /**
@@ -42,11 +34,7 @@ public final class CommandParser {
      * 일반 대화는 여기서 걸러지므로 그룹 채팅은 조용하다.
      */
     public static boolean isUnknownCommand(String text) {
-        if (!looksLikeCommand(text)) {
-            return false;
-        }
-        String trimmed = normalizeSpaces(text).strip();
-        return Command.of(commandTokenOf(trimmed, indexOfWhitespace(trimmed))).isEmpty();
+        return split(text).map(parts -> Command.of(parts.commandToken()).isEmpty()).orElse(false);
     }
 
     /**
@@ -56,28 +44,45 @@ public final class CommandParser {
      * 그 봇과 답이 겹치므로, 호출부가 우리 이름과 대 본다.
      */
     public static Optional<String> mentionOf(String text) {
-        if (!looksLikeCommand(text)) {
+        return split(text).map(Parts::mention).filter(mention -> !mention.isEmpty());
+    }
+
+    /**
+     * 메시지를 첫 토큰과 인자로 가른다 — 세 질문(무슨 명령·모르는 명령인가·어느 봇)이 <b>같은 자르기</b>를 쓴다.
+     *
+     * @return {@code /}로 시작하지 않으면(일반 대화) {@link Optional#empty()}
+     */
+    private static Optional<Parts> split(String text) {
+        if (text == null) {
             return Optional.empty();
         }
         String trimmed = normalizeSpaces(text).strip();
-        int firstSpace = indexOfWhitespace(trimmed);
-        String token = firstSpace < 0 ? trimmed : trimmed.substring(0, firstSpace);
-        int at = token.indexOf('@');
-        return at < 0 || at == token.length() - 1 ? Optional.empty() : Optional.of(token.substring(at + 1));
-    }
-
-    private static boolean looksLikeCommand(String text) {
-        return text != null && normalizeSpaces(text).strip().startsWith("/");
-    }
-
-    /** 첫 토큰에서 {@code @봇이름}을 떼고 소문자로 맞춘다. */
-    private static String commandTokenOf(String trimmed, int firstSpace) {
-        String token = firstSpace < 0 ? trimmed : trimmed.substring(0, firstSpace);
-        int at = token.indexOf('@');
-        if (at >= 0) {
-            token = token.substring(0, at);
+        if (!trimmed.startsWith("/")) {
+            return Optional.empty();
         }
-        return token.toLowerCase(Locale.ROOT);
+        int firstSpace = indexOfWhitespace(trimmed);
+        return Optional.of(firstSpace < 0
+                ? new Parts(trimmed, "")
+                : new Parts(trimmed.substring(0, firstSpace), trimmed.substring(firstSpace).strip()));
+    }
+
+    /**
+     * @param head     첫 토큰 그대로({@code /news@economy_helper_bot})
+     * @param argument 나머지. 없으면 빈 문자열
+     */
+    private record Parts(String head, String argument) {
+
+        /** {@code @봇이름}을 떼고 소문자로 맞춘 명령 토큰({@code /news}). */
+        String commandToken() {
+            int at = head.indexOf('@');
+            return (at < 0 ? head : head.substring(0, at)).toLowerCase(Locale.ROOT);
+        }
+
+        /** 첫 {@code @} 뒤의 봇 이름. 안 붙었으면 빈 문자열. */
+        String mention() {
+            int at = head.indexOf('@');
+            return at < 0 ? "" : head.substring(at + 1);
+        }
     }
 
     /**

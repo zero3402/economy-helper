@@ -87,7 +87,7 @@ import tools.jackson.databind.ObjectReader;
  *
  * <p><b>못 주는 것은 던진다.</b> 설정에 KIS 대응이 없는 미국 심볼, 업종코드가 없는 지수가
  * 그렇다 — 빈 값을 돌려주면 {@code StockService}가 폴백하지 못하고 그대로 빈손이 나간다.
- * 이 둘은 <b>호출도 하지 않는다</b>: 어차피 만들 수 없는 요청이라 리미터와 한도만 축낸다.
+ * 이 둘은 <b>호출도 하지 않는다</b>: 어차피 만들 수 없는 요청이라 호출 간격(1초)만 축낸다.
  */
 @Component
 public class KisStockApi implements DomesticStockClient, UsStockClient, StockDailyBarClient {
@@ -100,9 +100,6 @@ public class KisStockApi implements DomesticStockClient, UsStockClient, StockDai
     /** 국내 시장 달력 — 일봉 날짜가 KST다. */
     private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
 
-    /** 미국 시장 달력 — 해외 일봉 날짜가 미국 날짜다. */
-    private static final ZoneId NEW_YORK = ZoneId.of("America/New_York");
-
     private static final String STOCK_PATH =
             "/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice";
     private static final String INDEX_PATH =
@@ -113,15 +110,11 @@ public class KisStockApi implements DomesticStockClient, UsStockClient, StockDai
      */
     private static final String US_STOCK_SERIES_PATH =
             "/uapi/overseas-price/v1/quotations/dailyprice";
-    /** 환율과 공유하는 경로다 — {@link KisChartPrice} 참조. */
-    private static final String US_INDEX_PATH =
-            "/uapi/overseas-price/v1/quotations/inquire-daily-chartprice";
 
     private static final String STOCK_TR = "FHKST03010100";
     private static final String INDEX_TR = "FHKUP03500100";
     private static final String US_STOCK_TR = "HHDFS76200200";
     private static final String US_STOCK_SERIES_TR = "HHDFS76240000";
-    private static final String US_INDEX_TR = "FHKST03030100";
 
     /** 일봉을 달라는 뜻({@code GUBN}) — 1이 주봉, 2가 월봉이다. */
     private static final String DAILY = "0";
@@ -146,15 +139,9 @@ public class KisStockApi implements DomesticStockClient, UsStockClient, StockDai
     private static final String AMEX = "AMS";
 
     /** 시장 구분. {@code J}가 국내 주식, {@code U}가 국내 업종, {@code N}이 해외지수다. */
-    private static final String KRX_STOCK = "J";
+    static final String KRX_STOCK = "J";
     private static final String KRX_INDEX = "U";
     private static final String OVERSEAS_INDEX = "N";
-
-    /**
-     * 조회 기간. 오늘만 물으면 휴일·이른 아침에 빈 배열이 온다 — {@code output1}의 현재가는
-     * 어차피 하나뿐이라 넉넉히 물어도 파싱은 그대로다({@code KisFxClient}와 같은 이유).
-     */
-    private static final int LOOKBACK_DAYS = 7;
 
     /**
      * 차트용 창. 거래일 열나흘이면 주말이 넷이고 연휴가 끼므로 달력 사흘 남짓을 더 얹는다.
@@ -267,7 +254,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient, StockDai
      * 규칙이 없어 표가 유일한 길이고, <b>표에 없는 지수는 차트가 없다</b>({@link Unsupported}).
      *
      * <p>어느 쪽이든 <b>못 구하면 던진다</b> — 부르는 쪽이 사진만 빼고 값을 내보낸다
-     * ({@code DailySeries.drawable}). 그 자리에 로그를 한 줄 남기는 것이 「KIS가 그 심볼을
+     * ({@code Charts.of}가 잡는다). 그 자리에 로그를 한 줄 남기는 것이 「KIS가 그 심볼을
      * 모른다」와 「차트를 아예 안 물었다」를 가르는 유일한 단서다.
      */
     @Cacheable(cacheNames = CacheNames.STOCK_SERIES, key = "'us:' + #symbol", unless = "#result.isEmpty()")
@@ -283,8 +270,8 @@ public class KisStockApi implements DomesticStockClient, UsStockClient, StockDai
         if (kisSymbol == null) {
             throw new Unsupported("KIS 심볼을 모르는 미국 지수입니다: " + symbol);
         }
-        return barsOf(kis.get(DailyChart.class, US_INDEX_TR, "미국 지수 일봉 " + symbol,
-                uri -> chartWindow(uri, US_INDEX_PATH, OVERSEAS_INDEX, kisSymbol).build()));
+        return barsOf(kis.get(DailyChart.class, KisChartPrice.TR_ID, "미국 지수 일봉 " + symbol,
+                uri -> chartWindow(uri, KisChartPrice.PATH, OVERSEAS_INDEX, kisSymbol).build()));
     }
 
     /**
@@ -310,22 +297,24 @@ public class KisStockApi implements DomesticStockClient, UsStockClient, StockDai
      */
     private List<DailyBar> usStockSeries(String symbol) {
         return overExchanges(symbol, "미국 종목 일봉 " + symbol, "응답에 칸이 없습니다",
-                (exchange, what) -> kis.get(DailyChart.class, US_STOCK_SERIES_TR, what,
-                        uri -> uri.path(US_STOCK_SERIES_PATH)
-                                // AUTH는 빈 값으로 보낸다 — 없으면 안 되고 값도 안 받는다
-                                .queryParam("AUTH", "")
-                                .queryParam("EXCD", exchange)
-                                .queryParam("SYMB", kisSymbol(symbol))
-                                .queryParam("GUBN", DAILY)
-                                // BYMD를 비우면 최신부터다 — 창을 우리가 계산하지 않는다
-                                .queryParam("BYMD", "")
-                                .queryParam("MODP", RAW_PRICE)
-                                .build()),
-                response -> {
-                    // 거래소가 틀리면 에러가 아니라 빈 배열이 온다 — 시세가 빈 문자열을 주는 것과 같다
-                    List<DailyBar> bars = barsOf(response);
-                    return bars.isEmpty() ? Optional.empty() : Optional.of(bars);
-                });
+                (exchange, what) -> usStockBarsAt(exchange, symbol, what),
+                // 거래소가 틀리면 에러가 아니라 빈 배열이 온다 — 시세가 빈 문자열을 주는 것과 같다
+                (exchange, bars) -> bars.isEmpty() ? Optional.empty() : Optional.of(bars));
+    }
+
+    /** 한 거래소의 미국 종목 일봉 — 그 거래소에 없는 종목이면 빈 목록이다. */
+    private List<DailyBar> usStockBarsAt(String exchange, String symbol, String what) {
+        return barsOf(kis.get(DailyChart.class, US_STOCK_SERIES_TR, what,
+                uri -> uri.path(US_STOCK_SERIES_PATH)
+                        // AUTH는 빈 값으로 보낸다 — 없으면 안 되고 값도 안 받는다
+                        .queryParam("AUTH", "")
+                        .queryParam("EXCD", exchange)
+                        .queryParam("SYMB", kisSymbol(symbol))
+                        .queryParam("GUBN", DAILY)
+                        // BYMD를 비우면 최신부터다 — 창을 우리가 계산하지 않는다
+                        .queryParam("BYMD", "")
+                        .queryParam("MODP", RAW_PRICE)
+                        .build()));
     }
 
     /**
@@ -387,10 +376,11 @@ public class KisStockApi implements DomesticStockClient, UsStockClient, StockDai
         for (T row : rows) {
             // ⚠️ 날짜를 못 읽는 행은 그 행만 뺀다 — 빈 날짜 하나가 던지면 차트가 통째로 빠진다
             LocalDate on = row == null ? null : KisHeaders.dateOf(date.apply(row));
-            if (on == null || close.apply(row) == null) {
+            BigDecimal closing = on == null ? null : close.apply(row);
+            if (closing == null) {
                 continue;
             }
-            bars.add(new DailyBar(on, close.apply(row)));
+            bars.add(new DailyBar(on, closing));
         }
         return DailySeries.recent(bars, DailySeries.WINDOW);
     }
@@ -499,15 +489,15 @@ public class KisStockApi implements DomesticStockClient, UsStockClient, StockDai
     /** 해외지수 — 환율과 같은 엔드포인트·같은 스키마다. 다른 것은 시장 코드와 심볼뿐이다. */
     private StockQuote usIndex(UsSymbol symbol, String kisSymbol) {
         // 차트 창으로 부른다 — 국내와 같이 output2가 그대로 차트가 되어 지수 일봉 호출이 따로 안 나간다
-        KisChartPrice response = kis.get(KisChartPrice.class, US_INDEX_TR,
+        KisChartPrice response = kis.get(KisChartPrice.class, KisChartPrice.TR_ID,
                 "미국 지수 " + symbol.name(),
-                uri -> chartWindow(uri, US_INDEX_PATH, OVERSEAS_INDEX, kisSymbol).build());
+                uri -> chartWindow(uri, KisChartPrice.PATH, OVERSEAS_INDEX, kisSymbol).build());
         KisChartPrice.Quote quote = response.output();
 
         Price price = require(quote == null ? null : quote.price(), "미국 지수 " + symbol.name());
         seedSeries("us:" + symbol.symbol(), response);
         // 일봉 날짜는 미국 날짜다 — 미국 달력의 오늘과 견준다
-        Basis basis = basisOf(response.latestDate(), NEW_YORK);
+        Basis basis = basisOf(response.latestDate(), UsSession.NEW_YORK);
         return new StockQuote(symbol.name(), price, PercentChange.ofNullable(quote.changePercent()),
                 StockQuote.Money.NONE, StockQuote.Market.US, StockSource.KIS,
                 basis.at(), basis.live());
@@ -541,14 +531,14 @@ public class KisStockApi implements DomesticStockClient, UsStockClient, StockDai
                                 .queryParam("EXCD", exchange)
                                 .queryParam("SYMB", kisSymbol(symbol.symbol()))
                                 .build()).output(),
-                quote -> {
+                (exchange, quote) -> {
                     if (quote == null) {
                         return Optional.empty();
                     }
                     // 달러 등락률 필드가 없다. t_xrat은 원화 환산가 기준이라 쓰면 틀린 값이 나간다
                     return Price.of(quote.price()).map(price -> {
-                        // 기준은 값이 있는 거래소에서만 정한다 — 빈 거래소의 일봉까지 물으면 없는 티커 하나가 장 밖에서 KIS 열두 번이다
-                        Basis basis = usStockBasis(symbol);
+                        // 기준은 값이 온 그 거래소에만 묻는다 — 빈 거래소의 일봉까지 물으면 없는 티커 하나가 장 밖에서 KIS를 붙든다
+                        Basis basis = usStockBasis(symbol, exchange);
                         return new StockQuote(symbol.name(), price,
                                 PercentChange.between(quote.price(), quote.previousClose()).orElse(null),
                                 StockQuote.Money.USD, StockQuote.Market.US, StockSource.KIS,
@@ -569,21 +559,25 @@ public class KisStockApi implements DomesticStockClient, UsStockClient, StockDai
      * <p>남는 한계: 평일 휴장일의 장중 시각에는 전 거래일 종가가 실시간으로 나간다(휴장일 표를 두지 않는다 —
      * {@link UsSession}).
      */
-    private Basis usStockBasis(UsSymbol symbol) {
+    private Basis usStockBasis(UsSymbol symbol, String exchange) {
         Instant now = clock.instant();
         if (UsSession.isOpen(now)) {
             return new Basis(now, true);
         }
         List<DailyBar> bars;
         try {
-            bars = usStockSeries(symbol.symbol());
+            bars = usStockBarsAt(exchange, symbol.symbol(), "미국 종목 일봉 " + symbol.symbol());
         } catch (RuntimeException e) {
             log.info("[kis] 미국 종목 {} 일봉을 못 받아 종가일을 모릅니다 — 실시간으로 둡니다: {}",
                     symbol.symbol(), FailureReason.of(e));
             return new Basis(now, true);
         }
+        if (bars.isEmpty()) {
+            log.info("[kis] 미국 종목 {} 일봉이 비어 종가일을 모릅니다 — 실시간으로 둡니다", symbol.symbol());
+            return new Basis(now, true);
+        }
         seedBars("us:" + symbol.symbol(), bars);
-        // DailySeries.recent가 오름차순으로 돌려주고, overExchanges는 빈 목록을 값으로 돌려주지 않는다
+        // DailySeries.recent가 오름차순으로 돌려준다
         return new Basis(KisHeaders.startOfDay(bars.getLast().date()), false);
     }
 
@@ -615,12 +609,12 @@ public class KisStockApi implements DomesticStockClient, UsStockClient, StockDai
      * @param what   로그·예외에 실리는 이름. 거래소마다 같은 이름으로 찍혀야 어느 조회인지 읽힌다
      * @param absent 다 훑어도 빈손일 때의 꼬리말({@code "응답에 현재가가 없습니다"})
      * @param call   {@code (거래소, what)} → 받은 응답. <b>이것만 실패가 「다음 거래소」다</b>
-     * @param read   응답 → 값, 또는 <b>「여기 없다」면 빈 {@link Optional}</b>.
+     * @param read   {@code (거래소, 응답)} → 값, 또는 <b>「여기 없다」면 빈 {@link Optional}</b>.
      *               여기서 난 예외는 <b>그대로 전파된다</b> — 거래소를 바꿔도 같을 일이다
      */
     private <T, R> R overExchanges(String symbol, String what, String absent,
                                    BiFunction<String, String, T> call,
-                                   Function<T, Optional<R>> read) {
+                                   BiFunction<String, T, Optional<R>> read) {
         RuntimeException failure = null;
         // 기억해 둔 거래소가 있으면 그것부터 — 목록을 두 곳에 적지 않는다
         for (String exchange : exchangesToTry(symbol)) {
@@ -633,7 +627,7 @@ public class KisStockApi implements DomesticStockClient, UsStockClient, StockDai
                 failure = e;
                 continue;
             }
-            Optional<R> found = read.apply(response);
+            Optional<R> found = read.apply(exchange, response);
             if (found.isEmpty()) {
                 continue;
             }
@@ -674,26 +668,16 @@ public class KisStockApi implements DomesticStockClient, UsStockClient, StockDai
         return Stream.concat(Stream.of(remembered), all.stream().filter(e -> !e.equals(remembered))).toList();
     }
 
-    /** 일자별 차트 셋(국내 종목·국내 지수·해외지수)이 쓰는 공통 파라미터. */
-    private UriBuilder chart(UriBuilder uri, String path, String market, String code) {
-        return window(uri, path, market, code, LOOKBACK_DAYS);
-    }
-
     /**
-     * 차트용 — <b>창만 넓다.</b> 거래일 열나흘을 담으려면 주말 넷과 연휴를 넘겨야 한다.
-     *
-     * <p>시세 경로({@link #chart})의 창을 넓히지 않는다. 그쪽은 「지금 얼마냐」를 찾는 데
-     * 이레면 넉넉하고, 넓히면 응답만 무거워진다.
+     * 일자별 차트 셋(국내 종목·국내 지수·해외지수)의 공통 파라미터 — 창은 {@link #SERIES_LOOKBACK_DAYS}다.
+     * 거래일 열나흘을 담으려면 주말 넷과 연휴를 넘겨야 한다. 시세도 이 창으로 불러 {@code output2}로
+     * 차트 캐시를 미리 채운다.
      */
     private UriBuilder chartWindow(UriBuilder uri, String path, String market, String code) {
-        return window(uri, path, market, code, SERIES_LOOKBACK_DAYS);
-    }
-
-    private UriBuilder window(UriBuilder uri, String path, String market, String code, int days) {
         return uri.path(path)
                 .queryParam("FID_COND_MRKT_DIV_CODE", market)
                 .queryParam("FID_INPUT_ISCD", code)
-                .queryParam("FID_INPUT_DATE_1", KisHeaders.daysAgo(clock, days))
+                .queryParam("FID_INPUT_DATE_1", KisHeaders.daysAgo(clock, SERIES_LOOKBACK_DAYS))
                 .queryParam("FID_INPUT_DATE_2", KisHeaders.today(clock))
                 .queryParam("FID_PERIOD_DIV_CODE", "D");
     }

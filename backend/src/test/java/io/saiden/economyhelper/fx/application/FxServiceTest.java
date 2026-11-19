@@ -128,7 +128,7 @@ class FxServiceTest {
             if (rate == null) {
                 throw new IllegalStateException("서킷브레이커 열림");
             }
-            return new FxRate("USD", "KRW", new Price(new BigDecimal(rate)), source, NOW);
+            return new FxRate(new Price(new BigDecimal(rate)), null, source, NOW);
         }
     }
 }

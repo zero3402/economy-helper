@@ -116,4 +116,15 @@ class FrankfurterFxClientTest extends WireMockTest {
 
         assertThatThrownBy(() -> client.dailyBars()).isInstanceOf(IllegalStateException.class);
     }
+
+    @Test
+    @DisplayName("날짜가 깨진 일봉 한 칸은 그 칸만 뺀다 — 한 칸이 환율 차트 전체를 던지지 않는다")
+    void dailyBarsDropOnlyTheBrokenDate() {
+        stub("""
+                {"base":"USD","rates":{"2026-08-11":{"KRW":1412.17},"2026-02-31":{"KRW":1400.00},
+                                       "2026-08-13":{"KRW":1420.29}}}""");
+
+        assertThat(client.dailyBars()).extracting(bar -> bar.date().toString())
+                .containsExactly("2026-08-11", "2026-08-13");
+    }
 }

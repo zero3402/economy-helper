@@ -4,8 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.saiden.economyhelper.news.domain.KeywordGroup;
 import io.saiden.economyhelper.translate.application.QueryTranslationService;
+import io.saiden.economyhelper.testsupport.SearchTermCaches;
 import io.saiden.economyhelper.translate.application.port.out.SearchTermTranslator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -22,7 +26,7 @@ class QueryExpanderTest {
     void koreanTokenExpandsToOneGroupWithEnglishTerms() {
         RecordingTranslator translator = new RecordingTranslator(List.of("bitcoin", "btc"), null);
 
-        List<KeywordGroup> groups = new QueryExpander(new QueryTranslationService(translator)).expand("비트코인").groups();
+        List<KeywordGroup> groups = expander(translator).expand("비트코인").groups();
 
         assertThat(groups).hasSize(1);
         assertThat(groups.get(0).terms()).containsExactly("비트코인", "bitcoin", "btc");
@@ -34,7 +38,7 @@ class QueryExpanderTest {
     void translatesTheTypedWordNotTheParticleStrippedOne() {
         RecordingTranslator translator = new RecordingTranslator(List.of("huawei"), null);
 
-        List<KeywordGroup> groups = new QueryExpander(new QueryTranslationService(translator)).expand("화웨이").groups();
+        List<KeywordGroup> groups = expander(translator).expand("화웨이").groups();
 
         assertThat(translator.requested).containsExactly("화웨이");
         assertThat(groups.get(0).terms()).contains("huawei");
@@ -43,7 +47,7 @@ class QueryExpanderTest {
     @Test
     @DisplayName("S&P·AT&T·U.S.는 기호를 지킨다 — sp·att·us로 망가지면 spending·attack·business에 걸린다")
     void keepsSymbolsInsideTokens() {
-        assertThat(QueryExpander.tokenize("S&P 500 AT&T U.S.")).containsExactly("s&p", "500", "at&t", "u.s");
+        assertThat(stems("S&P 500 AT&T U.S.")).containsExactly("s&p", "500", "at&t", "u.s");
     }
 
     @Test
@@ -51,7 +55,7 @@ class QueryExpanderTest {
     void capsTheNumberOfTranslatedTokens() {
         RecordingTranslator translator = new RecordingTranslator(List.of("x"), null);
 
-        new QueryExpander(new QueryTranslationService(translator)).expand("가나 다라 마바 사아 자차 카타 파하").groups();
+        expander(translator).expand("가나 다라 마바 사아 자차 카타 파하").groups();
 
         assertThat(translator.requested).hasSize(QueryExpander.MAX_TOKENS);
     }
@@ -61,24 +65,39 @@ class QueryExpanderTest {
     void englishTokenSkipsTranslation() {
         RecordingTranslator translator = new RecordingTranslator(List.of("절대 안 쓰임"), null);
 
-        List<KeywordGroup> groups = new QueryExpander(new QueryTranslationService(translator)).expand("oil").groups();
+        List<KeywordGroup> groups = expander(translator).expand("oil").groups();
 
         assertThat(groups.get(0).terms()).containsExactly("oil");
         assertThat(translator.requested).isEmpty();
     }
 
     @Test
-    @DisplayName("토큰마다 따로 번역해 개념 경계를 지킨다")
-    void translatesEachTokenSeparately() {
+    @DisplayName("한글 토큰만 모아 한 번에 묻고, 답은 토큰별로 되붙인다 — 개념 경계를 지킨다")
+    void asksOnceForAllKoreanTokensAndKeepsOneGroupPerToken() {
         RecordingTranslator translator = new RecordingTranslator(List.of("translated"), null);
 
-        List<KeywordGroup> groups = new QueryExpander(new QueryTranslationService(translator)).expand("비트코인 금리 oil").groups();
+        List<KeywordGroup> groups = expander(translator).expand("비트코인 금리 oil").groups();
 
         assertThat(groups).hasSize(3);
-        // 토큰별 번역은 겹쳐서 돌므로 요청 순서는 정해져 있지 않다 — 무엇을 물었는지만 본다
-        assertThat(translator.requested)
-                .as("검색어 전체를 한 번에 번역하면 결과를 원래 토큰에 되붙일 수 없다")
-                .containsExactlyInAnyOrder("비트코인", "금리");
+        assertThat(groups.get(0).terms()).containsExactly("비트코인", "translated");
+        assertThat(groups.get(1).terms()).containsExactly("금리", "translated");
+        assertThat(groups.get(2).terms()).containsExactly("oil");
+        assertThat(translator.calls)
+                .as("토큰마다 부르면 검색 한 번이 Gemini 한도를 토큰 수만큼 쓴다")
+                .hasValue(1);
+        assertThat(translator.requested).containsExactly("비트코인", "금리");
+    }
+
+    @Test
+    @DisplayName("번역기가 한 토큰만 못 옮기면 그 토큰만 원문으로 내려가고 고장을 알린다")
+    void fallsBackOnlyForTheTokenThatWasNotTranslated() {
+        SearchTermTranslator onlyBitcoin = tokens -> Map.of("비트코인", List.of("bitcoin"));
+
+        QueryExpander.Expansion expansion = expander(onlyBitcoin).expand("비트코인 금리");
+
+        assertThat(expansion.groups().get(0).terms()).containsExactly("비트코인", "bitcoin");
+        assertThat(expansion.groups().get(1).terms()).containsExactly("금리");
+        assertThat(expansion.untranslated()).isTrue();
     }
 
     @Test
@@ -87,7 +106,7 @@ class QueryExpanderTest {
         RecordingTranslator translator =
                 new RecordingTranslator(null, new IllegalStateException("429 Too Many Requests"));
 
-        QueryExpander.Expansion expansion = new QueryExpander(new QueryTranslationService(translator)).expand("금리 oil");
+        QueryExpander.Expansion expansion = expander(translator).expand("금리 oil");
         List<KeywordGroup> groups = expansion.groups();
 
         assertThat(groups).hasSize(2);
@@ -102,14 +121,14 @@ class QueryExpanderTest {
     void reportsNoFailureWhenNothingBroke() {
         RecordingTranslator translator = new RecordingTranslator(List.of("interest rate"), null);
 
-        assertThat(new QueryExpander(new QueryTranslationService(translator)).expand("금리 oil").untranslated())
+        assertThat(expander(translator).expand("금리 oil").untranslated())
                 .isFalse();
     }
 
     @Test
     @DisplayName("빈 검색어는 묶음도 없다 — 호출자가 전체를 훑지 않도록")
     void blankQueryYieldsNoGroups() {
-        QueryExpander expander = new QueryExpander(new QueryTranslationService(new RecordingTranslator(List.of("x"), null)));
+        QueryExpander expander = expander(new RecordingTranslator(List.of("x"), null));
 
         assertThat(expander.expand("   ").groups()).isEmpty();
         assertThat(expander.expand(null).groups()).isEmpty();
@@ -118,13 +137,23 @@ class QueryExpanderTest {
     @Test
     @DisplayName("소문자 토큰으로 쪼개고 중복을 지운다")
     void tokenizesQuery() {
-        assertThat(QueryExpander.tokenize("  Fed  RATE  fed ")).containsExactly("fed", "rate");
-        assertThat(QueryExpander.tokenize(null)).isEmpty();
+        assertThat(stems("  Fed  RATE  fed ")).containsExactly("fed", "rate");
+        assertThat(stems(null)).isEmpty();
+    }
+
+    private static QueryExpander expander(SearchTermTranslator translator) {
+        return new QueryExpander(new QueryTranslationService(translator, SearchTermCaches.none()));
+    }
+
+    /** 조사를 뗀 형태만 — 토큰화 규칙을 본다. */
+    private static List<String> stems(String query) {
+        return QueryExpander.tokens(query).stream().map(QueryExpander.Token::stem).toList();
     }
 
     /** 어떤 토큰이 번역을 요청받았는지 기록한다 — 호출 여부가 이 클래스의 핵심 계약이다. */
     private static final class RecordingTranslator implements SearchTermTranslator {
         private final List<String> requested = new java.util.concurrent.CopyOnWriteArrayList<>();
+        private final AtomicInteger calls = new AtomicInteger();
         private final List<String> result;
         private final RuntimeException failure;
 
@@ -134,12 +163,15 @@ class QueryExpanderTest {
         }
 
         @Override
-        public List<String> toEnglishTerms(String token) {
-            requested.add(token);
+        public Map<String, List<String>> toEnglishTerms(List<String> tokens) {
+            calls.incrementAndGet();
+            requested.addAll(tokens);
             if (failure != null) {
                 throw failure;
             }
-            return result;
+            Map<String, List<String>> byToken = new LinkedHashMap<>();
+            tokens.forEach(token -> byToken.put(token, result));
+            return byToken;
         }
     }
 }

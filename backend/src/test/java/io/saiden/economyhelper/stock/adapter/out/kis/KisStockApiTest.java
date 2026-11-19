@@ -735,7 +735,7 @@ class KisStockApiTest extends WireMockTest {
     }
 
     @Test
-    @DisplayName("값이 없는 거래소에는 종가일을 묻지 않는다 — 없는 티커 하나가 장 밖에서 KIS를 열두 번 붙들었다")
+    @DisplayName("값이 없는 거래소에는 종가일을 묻지 않는다 — 없는 티커 하나가 장 밖에서 KIS를 붙들었다")
     void neverAsksTheBasisOfAnEmptyExchange() {
         // 장 밖(토요일)에는 값이 있는 거래소의 일봉으로 종가일을 정한다. 값이 비어 온 거래소는 「여기 없다」일 뿐인데
         // 그 거래소에서도 일봉을 물으면 거래소 셋 × 일봉 셋 = 아홉 번을 간격 문(1초)에서 더 기다린다 —
@@ -750,6 +750,50 @@ class KisStockApiTest extends WireMockTest {
 
         server.verify(3, getRequestedFor(urlPathEqualTo(US_STOCK_PATH)));
         server.verify(0, getRequestedFor(urlPathEqualTo(US_STOCK_SERIES_PATH)));
+    }
+
+    @Test
+    @DisplayName("종가일은 값이 온 거래소에만 묻는다 — 아멕스 종목의 일봉을 나스닥부터 다시 훑지 않는다")
+    void asksTheBasisOnlyOfTheExchangeThatAnswered() {
+        KisStockApi weekend = apiAt(Instant.parse("2026-08-22T11:00:00Z"));
+        for (String empty : new String[] {"NAS", "NYS"}) {
+            server.stubFor(get(urlPathEqualTo(US_STOCK_PATH))
+                    .withQueryParam("EXCD", WireMock.equalTo(empty))
+                    .willReturn(aResponse().withStatus(200)
+                            .withHeader("Content-Type", "application/json")
+                            .withBody("""
+                                    {"rt_cd":"0","output":{"rsym":"","curr":"","last":"","base":""}}""")));
+        }
+        server.stubFor(get(urlPathEqualTo(US_STOCK_PATH))
+                .withQueryParam("EXCD", WireMock.equalTo("AMS"))
+                .willReturn(aResponse().withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("""
+                                {"rt_cd":"0","output":{"rsym":"DAMSSCHD","curr":"USD",
+                                 "last":"35.1100","base":"35.2100"}}""")));
+        stub(US_STOCK_SERIES_PATH, usSeriesBody("20260821", "20260820"));
+
+        StockQuote quote = weekend.quote(new UsSymbol("SCHD", "SCHD"));
+
+        assertThat(quote.realtime()).isFalse();
+        assertThat(quote.at()).isEqualTo(KisHeaders.startOfDay(LocalDate.of(2026, 8, 21)));
+        server.verify(1, getRequestedFor(urlPathEqualTo(US_STOCK_SERIES_PATH)));
+        server.verify(getRequestedFor(urlPathEqualTo(US_STOCK_SERIES_PATH))
+                .withQueryParam("EXCD", WireMock.equalTo("AMS")));
+    }
+
+    @Test
+    @DisplayName("값이 온 거래소의 일봉이 비어 있으면 종가일을 모른다 — 시세는 실시간으로 나가고 던지지 않는다")
+    void staysLiveWhenTheAnsweringExchangeHasNoBars() {
+        KisStockApi weekend = apiAt(Instant.parse("2026-08-22T11:00:00Z"));
+        stubUsStock();
+        stub(US_STOCK_SERIES_PATH, """
+                {"rt_cd":"0","msg_cd":"MCA00000","msg1":"정상처리 되었습니다.","output2":[]}""");
+
+        StockQuote quote = weekend.quote(APPLE);
+
+        assertThat(quote.realtime()).isTrue();
+        server.verify(1, getRequestedFor(urlPathEqualTo(US_STOCK_SERIES_PATH)));
     }
 
     @Test

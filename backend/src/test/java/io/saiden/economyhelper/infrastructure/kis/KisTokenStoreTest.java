@@ -452,10 +452,10 @@ class KisTokenStoreTest extends WireMockTest {
     }
 
     @Test
-    @DisplayName("발급이 실패하면 1분 동안 다시 발급하지 않는다 — 장애 중 브리핑 한 번이 열 번을 연타해 1분 1회 제한을 어겼다")
+    @DisplayName("발급이 실패하면 1분 동안 다시 발급하지 않는다 — 장애 중 브리핑 한 번이 발급을 연타해 1분 1회 제한을 어겼다")
     void backsOffForAMinuteAfterAFailedIssue() {
         // KIS 5xx(또는 1분 1회 거절)는 기억되지 않아 KIS 호출마다 tokenP를 다시 POST했다 —
-        // 브리핑 한 번이 열 번쯤이고, 그것이 곧 「1분에 한 번만 발급」을 우리 손으로 어기는 길이다
+        // 브리핑 한 번이 KIS를 여러 번 부르고, 그것이 곧 「1분에 한 번만 발급」을 우리 손으로 어기는 길이다
         server.stubFor(post(urlPathEqualTo(PATH)).willReturn(aResponse().withStatus(500)));
         MovableClock clock = new MovableClock(NOW);
         KisTokenStore store = new KisTokenStore(RestClient.builder(), credentials("key", "secret"),

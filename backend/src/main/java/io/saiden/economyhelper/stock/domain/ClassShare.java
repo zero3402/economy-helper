@@ -8,8 +8,8 @@ import java.util.regex.Pattern;
 /**
  * 클래스 주식 티커 — 티커 1~5자 + 구분자 + 클래스 1~2자({@code BRK.B}·{@code bf-b}·{@code BRK/B}).
  *
- * <p>검색({@code StockService})과 KIS 어댑터가 <b>같은 판정</b>을 쓴다. 두 벌일 때는 어댑터 쪽이 대문자만
- * 받아, LLM이 소문자로 넘긴 {@code brk.b}가 KIS 표기로 안 바뀌고 빈손이 됐다.
+ * <p>검색({@code StockService})과 KIS 어댑터가 <b>같은 판정</b>을 쓴다. 두 벌이면 한쪽만 대문자를
+ * 요구해, LLM이 소문자로 넘긴 {@code brk.b}가 KIS 표기로 안 바뀌고 빈손이 된다.
  *
  * @param ticker 대문자 티커({@code BRK})
  * @param klass  대문자 클래스({@code B})

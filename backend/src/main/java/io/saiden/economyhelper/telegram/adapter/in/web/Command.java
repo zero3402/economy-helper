@@ -129,8 +129,8 @@ public enum Command {
     /**
      * 토큰으로 명령을 찾는다 — <b>정식 이름과 줄임말을 함께 본다.</b>
      *
-     * <p>{@code CommandParser}는 안 고친다. 이미 이 메서드만 부르므로 줄임말이 여기서 걸리면
-     * 인자 자르기·{@code @botname} 떼기·대소문자 같은 나머지 규칙이 그대로 적용된다.
+     * <p>{@code CommandParser}가 이 메서드만 부르므로, 줄임말이 여기서 걸리면 인자 자르기·
+     * {@code @botname} 떼기·대소문자 같은 나머지 규칙이 그대로 적용된다.
      */
     static Optional<Command> of(String token) {
         String normalized = token.toLowerCase(Locale.ROOT);

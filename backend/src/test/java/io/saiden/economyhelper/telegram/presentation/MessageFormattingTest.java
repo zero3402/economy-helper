@@ -230,7 +230,7 @@ class MessageFormattingTest {
     @Test
     @DisplayName("환율도 값 다음에 출처, 한 줄 띄고 기준이다 — 네 통이 같은 순서다")
     void fxCarriesItsChangeToo() {
-        FxRate rate = new FxRate("USD", "KRW", new Price(new BigDecimal("1414.90")),
+        FxRate rate = new FxRate(new Price(new BigDecimal("1414.90")),
                 new PercentChange(new BigDecimal("-0.01")), FxSource.KEXIM, BASIS);
 
         assertThat(FxFormatter.format(rate)).isEqualTo("""
@@ -247,7 +247,7 @@ class MessageFormattingTest {
     @Test
     @DisplayName("등락률이 없으면 줄 자체를 빼고 빈 줄을 남기지 않는다")
     void leavesNoBlankLineWhereTheChangeWouldBe() {
-        FxRate rate = new FxRate("USD", "KRW", new Price(new BigDecimal("1414.90")), FxSource.KEXIM, BASIS);
+        FxRate rate = new FxRate(new Price(new BigDecimal("1414.90")), null, FxSource.KEXIM, BASIS);
 
         assertThat(FxFormatter.format(rate))
                 .as("덩어리 사이는 빈 줄 하나다 — 두 줄이면 자리가 비어 보인다")
@@ -257,7 +257,7 @@ class MessageFormattingTest {
     @Test
     @DisplayName("실시간 출처가 쉬는 날 준 종가는 시각 없이 날짜와 (종가)로 적는다 — 읽은 시각을 찍으면 낡은 값을 꾸민다")
     void marksAClosingRateFromALiveSourceAsClose() {
-        FxRate rate = new FxRate("USD", "KRW", new Price(new BigDecimal("1414.90")), null,
+        FxRate rate = new FxRate(new Price(new BigDecimal("1414.90")), null,
                 FxSource.KIS, BASIS, false);
 
         assertThat(FxFormatter.format(rate)).endsWith("한국투자증권\n\n2026.08.11(화) (종가)");
@@ -591,7 +591,7 @@ class MessageFormattingTest {
         CryptoQuote hairline = new CryptoQuote("비트코인", "KRW-BTC", NOW,
                 Quote.of(new Price(new BigDecimal("11590")), null),
                 Quote.of(new Price(new BigDecimal("11579")), null));
-        FxRate one = new FxRate("USD", "KRW", new Price(BigDecimal.ONE), FxSource.FRANKFURTER, BASIS);
+        FxRate one = new FxRate(new Price(BigDecimal.ONE), null, FxSource.FRANKFURTER, BASIS);
 
         assertThat(crypto(hairline, one)).contains("김프\n🔴 +0.09%");
     }
@@ -700,7 +700,7 @@ class MessageFormattingTest {
     @Test
     @DisplayName("1원 미만 환산은 업비트처럼 유효숫자로 적는다 — 페페 0.0000042 USDT가 「0.01 KRW」로 나가던 것(실물 감사 2026-10-14)")
     void convertsASubWonPriceWithSignificantDigits() {
-        FxRate fx = new FxRate("USD", "KRW", new Price(new BigDecimal("1350.00")), FxSource.KIS, NOW);
+        FxRate fx = new FxRate(new Price(new BigDecimal("1350.00")), null, FxSource.KIS, NOW);
         String message = crypto(new CryptoQuote("페페", "KRW-PEPE", NOW,
                 Quote.of(new Price(new BigDecimal("0.00566")), null),
                 Quote.of(new Price(new BigDecimal("0.0000042")), null)), fx);

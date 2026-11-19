@@ -9,6 +9,7 @@ import io.saiden.economyhelper.config.EconomyHelperProperties.DataGo;
 import io.saiden.economyhelper.config.EconomyHelperProperties;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import org.springframework.cache.annotation.Cacheable;
@@ -85,7 +86,7 @@ public class MarketIndexApi {
                 .filter(index -> compact(index.idxNm()).equals(wanted))
                 .findFirst()
                 .orElseGet(() -> named.stream()
-                        .min((a, b) -> Integer.compare(a.idxNm().length(), b.idxNm().length()))
+                        .min(Comparator.comparingInt(index -> index.idxNm().length()))
                         .orElse(null));
     }
 

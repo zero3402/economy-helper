@@ -341,6 +341,94 @@ class NewsServiceTest {
         assertThat(buzz.asked.getFirst()).containsExactlyInAnyOrder(main, crypto);
     }
 
+    @Test
+    @DisplayName("브리핑은 매체별로 문턱을 건다 — 한 매체가 통째로 미달이어도 다른 매체의 기사는 그대로 나간다")
+    void digestAppliesTheThresholdPerSource() {
+        RecordingJudge judge = new RecordingJudge();
+        NewsService service = service(Map.of(
+                NewsSource.CNBC, List.of(
+                        article(NewsSource.CNBC, "Fed holds rates steady", 0),
+                        article(NewsSource.CNBC, "noise: airport queues double", 1)),
+                NewsSource.BBC, List.of(
+                        article(NewsSource.BBC, "noise: royal visit schedule", 0),
+                        article(NewsSource.BBC, "noise: weekend weather", 1)),
+                NewsSource.COINDESK, List.of(
+                        article(NewsSource.COINDESK, "Bitcoin climbs past resistance", 0))), judge);
+
+        List<ScoredArticle> digest = service.digest();
+
+        assertThat(digest).extracting(scored -> scored.article().title())
+                .containsExactlyInAnyOrder("Fed holds rates steady", "Bitcoin climbs past resistance");
+        assertThat(digest).isSortedAccordingTo(
+                java.util.Comparator.comparingDouble(ScoredArticle::score).reversed());
+    }
+
+    @Test
+    @DisplayName("브리핑은 재테크 관련도를 전 매체 후보를 모아 한 번만 묻는다 — 매체마다 물으면 Gemini 한도를 매체 수만큼 쓴다")
+    void digestAsksForRelevanceOnceAcrossAllSources() {
+        RecordingJudge judge = new RecordingJudge();
+        Article fed = article(NewsSource.CNBC, "Fed holds rates steady", 0);
+        Article bitcoin = article(NewsSource.COINDESK, "Bitcoin climbs past resistance", 0);
+        Article yields = article(NewsSource.BBC, "Gilt yields ease", 0);
+        NewsService service = service(Map.of(
+                NewsSource.CNBC, List.of(fed),
+                NewsSource.COINDESK, List.of(bitcoin),
+                NewsSource.BBC, List.of(yields)), judge);
+
+        assertThat(service.digest()).hasSize(3);
+        assertThat(judge.asked).hasSize(1);
+        assertThat(judge.asked.getFirst()).containsExactlyInAnyOrder(fed, bitcoin, yields);
+    }
+
+    @Test
+    @DisplayName("두 피드에 실린 같은 기사는 관련도를 한 번만 묻는다 — 점수는 링크로 두 피드가 함께 쓴다")
+    void digestAsksOnceForAnArticleCarriedByTwoFeeds() {
+        RecordingJudge judge = new RecordingJudge();
+        Article shared = article(NewsSource.INVESTING, "Rate cut bets grow", 0);
+        Article alsoInCrypto = new Article(NewsSource.INVESTING_CRYPTO, shared.title(), null,
+                shared.link(), shared.publishedAt(), 0);
+        NewsService service = service(Map.of(
+                NewsSource.INVESTING, List.of(shared),
+                NewsSource.INVESTING_CRYPTO, List.of(alsoInCrypto)), judge);
+
+        assertThat(service.digest()).hasSize(1);
+        assertThat(judge.asked.getFirst()).extracting(Article::link).containsExactly(shared.link());
+    }
+
+    @Test
+    @DisplayName("매체마다 후보 수를 따로 자른다 — 기사가 많은 매체가 관련도 후보를 독차지하지 않는다")
+    void digestLimitsCandidatesPerSource() {
+        RecordingJudge judge = new RecordingJudge();
+        List<Article> many = java.util.stream.IntStream.range(0, 12)
+                .mapToObj(rank -> article(NewsSource.CNBC, "Market story " + rank, rank))
+                .toList();
+        NewsService service = service(Map.of(
+                NewsSource.CNBC, many,
+                NewsSource.BBC, List.of(article(NewsSource.BBC, "Gilt yields ease", 0))), judge);
+
+        service.digest();
+
+        assertThat(judge.asked.getFirst())
+                .as("CNBC는 여덟(llm-candidates)까지, BBC는 가진 하나")
+                .hasSize(9);
+    }
+
+    /** 제목이 {@code noise}로 시작하면 0점, 아니면 0.9점 — 결정적이다. 무엇을 몇 번 물었는지 기록한다. */
+    private static final class RecordingJudge extends RelevanceScorer {
+        private final List<List<Article>> asked = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+        private RecordingJudge() {
+            super(null, null);
+        }
+
+        @Override
+        public Map<String, Double> scoreAll(List<Article> candidates) {
+            asked.add(List.copyOf(candidates));
+            return candidates.stream().collect(java.util.stream.Collectors.toMap(
+                    Article::link, article -> article.title().startsWith("noise") ? 0.0 : 0.9, (x, y) -> x));
+        }
+    }
+
     /** 검색어와 무관하다고 답하는 LLM — 매칭은 됐지만 스쳐 지나간 기사의 상황이다. */
     private static RelevanceScorer rejectingSearchScorer() {
         return new RelevanceScorer(null, null) {

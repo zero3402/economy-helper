@@ -36,7 +36,7 @@ class WeatherResolverTest {
 
         assertThat(resolved).isPresent();
         assertThat(resolved.get().hasPlace()).isTrue();
-        assertThat(resolved.get().countryCode()).isEqualTo("KR");
+        assertThat(resolved.get().country()).isEqualTo("KR");
     }
 
     @Test
@@ -55,9 +55,9 @@ class WeatherResolverTest {
     void normalizesTheLiteralNullCountry() {
         // LLM이 문자열 "null"을 주는 일이 실제로 있다. countryCode=null이 쿼리에 실리면 지오코딩이
         // 빈손을 주고, 그 뒤에야 원문으로 폴백한다 — 조회가 조용히 두 배가 된다
-        assertThat(resolve("{\"query\":\"파리\",\"country\":\"null\"}").orElseThrow().countryCode())
+        assertThat(resolve("{\"query\":\"파리\",\"country\":\"null\"}").orElseThrow().country())
                 .isNull();
-        assertThat(resolve("{\"query\":\"파리\",\"country\":\"  \"}").orElseThrow().countryCode())
+        assertThat(resolve("{\"query\":\"파리\",\"country\":\"  \"}").orElseThrow().country())
                 .isNull();
     }
 

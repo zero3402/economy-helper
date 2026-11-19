@@ -23,10 +23,9 @@ public final class HelpFormatter {
     /**
      * 인자가 필요한 명령을 인자 없이 보냈을 때. 명령마다 예시가 다르다.
      *
-     * <p>⚠️ <b>세 갈래 전부가 도달하지 않아도 참이어야 한다.</b> 인자를 안 받는 명령
-     * ({@code /fx}·{@code /help})과 없어도 되는 명령({@code /news})은
-     * {@code missingRequiredArgument()}가 막아 여기까지 오지 않지만, 도달 불가라는 이유로
-     * 틀린 문장을 남기면 누가 막는 걸 잊었을 때 그게 나간다. 이 문구는 {@code RenderedOutputTest}가
+     * <p>⚠️ <b>세 갈래 전부가 참이어야 한다.</b> 인자를 안 받는 명령({@code /fx}·{@code /help})도
+     * 인자를 붙여 보내면({@code /fx 엔}) 여기로 온다({@code ParsedCommand.needsUsage}). 없어도 되는
+     * 명령({@code /news})은 오지 않지만, 도달 불가라는 이유로 틀린 문장을 남기면 누가 막는 걸 잊었을 때 그게 나간다. 이 문구는 {@code RenderedOutputTest}가
      * 명령 전부를 훑어 골든에 굳힌다.
      *
      * <p>{@code default} 없는 switch 식이라 <b>{@link Command.Argument}에 상태를 더하면

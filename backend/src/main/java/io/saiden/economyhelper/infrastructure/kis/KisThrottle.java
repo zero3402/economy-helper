@@ -34,7 +34,7 @@ import org.springframework.stereotype.Component;
  * 늘어진다 — 예전 리미터의 {@code timeoutDuration}이 하던 몫이다. 넘치면 던지고, 그러면
  * 상위 서비스가 다음 출처로 넘어간다.
  *
- * <p>브리핑은 KIS를 9번 연달아 부르므로 마지막 호출이 ~8초를 기다린다. 이건 늦어진 것이
+ * <p>브리핑은 KIS를 연달아 부르므로 뒤쪽 호출은 여러 초를 기다린다. 이건 늦어진 것이
  * 아니라 <b>원래 지불해야 했던 값</b>이다.
  */
 @Component
@@ -99,7 +99,7 @@ public class KisThrottle {
      *
      * <p>⚠️ <b>타입을 따로 두는 이유는 브레이커다.</b> KIS 브레이커가 이것을 무시 목록에 둔다
      * ({@code RequestNotPermitted}와 같은 이유). 맨 {@code IllegalStateException}이면 브리핑이 KIS를
-     * 9번 연달아 부르는 동안 줄에서 밀린 {@code /stock} 하나가 {@code kisStock}·{@code kisFx}에
+     * 연달아 부르는 동안 줄에서 밀린 {@code /stock} 하나가 {@code kisStock}·{@code kisFx}에
      * <b>상대 장애로 기록돼</b> 멀쩡한 상대를 끊는다.
      *
      * <p>중단({@code InterruptedException})도 여기 넣는다. 종료 신호이지 KIS의 문제가 아니다.

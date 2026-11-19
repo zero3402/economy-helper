@@ -245,6 +245,35 @@ class WeatherFacadeTest {
     }
 
     @Test
+    @DisplayName("예보가 닿지 않는 먼 날을 물으면 그렇게 말한다 — 빈손이나 아무 날로 답하지 않는다")
+    void saysSoWhenTheDayIsBeyondTheForecast() {
+        Geocoder geocoder = new Geocoder();
+        geocoder.answer("서울특별시", "KR", place("서울특별시", "대한민국", 37.56667, 126.97806));
+        WeatherFacade facade = facade(resolver(new ResolvedPlace(
+                "서울특별시", "KR", null, null, null, 60, null, null, null, null)), geocoder);
+
+        assertThat(facade.search("60일 뒤 서울").reason()).isEqualTo(WeatherFacade.Lookup.Reason.TOO_FAR_AHEAD);
+    }
+
+    @Test
+    @DisplayName("지오코딩이 던지면 무응답이 아니라 「잠시 후 다시」다 — 캐시 계층(Redis)이 죽어도 답은 나간다")
+    void answersUnavailableWhenGeocodingThrows() {
+        Geocoder throwing = new Geocoder() {
+            @Override
+            public Optional<GeoLocation> find(String query, String countryCode) {
+                throw new IllegalStateException("Redis 연결이 끊겼습니다");
+            }
+        };
+        WeatherFacade facade = facade(resolver(new ResolvedPlace(
+                "서울특별시", "KR", null, null, null, null, null, null, null, null)), throwing);
+
+        WeatherFacade.Lookup lookup = facade.search("서울");
+
+        assertThat(lookup.reason()).isEqualTo(WeatherFacade.Lookup.Reason.UNAVAILABLE);
+        assertThat(lookup.places()).isEmpty();
+    }
+
+    @Test
     @DisplayName("LLM이 13월을 주면 「날짜를 못 읽었다」다 — 「잠시 후 다시」가 아니다")
     void treatsAnImpossibleMonthAsAnUnreadableDate() {
         Geocoder geocoder = new Geocoder();
@@ -396,7 +425,7 @@ class WeatherFacadeTest {
     }
 
     /** 무엇을 물었는지 기록한다 — "두 번 묻는다"가 이 클래스의 계약이라 그걸 봐야 한다. */
-    private static final class Geocoder extends GeocodingApi {
+    private static class Geocoder extends GeocodingApi {
 
         private final List<String> asked = new ArrayList<>();
         private final List<String> keys = new ArrayList<>();

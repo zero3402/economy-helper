@@ -83,7 +83,7 @@ public class OpenMeteoForecastClient implements WeatherClient {
     @Retry(name = "weatherOpenMeteo")
     @CircuitBreaker(name = "weatherOpenMeteo")
     public Weather forecast(GeoLocation place, WeatherPeriod period) {
-        return OpenMeteoRequest.daily(restClient, "/v1/forecast", DAILY_FIELDS,
+        return OpenMeteoRequest.daily(restClient, OpenMeteoRequest.FORECAST_PATH, DAILY_FIELDS,
                 OpenMeteoRequest.FORECAST_HOURLY_FIELDS,
                 place, period, source());
     }

@@ -34,7 +34,7 @@ ECONOMY_HELPER_DIGEST_CRON=- ECONOMY_HELPER_WEATHER_CRON=- ECONOMY_HELPER_KEEP_W
 
 이렇게 바꾸는 이유:
 
-- **크론을 끈다** — 켜 두면 브리핑이 돌아 KIS 20회 · Gemini 9회를 쓴다.
+- **크론을 끈다** — 켜 두면 브리핑이 돌아 KIS와 Gemini 한도를 쓴다.
 - **포트를 옮긴다** — 8080 충돌로 재시작을 반복하면 KIS 토큰이 죽는다(1분에 1회만 발급).
 
 `curl -s localhost:18081/actuator/health`가 `UP`이 될 때까지 기다린다 — 명령 한 번으로(`timeout 120 bash -c 'until curl -sf localhost:18081/actuator/health | grep -q UP; do sleep 2; done'`). 도구 호출을 sleep으로 여러 번 반복하지 않는다.

@@ -37,13 +37,13 @@ class TelegramDigestNotifierTest {
             }
         };
         DigestMessage message = new DigestMessage.Fx(
-                new FxRate("USD", "KRW", new Price(new BigDecimal("1415")), FxSource.KEXIM, NOW));
+                new FxRate(new Price(new BigDecimal("1415")), null, FxSource.KEXIM, NOW));
         List<DigestMessage.Chart> charts = List.of(
                 new DigestMessage.Chart("첫째", null, () -> BARS),
                 new DigestMessage.Chart("둘째", null, () -> BARS),
                 new DigestMessage.Chart("셋째", null, () -> BARS));
 
-        Delivery delivery = new TelegramDigestNotifier(telegram).send(message, charts, () -> { });
+        Delivery delivery = new TelegramDigestNotifier(telegram).send(message, charts, () -> { }, () -> { });
 
         assertThat(delivery.delivered()).isTrue();
         assertThat(delivery.failure()).isNull();
@@ -60,7 +60,7 @@ class TelegramDigestNotifierTest {
                 news("첫째 기사"), news("둘째 기사"), news("셋째 기사")));
         int[] delivered = {0};
 
-        Delivery delivery = new TelegramDigestNotifier(telegram).send(message, List.of(), () -> delivered[0]++);
+        Delivery delivery = new TelegramDigestNotifier(telegram).send(message, List.of(), () -> delivered[0]++, () -> { });
 
         assertThat(telegram.sent).hasSize(2);
         assertThat(telegram.sent.get(1)).contains("셋째 기사");
@@ -99,10 +99,10 @@ class TelegramDigestNotifierTest {
     void sendsNoChartsWhenNoTextWentOut() {
         RecordingTelegram telegram = new RecordingTelegram("USD");
         DigestMessage message = new DigestMessage.Fx(
-                new FxRate("USD", "KRW", new Price(new BigDecimal("1415")), FxSource.KEXIM, NOW));
+                new FxRate(new Price(new BigDecimal("1415")), null, FxSource.KEXIM, NOW));
         List<DigestMessage.Chart> charts = List.of(new DigestMessage.Chart("첫째", null, () -> BARS));
 
-        Delivery delivery = new TelegramDigestNotifier(telegram).send(message, charts, () -> { });
+        Delivery delivery = new TelegramDigestNotifier(telegram).send(message, charts, () -> { }, () -> { });
 
         assertThat(delivery.delivered()).isFalse();
         assertThat(delivery.failure()).isNotNull();

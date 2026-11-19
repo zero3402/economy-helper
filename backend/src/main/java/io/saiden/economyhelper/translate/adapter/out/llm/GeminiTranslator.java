@@ -2,6 +2,7 @@ package io.saiden.economyhelper.translate.adapter.out.llm;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.saiden.economyhelper.infrastructure.llm.GeminiApi;
+import io.saiden.economyhelper.infrastructure.llm.LlmJson;
 import io.saiden.economyhelper.translate.application.port.out.Translator;
 import io.saiden.economyhelper.translate.domain.Translation;
 import io.saiden.economyhelper.translate.domain.TranslationRequest;
@@ -80,7 +81,7 @@ public class GeminiTranslator implements Translator {
     /**
      * 여러 건을 <b>Gemini 한 번</b>으로 번역한다.
      *
-     * <p><b>왜 묶는가.</b> 번역은 관련도 채점(매체당 1회) 뒤에 오므로 건별로 부르면 <b>리미터가
+     * <p><b>왜 묶는가.</b> 번역은 관련도 채점 뒤에 오므로 건별로 부르면 <b>리미터가
      * 소진됐을 때 잘려 나가는 쪽이 정확히 번역</b>이다 — 「번역이 일시적으로 불가」가 자주 뜨던 원인이다.
      *
      * <p><b>개수가 어긋나면 통째로 실패시킨다.</b> 짝이 밀리면 A 기사에 B 번역이 붙는데,
@@ -97,7 +98,7 @@ public class GeminiTranslator implements Translator {
         if (articles.size() == 1) {
             return List.of(translate(articles.get(0)));
         }
-        TranslatedBatch parsed = objectMapper.readValue(
+        TranslatedBatch parsed = LlmJson.read(objectMapper,
                 api.generate(BATCH_PROMPT.formatted(articles.size(), sourceOf(articles))),
                 TranslatedBatch.class);
 
@@ -110,11 +111,7 @@ public class GeminiTranslator implements Translator {
 
         List<Translation> translations = new ArrayList<>(articles.size());
         for (TranslatedText text : parsed.articles()) {
-            if (text == null || text.title() == null || text.title().isBlank()) {
-                throw new IllegalStateException("번역 결과에 title이 없습니다");
-            }
-            translations.add(Translation.of(text.title().trim(),
-                    text.body() == null ? "" : text.body().trim()));
+            translations.add(toTranslation(text));
         }
         return List.copyOf(translations);
     }
@@ -133,11 +130,15 @@ public class GeminiTranslator implements Translator {
     }
 
     private Translation parse(String json) {
-        TranslatedText parsed = objectMapper.readValue(json, TranslatedText.class);
-        if (parsed == null || parsed.title() == null || parsed.title().isBlank()) {
+        return toTranslation(LlmJson.read(objectMapper, json, TranslatedText.class));
+    }
+
+    /** 제목이 없는 번역은 번역이 아니다 — 던져야 부르는 쪽이 원문으로 내보낸다. 본문은 없을 수 있다. */
+    private static Translation toTranslation(TranslatedText text) {
+        if (text == null || text.title() == null || text.title().isBlank()) {
             throw new IllegalStateException("번역 결과에 title이 없습니다");
         }
-        return Translation.of(parsed.title().trim(), parsed.body() == null ? "" : parsed.body().trim());
+        return Translation.of(text.title().trim(), text.body() == null ? "" : text.body().trim());
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
