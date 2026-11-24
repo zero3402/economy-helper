@@ -11,16 +11,22 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * 실제 응답을 뜬 픽스처로 파싱을 고정한다(2026-08-14 채취).
+ * 실물 형식을 따른 합성 픽스처로 파싱을 고정한다.
  *
- * <p>네트워크를 타지 않으므로 테스트가 결정적이고, 매체가 피드 형식을 바꾼 사실은
- * 픽스처를 다시 뜰 때 드러난다.
+ * <p>골격·날짜 모양·링크 호스트·author·CDATA·마크업은 실제 응답(파일마다 채취일을 채널
+ * 설명에 적었다) 그대로이고, <b>제목·요약·사람 이름·링크 경로·이미지는 지어 넣었다</b> — 남의
+ * 기사를 저장소에 복제하지 않는다({@link #feedFixturesCarryNoRealArticles}). 매체가 형식을 바꾼
+ * 사실은 픽스처를 다시 뜰 때 드러난다.
  *
  * <p><b>픽스처가 정말 그 매체 것인지부터 검사한다</b>({@link #fixturesActuallyComeFromTheirOutlet}).
  * 파일명만 바꾼 남의 매체 응답이면 실물이 깨져도 이 테스트는 초록이다 — 파일명이 아니라 내용이
  * 매체를 정한다.
  */
 class RssFeedClientTest {
+
+    private static final List<String> FEED_FIXTURES = List.of(
+            "yahoo-finance.xml", "investing.xml", "cnbc.xml", "bbc.xml", "googlenews-ap.xml",
+            "coindesk.xml", "cointelegraph.xml");
 
     private final RssFeedClient client = new RssFeedClient();
 
@@ -36,6 +42,22 @@ class RssFeedClientTest {
         assertThat(raw("googlenews-ap.xml"))
                 .as("AP 피드는 site:apnews.com으로 묶인 구글 뉴스 검색이어야 한다")
                 .contains("site:apnews.com");
+    }
+
+    @Test
+    @DisplayName("피드 픽스처에 실제 기사가 없다 — 제목이 전부 합성이다")
+    void feedFixturesCarryNoRealArticles() {
+        for (String name : FEED_FIXTURES) {
+            String xml = raw(name);
+            int start = Math.max(xml.indexOf("<item>"), xml.indexOf("<item "));
+            List<String> titles = java.util.regex.Pattern
+                    .compile("<title>(?:<!\\[CDATA\\[)?\\s*([^<\\]]*)")
+                    .matcher(xml.substring(start)).results().map(m -> m.group(1)).toList();
+
+            assertThat(titles).as("%s 에 항목 제목이 있어야 한다", name).isNotEmpty();
+            assertThat(titles).as("%s 는 실물을 그대로 뜬 것이 아니라 합성본이어야 한다", name)
+                    .allSatisfy(title -> assertThat(title).startsWith("Synthetic headline"));
+        }
     }
 
     @Test

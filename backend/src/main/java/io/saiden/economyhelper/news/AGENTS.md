@@ -13,6 +13,7 @@
 
 - 페이월 매체는 쓰지 않는다. 한 매체의 피드에서는 그 매체 기사만 쓴다(`NewsSource.owns`) → ADR-0014
 - 피드 URL 끝에 슬래시를 붙이지 않는다 → ADR-0014
+- 피드 픽스처는 형식만 실물에서 따고 제목·요약·사람 이름·링크 경로·이미지는 지어 넣는다. 남의 기사를 저장소에 복제하지 않는다(`RssFeedClientTest.feedFixturesCarryNoRealArticles`)
 - 기사 페이지의 봇 검문을 우회하지 않는다(피드만 받는다) → ADR-0014
 - 수집량이 이상하면 ADR의 기준 수치와 비교한다 → ADR-0014
 - 피드 수집 실패는 빈 목록이 아니라 예외다(`ArticleFeed.Unavailable`). 설정이 없는 매체도 실패다. 한 매체는 건너뛰고, 전부 실패하면 `NewsFacade.Unavailable` — 「찾지 못했습니다」가 아니라 「잠시 후 다시」다
