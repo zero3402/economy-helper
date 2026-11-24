@@ -1,0 +1,1098 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss xmlns:media="http://search.yahoo.com/mrss/" xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0">
+  <channel>
+    <title>Business | The Guardian</title>
+    <link>https://www.theguardian.com/uk/business</link>
+    <description>Synthetic test fixture. Structure mirrors the The Guardian Business RSS feed captured 2026-11-24; every headline, summary, name and link path is made up.</description>
+    <language>en-gb</language>
+    <copyright>Synthetic test fixture. Structure mirrors the The Guardian Business RSS feed captured 2026-11-24; every headline, summary, name and link path is made up.</copyright>
+    <pubDate>Tue, 24 Nov 2026 07:46:12 GMT</pubDate>
+    <dc:date>2026-11-24T07:46:12Z</dc:date>
+    <dc:language>en-gb</dc:language>
+    <dc:rights>Synthetic test fixture. Structure mirrors the The Guardian Business RSS feed captured 2026-11-24; every headline, summary, name and link path is made up.</dc:rights>
+    <image>
+      <title>The Guardian</title>
+      <url>https://example.com/img/logo.png</url>
+      <link>https://www.theguardian.com</link>
+    </image>
+    <item>
+      <title>Synthetic headline 1 — it’s a test</title>
+      <link>https://www.theguardian.com/synthetic/1</link>
+      <description>&lt;p&gt;Synthetic summary 1.&lt;/p&gt;&lt;ul&gt;&lt;li&gt;&lt;p&gt;&lt;a href="https://example.com/synthetic/1"&gt;Synthetic text.&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;&lt;br&gt;&lt;/p&gt;&lt;p&gt;&lt;strong&gt;Synthetic text.&lt;/strong&gt;&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt;&lt;p&gt;Synthetic text. &lt;strong&gt;Synthetic text.&lt;/strong&gt;Synthetic text. &lt;strong&gt;Synthetic text.&lt;/strong&gt;&lt;/p&gt; &lt;a href="https://example.com/synthetic/1"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/business/business">Business</category>
+      <category domain="https://www.theguardian.com/business/economics">Economics</category>
+      <category domain="https://www.theguardian.com/technology/nvidia">Nvidia</category>
+      <category domain="https://www.theguardian.com/technology/jensen-huang">Jensen Huang</category>
+      <category domain="https://www.theguardian.com/business/technology">Technology sector</category>
+      <category domain="https://www.theguardian.com/us-news/us-news">US news</category>
+      <category domain="https://www.theguardian.com/technology/technology">Technology</category>
+      <category domain="https://www.theguardian.com/world/world">World news</category>
+      <category domain="https://www.theguardian.com/uk/uk">UK news</category>
+      <pubDate>Tue, 24 Nov 2026 07:28:49 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/1</guid>
+      <media:content width="140" url="https://example.com/img/1.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/1.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/1.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-24T07:28:49Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 2</title>
+      <link>https://www.theguardian.com/synthetic/2</link>
+      <description>&lt;p&gt;Synthetic summary 2.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt; &lt;a href="https://example.com/synthetic/2"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/media/channel4">Channel 4</category>
+      <category domain="https://www.theguardian.com/media/advertising">Advertising</category>
+      <category domain="https://www.theguardian.com/media/television">Television industry</category>
+      <category domain="https://www.theguardian.com/media/media">Media</category>
+      <category domain="https://www.theguardian.com/business/unilever">Unilever</category>
+      <category domain="https://www.theguardian.com/business/retail">Retail industry</category>
+      <category domain="https://www.theguardian.com/business/business">Business</category>
+      <category domain="https://www.theguardian.com/uk/uk">UK news</category>
+      <category domain="https://www.theguardian.com/media/marketingandpr">Marketing &amp; PR</category>
+      <category domain="https://www.theguardian.com/media/mediabusiness">Media business</category>
+      <category domain="https://www.theguardian.com/media/media-buying">Media buying</category>
+      <category domain="https://www.theguardian.com/media/public-service-broadcasting">Public service broadcasting</category>
+      <category domain="https://www.theguardian.com/business/britishskybroadcastinggroup">Sky</category>
+      <category domain="https://www.theguardian.com/media/channelfive">Channel 5</category>
+      <category domain="https://www.theguardian.com/business/itv">ITV</category>
+      <pubDate>Tue, 24 Nov 2026 05:00:07 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/2</guid>
+      <media:content width="140" url="https://example.com/img/2.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/2.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/2.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-24T05:00:07Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 3</title>
+      <link>https://www.theguardian.com/synthetic/3</link>
+      <description>&lt;p&gt;Synthetic summary 3.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt; &lt;a href="https://example.com/synthetic/3"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/technology/meta">Meta</category>
+      <category domain="https://www.theguardian.com/technology/artificialintelligenceai">AI (artificial intelligence)</category>
+      <category domain="https://www.theguardian.com/technology/technology">Technology</category>
+      <category domain="https://www.theguardian.com/technology/virtual-assistant">Virtual assistant</category>
+      <category domain="https://www.theguardian.com/technology/computing">Computing</category>
+      <category domain="https://www.theguardian.com/uk/uk">UK news</category>
+      <pubDate>Tue, 24 Nov 2026 06:00:07 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/3</guid>
+      <media:content width="140" url="https://example.com/img/3.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/3.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/3.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-24T06:00:07Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 4</title>
+      <link>https://www.theguardian.com/synthetic/4</link>
+      <description>&lt;p&gt;Synthetic summary 4.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt;&lt;p&gt;Synthetic text. &lt;a href="https://example.com/synthetic/4"&gt;Synthetic text.&lt;/a&gt;Synthetic text. &lt;a href="https://example.com/synthetic/4"&gt;Synthetic text.&lt;/a&gt;Synthetic text.&lt;/p&gt; &lt;a href="https://example.com/synthetic/4"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/business/stock-markets">Stock markets</category>
+      <category domain="https://www.theguardian.com/business/business">Business</category>
+      <category domain="https://www.theguardian.com/money/moneyinvestments">Investments</category>
+      <category domain="https://www.theguardian.com/money/money">Money</category>
+      <category domain="https://www.theguardian.com/uk/uk">UK news</category>
+      <category domain="https://www.theguardian.com/us-news/us-news">US news</category>
+      <category domain="https://www.theguardian.com/world/world">World news</category>
+      <category domain="https://www.theguardian.com/business/technology">Technology sector</category>
+      <category domain="https://www.theguardian.com/technology/nvidia">Nvidia</category>
+      <category domain="https://www.theguardian.com/business/nasdaq">Nasdaq</category>
+      <category domain="https://www.theguardian.com/business/investing">Investing</category>
+      <category domain="https://www.theguardian.com/business/marketturmoil">Market turmoil</category>
+      <category domain="https://www.theguardian.com/business/us-markets">US markets</category>
+      <category domain="https://www.theguardian.com/money/shares">Shares</category>
+      <category domain="https://www.theguardian.com/money/investmentfunds">Investment funds</category>
+      <pubDate>Mon, 23 Nov 2026 14:51:44 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/4</guid>
+      <media:content width="140" url="https://example.com/img/4.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/4.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/4.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-23T14:51:44Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 5</title>
+      <link>https://www.theguardian.com/synthetic/5</link>
+      <description>&lt;p&gt;Synthetic summary 5.&lt;/p&gt;&lt;p&gt;&lt;a href="https://example.com/synthetic/5"&gt;Synthetic text.&lt;/a&gt; Synthetic text.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt; &lt;a href="https://example.com/synthetic/5"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/business/next">Next</category>
+      <category domain="https://www.theguardian.com/technology/cybercrime">Cybercrime</category>
+      <category domain="https://www.theguardian.com/technology/technology">Technology</category>
+      <category domain="https://www.theguardian.com/business/retail">Retail industry</category>
+      <category domain="https://www.theguardian.com/business/business">Business</category>
+      <category domain="https://www.theguardian.com/uk/uk">UK news</category>
+      <category domain="https://www.theguardian.com/technology/internet">Internet</category>
+      <pubDate>Mon, 23 Nov 2026 14:50:31 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/5</guid>
+      <media:content width="140" url="https://example.com/img/5.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/5.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/5.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-23T14:50:31Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 6</title>
+      <link>https://www.theguardian.com/synthetic/6</link>
+      <description>&lt;p&gt;Synthetic summary 6.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt; &lt;a href="https://example.com/synthetic/6"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/business/jaguar-land-rover">Jaguar Land Rover</category>
+      <category domain="https://www.theguardian.com/business/automotive-industry">Automotive industry</category>
+      <category domain="https://www.theguardian.com/business/business">Business</category>
+      <category domain="https://www.theguardian.com/environment/electric-cars">Electric, hybrid and low-emission cars</category>
+      <category domain="https://www.theguardian.com/technology/motoring">Motoring</category>
+      <category domain="https://www.theguardian.com/technology/lithium-ion-batteries">Lithium-ion batteries</category>
+      <category domain="https://www.theguardian.com/business/infrastructure">Infrastructure</category>
+      <category domain="https://www.theguardian.com/politics/industrial-policy">Industrial policy</category>
+      <category domain="https://www.theguardian.com/business/manufacturing-sector">Manufacturing sector</category>
+      <category domain="https://www.theguardian.com/business/tata">Tata</category>
+      <category domain="https://www.theguardian.com/uk/uk">UK news</category>
+      <pubDate>Mon, 23 Nov 2026 12:26:51 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/6</guid>
+      <media:content width="140" url="https://example.com/img/6.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/6.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/6.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-23T12:26:51Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 7</title>
+      <link>https://www.theguardian.com/synthetic/7</link>
+      <description>&lt;ul&gt;&lt;li&gt;&lt;p&gt;Synthetic summary 7.&lt;/p&gt;&lt;/li&gt;&lt;li&gt;&lt;p&gt;Synthetic text.&lt;/p&gt;&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;Synthetic text. &lt;a href="https://example.com/synthetic/7"&gt;Synthetic text.&lt;/a&gt; Synthetic text.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt; &lt;a href="https://example.com/synthetic/7"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/football/fifa">Fifa</category>
+      <category domain="https://www.theguardian.com/football/world-cup-football">World Cup</category>
+      <category domain="https://www.theguardian.com/football/gianni-infantino">Gianni Infantino</category>
+      <category domain="https://www.theguardian.com/football/football">Football</category>
+      <category domain="https://www.theguardian.com/football/footballpolitics">Football politics</category>
+      <category domain="https://www.theguardian.com/sport/sport">Sport</category>
+      <pubDate>Mon, 23 Nov 2026 11:34:42 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/7</guid>
+      <media:content width="140" url="https://example.com/img/7.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/7.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/7.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-23T11:34:42Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 8</title>
+      <link>https://www.theguardian.com/synthetic/8</link>
+      <description>&lt;p&gt;Synthetic summary 8.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt; &lt;a href="https://example.com/synthetic/8"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/business/capitagroup">Capita</category>
+      <category domain="https://www.theguardian.com/business/outsourcing">Outsourcing</category>
+      <category domain="https://www.theguardian.com/business/business">Business</category>
+      <category domain="https://www.theguardian.com/society/public-sector-pensions">Public sector pensions</category>
+      <category domain="https://www.theguardian.com/business/pensions-industry">Pensions industry</category>
+      <category domain="https://www.theguardian.com/money/occupational-pensions">Occupational pensions</category>
+      <category domain="https://www.theguardian.com/money/pensions">Pensions</category>
+      <category domain="https://www.theguardian.com/uk/uk">UK news</category>
+      <category domain="https://www.theguardian.com/business/corporate-governance">Corporate governance</category>
+      <category domain="https://www.theguardian.com/money/money">Money</category>
+      <category domain="https://www.theguardian.com/politics/civil-service">Civil service</category>
+      <category domain="https://www.theguardian.com/politics/politics">Politics</category>
+      <pubDate>Mon, 23 Nov 2026 10:01:00 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/8</guid>
+      <media:content width="140" url="https://example.com/img/8.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/8.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/8.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-23T10:01:00Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 9</title>
+      <link>https://www.theguardian.com/synthetic/9</link>
+      <description>&lt;p&gt;Synthetic summary 9.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt; &lt;a href="https://example.com/synthetic/9"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/business/compassgroup">Compass</category>
+      <category domain="https://www.theguardian.com/business/fooddrinks">Food &amp; drink industry</category>
+      <category domain="https://www.theguardian.com/business/ftse">FTSE</category>
+      <category domain="https://www.theguardian.com/business/stock-markets">Stock markets</category>
+      <category domain="https://www.theguardian.com/business/business">Business</category>
+      <category domain="https://www.theguardian.com/uk/uk">UK news</category>
+      <category domain="https://www.theguardian.com/business/outsourcing">Outsourcing</category>
+      <category domain="https://www.theguardian.com/business/us-markets">US markets</category>
+      <category domain="https://www.theguardian.com/business/mergers-and-acquisitions">Mergers and acquisitions</category>
+      <category domain="https://www.theguardian.com/business/privateequity">Private equity</category>
+      <pubDate>Mon, 23 Nov 2026 10:51:40 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/9</guid>
+      <media:content width="140" url="https://example.com/img/9.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/9.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/9.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-23T10:51:40Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 10</title>
+      <link>https://www.theguardian.com/synthetic/10</link>
+      <description>&lt;p&gt;Synthetic summary 10.&lt;/p&gt;&lt;ul&gt;&lt;li&gt;&lt;p&gt;&lt;a href="https://example.com/synthetic/10"&gt;Synthetic text.&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;Synthetic text. &lt;a href="https://example.com/synthetic/10"&gt;Synthetic text.&lt;/a&gt; Synthetic text.&lt;/p&gt;&lt;p&gt;Synthetic text. &lt;a href="https://example.com/synthetic/10"&gt;Synthetic text.&lt;/a&gt;Synthetic text.&lt;/p&gt; &lt;a href="https://example.com/synthetic/10"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/technology/nvidia">Nvidia</category>
+      <category domain="https://www.theguardian.com/technology/jensen-huang">Jensen Huang</category>
+      <category domain="https://www.theguardian.com/business/technology">Technology sector</category>
+      <category domain="https://www.theguardian.com/business/business">Business</category>
+      <category domain="https://www.theguardian.com/technology/technology">Technology</category>
+      <category domain="https://www.theguardian.com/us-news/us-news">US news</category>
+      <category domain="https://www.theguardian.com/uk/uk">UK news</category>
+      <category domain="https://www.theguardian.com/world/world">World news</category>
+      <pubDate>Mon, 23 Nov 2026 17:37:10 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/10</guid>
+      <media:content width="140" url="https://example.com/img/10.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/10.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/10.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-23T17:37:10Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 11</title>
+      <link>https://www.theguardian.com/synthetic/11</link>
+      <description>&lt;p&gt;Synthetic summary 11.&lt;/p&gt;&lt;p&gt;Synthetic text. &lt;a href="https://example.com/synthetic/11"&gt;Synthetic text.&lt;/a&gt; Synthetic text.&lt;/p&gt;&lt;p&gt;Synthetic text. &lt;a href="https://example.com/synthetic/11"&gt;Synthetic text.&lt;/a&gt; Synthetic text.&lt;/p&gt; &lt;a href="https://example.com/synthetic/11"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/politics/politics">Politics</category>
+      <category domain="https://www.theguardian.com/politics/andyburnham">Andy Burnham</category>
+      <category domain="https://www.theguardian.com/politics/labour">Labour</category>
+      <category domain="https://www.theguardian.com/politics/eu-referendum">Brexit</category>
+      <category domain="https://www.theguardian.com/world/eu">European Union</category>
+      <category domain="https://www.theguardian.com/world/europe-news">Europe</category>
+      <category domain="https://www.theguardian.com/uk/uk">UK news</category>
+      <category domain="https://www.theguardian.com/politics/foreignpolicy">Foreign policy</category>
+      <pubDate>Mon, 23 Nov 2026 18:28:47 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/11</guid>
+      <media:content width="140" url="https://example.com/img/11.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/11.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/11.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-23T18:28:47Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 12</title>
+      <link>https://www.theguardian.com/synthetic/12</link>
+      <description>&lt;p&gt;Synthetic summary 12.&lt;/p&gt;&lt;p&gt;Synthetic text. &lt;a href="https://example.com/synthetic/12"&gt;Synthetic text.&lt;/a&gt; Synthetic text. &lt;a href="https://example.com/synthetic/12"&gt;Synthetic text.&lt;/a&gt; Synthetic text.&lt;/p&gt;&lt;p&gt;Synthetic text. &lt;a href="https://example.com/synthetic/12"&gt;Synthetic text.&lt;/a&gt;Synthetic text. &lt;a href="https://example.com/synthetic/12"&gt;Synthetic text.&lt;/a&gt;Synthetic text.&lt;/p&gt; &lt;a href="https://example.com/synthetic/12"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/technology/anthropic">Anthropic</category>
+      <category domain="https://www.theguardian.com/business/stock-markets">Stock markets</category>
+      <category domain="https://www.theguardian.com/us-news/us-news">US news</category>
+      <category domain="https://www.theguardian.com/technology/technology">Technology</category>
+      <category domain="https://www.theguardian.com/technology/artificialintelligenceai">AI (artificial intelligence)</category>
+      <category domain="https://www.theguardian.com/business/useconomy">US economy</category>
+      <pubDate>Mon, 23 Nov 2026 11:00:57 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/12</guid>
+      <media:content width="140" url="https://example.com/img/12.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/12.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/12.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-23T11:00:57Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 13</title>
+      <link>https://www.theguardian.com/synthetic/13</link>
+      <description>&lt;p&gt;Synthetic summary 13.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt; &lt;a href="https://example.com/synthetic/13"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/business/economics">Economics</category>
+      <category domain="https://www.theguardian.com/business/useconomicgrowth">US economic growth and recession</category>
+      <category domain="https://www.theguardian.com/politics/economy">Economic policy</category>
+      <category domain="https://www.theguardian.com/politics/andyburnham">Andy Burnham</category>
+      <category domain="https://www.theguardian.com/society/fuel-poverty">Fuel poverty</category>
+      <category domain="https://www.theguardian.com/business/inflation">Inflation</category>
+      <category domain="https://www.theguardian.com/uk-news/budget-2026">Budget 2026</category>
+      <category domain="https://www.theguardian.com/money/energy">Energy bills</category>
+      <category domain="https://www.theguardian.com/business/cost-of-living-crisis">UK cost of living crisis</category>
+      <category domain="https://www.theguardian.com/business/business">Business</category>
+      <category domain="https://www.theguardian.com/money/household-bills">Household bills</category>
+      <category domain="https://www.theguardian.com/money/money">Money</category>
+      <category domain="https://www.theguardian.com/politics/politics">Politics</category>
+      <category domain="https://www.theguardian.com/society/poverty">Poverty</category>
+      <category domain="https://www.theguardian.com/society/society">Society</category>
+      <category domain="https://www.theguardian.com/uk/uk">UK news</category>
+      <pubDate>Sun, 22 Nov 2026 11:24:22 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/13</guid>
+      <media:content width="140" url="https://example.com/img/13.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/13.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/13.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-22T11:24:22Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 14</title>
+      <link>https://www.theguardian.com/synthetic/14</link>
+      <description>&lt;p&gt;Synthetic summary 14.&lt;/p&gt;&lt;p&gt;Synthetic text. &lt;a href="https://example.com/synthetic/14"&gt;Synthetic text.&lt;/a&gt; Synthetic text.&lt;/p&gt;&lt;p&gt;Synthetic text. &lt;a href="https://example.com/synthetic/14"&gt;Synthetic text.&lt;/a&gt;Synthetic text. &lt;a href="https://example.com/synthetic/14"&gt;Synthetic text.&lt;/a&gt; Synthetic text.&lt;/p&gt; &lt;a href="https://example.com/synthetic/14"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/society/unemployment">Unemployment</category>
+      <category domain="https://www.theguardian.com/society/youth-unemployment">Youth unemployment</category>
+      <category domain="https://www.theguardian.com/money/work-and-careers">Work &amp; careers</category>
+      <category domain="https://www.theguardian.com/education/employability">Employability</category>
+      <category domain="https://www.theguardian.com/society/youngpeople">Young people</category>
+      <category domain="https://www.theguardian.com/society/society">Society</category>
+      <category domain="https://www.theguardian.com/uk/uk">UK news</category>
+      <pubDate>Sun, 22 Nov 2026 10:00:24 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/14</guid>
+      <media:content width="140" url="https://example.com/img/14.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/14.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/14.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-22T10:00:24Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 15</title>
+      <link>https://www.theguardian.com/synthetic/15</link>
+      <description>&lt;p&gt;Synthetic summary 15.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt; &lt;a href="https://example.com/synthetic/15"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/technology/technology">Technology</category>
+      <category domain="https://www.theguardian.com/games/grand-theft-auto-vi">Grand Theft Auto VI</category>
+      <category domain="https://www.theguardian.com/games/games">Games</category>
+      <category domain="https://www.theguardian.com/us-news/us-news">US news</category>
+      <category domain="https://www.theguardian.com/technology/artificialintelligenceai">AI (artificial intelligence)</category>
+      <pubDate>Sun, 22 Nov 2026 12:00:29 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/15</guid>
+      <media:content width="140" url="https://example.com/img/15.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/15.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/15.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-22T12:00:29Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 16</title>
+      <link>https://www.theguardian.com/synthetic/16</link>
+      <description>&lt;p&gt;Synthetic summary 16.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt; &lt;a href="https://example.com/synthetic/16"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/politics/andyburnham">Andy Burnham</category>
+      <category domain="https://www.theguardian.com/world/eu">European Union</category>
+      <category domain="https://www.theguardian.com/world/europe-news">Europe</category>
+      <category domain="https://www.theguardian.com/politics/eu-referendum">Brexit</category>
+      <category domain="https://www.theguardian.com/politics/trade-policy">Trade policy</category>
+      <category domain="https://www.theguardian.com/politics/foreignpolicy">Foreign policy</category>
+      <category domain="https://www.theguardian.com/politics/economy">Economic policy</category>
+      <category domain="https://www.theguardian.com/business/economicgrowth">Economic growth (GDP)</category>
+      <category domain="https://www.theguardian.com/politics/labour">Labour</category>
+      <category domain="https://www.theguardian.com/politics/politics">Politics</category>
+      <category domain="https://www.theguardian.com/uk/uk">UK news</category>
+      <pubDate>Fri, 20 Nov 2026 18:22:50 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/16</guid>
+      <media:content width="140" url="https://example.com/img/16.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/16.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/16.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-20T18:22:50Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 17</title>
+      <link>https://www.theguardian.com/synthetic/17</link>
+      <description>&lt;p&gt;Synthetic summary 17.&lt;/p&gt;&lt;ul&gt;&lt;li&gt;&lt;p&gt;Synthetic text.&lt;/p&gt;&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;Synthetic text.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt; &lt;a href="https://example.com/synthetic/17"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/society/youth-unemployment">Youth unemployment</category>
+      <category domain="https://www.theguardian.com/society/youngpeople">Young people</category>
+      <category domain="https://www.theguardian.com/uk/uk">UK news</category>
+      <category domain="https://www.theguardian.com/politics/politics">Politics</category>
+      <category domain="https://www.theguardian.com/society/poverty">Poverty</category>
+      <category domain="https://www.theguardian.com/society/socialexclusion">Social exclusion</category>
+      <category domain="https://www.theguardian.com/society/benefits">Benefits</category>
+      <category domain="https://www.theguardian.com/society/universal-credit">Universal credit</category>
+      <category domain="https://www.theguardian.com/education/employability">Employability</category>
+      <pubDate>Sat, 21 Nov 2026 07:00:51 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/17</guid>
+      <media:content width="140" url="https://example.com/img/17.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/17.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/17.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-21T07:00:51Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 18</title>
+      <link>https://www.theguardian.com/synthetic/18</link>
+      <description>&lt;p&gt;Synthetic summary 18.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt; &lt;a href="https://example.com/synthetic/18"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/business/taxavoidance">Tax avoidance</category>
+      <category domain="https://www.theguardian.com/politics/taxandspending">Tax and spending</category>
+      <category domain="https://www.theguardian.com/politics/hmrc">HMRC</category>
+      <category domain="https://www.theguardian.com/money/tax">Tax</category>
+      <category domain="https://www.theguardian.com/business/business">Business</category>
+      <category domain="https://www.theguardian.com/money/money">Money</category>
+      <category domain="https://www.theguardian.com/politics/politics">Politics</category>
+      <category domain="https://www.theguardian.com/uk/uk">UK news</category>
+      <category domain="https://www.theguardian.com/world/tax-havens">Tax havens</category>
+      <category domain="https://www.theguardian.com/world/world">World news</category>
+      <category domain="https://www.theguardian.com/business/banking">Banking</category>
+      <pubDate>Sun, 22 Nov 2026 15:43:01 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/18</guid>
+      <media:content width="140" url="https://example.com/img/18.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/18.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/18.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-22T15:43:01Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 19</title>
+      <link>https://www.theguardian.com/synthetic/19</link>
+      <description>&lt;p&gt;Synthetic summary 19.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt; &lt;a href="https://example.com/synthetic/19"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/money/motoring">Motoring</category>
+      <category domain="https://www.theguardian.com/money/scamsandfraud">Scams</category>
+      <category domain="https://www.theguardian.com/money/consumer-affairs">Consumer affairs</category>
+      <category domain="https://www.theguardian.com/money/money">Money</category>
+      <category domain="https://www.theguardian.com/money/dvla">DVLA</category>
+      <category domain="https://www.theguardian.com/uk/ukcrime">Crime</category>
+      <category domain="https://www.theguardian.com/uk/uk">UK news</category>
+      <category domain="https://www.theguardian.com/money/identityfraud">Identity fraud</category>
+      <category domain="https://www.theguardian.com/uk/police">Police</category>
+      <category domain="https://www.theguardian.com/politics/transport">Transport policy</category>
+      <pubDate>Sun, 22 Nov 2026 11:59:28 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/19</guid>
+      <media:content width="140" url="https://example.com/img/19.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/19.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/19.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-22T11:59:28Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 20</title>
+      <link>https://www.theguardian.com/synthetic/20</link>
+      <description>&lt;p&gt;Synthetic summary 20.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt;&lt;p&gt;Synthetic text. &lt;a href="https://example.com/synthetic/20"&gt;Synthetic text.&lt;/a&gt;Synthetic text.&lt;/p&gt; &lt;a href="https://example.com/synthetic/20"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/environment/cop31">Cop31</category>
+      <category domain="https://www.theguardian.com/environment/environment">Environment</category>
+      <category domain="https://www.theguardian.com/environment/global-climate-talks">Global climate talks</category>
+      <category domain="https://www.theguardian.com/environment/climate-aid">Climate aid</category>
+      <category domain="https://www.theguardian.com/environment/fossil-fuels">Fossil fuels</category>
+      <category domain="https://www.theguardian.com/environment/climate-crisis">Climate crisis</category>
+      <category domain="https://www.theguardian.com/environment/carbon-capture-and-storage">Carbon capture and storage (CCS)</category>
+      <category domain="https://www.theguardian.com/environment/energy">Energy</category>
+      <category domain="https://www.theguardian.com/world/saudiarabia">Saudi Arabia</category>
+      <category domain="https://www.theguardian.com/world/middleeast">Middle East and north Africa</category>
+      <pubDate>Sat, 21 Nov 2026 19:43:52 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/20</guid>
+      <media:content width="140" url="https://example.com/img/20.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/20.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/20.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-21T19:43:52Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 21</title>
+      <link>https://www.theguardian.com/synthetic/21</link>
+      <description>&lt;p&gt;Synthetic summary 21.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt; &lt;a href="https://example.com/synthetic/21"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/us-news/california">California</category>
+      <category domain="https://www.theguardian.com/us-news/us-crime">US crime</category>
+      <category domain="https://www.theguardian.com/law/law-us">Law (US)</category>
+      <category domain="https://www.theguardian.com/us-news/us-news">US news</category>
+      <category domain="https://www.theguardian.com/us-news/west-coast">West Coast</category>
+      <category domain="https://www.theguardian.com/us-news/us-justice-system">US justice system</category>
+      <pubDate>Sun, 22 Nov 2026 00:20:41 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/21</guid>
+      <media:content width="140" url="https://example.com/img/21.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/21.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/21.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-22T00:20:41Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 22</title>
+      <link>https://www.theguardian.com/synthetic/22</link>
+      <description>&lt;p&gt;Synthetic summary 22.&lt;/p&gt;&lt;p&gt;Synthetic text. &lt;a href="https://example.com/synthetic/22"&gt;Synthetic text.&lt;/a&gt; Synthetic text.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt; &lt;a href="https://example.com/synthetic/22"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/environment/cop31">Cop31</category>
+      <category domain="https://www.theguardian.com/environment/environment">Environment</category>
+      <category domain="https://www.theguardian.com/environment/energy">Energy</category>
+      <category domain="https://www.theguardian.com/world/china">China</category>
+      <category domain="https://www.theguardian.com/environment/fossil-fuel-divestment">Fossil fuel divestment</category>
+      <category domain="https://www.theguardian.com/world/world">World news</category>
+      <category domain="https://www.theguardian.com/environment/global-climate-talks">Global climate talks</category>
+      <category domain="https://www.theguardian.com/environment/carbon-emissions">Greenhouse gas emissions</category>
+      <category domain="https://www.theguardian.com/environment/renewableenergy">Renewable energy</category>
+      <category domain="https://www.theguardian.com/environment/fossil-fuels">Fossil fuels</category>
+      <category domain="https://www.theguardian.com/world/asia-pacific">Asia Pacific</category>
+      <pubDate>Sat, 21 Nov 2026 09:47:57 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/22</guid>
+      <media:content width="140" url="https://example.com/img/22.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/22.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/22.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-21T09:47:57Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 23</title>
+      <link>https://www.theguardian.com/synthetic/23</link>
+      <description>&lt;ul&gt;&lt;li&gt;&lt;p&gt;Synthetic summary 23.&lt;/p&gt;&lt;/li&gt;&lt;li&gt;&lt;p&gt;Synthetic text.&lt;/p&gt;&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;Synthetic text. &lt;a href="https://example.com/synthetic/23"&gt;Synthetic text.&lt;/a&gt; Synthetic text.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt; &lt;a href="https://example.com/synthetic/23"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/football/chelsea">Chelsea</category>
+      <category domain="https://www.theguardian.com/sport/tom-brady">Tom Brady</category>
+      <category domain="https://www.theguardian.com/technology/elon-musk">Elon Musk</category>
+      <category domain="https://www.theguardian.com/football/football">Football</category>
+      <category domain="https://www.theguardian.com/sport/sport">Sport</category>
+      <pubDate>Sat, 21 Nov 2026 14:20:05 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/23</guid>
+      <media:content width="140" url="https://example.com/img/23.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/23.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/23.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-21T14:20:05Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 24</title>
+      <link>https://www.theguardian.com/synthetic/24</link>
+      <description>&lt;p&gt;Synthetic summary 24.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt; &lt;a href="https://example.com/synthetic/24"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/technology/technology">Technology</category>
+      <category domain="https://www.theguardian.com/technology/artificialintelligenceai">AI (artificial intelligence)</category>
+      <category domain="https://www.theguardian.com/travel/flights">Flights</category>
+      <category domain="https://www.theguardian.com/world/air-transport">Air transport</category>
+      <category domain="https://www.theguardian.com/travel/travel">Travel</category>
+      <pubDate>Mon, 23 Nov 2026 16:58:17 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/24</guid>
+      <media:content width="140" url="https://example.com/img/24.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/24.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/24.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-23T16:58:17Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 25</title>
+      <link>https://www.theguardian.com/synthetic/25</link>
+      <description>&lt;p&gt;Synthetic summary 25.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt;&lt;p&gt;Synthetic text. &lt;a href="https://example.com/synthetic/25"&gt;Synthetic text.&lt;/a&gt;Synthetic text.&lt;/p&gt; &lt;a href="https://example.com/synthetic/25"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/us-news/los-angeles">Los Angeles</category>
+      <category domain="https://www.theguardian.com/politics/transport">Transport policy</category>
+      <category domain="https://www.theguardian.com/world/air-transport">Air transport</category>
+      <category domain="https://www.theguardian.com/world/world">World news</category>
+      <category domain="https://www.theguardian.com/us-news/us-news">US news</category>
+      <category domain="https://www.theguardian.com/us-news/us-politics">US politics</category>
+      <category domain="https://www.theguardian.com/us-news/california">California</category>
+      <category domain="https://www.theguardian.com/us-news/west-coast">West Coast</category>
+      <category domain="https://www.theguardian.com/cities/city-transport">City transport</category>
+      <category domain="https://www.theguardian.com/business/infrastructure">Infrastructure</category>
+      <category domain="https://www.theguardian.com/sport/la-olympic-games-2028">LA Olympic Games 2028</category>
+      <category domain="https://www.theguardian.com/us-news/karen-bass">Karen Bass</category>
+      <pubDate>Mon, 23 Nov 2026 14:00:49 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/25</guid>
+      <media:content width="140" url="https://example.com/img/25.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/25.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/25.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-23T14:00:49Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 26</title>
+      <link>https://www.theguardian.com/synthetic/26</link>
+      <description>&lt;p&gt;Synthetic summary 26.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt;&lt;p&gt;Synthetic text. &lt;a href="https://example.com/synthetic/26"&gt;Synthetic text.&lt;/a&gt; Synthetic text.&lt;/p&gt; &lt;a href="https://example.com/synthetic/26"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/business/fooddrinks">Food &amp; drink industry</category>
+      <category domain="https://www.theguardian.com/business/business">Business</category>
+      <category domain="https://www.theguardian.com/environment/farming">Farming</category>
+      <category domain="https://www.theguardian.com/environment/environment">Environment</category>
+      <category domain="https://www.theguardian.com/politics/eu-referendum">Brexit</category>
+      <category domain="https://www.theguardian.com/uk/uk">UK news</category>
+      <category domain="https://www.theguardian.com/world/eu">European Union</category>
+      <category domain="https://www.theguardian.com/world/europe-news">Europe</category>
+      <pubDate>Sun, 22 Nov 2026 11:00:24 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/26</guid>
+      <media:content width="140" url="https://example.com/img/26.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/26.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/26.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-22T11:00:24Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 27</title>
+      <link>https://www.theguardian.com/synthetic/27</link>
+      <description>&lt;p&gt;Synthetic summary 27.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt; &lt;a href="https://example.com/synthetic/27"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/society/gambling">Gambling</category>
+      <category domain="https://www.theguardian.com/education/academics">Academics</category>
+      <category domain="https://www.theguardian.com/technology/cybercrime">Cybercrime</category>
+      <category domain="https://www.theguardian.com/society/society">Society</category>
+      <category domain="https://www.theguardian.com/business/business">Business</category>
+      <category domain="https://www.theguardian.com/education/universityofglasgow">University of Glasgow</category>
+      <category domain="https://www.theguardian.com/money/identityfraud">Identity fraud</category>
+      <category domain="https://www.theguardian.com/money/consumer-affairs">Consumer affairs</category>
+      <category domain="https://www.theguardian.com/education/education">Education</category>
+      <category domain="https://www.theguardian.com/technology/internet">Internet</category>
+      <pubDate>Sun, 22 Nov 2026 08:00:21 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/27</guid>
+      <media:content width="140" url="https://example.com/img/27.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/27.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/27.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-22T08:00:21Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 28</title>
+      <link>https://www.theguardian.com/synthetic/28</link>
+      <description>&lt;p&gt;Synthetic summary 28.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt; &lt;a href="https://example.com/synthetic/28"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/business/black-friday">Black Friday</category>
+      <category domain="https://www.theguardian.com/money/money">Money</category>
+      <category domain="https://www.theguardian.com/money/scamsandfraud">Scams</category>
+      <category domain="https://www.theguardian.com/money/consumer-affairs">Consumer affairs</category>
+      <pubDate>Sun, 22 Nov 2026 07:00:20 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/28</guid>
+      <media:content width="140" url="https://example.com/img/28.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/28.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/28.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-22T07:00:20Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 29</title>
+      <link>https://www.theguardian.com/synthetic/29</link>
+      <description>&lt;p&gt;Synthetic summary 29.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt; &lt;a href="https://example.com/synthetic/29"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/business/technology">Technology sector</category>
+      <category domain="https://www.theguardian.com/technology/artificialintelligenceai">AI (artificial intelligence)</category>
+      <category domain="https://www.theguardian.com/technology/nvidia">Nvidia</category>
+      <category domain="https://www.theguardian.com/world/datacentres">Datacentres</category>
+      <category domain="https://www.theguardian.com/technology/cloud-computing">Cloud computing</category>
+      <category domain="https://www.theguardian.com/technology/computing">Computing</category>
+      <category domain="https://www.theguardian.com/business/bonds">Bonds</category>
+      <category domain="https://www.theguardian.com/business/infrastructure">Infrastructure</category>
+      <category domain="https://www.theguardian.com/technology/jensen-huang">Jensen Huang</category>
+      <category domain="https://www.theguardian.com/business/corporate-governance">Corporate governance</category>
+      <category domain="https://www.theguardian.com/business/business">Business</category>
+      <category domain="https://www.theguardian.com/technology/internet">Internet</category>
+      <category domain="https://www.theguardian.com/world/world">World news</category>
+      <category domain="https://www.theguardian.com/technology/technology">Technology</category>
+      <pubDate>Sat, 21 Nov 2026 13:00:01 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/29</guid>
+      <media:content width="140" url="https://example.com/img/29.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/29.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/29.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-21T13:00:01Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 30</title>
+      <link>https://www.theguardian.com/synthetic/30</link>
+      <description>&lt;p&gt;Synthetic summary 30.&lt;/p&gt;&lt;p&gt;Synthetic text. &lt;a href="https://example.com/synthetic/30"&gt;Synthetic text.&lt;/a&gt;Synthetic text.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt; &lt;a href="https://example.com/synthetic/30"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/money/savings">Savings</category>
+      <category domain="https://www.theguardian.com/money/pensions">Pensions</category>
+      <category domain="https://www.theguardian.com/business/inflation">Inflation</category>
+      <category domain="https://www.theguardian.com/money/bonds">Bonds</category>
+      <category domain="https://www.theguardian.com/money/moneyinvestments">Investments</category>
+      <category domain="https://www.theguardian.com/money/banks">Banks and building societies</category>
+      <category domain="https://www.theguardian.com/money/money">Money</category>
+      <category domain="https://www.theguardian.com/money/consumer-affairs">Consumer affairs</category>
+      <pubDate>Sat, 21 Nov 2026 07:00:52 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/30</guid>
+      <media:content width="140" url="https://example.com/img/30.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/30.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/30.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-21T07:00:52Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 31</title>
+      <link>https://www.theguardian.com/synthetic/31</link>
+      <description>&lt;p&gt;Synthetic summary 31.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt; &lt;a href="https://example.com/synthetic/31"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/politics/planning">Planning policy</category>
+      <category domain="https://www.theguardian.com/society/communities">Communities</category>
+      <category domain="https://www.theguardian.com/environment/access-to-green-space">Access to green space</category>
+      <category domain="https://www.theguardian.com/politics/politics">Politics</category>
+      <category domain="https://www.theguardian.com/uk-news/england">England</category>
+      <category domain="https://www.theguardian.com/environment/environment">Environment</category>
+      <category domain="https://www.theguardian.com/uk-news/nottinghamshire">Nottinghamshire</category>
+      <category domain="https://www.theguardian.com/environment/activism">Environmental activism</category>
+      <pubDate>Sat, 21 Nov 2026 10:00:54 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/31</guid>
+      <media:content width="140" url="https://example.com/img/31.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/31.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/31.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-21T10:00:54Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 32</title>
+      <link>https://www.theguardian.com/synthetic/32</link>
+      <description>&lt;p&gt;Synthetic summary 32.&lt;/p&gt;&lt;ul&gt;&lt;li&gt;&lt;p&gt;&lt;a href="https://example.com/synthetic/32"&gt;&lt;strong&gt;Synthetic text.&lt;/strong&gt;&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;Synthetic text.&lt;/p&gt;&lt;p&gt;Synthetic text. &lt;a href="https://example.com/synthetic/32"&gt;Synthetic text.&lt;/a&gt; Synthetic text.&lt;/p&gt; &lt;a href="https://example.com/synthetic/32"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/technology/anthropic">Anthropic</category>
+      <category domain="https://www.theguardian.com/technology/technology">Technology</category>
+      <category domain="https://www.theguardian.com/technology/artificialintelligenceai">AI (artificial intelligence)</category>
+      <category domain="https://www.theguardian.com/business/stock-markets">Stock markets</category>
+      <category domain="https://www.theguardian.com/world/datacentres">Datacentres</category>
+      <category domain="https://www.theguardian.com/business/global-economy">Global economy</category>
+      <category domain="https://www.theguardian.com/technology/computing">Computing</category>
+      <category domain="https://www.theguardian.com/business/economics">Economics</category>
+      <pubDate>Fri, 20 Nov 2026 03:33:45 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/32</guid>
+      <media:content width="140" url="https://example.com/img/32.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/32.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/32.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-20T03:33:45Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 33</title>
+      <link>https://www.theguardian.com/synthetic/33</link>
+      <description>&lt;p&gt;Synthetic summary 33.&lt;/p&gt; &lt;a href="https://example.com/synthetic/33"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/technology/jensen-huang">Jensen Huang</category>
+      <category domain="https://www.theguardian.com/technology/nvidia">Nvidia</category>
+      <category domain="https://www.theguardian.com/business/technology">Technology sector</category>
+      <category domain="https://www.theguardian.com/australia-news/anthony-albanese">Anthony Albanese</category>
+      <category domain="https://www.theguardian.com/world/singapore">Singapore</category>
+      <pubDate>Tue, 24 Nov 2026 04:03:57 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/33</guid>
+      <media:content width="140" url="https://example.com/img/33.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/33.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/33.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-24T04:03:57Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 34</title>
+      <link>https://www.theguardian.com/synthetic/34</link>
+      <description>&lt;p&gt;Synthetic summary 34.&lt;/p&gt;&lt;p&gt;Synthetic text. &lt;a href="https://example.com/synthetic/34"&gt;Synthetic text.&lt;/a&gt;&lt;/p&gt;&lt;p&gt;Synthetic text. &lt;a href="https://example.com/synthetic/34"&gt;Synthetic text.&lt;/a&gt;&lt;/p&gt;&lt;p&gt;Synthetic text. &lt;a href="https://example.com/synthetic/34"&gt;Synthetic text.&lt;/a&gt;Synthetic text.&lt;/p&gt; &lt;a href="https://example.com/synthetic/34"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/politics/politics">Politics</category>
+      <category domain="https://www.theguardian.com/politics/eu-referendum">Brexit</category>
+      <category domain="https://www.theguardian.com/politics/andyburnham">Andy Burnham</category>
+      <category domain="https://www.theguardian.com/world/eu">European Union</category>
+      <category domain="https://www.theguardian.com/uk/uk">UK news</category>
+      <category domain="https://www.theguardian.com/politics/foreignpolicy">Foreign policy</category>
+      <category domain="https://www.theguardian.com/politics/labour">Labour</category>
+      <category domain="https://www.theguardian.com/world/world">World news</category>
+      <category domain="https://www.theguardian.com/world/europe-news">Europe</category>
+      <category domain="https://www.theguardian.com/politics/trade-policy">Trade policy</category>
+      <category domain="https://www.theguardian.com/business/business">Business</category>
+      <category domain="https://www.theguardian.com/politics/economy">Economic policy</category>
+      <pubDate>Mon, 23 Nov 2026 17:42:13 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/34</guid>
+      <media:content width="140" url="https://example.com/img/34.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/34.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/34.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-23T17:42:13Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 35</title>
+      <link>https://www.theguardian.com/synthetic/35</link>
+      <description>&lt;p&gt;Synthetic summary 35.&lt;/p&gt; &lt;a href="https://example.com/synthetic/35"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/technology/artificialintelligenceai">AI (artificial intelligence)</category>
+      <category domain="https://www.theguardian.com/technology/anthropic">Anthropic</category>
+      <category domain="https://www.theguardian.com/technology/dario-amodei">Dario Amodei</category>
+      <category domain="https://www.theguardian.com/business/stock-markets">Stock markets</category>
+      <category domain="https://www.theguardian.com/business/ipos">IPOs</category>
+      <category domain="https://www.theguardian.com/technology/chatbots">Chatbots</category>
+      <category domain="https://www.theguardian.com/business/business">Business</category>
+      <category domain="https://www.theguardian.com/technology/technology">Technology</category>
+      <pubDate>Fri, 20 Nov 2026 18:53:50 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/35</guid>
+      <media:content width="140" url="https://example.com/img/35.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/35.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/35.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-20T18:53:50Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 36</title>
+      <link>https://www.theguardian.com/synthetic/36</link>
+      <description>&lt;p&gt;Synthetic summary 36.&lt;/p&gt;&lt;p&gt;&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt;&lt;ul&gt;&lt;li&gt;&lt;p&gt; &lt;a href="https://example.com/synthetic/36"&gt;Synthetic text.&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;&lt;li&gt;&lt;p&gt;&lt;a href="https://example.com/synthetic/36"&gt;Synthetic text.&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;&lt;/ul&gt; &lt;a href="https://example.com/synthetic/36"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/politics/andyburnham">Andy Burnham</category>
+      <category domain="https://www.theguardian.com/politics/eu-referendum">Brexit</category>
+      <category domain="https://www.theguardian.com/world/europe-news">Europe</category>
+      <category domain="https://www.theguardian.com/world/eu">European Union</category>
+      <category domain="https://www.theguardian.com/world/world">World news</category>
+      <category domain="https://www.theguardian.com/world/ursula-von-der-leyen">Ursula von der Leyen</category>
+      <category domain="https://www.theguardian.com/society/youngpeople">Young people</category>
+      <category domain="https://www.theguardian.com/education/universities">Universities</category>
+      <category domain="https://www.theguardian.com/education/higher-education">Higher education</category>
+      <pubDate>Fri, 20 Nov 2026 15:54:50 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/36</guid>
+      <media:content width="140" url="https://example.com/img/36.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/36.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/36.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator />
+      <dc:date>2026-11-20T15:54:50Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 37</title>
+      <link>https://www.theguardian.com/synthetic/37</link>
+      <description>&lt;p&gt;Synthetic summary 37.&lt;/p&gt;&lt;p&gt;&lt;strong&gt;Synthetic text.&lt;/strong&gt;&lt;/p&gt;&lt;p&gt;&lt;strong&gt;Synthetic text.&lt;/strong&gt;&lt;strong&gt; Synthetic text.&lt;/strong&gt;&lt;/p&gt; &lt;a href="https://example.com/synthetic/37"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/money/consumer-affairs">Consumer affairs</category>
+      <category domain="https://www.theguardian.com/money/motoring">Motoring</category>
+      <category domain="https://www.theguardian.com/money/money">Money</category>
+      <category domain="https://www.theguardian.com/uk/uk">UK news</category>
+      <pubDate>Tue, 24 Nov 2026 07:00:09 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/37</guid>
+      <media:content width="140" url="https://example.com/img/37.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/37.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/37.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-24T07:00:09Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 38</title>
+      <link>https://www.theguardian.com/synthetic/38</link>
+      <description>&lt;p&gt;Synthetic summary 38.&lt;/p&gt;&lt;p&gt;&lt;strong&gt;Synthetic text. &lt;/strong&gt;&lt;strong&gt;Synthetic text.&lt;/strong&gt;&lt;/p&gt;&lt;p&gt;&lt;strong&gt;Synthetic text. &lt;/strong&gt;&lt;strong&gt;Synthetic text.&lt;/strong&gt;&lt;/p&gt; &lt;a href="https://example.com/synthetic/38"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/money/money">Money</category>
+      <category domain="https://www.theguardian.com/money/consumer-rights-money">Consumer rights</category>
+      <category domain="https://www.theguardian.com/money/consumer-affairs">Consumer affairs</category>
+      <category domain="https://www.theguardian.com/money/motoring">Motoring</category>
+      <category domain="https://www.theguardian.com/money/dvla">DVLA</category>
+      <pubDate>Mon, 23 Nov 2026 07:00:50 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/38</guid>
+      <media:content width="140" url="https://example.com/img/38.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/38.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/38.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-23T07:00:50Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 39</title>
+      <link>https://www.theguardian.com/synthetic/39</link>
+      <description>&lt;p&gt;Synthetic summary 39.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt; &lt;a href="https://example.com/synthetic/39"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/money/statebenefits">State benefits</category>
+      <category domain="https://www.theguardian.com/politics/welfare">Welfare</category>
+      <category domain="https://www.theguardian.com/society/benefits">Benefits</category>
+      <category domain="https://www.theguardian.com/society/death-and-dying">Death and dying</category>
+      <category domain="https://www.theguardian.com/lifeandstyle/bereavement">Bereavement</category>
+      <category domain="https://www.theguardian.com/society/society">Society</category>
+      <category domain="https://www.theguardian.com/uk/uk">UK news</category>
+      <category domain="https://www.theguardian.com/money/money">Money</category>
+      <category domain="https://www.theguardian.com/business/cost-of-living-crisis">UK cost of living crisis</category>
+      <category domain="https://www.theguardian.com/business/business">Business</category>
+      <category domain="https://www.theguardian.com/money/family-finances">Family finances</category>
+      <pubDate>Mon, 23 Nov 2026 07:00:50 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/39</guid>
+      <media:content width="140" url="https://example.com/img/39.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/39.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/39.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-23T07:00:50Z</dc:date>
+    </item>
+    <item>
+      <title>Synthetic headline 40</title>
+      <link>https://www.theguardian.com/synthetic/40</link>
+      <description>&lt;p&gt;Synthetic summary 40.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt;&lt;p&gt;Synthetic text.&lt;/p&gt; &lt;a href="https://example.com/synthetic/40"&gt;Synthetic text.&lt;/a&gt;</description>
+      <category domain="https://www.theguardian.com/money/renting">Renting property</category>
+      <category domain="https://www.theguardian.com/money/property">Property</category>
+      <category domain="https://www.theguardian.com/money/money">Money</category>
+      <category domain="https://www.theguardian.com/business/housingmarket">Housing market</category>
+      <category domain="https://www.theguardian.com/money/mortgages">Mortgages</category>
+      <category domain="https://www.theguardian.com/money/houseprices">House prices</category>
+      <category domain="https://www.theguardian.com/business/realestate">Real estate</category>
+      <category domain="https://www.theguardian.com/business/business">Business</category>
+      <category domain="https://www.theguardian.com/uk-news/england">England</category>
+      <category domain="https://www.theguardian.com/uk/wales">Wales</category>
+      <category domain="https://www.theguardian.com/uk/scotland">Scotland</category>
+      <category domain="https://www.theguardian.com/society/housing">Housing</category>
+      <category domain="https://www.theguardian.com/society/society">Society</category>
+      <pubDate>Mon, 23 Nov 2026 06:00:50 GMT</pubDate>
+      <guid>https://www.theguardian.com/synthetic/40</guid>
+      <media:content width="140" url="https://example.com/img/40.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="460" url="https://example.com/img/40.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <media:content width="700" url="https://example.com/img/40.jpg">
+        <media:credit scheme="urn:ebu">Synthetic Reporter</media:credit>
+      </media:content>
+      <dc:creator>Synthetic Reporter</dc:creator>
+      <dc:date>2026-11-23T06:00:50Z</dc:date>
+    </item>
+  </channel>
+</rss>
+

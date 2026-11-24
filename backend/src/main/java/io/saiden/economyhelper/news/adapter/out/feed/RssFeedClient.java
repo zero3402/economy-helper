@@ -41,9 +41,9 @@ public class RssFeedClient implements FeedClient {
     private static final Pattern WHITESPACE = Pattern.compile("\\s+");
 
     /**
-     * 시간대가 빠진 {@code <pubDate>2026-08-14 07:54:20</pubDate>} — Investing.com이 이 모양이다.
+     * 시간대가 빠진 {@code <pubDate>2026-08-14 07:54:20</pubDate>} — 옛 매체 Investing.com이 이 모양이었다.
      *
-     * <p>RSS 2.0은 pubDate를 RFC 822로 규정하지만 Investing은 지키지 않는다. Rome은 이 값을
+     * <p>RSS 2.0은 pubDate를 RFC 822로 규정하지만 지키지 않는 피드가 있다. Rome은 이 값을
      * 파싱하지 못해 {@code getPublishedDate()}에 {@code null}을 주고, 그러면 {@link #toArticle}이
      * 항목을 통째로 버린다. <b>HTTP는 200이라 아무 데도 오류가 뜨지 않고 그 매체만 조용히
      * 사라진다</b> — 그래서 넘기기 전에 되돌린다.
@@ -108,9 +108,8 @@ public class RssFeedClient implements FeedClient {
      * 이 항목이 <b>페이월 매체의 기사를 얹어 놓은 것</b>인가.
      *
      * <p><b>호스트 필터만으로는 못 막는다.</b> {@link NewsSource#owns}는 링크가 그 매체를 떠났는지를
-     * 보는데, Investing.com은 Reuters·Bloomberg 기사를 <b>자기 도메인에 얹어</b> 낸다 —
-     * 주소가 {@code investing.com}이라 허용 목록을 그대로 통과한다(2026-08-17 실측 피드의
-     * 첫 항목이 {@code <author>Reuters</author>}였다). 그런 재게재본은 가입 벽이 붙는 일이 있어
+     * 보는데, 매체가 Reuters·Bloomberg 기사를 <b>자기 도메인에 얹어</b> 내면 허용 목록을 그대로
+     * 통과한다(옛 매체 Investing.com의 2026-08-17 실측 피드 첫 항목이 {@code <author>Reuters</author>}였다). 그런 재게재본은 가입 벽이 붙는 일이 있어
      * "링크를 눌러도 못 읽는 기사는 답이 아니다"라는 이 프로젝트의 기준에 걸린다.
      *
      * <p>그래서 두 겹이다 — <b>밖으로 나가는 링크는 호스트가, 안에 얹힌 남의 기사는 여기가</b> 막는다.

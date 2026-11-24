@@ -105,17 +105,16 @@ class NewsServiceTest {
     }
 
     @Test
-    @DisplayName("같은 기사가 두 피드에 실려도 한 번만 나간다 — 한 매체가 피드를 둘 달 수 있다")
+    @DisplayName("같은 기사가 두 피드에 실려도 한 번만 나간다 — 같은 링크가 두 피드에 실릴 수 있다")
     void neverShowsTheSameArticleTwice() {
-        // Investing.com이 본 섹션과 암호화폐 섹션을 함께 단다(ADR-0014). 같은 기사가
-        // 두 피드에 실리면 그대로 두 건이 됐다 — 실측(2026-08-19)으로 /news 금리 3건 중
-        // 1번과 3번이 글자 그대로 같은 기사였다
-        Article shared = article(NewsSource.INVESTING, "Rate cut bets grow", 0);
-        Article alsoInCrypto = new Article(NewsSource.INVESTING_CRYPTO, shared.title(), null,
+        // 같은 기사가 두 피드에 실리면 그대로 두 건이 됐다 — 실측(2026-08-19, 당시 Investing.com 본 섹션과
+        // 암호화폐 섹션)으로 /news 금리 3건 중 1번과 3번이 글자 그대로 같은 기사였다
+        Article shared = article(NewsSource.CNBC, "Rate cut bets grow", 0);
+        Article alsoInCrypto = new Article(NewsSource.COINDESK, shared.title(), null,
                 shared.link(), shared.publishedAt(), 0);
         NewsService service = service(Map.of(
-                NewsSource.INVESTING, List.of(shared),
-                NewsSource.INVESTING_CRYPTO, List.of(alsoInCrypto)));
+                NewsSource.CNBC, List.of(shared),
+                NewsSource.COINDESK, List.of(alsoInCrypto)));
 
         assertThat(service.search(groups("rate"), "금리", service.fetchAll()))
                 .as("링크가 같으면 같은 기사다")
@@ -124,29 +123,29 @@ class NewsServiceTest {
     }
 
     @Test
-    @DisplayName("코인 섹션에도 실린 기사는 코인 자리에 앉는다 — 어느 사본이 이겼느냐로 무리가 바뀌지 않는다")
+    @DisplayName("코인 피드에도 실린 기사는 코인 자리에 앉는다 — 어느 사본이 이겼느냐로 무리가 바뀌지 않는다")
     void anArticleAlsoInTheCryptoSectionTakesACryptoSlot() {
-        // 같은 링크가 본 섹션과 암호화폐 섹션에 함께 실리면 링크 중복 제거가 점수 높은 사본 하나만 남긴다.
+        // 같은 링크가 경제 피드와 코인 피드에 함께 실리면 링크 중복 제거가 점수 높은 사본 하나만 남긴다.
         // 무리를 그 사본의 매체로 정하면 같은 기사가 날마다 코인·경제를 오가고 경제 자리를 하나 먹는다
-        Article shared = article(NewsSource.INVESTING, "Treasury yields edge higher", 0);
-        // 암호화폐 섹션에서는 꼴찌라 본 섹션 사본(1위)이 이긴다 — 그래도 코인이어야 한다
-        Article alsoInCrypto = new Article(NewsSource.INVESTING_CRYPTO, shared.title(), null,
+        Article shared = article(NewsSource.CNBC, "Treasury yields edge higher", 0);
+        // 코인 피드에서는 꼴찌라 경제 피드 사본(1위)이 이긴다 — 그래도 코인이어야 한다
+        Article alsoInCrypto = new Article(NewsSource.COINDESK, shared.title(), null,
                 shared.link(), shared.publishedAt(), 5);
         List<Article> economy = List.of(
-                article(NewsSource.INVESTING, "econ a", 1),
-                article(NewsSource.INVESTING, "econ b", 2),
-                article(NewsSource.INVESTING, "econ c", 3),
-                article(NewsSource.INVESTING, "econ d", 4),
-                article(NewsSource.INVESTING, "econ e", 5));
+                article(NewsSource.CNBC, "econ a", 1),
+                article(NewsSource.CNBC, "econ b", 2),
+                article(NewsSource.CNBC, "econ c", 3),
+                article(NewsSource.CNBC, "econ d", 4),
+                article(NewsSource.CNBC, "econ e", 5));
         NewsService service = service(Map.of(
-                NewsSource.INVESTING, java.util.stream.Stream.concat(
+                NewsSource.CNBC, java.util.stream.Stream.concat(
                         java.util.stream.Stream.of(shared), economy.stream()).toList(),
-                NewsSource.INVESTING_CRYPTO, List.of(
-                        article(NewsSource.INVESTING_CRYPTO, "crypto a", 0),
-                        article(NewsSource.INVESTING_CRYPTO, "crypto b", 1),
-                        article(NewsSource.INVESTING_CRYPTO, "crypto c", 2),
-                        article(NewsSource.INVESTING_CRYPTO, "crypto d", 3),
-                        article(NewsSource.INVESTING_CRYPTO, "crypto e", 4),
+                NewsSource.COINDESK, List.of(
+                        article(NewsSource.COINDESK, "crypto a", 0),
+                        article(NewsSource.COINDESK, "crypto b", 1),
+                        article(NewsSource.COINDESK, "crypto c", 2),
+                        article(NewsSource.COINDESK, "crypto d", 3),
+                        article(NewsSource.COINDESK, "crypto e", 4),
                         alsoInCrypto)));
 
         List<ScoredArticle> digest = service.digest();
@@ -183,8 +182,8 @@ class NewsServiceTest {
     void keepsArticleFromYesterdayInKstButWithinWindow() {
         // 실측(2026-08-15): /news 이더리움이 빈손이던 이유가 이것이었다. 가장 최근 기사가
         // 23시간 18분 전(08-14 21:36 KST)이라 날짜로 자르면 '어제'가 되어 사라졌다
-        NewsService service = service(Map.of(NewsSource.YAHOO_FINANCE, List.of(
-                aged(NewsSource.YAHOO_FINANCE, "Bitcoin and ethereum prices today", 0,
+        NewsService service = service(Map.of(NewsSource.BBC, List.of(
+                aged(NewsSource.BBC, "Bitcoin and ethereum prices today", 0,
                         Duration.ofHours(23)))));
 
         assertThat(service.search(groups("ethereum"), "이더리움", service.fetchAll()))
@@ -325,16 +324,14 @@ class NewsServiceTest {
     }
 
     @Test
-    @DisplayName("브리핑은 HN 반응을 전 매체 기사를 모아 한 번만 묻는다 — 한 매체의 두 피드가 같은 도메인을 겹쳐 묻지 않는다")
+    @DisplayName("브리핑은 HN 반응을 전 매체 기사를 모아 한 번만 묻는다 — 매체 수만큼 묻지 않는다")
     void digestAsksForBuzzOnceAcrossAllSources() {
-        // Investing.com은 본 섹션과 암호화폐 섹션을 함께 단다(ADR-0014). 매체마다 따로 물으면
-        // 같은 도메인(investing.com)의 HN 조회가 동시에 두 번 나간다 — 둘 다 캐시가 비어 있을 때
-        Article main = article(NewsSource.INVESTING, "Treasury yields edge higher", 0);
-        Article crypto = article(NewsSource.INVESTING_CRYPTO, "Bitcoin slips", 0);
+        Article main = article(NewsSource.CNBC, "Treasury yields edge higher", 0);
+        Article crypto = article(NewsSource.COINDESK, "Bitcoin slips", 0);
         StubBuzzClient buzz = new StubBuzzClient();
         NewsService service = service(Map.of(
-                NewsSource.INVESTING, List.of(main),
-                NewsSource.INVESTING_CRYPTO, List.of(crypto)), passAll(), buzz);
+                NewsSource.CNBC, List.of(main),
+                NewsSource.COINDESK, List.of(crypto)), passAll(), buzz);
 
         assertThat(service.digest()).hasSize(2);
         assertThat(buzz.asked).hasSize(1);
@@ -384,12 +381,12 @@ class NewsServiceTest {
     @DisplayName("두 피드에 실린 같은 기사는 관련도를 한 번만 묻는다 — 점수는 링크로 두 피드가 함께 쓴다")
     void digestAsksOnceForAnArticleCarriedByTwoFeeds() {
         RecordingJudge judge = new RecordingJudge();
-        Article shared = article(NewsSource.INVESTING, "Rate cut bets grow", 0);
-        Article alsoInCrypto = new Article(NewsSource.INVESTING_CRYPTO, shared.title(), null,
+        Article shared = article(NewsSource.CNBC, "Rate cut bets grow", 0);
+        Article alsoInCrypto = new Article(NewsSource.COINDESK, shared.title(), null,
                 shared.link(), shared.publishedAt(), 0);
         NewsService service = service(Map.of(
-                NewsSource.INVESTING, List.of(shared),
-                NewsSource.INVESTING_CRYPTO, List.of(alsoInCrypto)), judge);
+                NewsSource.CNBC, List.of(shared),
+                NewsSource.COINDESK, List.of(alsoInCrypto)), judge);
 
         assertThat(service.digest()).hasSize(1);
         assertThat(judge.asked.getFirst()).extracting(Article::link).containsExactly(shared.link());

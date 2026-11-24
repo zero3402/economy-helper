@@ -45,7 +45,6 @@ class EconomyHelperPropertiesTest {
         // 개수를 여기 적지 않는다 — 매체를 더할 때 고칠 곳이 늘면 반드시 낡는다.
         // 지키려는 것은 "열거형과 yml이 어긋나지 않는다"이지 그 값이 몇이냐가 아니다
         assertThat(properties.feeds())
-                .as("매체는 일곱이지만 항목은 여덟이다 — Investing.com이 본 섹션과 암호화폐를 함께 단다")
                 .containsOnlyKeys(NewsSource.values());
         assertThat(properties.feeds().get(NewsSource.AP).url())
                 .as("AP는 공식 RSS가 없어 구글 뉴스 검색 피드를 프록시로 쓴다")

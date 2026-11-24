@@ -154,48 +154,26 @@ economy-helper:
     # 여기 없는 것 — HN(117KB·콜드 1.6초)·RSS 여덟 피드(121KB·콜드 DNS 1.3초)·자체 핑.
     # **일부러 안 건드린다.** 실패해도 그 매체만 빠지고, 노브를 줄이는 것 자체가 값이다.
   feeds:
-    # 전부 전문 무료다. 페이월 매체(Bloomberg·Reuters·FT·Economist)는 뺐다 —
-    # 링크를 눌러도 못 읽는 기사는 좋은 답이 아니다. 새 매체를 더할 때도 같은 기준이다.
-    # 경제 다섯은 글로벌 점유율 순이고(2026-08-14 실측 전부 200), 코인 둘은 코인 전문
-    # 매체다(2026-08-27 실측 둘 다 200). 매체 일곱 · 항목 여덟이다.
+    # 전부 전문 무료이고 자체 편집국이 쓴 기사를 낸다. 페이월 매체(Bloomberg·Reuters·FT·Economist)와
+    # 남의 기사를 모아 싣는 곳(Yahoo Finance·Investing.com·Cointelegraph)은 뺐다 → ADR-0014.
+    # 경제 다섯 · 코인 셋. 건수는 2026-11-24 앱 UA 실측(24시간 안 / 피드 전체).
     #
     # 섹션을 좁혀 잡는다. 홈 피드를 쓰면 일반 뉴스가 섞이는데, 하류에서 걸러내는 것보다
     # 상류에서 소스를 좁히는 편이 근본적이다.
-    yahoo-finance:
-      url: https://finance.yahoo.com/news/rssindex   # 44건
-      type: rss
-    investing:
-      url: https://www.investing.com/rss/news_25.rss  # 10건
-      type: rss
-    investing-crypto:
-      # 같은 매체의 암호화폐 섹션. 매체를 늘린 게 아니라 섹션을 하나 더 연 것이다.
-      # 코인 기사는 금융 일반 피드에 거의 안 실린다 — 2026-08-15 실측으로 Yahoo만 49건 중 3건이었고
-      # CNBC Markets·BBC Business·Investing 본 피드는 오늘자 0건이었다.
-      url: https://www.investing.com/rss/news_301.rss  # 10건, 오늘자 비트코인 기사 3건
-      type: rss
-    # ⚠️ 코인 전문 매체 둘 — 위 암호화폐 섹션 하나로는 브리핑의 코인 다섯 건을 못 채운다.
-    #    실측(2026-08-27): news_301.rss가 10건 중 **24시간 안이 6건**이었고(나머지는 08-25·08-24)
-    #    그중 일부는 보도자료성이라 관련도 문턱(0.4)에 걸린다. 둘을 더해 코인 풀이 60건대가 된다.
-    #    같은 실측에서 앱 UA(economy-helper/1.0)로 둘 다 200이고, 전문 무료·로그인 벽 없음이다.
-    coindesk:
-      # ⚠️ 끝에 슬래시를 붙이면 안 된다. `.../rss/`는 308로 `.../rss`를 가리키는데
-      #    우리 RestClient는 리다이렉트를 따라가지 않는다 — 15바이트짜리 `Redirecting...`
-      #    본문을 받아 SAXParseException으로 끝나고 이 매체가 통째로 빠진다.
-      #    로그에는 뜨지만(`[COINDESK] 피드 수집 실패`) 발송은 멀쩡해 보이므로 안 보고는 모른다.
-      #    curl로 잴 때 -L을 붙이면 200으로 보여서 더 안 보인다 — 실측 감사가 잡은 자리다.
-      url: https://www.coindesk.com/arc/outboundfeeds/rss   # 25건, 요약문이 평문 87~166자
-      type: rss
-    cointelegraph:
-      # 요약문이 <p><img> 마크업으로 시작하지만 RssFeedClient.clean()이 태그를 걷어낸다.
-      # 링크에 ?utm_source=rss_feed 꼬리가 붙는데 호스트는 자기 것이라 owns()를 통과한다.
-      url: https://cointelegraph.com/rss   # 30건, 걷어낸 뒤 평문 152~165자
-      type: rss
     cnbc:
       # id=10000664는 Markets 섹션이다. 홈 피드는 일반 뉴스가 섞인다
-      url: https://www.cnbc.com/id/10000664/device/rss/rss.html   # 30건
+      url: https://www.cnbc.com/id/10000664/device/rss/rss.html   # 3/30
       type: rss
     bbc:
-      url: https://feeds.bbci.co.uk/news/business/rss.xml   # 52건
+      url: https://feeds.bbci.co.uk/news/business/rss.xml   # 20/57
+      type: rss
+    guardian:
+      # /business/rss는 302로 여기를 가리킨다 — RestClient는 리다이렉트를 따라가지 않는다
+      url: https://www.theguardian.com/uk/business/rss   # 17/40
+      type: rss
+    dw:
+      # RSS 1.0(RDF)이고 날짜가 dc:date ISO-8601이다. Rome이 그대로 읽는다(RssFeedClientTest)
+      url: https://rss.dw.com/rdf/rss-en-bus   # 3/20
       type: rss
     ap:
       # 통신사 자리를 Reuters에서 넘겨받았다 — 둘 다 통신사고 AP는 전문이 무료다.
@@ -203,6 +181,21 @@ economy-helper:
       # 이 피드는 description이 링크 마크업뿐이라 제목만 신뢰한다.
       url: "https://news.google.com/rss/search?q=when:24h+site:apnews.com+business+OR+markets+OR+economy&hl=en-US&gl=US&ceid=US:en"   # 100건
       type: google-news
+    # ── 코인 매체 셋. 코인 기사는 금융 일반 피드에 드물게 실려 이 셋이 코인 다섯 자리를 채운다.
+    #    Decrypt는 AI 기사가 38%라 코인 전용 피드로 치지 않고 낱말로 가른다(NewsSource.DECRYPT)
+    coindesk:
+      # ⚠️ 끝에 슬래시를 붙이면 안 된다. `.../rss/`는 308로 `.../rss`를 가리키는데
+      #    우리 RestClient는 리다이렉트를 따라가지 않는다 — 15바이트짜리 `Redirecting...`
+      #    본문을 받아 SAXParseException으로 끝나고 이 매체가 통째로 빠진다.
+      #    curl로 잴 때 -L을 붙이면 200으로 보여서 더 안 보인다 — 실측 감사가 잡은 자리다.
+      url: https://www.coindesk.com/arc/outboundfeeds/rss   # 19/25
+      type: rss
+    the-block:
+      url: https://www.theblock.co/rss.xml   # 20/20
+      type: rss
+    decrypt:
+      url: https://decrypt.co/feed   # 17/37, 그중 코인 낱말 없는 AI·엔비디아 기사 14/37
+      type: rss
 
   ranking:
     # 어느 매체도 조회수/댓글 수를 공개하지 않아 공개 신호로 인기도를 근사한다.
@@ -216,7 +209,7 @@ economy-helper:
       buzz: 0.15           # Hacker News 실측 (points + num_comments)
     recency-half-life: 6h
     # 이보다 오래된 기사는 수집 단계에서 버린다. 신선도 가중치는 랭킹 네 항 중 하나일 뿐이라
-    # 피드 앞자리에 놓인 옛 기사를 못 막는다 — Yahoo는 50건 중 12건이 2024~2025년 기사였다.
+    # 피드 앞자리에 놓인 옛 기사를 못 막는다 — 옛 Yahoo 피드는 50건 중 12건이 2024~2025년 기사였다.
     # 재테크 뉴스에서 사흘이 넘은 것은 답이 아니다.
     max-age: 3d
     hacker-news:

@@ -45,6 +45,11 @@ class FeedFetcherTest extends WireMockTest {
                     java.time.ZoneOffset.UTC);
     private static final Duration MAX_AGE = Duration.ofDays(3);
 
+    /** 2026-11-24에 붙인 매체(Guardian·DW·The Block·Decrypt) 픽스처를 뜬 날. */
+    private static final java.time.Clock NEW_OUTLETS_CLOCK =
+            java.time.Clock.fixed(java.time.Instant.parse("2026-11-24T08:00:00Z"),
+                    java.time.ZoneOffset.UTC);
+
     /**
      * 코인 매체 픽스처를 뜬 날 — 나중에 붙은 매체라 픽스처 날짜가 위 {@link #CLOCK}보다 늦다.
      *
@@ -84,32 +89,37 @@ class FeedFetcherTest extends WireMockTest {
     }
 
     @Test
-    @DisplayName("그 매체 피드에서 그 매체 기사만 남긴다 — Yahoo가 실어 온 남의 기사는 뺀다")
+    @DisplayName("그 매체 피드에서 그 매체 기사만 남긴다 — 피드가 실어 온 남의 기사는 뺀다")
     void keepsOnlyTheOutletsOwnArticles() throws IOException {
-        stubFeed("/yahoo", 200, fixture("yahoo-finance.xml"));
+        // 옛 Yahoo 피드(2026-08-14 실측)는 48건 중 8건이 wsj.com·investors.com이었다(둘 다 페이월)
+        stubFeed("/guardian", 200, feedOf(
+                item("https://www.theguardian.com/business/a", "Thu, 14 Aug 2026 07:00:00 GMT"),
+                item("https://www.wsj.com/articles/b", "Thu, 14 Aug 2026 07:00:00 GMT"),
+                item("https://www.investors.com/news/c", "Thu, 14 Aug 2026 07:00:00 GMT")));
 
         List<Article> articles = fetcher(Map.of(
-                NewsSource.YAHOO_FINANCE, feed("/yahoo", FeedType.RSS)))
-                .fetch(NewsSource.YAHOO_FINANCE);
+                NewsSource.GUARDIAN, feed("/guardian", FeedType.RSS)))
+                .fetch(NewsSource.GUARDIAN);
 
-        // 실물 픽스처 48건 중 8건이 wsj.com·investors.com이고(둘 다 페이월),
-        // 남은 40건 중 2건이 2024년 기사라 나이 컷오프에서 다시 빠진다
-        assertThat(articles).hasSize(38);
-        assertThat(articles).allSatisfy(article ->
-                assertThat(article.link()).contains("yahoo.com"));
+        assertThat(articles).extracting(Article::link)
+                .containsExactly("https://www.theguardian.com/business/a");
     }
 
     @Test
     @DisplayName("오래된 기사는 뺀다 — 신선도 가중치는 랭킹 네 항 중 하나라 옛 기사를 못 막는다")
     void dropsArticlesOlderThanTheCutoff() throws IOException {
-        stubFeed("/yahoo", 200, fixture("yahoo-finance.xml"));
+        // 피드에는 몇 해 묵은 에버그린 기사가 섞여 온다(옛 Yahoo 피드 실측: 2024~2025년 기사)
+        stubFeed("/guardian", 200, feedOf(
+                item("https://www.theguardian.com/business/new", "Thu, 14 Aug 2026 07:00:00 GMT"),
+                item("https://www.theguardian.com/business/old", "Mon, 12 Feb 2024 07:00:00 GMT")));
 
         List<Article> articles = fetcher(Map.of(
-                NewsSource.YAHOO_FINANCE, feed("/yahoo", FeedType.RSS)))
-                .fetch(NewsSource.YAHOO_FINANCE);
+                NewsSource.GUARDIAN, feed("/guardian", FeedType.RSS)))
+                .fetch(NewsSource.GUARDIAN);
 
-        // 실물 Yahoo 피드에는 2024~2025년 에버그린 기사가 섞여 온다
         Instant cutoff = CLOCK.instant().minus(MAX_AGE);
+        assertThat(articles).extracting(Article::link)
+                .containsExactly("https://www.theguardian.com/business/new");
         assertThat(articles).allSatisfy(article ->
                 assertThat(article.publishedAt()).isAfter(cutoff));
     }
@@ -135,10 +145,10 @@ class FeedFetcherTest extends WireMockTest {
     void signalsFailureOnForbidden() {
         stubFeed("/blocked", 403, "<html>Access Denied</html>");
 
-        FeedFetcher fetcher = fetcher(Map.of(NewsSource.YAHOO_FINANCE, feed("/blocked", FeedType.RSS)));
+        FeedFetcher fetcher = fetcher(Map.of(NewsSource.GUARDIAN, feed("/blocked", FeedType.RSS)));
 
         // 건너뛰고 나머지 매체로 답하는 것은 NewsService의 몫이다(NewsServiceTest)
-        assertThatThrownBy(() -> fetcher.fetch(NewsSource.YAHOO_FINANCE))
+        assertThatThrownBy(() -> fetcher.fetch(NewsSource.GUARDIAN))
                 .isInstanceOf(ArticleFeed.Unavailable.class);
     }
 
@@ -156,9 +166,9 @@ class FeedFetcherTest extends WireMockTest {
     @Test
     @DisplayName("설정에 없는 매체는 빈 목록이 아니라 수집 실패다 — 빈 목록은 「기사가 없다」라서 설정 누락이 조용히 묻힌다")
     void signalsFailureWhenSourceNotConfigured() {
-        assertThatThrownBy(() -> fetcher(Map.of()).fetch(NewsSource.INVESTING))
+        assertThatThrownBy(() -> fetcher(Map.of()).fetch(NewsSource.DW))
                 .isInstanceOf(ArticleFeed.Unavailable.class)
-                .hasMessageContaining("INVESTING")
+                .hasMessageContaining("DW")
                 .hasMessageContaining("설정");
     }
 
@@ -166,7 +176,7 @@ class FeedFetcherTest extends WireMockTest {
     @DisplayName("서킷브레이커가 소스별로 따로 열린다 — 한 매체 장애가 다른 매체를 끊지 않는다")
     void circuitBreakersAreIsolatedPerSource() throws IOException {
         stubFeed("/broken", 500, "boom");
-        stubFeed("/healthy", 200, fixture("investing.xml"));
+        stubFeed("/healthy", 200, fixture("cnbc.xml"));
 
         // 기본 설정은 minimumNumberOfCalls=100이라 몇 번 호출로는 브레이커가 평가조차 되지 않는다.
         // 테스트에서 관측 가능하도록 창을 좁힌다.
@@ -179,21 +189,21 @@ class FeedFetcherTest extends WireMockTest {
                         .build());
 
         FeedFetcher fetcher = fetcher(Map.of(
-                NewsSource.YAHOO_FINANCE, feed("/broken", FeedType.RSS),
-                NewsSource.INVESTING, feed("/healthy", FeedType.RSS)), registry);
+                NewsSource.GUARDIAN, feed("/broken", FeedType.RSS),
+                NewsSource.CNBC, feed("/healthy", FeedType.RSS)), registry);
 
         // 고장난 매체를 반복 호출해 그쪽 브레이커를 연다
         for (int i = 0; i < 10; i++) {
-            assertThatThrownBy(() -> fetcher.fetch(NewsSource.YAHOO_FINANCE))
+            assertThatThrownBy(() -> fetcher.fetch(NewsSource.GUARDIAN))
                     .isInstanceOf(ArticleFeed.Unavailable.class);
         }
 
-        assertThat(fetcher.fetch(NewsSource.INVESTING))
+        assertThat(fetcher.fetch(NewsSource.CNBC))
                 .as("한 매체 브레이커가 열려도 다른 매체는 그대로 수집돼야 한다")
                 .isNotEmpty();
-        assertThat(registry.circuitBreaker("feed-YAHOO_FINANCE").getState())
+        assertThat(registry.circuitBreaker("feed-GUARDIAN").getState())
                 .isEqualTo(CircuitBreaker.State.OPEN);
-        assertThat(registry.circuitBreaker("feed-INVESTING").getState())
+        assertThat(registry.circuitBreaker("feed-CNBC").getState())
                 .isEqualTo(CircuitBreaker.State.CLOSED);
     }
 
@@ -215,21 +225,27 @@ class FeedFetcherTest extends WireMockTest {
     }
 
     @Test
-    @DisplayName("Cointelegraph 요약문의 <p><img> 마크업은 걷힌다 — 번역 입력에 태그가 섞이면 안 된다")
-    void stripsMarkupFromCointelegraphDescriptions() {
-        // 실측(2026-08-27): 이 매체의 description은 <p style=…><img src=…> 블록으로 시작한다.
-        // RssFeedClient.clean()이 이미 태그를 걷어내므로 파서를 손볼 것이 없다는 사실을 고정한다
-        stubFeed("/cointelegraph", 200, fixture("cointelegraph.xml"));
+    @DisplayName("The Block · Decrypt 피드를 읽는다 — 코인 다섯 자리를 채우는 매체다")
+    void fetchesTheBlockAndDecryptFeeds() {
+        stubFeed("/theblock", 200, fixture("theblock.xml"));
+        stubFeed("/decrypt", 200, fixture("decrypt.xml"));
+        FeedFetcher fetcher = fetcherAt(Map.of(
+                NewsSource.THE_BLOCK, feed("/theblock", FeedType.RSS),
+                NewsSource.DECRYPT, feed("/decrypt", FeedType.RSS)), NEW_OUTLETS_CLOCK);
 
-        List<Article> articles = fetcherAt(Map.of(
-                NewsSource.COINTELEGRAPH, feed("/cointelegraph", FeedType.RSS)), CRYPTO_CLOCK)
-                .fetch(NewsSource.COINTELEGRAPH);
+        assertThat(fetcher.fetch(NewsSource.THE_BLOCK)).isNotEmpty()
+                .allSatisfy(article -> assertThat(article.link()).contains("theblock.co"));
+        assertThat(fetcher.fetch(NewsSource.DECRYPT)).isNotEmpty()
+                .allSatisfy(article -> assertThat(article.link()).contains("decrypt.co"));
+    }
 
-        assertThat(articles).hasSize(3);
-        assertThat(articles).allSatisfy(article -> {
-            assertThat(article.description()).doesNotContain("<").doesNotContain("img src");
-            assertThat(article.description()).isNotBlank();
-        });
+    private static String feedOf(String... items) {
+        return "<?xml version=\"1.0\" encoding=\"utf-8\"?><rss version=\"2.0\"><channel>"
+                + "<title>t</title><link>https://x</link>" + String.join("", items) + "</channel></rss>";
+    }
+
+    private static String item(String link, String pubDate) {
+        return "<item><title>제목</title><link>" + link + "</link><pubDate>" + pubDate + "</pubDate></item>";
     }
 
     private void stubFeed(String path, int status, String body) {

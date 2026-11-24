@@ -36,10 +36,9 @@ public enum NewsCategory {
      *   <li>아니면 <b>제목·요약문에 코인 낱말이 있으면</b> 코인이다 — 그 밖은 경제다.</li>
      * </ol>
      *
-     * <p><b>둘째 규칙이 없으면 안 된다.</b> Yahoo·CNBC에 실린 코인 기사가 경제 자리를
+     * <p><b>둘째 규칙이 없으면 안 된다.</b> CNBC·Guardian에 실린 코인 기사가 경제 자리를
      * 차지하고, 정작 코인 자리는 코인 피드만으로 채워야 한다. 코인 기사가 금융 일반 피드에
-     * 드물게 실린다는 것({@link NewsSource#INVESTING_CRYPTO}의 실측)은 <b>드물다는 뜻이지
-     * 없다는 뜻이 아니다.</b>
+     * 드물게 실린다는 것(ADR-0014의 실측)은 <b>드물다는 뜻이지 없다는 뜻이 아니다.</b>
      */
     public static NewsCategory of(Article article) {
         if (article.source().cryptoSection()) {

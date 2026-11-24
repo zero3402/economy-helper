@@ -5,30 +5,24 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * 수집 대상 매체 — <b>전부 전문 무료다.</b>
+ * 수집 대상 매체 — <b>전부 전문 무료이고, 자체 편집국이 직접 쓴 기사를 낸다.</b>
  *
  * <p><b>페이월 매체는 넣지 않는다.</b> 링크를 눌러도 못 읽는 기사는 좋은 답이 아니다.
  * 점수로 뒤에 미루는 것으로는 부족하다 — 유료 기사가 뚜렷이 높으면 결국 그게 나간다.
- * 그래서 값으로 가르지 않고 <b>목록 자체에서 뺀다.</b> 새 매체를 더할 때도 같은 기준이다:
- * 전문이 무료가 아니면 넣지 않는다.
+ * 그래서 값으로 가르지 않고 <b>목록 자체에서 뺀다.</b> 페이월 우회(archive.ph 따위)로 유료 매체를
+ * 되살리지 않는다.
  *
- * <p>페이월 우회(archive.ph 따위)로 유료 매체를 되살리지 않는다. 매체의 수익 모델을
- * 우회하는 일이고, 그런 서비스는 언제 막혀도 이상하지 않아 기반으로 삼을 수 없다.
+ * <p><b>남의 기사를 모아 싣는 곳은 넣지 않는다.</b> 재게재·속보 요약·홍보성 기사가 섞이는
+ * 매체(Yahoo Finance·Investing.com·Cointelegraph)를 2026-11-24에 뺐다. 브리핑 열 자리는 그대로
+ * 두고 그 자리를 채우는 매체의 질로 고른다(ADR-0014).
  *
- * <p><b>경제 다섯 + 코인 둘이다.</b> 경제 쪽 다섯은 <b>글로벌 점유율 순</b>이고, 코인 쪽은
- * 코인 전문 매체 둘이다. 더 늘리지 않는 이유는 비용이다 — 항목마다 피드 수집 + HN 조회 +
- * Gemini 관련도 채점이 한 번씩 붙는다.
+ * <p><b>경제 다섯 + 코인 셋이다.</b> 더 늘리지 않는 이유는 비용이다 — 매체마다 피드 수집 +
+ * HN 조회가 붙고, 관련도 프롬프트에 실리는 제목이 는다.
  *
- * <p><b>매체는 일곱이지만 항목은 여덟이다</b>({@link #INVESTING_CRYPTO}). 코인 전문 매체 둘은
- * 코인 다섯 자리가 안 차서 세웠다 — 실측(2026-08-27) 암호화폐 섹션이 10건 중 24시간 안 6건이었고,
- * CoinDesk 25건 · Cointelegraph 30건을 더해 코인 풀이 60건대가 된다. 둘 다 앱 UA로 200이고
- * 로그인·구독 벽이 없다(자세한 실측은 ADR-0014).
- *
- * <p><b>매체마다 자기 주소를 들고 있다.</b> 무료 매체를 골라 놓아도 <b>그 매체의 피드가
- * 남의 기사를 실어 나른다</b> — Yahoo 피드는 48건 중 8건이 wsj.com·investors.com이었고
- * 둘 다 페이월이다(2026-08-14 실측). 그래서 <b>그 매체 피드에서는 그 매체 기사만 쓴다.</b>
- * 페이월 매체 목록을 따로 관리하지 않는 이유가 이것이다 — 그 목록은 세상의 모든 유료
- * 매체를 쫓아다녀야 끝나지만, 이쪽은 우리가 고른 다섯만 알면 된다.
+ * <p><b>매체마다 자기 주소를 들고 있다.</b> 무료 매체의 피드도 <b>남의 기사를 실어 나를 수
+ * 있다</b>(옛 Yahoo 피드는 48건 중 8건이 wsj.com·investors.com이었다). 그래서 <b>그 매체
+ * 피드에서는 그 매체 기사만 쓴다.</b> 페이월 매체 목록을 따로 관리하지 않는 이유가 이것이다 —
+ * 그 목록은 세상의 모든 유료 매체를 쫓아다녀야 끝나지만, 이쪽은 우리가 고른 매체만 알면 된다.
  *
  * <p><b>피드 형식은 여기 두지 않는다.</b> 파서를 고르는 쪽은 {@code application.yml}의
  * {@code type}을 읽는다. 같은 사실을 두 곳에 두면 언젠가 서로 어긋난다.
@@ -37,31 +31,31 @@ import java.util.Set;
  */
 public enum NewsSource {
 
-    YAHOO_FINANCE("Yahoo Finance", "yahoo.com"),
-    INVESTING("Investing.com", "investing.com"),
-    /**
-     * 같은 매체의 <b>암호화폐 섹션</b>이다. 매체를 늘린 것이 아니라 섹션을 하나 더 단 것이라
-     * 표시 이름도 {@link #INVESTING}과 같다.
-     *
-     * <p><b>왜 필요한가.</b> 코인 기사가 잡히는 피드가 Yahoo뿐이었고 그마저 49건 중 3건이었다.
-     * CNBC Markets·BBC Business·Investing 본 피드는 오늘자 코인 기사가 0건이다(2026-08-15 실측).
-     * 그래서 {@code /news 비트코인}이 자주 빈손이었다 — 랭킹이 아니라 소스의 문제였다.
-     */
-    INVESTING_CRYPTO("Investing.com", "investing.com"),
-    /** 코인 전문 매체. 코인만 싣지는 않는다 — 그 대가는 {@link #cryptoSection()}. */
-    COINDESK("CoinDesk", "coindesk.com"),
-    /** 코인 전문 매체. 링크에 {@code ?utm_source=rss_feed} 꼬리가 붙지만 호스트는 자기 것이다. */
-    COINTELEGRAPH("Cointelegraph", "cointelegraph.com"),
     CNBC("CNBC", "cnbc.com"),
     // BBC는 영국 안팎으로 bbc.co.uk와 bbc.com을 함께 쓴다
     BBC("BBC Business", "bbc.co.uk", "bbc.com"),
+    /** 공식 RSS. 피드 주소는 {@code /uk/business/rss}다 — {@code /business/rss}는 302라 따라가지 않으면 빈손이다. */
+    GUARDIAN("The Guardian", "theguardian.com"),
+    /** RSS 1.0(RDF)이고 날짜가 {@code dc:date} ISO-8601이다. 링크에 {@code ?maca=} 꼬리가 붙는다. */
+    DW("DW", "dw.com"),
     /**
      * 공식 RSS가 없어 구글 뉴스 검색 피드를 프록시로 쓴다. 링크가
      * {@code news.google.com/rss/articles/...} 불투명 주소라 목적지를 볼 수 없다 —
      * 대신 <b>피드 쿼리 자체가 {@code site:apnews.com}으로 묶여 있어</b> 목적지가 항상 AP다.
      * 여기서 걸러 낼 것이 없으므로 구글 주소를 그대로 자기 주소로 삼는다.
      */
-    AP("AP News", "news.google.com");
+    AP("AP News", "news.google.com"),
+    /** 코인 전문 매체. 코인만 싣지는 않는다 — 그 대가는 {@link #cryptoSection()}. */
+    COINDESK("CoinDesk", "coindesk.com"),
+    /** 코인 전문 매체. 기사 페이지는 앱 UA에 403이지만 피드만 받으므로 상관없다 — 우회하지 않는다. */
+    THE_BLOCK("The Block", "theblock.co"),
+    /**
+     * 코인 매체지만 <b>코인 전용 피드로 치지 않는다</b>({@link #cryptoSection()}이 거짓). 실측(2026-11-24)
+     * 37건 중 14건이 코인 낱말 없는 AI·엔비디아·양자 기사였다 — 피드로 코인이라 치면 그것들이 코인
+     * 자리를 먹는다. 그래서 일반 피드처럼 낱말로 가른다. 대가로 낱말이 없는 코인 기사 몇(37건 중 3건:
+     * 모네로 토큰 해킹·FTX·무기한 선물)이 경제 무리로 간다.
+     */
+    DECRYPT("Decrypt", "decrypt.co");
 
     private final String displayName;
     private final Set<String> hosts;
@@ -91,7 +85,7 @@ public enum NewsSource {
     /**
      * <b>코인 기사만 싣기로 하고 연 자리인가.</b>
      *
-     * <p>참인 것은 Investing.com 암호화폐 섹션과 코인 전문 매체 둘이다. {@code NewsCategory}가
+     * <p>참인 것은 CoinDesk와 The Block이다 — 코인 매체라도 Decrypt는 아니다({@link #DECRYPT}). {@code NewsCategory}가
      * 이 값을 첫 번째 규칙으로 쓴다 — 그 피드에서 온 기사는 내용을 보지 않고 코인으로 센다.
      *
      * <p><b>대가를 알고 고른 것이다.</b> 코인 매체가 낸 일반 기사(실측: CoinDesk의
@@ -99,7 +93,7 @@ public enum NewsSource {
      * (코인 기사가 경제 무리로 새는 것)이 더 나쁘다.
      */
     public boolean cryptoSection() {
-        return this == INVESTING_CRYPTO || this == COINDESK || this == COINTELEGRAPH;
+        return this == COINDESK || this == THE_BLOCK;
     }
 
     /** 텔레그램 메시지에 노출할 이름. */

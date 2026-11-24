@@ -1,0 +1,1652 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<rss
+  version="2.0"
+  xmlns:content="http://purl.org/rss/1.0/modules/content/"
+  xmlns:wfw="http://wellformedweb.org/CommentAPI/"
+  xmlns:dc="http://purl.org/dc/elements/1.1/"
+  xmlns:atom="http://www.w3.org/2005/Atom"
+  xmlns:sy="http://purl.org/rss/1.0/modules/syndication/"
+  xmlns:slash="http://purl.org/rss/1.0/modules/slash/"
+  xmlns:media="http://search.yahoo.com/mrss/"
+  xmlns:snf="http://www.smartnews.be/snf"
+>
+  <channel>
+    <title>Decrypt</title>
+    <description>Synthetic test fixture. Structure mirrors the Decrypt RSS feed captured 2026-11-24; every headline, summary, name and link path is made up.</description>
+    <language>en</language>
+    
+    <atom:link
+      href="https://decrypt.co/feed"
+      rel="self"
+      type="application/rss+xml"
+    />
+    
+    
+      
+        <link>https://decrypt.co/feed</link>
+      
+    
+    
+      <copyright>Synthetic test fixture. Structure mirrors the Decrypt RSS feed captured 2026-11-24; every headline, summary, name and link path is made up.</copyright>
+    
+    
+    
+    
+      <lastBuildDate>Mon, 23 Nov 2026 23:06:02 +0000</lastBuildDate>
+    
+    
+      <sy:updatePeriod>hourly</sy:updatePeriod>
+    
+    
+      <sy:updateFrequency>1</sy:updateFrequency>
+    
+    
+    
+    
+    
+      <item>
+  <title>Synthetic headline 1 — it’s a test</title>
+  <link>https://decrypt.co/synthetic/1</link>
+  <pubDate>Mon, 23 Nov 2026 23:06:02 +0000</pubDate>
+  
+    <description>Synthetic summary 1.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/1?p=383851</guid>
+  
+  
+    <enclosure url="https://example.com/img/1.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category>Artificial Intelligence</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/1.jpg" height="720" width="1280"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+      <item>
+  <title>Synthetic headline 2</title>
+  <link>https://decrypt.co/synthetic/2</link>
+  <pubDate>Mon, 23 Nov 2026 21:46:03 +0000</pubDate>
+  
+    <description>Synthetic summary 2.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/2?p=383848</guid>
+  
+  
+    <enclosure url="https://example.com/img/2.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category>Artificial Intelligence</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/2.jpg" height="720" width="1280"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+      <item>
+  <title>Synthetic headline 3</title>
+  <link>https://decrypt.co/synthetic/3</link>
+  <pubDate>Mon, 23 Nov 2026 21:16:03 +0000</pubDate>
+  
+    <description>Synthetic summary 3.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/3?p=383846</guid>
+  
+  
+    <enclosure url="https://example.com/img/3.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category>Artificial Intelligence</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/3.jpg" height="1440" width="2560"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+      <item>
+  <title>Synthetic headline 4</title>
+  <link>https://decrypt.co/synthetic/4</link>
+  <pubDate>Mon, 23 Nov 2026 20:36:02 +0000</pubDate>
+  
+    <description>Synthetic summary 4.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/4?p=383844</guid>
+  
+  
+    <enclosure url="https://example.com/img/4.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category></category>
+    
+      <category>Coins</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/4.jpg" height="1080" width="1920"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+      <item>
+  <title>Synthetic headline 5</title>
+  <link>https://decrypt.co/synthetic/5</link>
+  <pubDate>Mon, 23 Nov 2026 19:57:21 +0000</pubDate>
+  
+    <description>Synthetic summary 5.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/5?p=383841</guid>
+  
+  
+    <enclosure url="https://example.com/img/5.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category>Business</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/5.jpg" height="1080" width="1920"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+      <item>
+  <title>Synthetic headline 6</title>
+  <link>https://decrypt.co/synthetic/6</link>
+  <pubDate>Mon, 23 Nov 2026 18:45:21 +0000</pubDate>
+  
+    <description>Synthetic summary 6.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/6?p=383820</guid>
+  
+  
+    <enclosure url="https://example.com/img/6.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category>Business</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/6.jpg" height="941" width="1672"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+      <item>
+  <title>Synthetic headline 7</title>
+  <link>https://decrypt.co/synthetic/7</link>
+  <pubDate>Mon, 23 Nov 2026 18:16:25 +0000</pubDate>
+  
+    <description>Synthetic summary 7.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/7?p=383818</guid>
+  
+  
+    <enclosure url="https://example.com/img/7.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category></category>
+    
+      <category>Coins</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/7.jpg" height="2000" width="3556"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+      <item>
+  <title>Synthetic headline 8</title>
+  <link>https://decrypt.co/synthetic/8</link>
+  <pubDate>Mon, 23 Nov 2026 18:15:45 +0000</pubDate>
+  
+    <description>Synthetic summary 8.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/8?p=383821</guid>
+  
+  
+    <enclosure url="https://example.com/img/8.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category></category>
+    
+      <category>The Projects</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/8.jpg" height="900" width="1600"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+      <item>
+  <title>Synthetic headline 9</title>
+  <link>https://decrypt.co/synthetic/9</link>
+  <pubDate>Mon, 23 Nov 2026 17:28:08 +0000</pubDate>
+  
+    <description>Synthetic summary 9.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/9?p=383815</guid>
+  
+  
+    <enclosure url="https://example.com/img/9.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category>Markets</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/9.jpg" height="1080" width="1920"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+      <item>
+  <title>Synthetic headline 10</title>
+  <link>https://decrypt.co/synthetic/10</link>
+  <pubDate>Mon, 23 Nov 2026 16:46:03 +0000</pubDate>
+  
+    <description>Synthetic summary 10.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/10?p=383800</guid>
+  
+  
+    <enclosure url="https://example.com/img/10.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category></category>
+    
+      <category></category>
+    
+      <category>Business</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/10.jpg" height="1080" width="1920"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+      <item>
+  <title>Synthetic headline 11</title>
+  <link>https://decrypt.co/synthetic/11</link>
+  <pubDate>Mon, 23 Nov 2026 16:32:04 +0000</pubDate>
+  
+    <description>Synthetic summary 11.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/11?p=383801</guid>
+  
+  
+    <enclosure url="https://example.com/img/11.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category></category>
+    
+      <category>Markets</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/11.jpg" height="1080" width="1920"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+      <item>
+  <title>Synthetic headline 12</title>
+  <link>https://decrypt.co/synthetic/12</link>
+  <pubDate>Mon, 23 Nov 2026 14:07:21 +0000</pubDate>
+  
+    <description>Synthetic summary 12.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/12?p=383797</guid>
+  
+  
+    <enclosure url="https://example.com/img/12.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category>Artificial Intelligence</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/12.jpg" height="720" width="1280"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+      <item>
+  <title>Synthetic headline 13</title>
+  <link>https://decrypt.co/synthetic/13</link>
+  <pubDate>Mon, 23 Nov 2026 13:34:13 +0000</pubDate>
+  
+    <description>Synthetic summary 13.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/13?p=383778</guid>
+  
+  
+    <enclosure url="https://example.com/img/13.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category></category>
+    
+      <category></category>
+    
+      <category>Opinion</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/13.jpg" height="1000" width="1778"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+      <item>
+  <title>Synthetic headline 14</title>
+  <link>https://decrypt.co/synthetic/14</link>
+  <pubDate>Mon, 23 Nov 2026 13:25:35 +0000</pubDate>
+  
+    <description>Synthetic summary 14.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/14?p=383779</guid>
+  
+  
+    <enclosure url="https://example.com/img/14.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category></category>
+    
+      <category>Business</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/14.jpg" height="2000" width="3556"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+      <item>
+  <title>Synthetic headline 15</title>
+  <link>https://decrypt.co/synthetic/15</link>
+  <pubDate>Mon, 23 Nov 2026 13:08:23 +0000</pubDate>
+  
+    <description>Synthetic summary 15.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/15?p=383775</guid>
+  
+  
+    <enclosure url="https://example.com/img/15.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category>polygon</category>
+    
+      <category>Law and Order</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/15.jpg" height="1000" width="1778"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+      <item>
+  <title>Synthetic headline 16</title>
+  <link>https://decrypt.co/synthetic/16</link>
+  <pubDate>Mon, 23 Nov 2026 12:43:30 +0000</pubDate>
+  
+    <description>Synthetic summary 16.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/16?p=383762</guid>
+  
+  
+    <enclosure url="https://example.com/img/16.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category></category>
+    
+      <category></category>
+    
+      <category>Coins</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/16.jpg" height="1079" width="1920"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+      <item>
+  <title>Synthetic headline 17</title>
+  <link>https://decrypt.co/synthetic/17</link>
+  <pubDate>Mon, 23 Nov 2026 11:14:22 +0000</pubDate>
+  
+    <description>Synthetic summary 17.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/17?p=383758</guid>
+  
+  
+    <enclosure url="https://example.com/img/17.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category></category>
+    
+      <category>Markets</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/17.jpg" height="1000" width="1778"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+      <item>
+  <title>Synthetic headline 18</title>
+  <link>https://decrypt.co/synthetic/18</link>
+  <pubDate>Sun, 22 Nov 2026 14:01:02 +0000</pubDate>
+  
+    <description>Synthetic summary 18.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/18?p=383743</guid>
+  
+  
+    <enclosure url="https://example.com/img/18.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category>Technology</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/18.jpg" height="1080" width="1920"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+      <item>
+  <title>Synthetic headline 19</title>
+  <link>https://decrypt.co/synthetic/19</link>
+  <pubDate>Sat, 21 Nov 2026 18:01:02 +0000</pubDate>
+  
+    <description>Synthetic summary 19.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/19?p=383756</guid>
+  
+  
+    <enclosure url="https://example.com/img/19.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category>Gaming</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/19.jpg" height="1080" width="1920"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+      <item>
+  <title>Synthetic headline 20</title>
+  <link>https://decrypt.co/synthetic/20</link>
+  <pubDate>Sat, 21 Nov 2026 17:01:02 +0000</pubDate>
+  
+    <description>Synthetic summary 20.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/20?p=383752</guid>
+  
+  
+    <enclosure url="https://example.com/img/20.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category>Law and Order</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/20.jpg" height="1000" width="1778"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+      <item>
+  <title>Synthetic headline 21</title>
+  <link>https://decrypt.co/synthetic/21</link>
+  <pubDate>Sat, 21 Nov 2026 16:01:02 +0000</pubDate>
+  
+    <description>Synthetic summary 21.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/21?p=383750</guid>
+  
+  
+    <enclosure url="https://example.com/img/21.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category>Artificial Intelligence</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/21.jpg" height="900" width="1600"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+      <item>
+  <title>Synthetic headline 22</title>
+  <link>https://decrypt.co/synthetic/22</link>
+  <pubDate>Sat, 21 Nov 2026 14:01:06 +0000</pubDate>
+  
+    <description>Synthetic summary 22.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/22?p=383754</guid>
+  
+  
+    <enclosure url="https://example.com/img/22.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category>Markets</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/22.jpg" height="900" width="1600"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+      <item>
+  <title>Synthetic headline 23</title>
+  <link>https://decrypt.co/synthetic/23</link>
+  <pubDate>Fri, 20 Nov 2026 21:36:02 +0000</pubDate>
+  
+    <description>Synthetic summary 23.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/23?p=383747</guid>
+  
+  
+    <enclosure url="https://example.com/img/23.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category>Artificial Intelligence</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/23.jpg" height="720" width="1280"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+      <item>
+  <title>Synthetic headline 24</title>
+  <link>https://decrypt.co/synthetic/24</link>
+  <pubDate>Fri, 20 Nov 2026 20:36:54 +0000</pubDate>
+  
+    <description>Synthetic summary 24.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/24?p=383744</guid>
+  
+  
+    <enclosure url="https://example.com/img/24.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category>Business</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/24.jpg" height="1000" width="1778"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+      <item>
+  <title>Synthetic headline 25</title>
+  <link>https://decrypt.co/synthetic/25</link>
+  <pubDate>Fri, 20 Nov 2026 19:36:03 +0000</pubDate>
+  
+    <description>Synthetic summary 25.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/25?p=383739</guid>
+  
+  
+    <enclosure url="https://example.com/img/25.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category></category>
+    
+      <category>Markets</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/25.jpg" height="1080" width="1920"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+      <item>
+  <title>Synthetic headline 26</title>
+  <link>https://decrypt.co/synthetic/26</link>
+  <pubDate>Fri, 20 Nov 2026 18:46:03 +0000</pubDate>
+  
+    <description>Synthetic summary 26.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/26?p=383737</guid>
+  
+  
+    <enclosure url="https://example.com/img/26.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category></category>
+    
+      <category></category>
+    
+      <category>Business</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/26.jpg" height="720" width="1279"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+      <item>
+  <title>Synthetic headline 27</title>
+  <link>https://decrypt.co/synthetic/27</link>
+  <pubDate>Fri, 20 Nov 2026 18:16:02 +0000</pubDate>
+  
+    <description>Synthetic summary 27.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/27?p=383733</guid>
+  
+  
+    <enclosure url="https://example.com/img/27.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category>Artificial Intelligence</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/27.jpg" height="1000" width="1778"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+      <item>
+  <title>Synthetic headline 28</title>
+  <link>https://decrypt.co/synthetic/28</link>
+  <pubDate>Fri, 20 Nov 2026 17:41:45 +0000</pubDate>
+  
+    <description>Synthetic summary 28.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/28?p=383732</guid>
+  
+  
+    <enclosure url="https://example.com/img/28.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category>Coins</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/28.jpg" height="1000" width="1778"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+      <item>
+  <title>Synthetic headline 29</title>
+  <link>https://decrypt.co/synthetic/29</link>
+  <pubDate>Fri, 20 Nov 2026 16:35:59 +0000</pubDate>
+  
+    <description>Synthetic summary 29.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/29?p=383702</guid>
+  
+  
+    <enclosure url="https://example.com/img/29.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category></category>
+    
+      <category>Markets</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/29.jpg" height="1080" width="1920"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+      <item>
+  <title>Synthetic headline 30</title>
+  <link>https://decrypt.co/synthetic/30</link>
+  <pubDate>Fri, 20 Nov 2026 15:42:51 +0000</pubDate>
+  
+    <description>Synthetic summary 30.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/30?p=383700</guid>
+  
+  
+    <enclosure url="https://example.com/img/30.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category>polygon</category>
+    
+      <category>Law and Order</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/30.jpg" height="720" width="1280"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+      <item>
+  <title>Synthetic headline 31</title>
+  <link>https://decrypt.co/synthetic/31</link>
+  <pubDate>Fri, 20 Nov 2026 13:23:01 +0000</pubDate>
+  
+    <description>Synthetic summary 31.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/31?p=383691</guid>
+  
+  
+    <enclosure url="https://example.com/img/31.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category></category>
+    
+      <category></category>
+    
+      <category>Opinion</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/31.jpg" height="720" width="1280"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+      <item>
+  <title>Synthetic headline 32</title>
+  <link>https://decrypt.co/synthetic/32</link>
+  <pubDate>Fri, 20 Nov 2026 12:10:14 +0000</pubDate>
+  
+    <description>Synthetic summary 32.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/32?p=383688</guid>
+  
+  
+    <enclosure url="https://example.com/img/32.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category></category>
+    
+      <category></category>
+    
+      <category>Business</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/32.jpg" height="720" width="1280"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+      <item>
+  <title>Synthetic headline 33</title>
+  <link>https://decrypt.co/synthetic/33</link>
+  <pubDate>Fri, 20 Nov 2026 11:50:51 +0000</pubDate>
+  
+    <description>Synthetic summary 33.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/33?p=383685</guid>
+  
+  
+    <enclosure url="https://example.com/img/33.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category></category>
+    
+      <category>Markets</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/33.jpg" height="1080" width="1920"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+      <item>
+  <title>Synthetic headline 34</title>
+  <link>https://decrypt.co/synthetic/34</link>
+  <pubDate>Fri, 20 Nov 2026 11:23:00 +0000</pubDate>
+  
+    <description>Synthetic summary 34.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/34?p=383682</guid>
+  
+  
+    <enclosure url="https://example.com/img/34.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category>Business</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/34.jpg" height="1440" width="2560"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+      <item>
+  <title>Synthetic headline 35</title>
+  <link>https://decrypt.co/synthetic/35</link>
+  <pubDate>Fri, 20 Nov 2026 10:07:46 +0000</pubDate>
+  
+    <description>Synthetic summary 35.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/35?p=383679</guid>
+  
+  
+    <enclosure url="https://example.com/img/35.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category></category>
+    
+      <category></category>
+    
+      <category>Business</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/35.jpg" height="720" width="1280"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+      <item>
+  <title>Synthetic headline 36</title>
+  <link>https://decrypt.co/synthetic/36</link>
+  <pubDate>Thu, 19 Nov 2026 22:36:02 +0000</pubDate>
+  
+    <description>Synthetic summary 36.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/36?p=383677</guid>
+  
+  
+    <enclosure url="https://example.com/img/36.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category>Artificial Intelligence</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/36.jpg" height="720" width="1280"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+      <item>
+  <title>Synthetic headline 37</title>
+  <link>https://decrypt.co/synthetic/37</link>
+  <pubDate>Thu, 19 Nov 2026 21:12:06 +0000</pubDate>
+  
+    <description>Synthetic summary 37.</description>
+  
+  <dc:creator>Synthetic Reporter</dc:creator>
+  
+  
+    <guid isPermaLink="false">https://decrypt.co/synthetic/37?p=383669</guid>
+  
+  
+    <enclosure url="https://example.com/img/37.jpg" length="1000000" type="image/png" />
+  
+  
+    
+      <category>Markets</category>
+    
+  
+  
+  
+  
+  
+  
+    
+      <media:thumbnail url="https://example.com/img/37.jpg" height="720" width="1280"/>
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+</item>
+    
+  </channel>
+</rss>

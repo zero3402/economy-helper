@@ -197,7 +197,7 @@ public class RelevanceScorer implements RelevanceJudge {
     /**
      * 후보 묶음의 지문 — <b>링크와 제목</b>을 순서대로 넣는다.
      *
-     * <p>채점하는 것은 제목이다. 링크만 넣으면 매체가 같은 URL 아래 제목을 고쳤을 때(Yahoo·CNBC가 그런다)
+     * <p>채점하는 것은 제목이다. 링크만 넣으면 매체가 같은 URL 아래 제목을 고쳤을 때(CNBC가 그런다)
      * 옛 제목의 점수가 새 제목에 TTL 내내 붙는다 — 틀린 값이다({@code NewsFacade.requestOf}가 번역 키에
      * 지문을 넣는 것과 같은 이유). 판 번호는 안 올린다 — 담는 값의 모양은 그대로이고, 옛 키(링크 목록)는
      * 새 키와 겹치지 않아 아무도 안 읽은 채 TTL 뒤 사라진다.

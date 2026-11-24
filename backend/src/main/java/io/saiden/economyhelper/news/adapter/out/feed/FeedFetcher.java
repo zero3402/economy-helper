@@ -27,8 +27,8 @@ import org.springframework.web.client.RestClient;
  * 매체 하나의 피드를 받아 파싱한다.
  *
  * <p><b>서킷브레이커와 재시도를 애너테이션이 아니라 프로그래매틱 API로 건다.</b> 이유가 둘이다.
- * 브레이커는 이름이 매체별이어야 한다({@code feed-YAHOO}) — 애너테이션은 이름이 컴파일 타임에
- * 고정이라 매체들이 브레이커 하나를 공유해 Yahoo가 죽으면 BBC 호출까지 끊긴다. 재시도는
+ * 브레이커는 이름이 매체별이어야 한다({@code feed-GUARDIAN}) — 애너테이션은 이름이 컴파일 타임에
+ * 고정이라 매체들이 브레이커 하나를 공유해 한 매체가 죽으면 BBC 호출까지 끊긴다. 재시도는
  * {@link #fetch}가 실패를 {@link ArticleFeed.Unavailable}로 <b>감싸기 전에</b> 돌아야 한다 —
  * {@code @Retry}를 달면 감싼 예외를 보게 되어 재시도 설정의 무시 목록(열린 브레이커)이 먹지 않는다.
  *
@@ -112,8 +112,8 @@ public class FeedFetcher implements ArticleFeed {
             throw new FeedParseException(source, "응답 본문이 비어 있습니다", null);
         }
 
-        // 그 매체 피드에서는 그 매체 기사만 쓴다. Yahoo 피드가 wsj.com·investors.com을
-        // 실어 나르는데 둘 다 페이월이다 — 우리가 고른 것은 Yahoo지 그들이 아니다.
+        // 그 매체 피드에서는 그 매체 기사만 쓴다. 옛 Yahoo 피드가 wsj.com·investors.com을
+        // 실어 날랐는데 둘 다 페이월이었다 — 우리가 고른 것은 그 매체지 그들이 아니다.
         // 캐시(@Cacheable) 안쪽이라 걸러낸 결과가 캐시되고 파서 종류와 무관하게 걸린다
         List<Article> parsed = parser.parse(source, body);
         List<Article> own = parsed.stream().filter(article -> source.owns(article.link())).toList();
@@ -124,7 +124,7 @@ public class FeedFetcher implements ArticleFeed {
         }
 
         // 오래된 기사를 여기서 자른다. 신선도 가중치만으로는 못 막는다 — 랭킹 네 항 중
-        // 하나일 뿐이라 피드 앞자리에 놓인 옛 기사가 그대로 1위가 된다. 실측에서 Yahoo가
+        // 하나일 뿐이라 피드 앞자리에 놓인 옛 기사가 그대로 1위가 된다. 실측에서 옛 Yahoo 피드가
         // 50건 중 12건을 2024~2025년 기사로 채웠고 그중 둘이 /news 검색 상위에 올라왔다
         Instant cutoff = clock.instant().minus(maxAge);
         List<Article> fresh = own.stream()

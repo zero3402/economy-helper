@@ -1,0 +1,339 @@
+<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"
+    xmlns:content="http://purl.org/rss/1.0/modules/content/"
+    xmlns:wfw="http://wellformedweb.org/CommentAPI/"
+    xmlns:dc="http://purl.org/dc/elements/1.1/"
+    xmlns:atom="http://www.w3.org/2005/Atom"
+    xmlns:sy="http://purl.org/rss/1.0/modules/syndication/"
+    xmlns:slash="http://purl.org/rss/1.0/modules/slash/"
+    xmlns:media="http://search.yahoo.com/mrss/"
+    >
+
+<channel>
+    <title>The Block</title>
+    <link>https://www.theblock.co</link>
+    <atom:link href="https://www.theblock.co/rss.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="https://www.theblock.co/rss.xml?paged=2" rel="next" type="application/rss+xml" />
+    <atom:link href="https://pubsubhubbub.appspot.com/" rel="hub"/>
+    <description>Synthetic test fixture. Structure mirrors the The Block RSS feed captured 2026-11-24; every headline, summary, name and link path is made up.</description>
+    <lastBuildDate>Tue, 24 Nov 2026 07:05:47 +0000</lastBuildDate>
+    <language>en-US</language>
+    <copyright>Synthetic test fixture. Structure mirrors the The Block RSS feed captured 2026-11-24; every headline, summary, name and link path is made up.</copyright>
+    <generator>TheBlock</generator>
+    <ttl>5</ttl>
+    <sy:updatePeriod>hourly</sy:updatePeriod>
+    <sy:updateFrequency>1</sy:updateFrequency>
+    <image>
+        <url>https://example.com/img/logo.png</url>
+        <title>The Block</title>
+        <link>https://www.theblock.co</link>
+    </image>
+        <item>
+        <title><![CDATA[Synthetic headline 1 — it’s a test]]></title>
+        <link>https://www.theblock.co/synthetic/1</link>
+        <media:content url="https://example.com/img/1.jpg" type="image/*" medium="image"/>        <guid isPermaLink="false">synthetic-guid-1</guid>
+        <pubDate>Tue, 24 Nov 2026 06:21:34 +0000</pubDate>
+            <description><![CDATA[Synthetic summary 1.]]></description>            <dc:creator><![CDATA[Synthetic Reporter]]></dc:creator>
+        <content:encoded/>
+        		<category domain="https://www.theblock.co/category/markets"><![CDATA[Markets]]></category>
+		<category domain="https://www.theblock.co/">News</category>
+                </item>
+        <item>
+        <title><![CDATA[Synthetic headline 2]]></title>
+        <link>https://www.theblock.co/synthetic/2</link>
+        <media:content url="https://example.com/img/2.jpg" type="image/*" medium="image"/>        <guid isPermaLink="false">synthetic-guid-2</guid>
+        <pubDate>Tue, 24 Nov 2026 05:40:00 +0000</pubDate>
+            <description><![CDATA[Synthetic summary 2.]]></description>            <dc:creator><![CDATA[Synthetic Reporter]]></dc:creator>
+        <content:encoded/>
+        		<category domain="https://www.theblock.co/">News</category>
+                </item>
+        <item>
+        <title><![CDATA[Synthetic headline 3]]></title>
+        <link>https://www.theblock.co/synthetic/3</link>
+        <media:content url="https://example.com/img/3.jpg" type="image/*" medium="image"/>        <guid isPermaLink="false">synthetic-guid-3</guid>
+        <pubDate>Tue, 24 Nov 2026 04:28:02 +0000</pubDate>
+            <description><![CDATA[Synthetic summary 3.]]></description>            <dc:creator><![CDATA[Synthetic Reporter]]></dc:creator>
+        <content:encoded/>
+        		<category domain="https://www.theblock.co/category/companies"><![CDATA[Companies]]></category>
+		<category domain="https://www.theblock.co/category/crypto-ecosystems"><![CDATA[Crypto Ecosystems]]></category>
+		<category domain="https://www.theblock.co/category/policy"><![CDATA[Policy]]></category>
+		<category domain="https://www.theblock.co/category/regulation"><![CDATA[Regulation]]></category>
+		<category domain="https://www.theblock.co/category/web3"><![CDATA[Web3]]></category>
+		<category domain="https://www.theblock.co/">News</category>
+                </item>
+        <item>
+        <title><![CDATA[Synthetic headline 4]]></title>
+        <link>https://www.theblock.co/synthetic/4</link>
+        <media:content url="https://example.com/img/4.jpg" type="image/*" medium="image"/>        <guid isPermaLink="false">synthetic-guid-4</guid>
+        <pubDate>Tue, 24 Nov 2026 03:05:45 +0000</pubDate>
+            <description><![CDATA[Synthetic summary 4.]]></description>            <dc:creator><![CDATA[Synthetic Reporter]]></dc:creator>
+        <content:encoded/>
+        		<category domain="https://www.theblock.co/category/companies"><![CDATA[Companies]]></category>
+		<category domain="https://www.theblock.co/category/markets"><![CDATA[Markets]]></category>
+		<category domain="https://www.theblock.co/">News</category>
+                </item>
+        <item>
+        <title><![CDATA[Synthetic headline 5]]></title>
+        <link>https://www.theblock.co/synthetic/5</link>
+        <media:content url="https://example.com/img/5.jpg" type="image/*" medium="image"/>        <guid isPermaLink="false">synthetic-guid-5</guid>
+        <pubDate>Tue, 24 Nov 2026 00:33:22 +0000</pubDate>
+            <description><![CDATA[Synthetic summary 5.]]></description>            <dc:creator><![CDATA[Synthetic Reporter]]></dc:creator>
+        <content:encoded/>
+        		<category domain="https://www.theblock.co/category/crypto-ecosystems"><![CDATA[Crypto Ecosystems]]></category>
+		<category domain="https://www.theblock.co/category/defi"><![CDATA[DeFi]]></category>
+		<category domain="https://www.theblock.co/category/markets"><![CDATA[Markets]]></category>
+		<category domain="https://www.theblock.co/category/policy"><![CDATA[Policy]]></category>
+		<category domain="https://www.theblock.co/category/regulation"><![CDATA[Regulation]]></category>
+		<category domain="tag"><![CDATA[CFTC]]></category>
+		<category domain="tag"><![CDATA[Derivatives]]></category>
+		<category domain="tag"><![CDATA[Prediction Markets]]></category>
+		<category domain="https://www.theblock.co/">News</category>
+                </item>
+        <item>
+        <title><![CDATA[Synthetic headline 6]]></title>
+        <link>https://www.theblock.co/synthetic/6</link>
+        <media:content url="https://example.com/img/6.jpg" type="image/*" medium="image"/>        <guid isPermaLink="false">synthetic-guid-6</guid>
+        <pubDate>Mon, 23 Nov 2026 22:18:02 +0000</pubDate>
+            <description><![CDATA[Synthetic summary 6.]]></description>            <dc:creator><![CDATA[Synthetic Reporter]]></dc:creator>
+        <content:encoded/>
+        		<category domain="https://www.theblock.co/category/crypto-ecosystems"><![CDATA[Crypto Ecosystems]]></category>
+		<category domain="https://www.theblock.co/category/equities"><![CDATA[Equities]]></category>
+		<category domain="https://www.theblock.co/category/layer-1s"><![CDATA[Layer 1s]]></category>
+		<category domain="https://www.theblock.co/category/markets"><![CDATA[Markets]]></category>
+		<category domain="https://www.theblock.co/category/token-projects"><![CDATA[Token Projects]]></category>
+		<category domain="https://www.theblock.co/category/web3"><![CDATA[Web3]]></category>
+		<category domain="tag"><![CDATA[Analyst Reports]]></category>
+		<category domain="tag"><![CDATA[Bitcoin]]></category>
+		<category domain="tag"><![CDATA[Crypto]]></category>
+		<category domain="https://www.theblock.co/">News</category>
+                </item>
+        <item>
+        <title><![CDATA[Synthetic headline 7]]></title>
+        <link>https://www.theblock.co/synthetic/7</link>
+        <media:content url="https://example.com/img/7.jpg" type="image/*" medium="image"/>        <guid isPermaLink="false">synthetic-guid-7</guid>
+        <pubDate>Mon, 23 Nov 2026 22:15:12 +0000</pubDate>
+            <description><![CDATA[Synthetic summary 7.]]></description>            <dc:creator><![CDATA[Synthetic Reporter]]></dc:creator>
+        <content:encoded/>
+        		<category domain="https://www.theblock.co/category/companies"><![CDATA[Companies]]></category>
+		<category domain="https://www.theblock.co/category/markets"><![CDATA[Markets]]></category>
+		<category domain="https://www.theblock.co/category/privacy"><![CDATA[Privacy]]></category>
+		<category domain="tag"><![CDATA[Zcash]]></category>
+		<category domain="https://www.theblock.co/">News</category>
+                </item>
+        <item>
+        <title><![CDATA[Synthetic headline 8]]></title>
+        <link>https://www.theblock.co/synthetic/8</link>
+        <media:content url="https://example.com/img/8.jpg" type="image/*" medium="image"/>        <guid isPermaLink="false">synthetic-guid-8</guid>
+        <pubDate>Mon, 23 Nov 2026 20:00:34 +0000</pubDate>
+            <description><![CDATA[Synthetic summary 8.]]></description>            <dc:creator><![CDATA[Synthetic Reporter]]></dc:creator>
+        <content:encoded/>
+        		<category domain="https://www.theblock.co/category/companies"><![CDATA[Companies]]></category>
+		<category domain="https://www.theblock.co/category/crypto-ecosystems"><![CDATA[Crypto Ecosystems]]></category>
+		<category domain="https://www.theblock.co/category/exchanges"><![CDATA[Exchanges]]></category>
+		<category domain="https://www.theblock.co/category/markets"><![CDATA[Markets]]></category>
+		<category domain="https://www.theblock.co/category/policy"><![CDATA[Policy]]></category>
+		<category domain="https://www.theblock.co/category/regulation"><![CDATA[Regulation]]></category>
+		<category domain="https://www.theblock.co/category/security"><![CDATA[Security]]></category>
+		<category domain="https://www.theblock.co/category/stablecoins"><![CDATA[Stablecoins]]></category>
+		<category domain="https://www.theblock.co/category/token-projects"><![CDATA[Token Projects]]></category>
+		<category domain="tag"><![CDATA[Binance]]></category>
+		<category domain="tag"><![CDATA[Exploits]]></category>
+		<category domain="tag"><![CDATA[USDC]]></category>
+		<category domain="https://www.theblock.co/">News</category>
+                </item>
+        <item>
+        <title><![CDATA[Synthetic headline 9]]></title>
+        <link>https://www.theblock.co/synthetic/9</link>
+        <media:content url="https://example.com/img/9.jpg" type="image/*" medium="image"/>        <guid isPermaLink="false">synthetic-guid-9</guid>
+        <pubDate>Mon, 23 Nov 2026 18:30:09 +0000</pubDate>
+            <description><![CDATA[Synthetic summary 9.]]></description>            <dc:creator><![CDATA[Synthetic Reporter]]></dc:creator>
+        <content:encoded/>
+        		<category domain="https://www.theblock.co/category/crypto-ecosystems"><![CDATA[Crypto Ecosystems]]></category>
+		<category domain="https://www.theblock.co/category/defi"><![CDATA[DeFi]]></category>
+		<category domain="https://www.theblock.co/category/policy"><![CDATA[Policy]]></category>
+		<category domain="https://www.theblock.co/category/regulation"><![CDATA[Regulation]]></category>
+		<category domain="tag"><![CDATA[CFTC]]></category>
+		<category domain="tag"><![CDATA[Prediction Markets]]></category>
+		<category domain="https://www.theblock.co/">News</category>
+                </item>
+        <item>
+        <title><![CDATA[Synthetic headline 10]]></title>
+        <link>https://www.theblock.co/synthetic/10</link>
+        <media:content url="https://example.com/img/10.jpg" type="image/*" medium="image"/>        <guid isPermaLink="false">synthetic-guid-10</guid>
+        <pubDate>Mon, 23 Nov 2026 17:31:50 +0000</pubDate>
+            <description><![CDATA[Synthetic summary 10.]]></description>            <dc:creator><![CDATA[Synthetic Reporter]]></dc:creator>
+        <content:encoded/>
+        		<category domain="https://www.theblock.co/category/crypto-ecosystems"><![CDATA[Crypto Ecosystems]]></category>
+		<category domain="https://www.theblock.co/category/defi"><![CDATA[DeFi]]></category>
+		<category domain="https://www.theblock.co/category/markets"><![CDATA[Markets]]></category>
+		<category domain="tag"><![CDATA[Lending]]></category>
+		<category domain="tag"><![CDATA[Protocols]]></category>
+		<category domain="https://www.theblock.co/">News</category>
+                </item>
+        <item>
+        <title><![CDATA[Synthetic headline 11]]></title>
+        <link>https://www.theblock.co/synthetic/11</link>
+        <media:content url="https://example.com/img/11.jpg" type="image/*" medium="image"/>        <guid isPermaLink="false">synthetic-guid-11</guid>
+        <pubDate>Mon, 23 Nov 2026 15:34:51 +0000</pubDate>
+            <description><![CDATA[Synthetic summary 11.]]></description>            <dc:creator><![CDATA[Synthetic Reporter]]></dc:creator>
+        <content:encoded/>
+        		<category domain="https://www.theblock.co/category/companies"><![CDATA[Companies]]></category>
+		<category domain="https://www.theblock.co/category/crypto-ecosystems"><![CDATA[Crypto Ecosystems]]></category>
+		<category domain="https://www.theblock.co/category/layer-1s"><![CDATA[Layer 1s]]></category>
+		<category domain="https://www.theblock.co/category/markets"><![CDATA[Markets]]></category>
+		<category domain="https://www.theblock.co/category/public-equities"><![CDATA[Public Equities]]></category>
+		<category domain="https://www.theblock.co/category/token-projects"><![CDATA[Token Projects]]></category>
+		<category domain="tag"><![CDATA[Crypto Treasuries]]></category>
+		<category domain="tag"><![CDATA[Solana]]></category>
+		<category domain="https://www.theblock.co/">News</category>
+                </item>
+        <item>
+        <title><![CDATA[Synthetic headline 12]]></title>
+        <link>https://www.theblock.co/synthetic/12</link>
+        <media:content url="https://example.com/img/12.jpg" type="image/*" medium="image"/>        <guid isPermaLink="false">synthetic-guid-12</guid>
+        <pubDate>Mon, 23 Nov 2026 15:02:41 +0000</pubDate>
+            <description><![CDATA[Synthetic summary 12.]]></description>            <dc:creator><![CDATA[Synthetic Reporter]]></dc:creator>
+        <content:encoded/>
+        		<category domain="https://www.theblock.co/category/companies"><![CDATA[Companies]]></category>
+		<category domain="https://www.theblock.co/category/crypto-ecosystems"><![CDATA[Crypto Ecosystems]]></category>
+		<category domain="https://www.theblock.co/category/deals"><![CDATA[Deals]]></category>
+		<category domain="https://www.theblock.co/category/layer-1s"><![CDATA[Layer 1s]]></category>
+		<category domain="https://www.theblock.co/category/markets"><![CDATA[Markets]]></category>
+		<category domain="https://www.theblock.co/category/nfts-gaming-and-metaverse"><![CDATA[Metaverse & NFT]]></category>
+		<category domain="https://www.theblock.co/category/crypto-ecosystems-people"><![CDATA[People]]></category>
+		<category domain="https://www.theblock.co/category/companies-people"><![CDATA[People]]></category>
+		<category domain="https://www.theblock.co/category/markets-people"><![CDATA[People]]></category>
+		<category domain="https://www.theblock.co/category/policy-people"><![CDATA[People]]></category>
+		<category domain="https://www.theblock.co/category/deals-people"><![CDATA[People]]></category>
+		<category domain="https://www.theblock.co/category/metaverse-and-nft-people"><![CDATA[People]]></category>
+		<category domain="https://www.theblock.co/category/policy"><![CDATA[Policy]]></category>
+		<category domain="https://www.theblock.co/category/public-equities"><![CDATA[Public Equities]]></category>
+		<category domain="https://www.theblock.co/category/token-projects"><![CDATA[Token Projects]]></category>
+		<category domain="tag"><![CDATA[Crypto Treasuries]]></category>
+		<category domain="tag"><![CDATA[Ethereum]]></category>
+		<category domain="tag"><![CDATA[Tom Lee]]></category>
+		<category domain="https://www.theblock.co/">News</category>
+                </item>
+        <item>
+        <title><![CDATA[Synthetic headline 13]]></title>
+        <link>https://www.theblock.co/synthetic/13</link>
+        <media:content url="https://example.com/img/13.jpg" type="image/*" medium="image"/>        <guid isPermaLink="false">synthetic-guid-13</guid>
+        <pubDate>Mon, 23 Nov 2026 15:02:21 +0000</pubDate>
+            <description><![CDATA[Synthetic summary 13.]]></description>            <dc:creator><![CDATA[Synthetic Reporter]]></dc:creator>
+        <content:encoded/>
+        		<category domain="https://www.theblock.co/category/crypto-ecosystems"><![CDATA[Crypto Ecosystems]]></category>
+		<category domain="https://www.theblock.co/category/defi"><![CDATA[DeFi]]></category>
+		<category domain="https://www.theblock.co/category/equities"><![CDATA[Equities]]></category>
+		<category domain="https://www.theblock.co/category/layer-1s"><![CDATA[Layer 1s]]></category>
+		<category domain="https://www.theblock.co/category/market-updates"><![CDATA[Market Updates]]></category>
+		<category domain="https://www.theblock.co/category/markets"><![CDATA[Markets]]></category>
+		<category domain="https://www.theblock.co/category/token-projects"><![CDATA[Token Projects]]></category>
+		<category domain="tag"><![CDATA[Bitcoin]]></category>
+		<category domain="tag"><![CDATA[Crypto Movers]]></category>
+		<category domain="tag"><![CDATA[Equity Movers]]></category>
+		<category domain="tag"><![CDATA[Polymarket]]></category>
+		<category domain="https://www.theblock.co/">News</category>
+                </item>
+        <item>
+        <title><![CDATA[Synthetic headline 14]]></title>
+        <link>https://www.theblock.co/synthetic/14</link>
+        <media:content url="https://example.com/img/14.jpg" type="image/*" medium="image"/>        <guid isPermaLink="false">synthetic-guid-14</guid>
+        <pubDate>Mon, 23 Nov 2026 14:01:02 +0000</pubDate>
+            <description><![CDATA[Synthetic summary 14.]]></description>            <dc:creator><![CDATA[Synthetic Reporter]]></dc:creator>
+        <content:encoded/>
+        		<category domain="https://www.theblock.co/category/companies"><![CDATA[Companies]]></category>
+		<category domain="https://www.theblock.co/category/exchanges"><![CDATA[Exchanges]]></category>
+		<category domain="https://www.theblock.co/category/markets"><![CDATA[Markets]]></category>
+		<category domain="tag"><![CDATA[OKX]]></category>
+		<category domain="https://www.theblock.co/">News</category>
+                </item>
+        <item>
+        <title><![CDATA[Synthetic headline 15]]></title>
+        <link>https://www.theblock.co/synthetic/15</link>
+        <media:content url="https://example.com/img/15.jpg" type="image/*" medium="image"/>        <guid isPermaLink="false">synthetic-guid-15</guid>
+        <pubDate>Mon, 23 Nov 2026 13:54:54 +0000</pubDate>
+            <description><![CDATA[Synthetic summary 15.]]></description>            <dc:creator><![CDATA[Synthetic Reporter]]></dc:creator>
+        <content:encoded/>
+        		<category domain="https://www.theblock.co/category/crypto-ecosystems"><![CDATA[Crypto Ecosystems]]></category>
+		<category domain="https://www.theblock.co/category/defi"><![CDATA[DeFi]]></category>
+		<category domain="tag"><![CDATA[Pump.fun]]></category>
+		<category domain="https://www.theblock.co/">News</category>
+                </item>
+        <item>
+        <title><![CDATA[Synthetic headline 16]]></title>
+        <link>https://www.theblock.co/synthetic/16</link>
+        <media:content url="https://example.com/img/16.jpg" type="image/*" medium="image"/>        <guid isPermaLink="false">synthetic-guid-16</guid>
+        <pubDate>Mon, 23 Nov 2026 13:37:02 +0000</pubDate>
+            <description><![CDATA[Synthetic summary 16.]]></description>            <dc:creator><![CDATA[Synthetic Reporter]]></dc:creator>
+        <content:encoded/>
+        		<category domain="https://www.theblock.co/category/companies"><![CDATA[Companies]]></category>
+		<category domain="https://www.theblock.co/category/crypto-ecosystems"><![CDATA[Crypto Ecosystems]]></category>
+		<category domain="https://www.theblock.co/category/crypto-infrastructure"><![CDATA[Crypto Infrastructure]]></category>
+		<category domain="https://www.theblock.co/category/infrastructure"><![CDATA[Infrastructure]]></category>
+		<category domain="https://www.theblock.co/category/layer-1s"><![CDATA[Layer 1s]]></category>
+		<category domain="https://www.theblock.co/category/markets"><![CDATA[Markets]]></category>
+		<category domain="https://www.theblock.co/category/token-projects"><![CDATA[Token Projects]]></category>
+		<category domain="tag"><![CDATA[Bitcoin]]></category>
+		<category domain="tag"><![CDATA[Mining]]></category>
+		<category domain="https://www.theblock.co/">News</category>
+                </item>
+        <item>
+        <title><![CDATA[Synthetic headline 17]]></title>
+        <link>https://www.theblock.co/synthetic/17</link>
+        <media:content url="https://example.com/img/17.jpg" type="image/*" medium="image"/>        <guid isPermaLink="false">synthetic-guid-17</guid>
+        <pubDate>Mon, 23 Nov 2026 13:10:25 +0000</pubDate>
+            <description><![CDATA[Synthetic summary 17.]]></description>            <dc:creator><![CDATA[Synthetic Reporter]]></dc:creator>
+        <content:encoded/>
+        		<category domain="https://www.theblock.co/category/companies"><![CDATA[Companies]]></category>
+		<category domain="https://www.theblock.co/category/crypto-ecosystems"><![CDATA[Crypto Ecosystems]]></category>
+		<category domain="https://www.theblock.co/category/layer-1s"><![CDATA[Layer 1s]]></category>
+		<category domain="https://www.theblock.co/category/markets"><![CDATA[Markets]]></category>
+		<category domain="https://www.theblock.co/category/markets-people"><![CDATA[People]]></category>
+		<category domain="https://www.theblock.co/category/public-equities"><![CDATA[Public Equities]]></category>
+		<category domain="https://www.theblock.co/category/token-projects"><![CDATA[Token Projects]]></category>
+		<category domain="tag"><![CDATA[Bitcoin]]></category>
+		<category domain="tag"><![CDATA[Michael Saylor]]></category>
+		<category domain="tag"><![CDATA[Strategy]]></category>
+		<category domain="https://www.theblock.co/">News</category>
+                </item>
+        <item>
+        <title><![CDATA[Synthetic headline 18]]></title>
+        <link>https://www.theblock.co/synthetic/18</link>
+        <media:content url="https://example.com/img/18.jpg" type="image/*" medium="image"/>        <guid isPermaLink="false">synthetic-guid-18</guid>
+        <pubDate>Mon, 23 Nov 2026 12:05:02 +0000</pubDate>
+            <description><![CDATA[Synthetic summary 18.]]></description>            <dc:creator><![CDATA[Synthetic Reporter]]></dc:creator>
+        <content:encoded/>
+        		<category domain="https://www.theblock.co/category/companies"><![CDATA[Companies]]></category>
+		<category domain="https://www.theblock.co/category/crypto-ecosystems"><![CDATA[Crypto Ecosystems]]></category>
+		<category domain="https://www.theblock.co/category/deals"><![CDATA[Deals]]></category>
+		<category domain="https://www.theblock.co/category/defi"><![CDATA[DeFi]]></category>
+		<category domain="tag"><![CDATA[exclusive]]></category>
+		<category domain="tag"><![CDATA[Lending]]></category>
+		<category domain="https://www.theblock.co/">News</category>
+                </item>
+        <item>
+        <title><![CDATA[Synthetic headline 19]]></title>
+        <link>https://www.theblock.co/synthetic/19</link>
+        <media:content url="https://example.com/img/19.jpg" type="image/*" medium="image"/>        <guid isPermaLink="false">synthetic-guid-19</guid>
+        <pubDate>Mon, 23 Nov 2026 11:22:51 +0000</pubDate>
+            <description><![CDATA[Synthetic summary 19.]]></description>            <dc:creator><![CDATA[Synthetic Reporter]]></dc:creator>
+        <content:encoded/>
+        		<category domain="https://www.theblock.co/category/companies"><![CDATA[Companies]]></category>
+		<category domain="https://www.theblock.co/category/crypto-ecosystems"><![CDATA[Crypto Ecosystems]]></category>
+		<category domain="https://www.theblock.co/category/stablecoins"><![CDATA[Stablecoins]]></category>
+		<category domain="https://www.theblock.co/category/web3"><![CDATA[Web3]]></category>
+		<category domain="tag"><![CDATA[AI]]></category>
+		<category domain="https://www.theblock.co/">News</category>
+                </item>
+        <item>
+        <title><![CDATA[Synthetic headline 20]]></title>
+        <link>https://www.theblock.co/synthetic/20</link>
+        <media:content url="https://example.com/img/20.jpg" type="image/*" medium="image"/>        <guid isPermaLink="false">synthetic-guid-20</guid>
+        <pubDate>Mon, 23 Nov 2026 10:11:58 +0000</pubDate>
+            <description><![CDATA[Synthetic summary 20.]]></description>            <dc:creator><![CDATA[Synthetic Reporter]]></dc:creator>
+        <content:encoded/>
+        		<category domain="https://www.theblock.co/category/policy"><![CDATA[Policy]]></category>
+		<category domain="https://www.theblock.co/category/regulation"><![CDATA[Regulation]]></category>
+		<category domain="https://www.theblock.co/">News</category>
+                </item>
+    </channel>
+</rss>

@@ -19,9 +19,22 @@ class NewsCategoryTest {
     @Test
     @DisplayName("코인만 싣기로 한 피드에서 왔으면 코인이다 — 내용을 보지 않는다")
     void articlesFromACryptoOnlyFeedAreCrypto() {
-        assertThat(NewsCategory.of(article(NewsSource.INVESTING_CRYPTO, "Bitcoin falls to $79K", null)))
+        assertThat(NewsCategory.of(article(NewsSource.THE_BLOCK, "Bitcoin falls to $79K", null)))
                 .isEqualTo(NewsCategory.CRYPTO);
-        assertThat(NewsCategory.of(article(NewsSource.COINTELEGRAPH, "Here's what happened today", null)))
+        assertThat(NewsCategory.of(article(NewsSource.COINDESK, "Here's what happened today", null)))
+                .isEqualTo(NewsCategory.CRYPTO);
+    }
+
+    @Test
+    @DisplayName("Decrypt는 코인 전용 피드가 아니다 — AI 기사는 경제로, 코인 기사는 낱말로 코인에 앉는다")
+    void decryptIsSortedByWordsNotByFeed() {
+        // 실측(2026-11-24): Decrypt 피드 37건 중 14건이 코인 낱말 없는 AI·엔비디아·양자 기사였다.
+        // 피드로 코인이라 치면 코인 다섯 자리 중 여럿을 AI 기사가 먹는다
+        assertThat(NewsCategory.of(article(NewsSource.DECRYPT,
+                "Nvidia Reinstates Its CEO Days After Board Ruled Out His Return", null)))
+                .isEqualTo(NewsCategory.ECONOMY);
+        assertThat(NewsCategory.of(article(NewsSource.DECRYPT,
+                "Bitcoin slips back toward $60,000", null)))
                 .isEqualTo(NewsCategory.CRYPTO);
     }
 
@@ -39,7 +52,7 @@ class NewsCategoryTest {
     @Test
     @DisplayName("일반 피드의 코인 기사도 코인이다 — 드물다는 뜻이지 없다는 뜻이 아니다")
     void cryptoArticlesFromGeneralFeedsAreCryptoToo() {
-        assertThat(NewsCategory.of(article(NewsSource.YAHOO_FINANCE,
+        assertThat(NewsCategory.of(article(NewsSource.GUARDIAN,
                 "Bitcoin ETF inflows hit a record", null)))
                 .isEqualTo(NewsCategory.CRYPTO);
         assertThat(NewsCategory.of(article(NewsSource.CNBC,

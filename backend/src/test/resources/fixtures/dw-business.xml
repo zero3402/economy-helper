@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns="http://purl.org/rss/1.0/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:sy="http://purl.org/rss/modules/syndication/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dwsyn="http://rss.dw.com/syndication/dwsyn/">
+ <channel rdf:about="https://rss.dw.com/syndication/feeds/rss-en-bus.2091.rdf"><!-- Synthetic test fixture. Structure mirrors the DW Business RSS feed captured 2026-11-24; every headline, summary, name and link path is made up. -->
+  <description>Synthetic test fixture. Structure mirrors the DW Business RSS feed captured 2026-11-24; every headline, summary, name and link path is made up.</description>
+  <link>https://www.dw.com/s-1431?maca=en-rss-en-bus-2091-rdf</link>
+  <title>Deutsche Welle: DW.com - Business</title>
+  <sy:updatePeriod>hourly</sy:updatePeriod>
+  <sy:updateFequency>4</sy:updateFequency>
+  <sy:updateBase>2002-05-01T00:00:00Z</sy:updateBase>
+  <dc:date>2026-11-24T07:47:27Z</dc:date>
+  <image rdf:resource="https://example.com/img/logo.png"/>
+  <items>
+   <rdf:Seq>
+    <rdf:li rdf:resource="https://www.dw.com/synthetic/1?maca=en-rss-en-bus-2091-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/synthetic/2?maca=en-rss-en-bus-2091-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/synthetic/3?maca=en-rss-en-bus-2091-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/synthetic/4?maca=en-rss-en-bus-2091-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/synthetic/5?maca=en-rss-en-bus-2091-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/synthetic/6?maca=en-rss-en-bus-2091-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/synthetic/7?maca=en-rss-en-bus-2091-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/synthetic/8?maca=en-rss-en-bus-2091-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/synthetic/9?maca=en-rss-en-bus-2091-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/synthetic/10?maca=en-rss-en-bus-2091-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/synthetic/11?maca=en-rss-en-bus-2091-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/synthetic/12?maca=en-rss-en-bus-2091-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/synthetic/13?maca=en-rss-en-bus-2091-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/synthetic/14?maca=en-rss-en-bus-2091-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/synthetic/15?maca=en-rss-en-bus-2091-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/synthetic/16?maca=en-rss-en-bus-2091-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/synthetic/17?maca=en-rss-en-bus-2091-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/synthetic/18?maca=en-rss-en-bus-2091-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/synthetic/19?maca=en-rss-en-bus-2091-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/synthetic/20?maca=en-rss-en-bus-2091-rdf"/>
+   </rdf:Seq>
+  </items>
+ </channel>
+ <image rdf:about="https://example.com/img/logo.png">
+  <url>https://example.com/img/logo.png</url>
+  <link>https://www.dw.com/s-1431?maca=en-rss-en-bus-2091-rdf</link>
+  <title>DW</title>
+  <description>Synthetic test fixture. Structure mirrors the DW Business RSS feed captured 2026-11-24; every headline, summary, name and link path is made up.</description>
+ </image>
+ <item rdf:about="https://www.dw.com/synthetic/1?maca=en-rss-en-bus-2091-rdf">
+  <title>Synthetic headline 1 — it’s a test</title>
+  <link>https://www.dw.com/synthetic/1?maca=en-rss-en-bus-2091-rdf</link>
+  <description>Synthetic test fixture. Structure mirrors the DW Business RSS feed captured 2026-11-24; every headline, summary, name and link path is made up.</description>
+  <dc:date>2026-11-23T14:18:00Z</dc:date>
+  <dc:subject>Synthetic Reporter</dc:subject>
+  <dc:language>en</dc:language>
+  <dwsyn:contentID>80021926</dwsyn:contentID>
+ </item>
+ <item rdf:about="https://www.dw.com/synthetic/2?maca=en-rss-en-bus-2091-rdf">
+  <title>Synthetic headline 2</title>
+  <link>https://www.dw.com/synthetic/2?maca=en-rss-en-bus-2091-rdf</link>
+  <description>Synthetic test fixture. Structure mirrors the DW Business RSS feed captured 2026-11-24; every headline, summary, name and link path is made up.</description>
+  <dc:date>2026-11-23T10:58:00Z</dc:date>
+  <dc:subject>Synthetic Reporter</dc:subject>
+  <dc:language>en</dc:language>
+  <dwsyn:contentID>80004381</dwsyn:contentID>
+ </item>
+ <item rdf:about="https://www.dw.com/synthetic/3?maca=en-rss-en-bus-2091-rdf">
+  <title>Synthetic headline 3</title>
+  <link>https://www.dw.com/synthetic/3?maca=en-rss-en-bus-2091-rdf</link>
+  <description>Synthetic test fixture. Structure mirrors the DW Business RSS feed captured 2026-11-24; every headline, summary, name and link path is made up.</description>
+  <dc:date>2026-11-23T09:26:00Z</dc:date>
+  <dc:subject>Synthetic Reporter</dc:subject>
+  <dc:language>en</dc:language>
+  <dwsyn:contentID>79852185</dwsyn:contentID>
+ </item>
+ <item rdf:about="https://www.dw.com/synthetic/4?maca=en-rss-en-bus-2091-rdf">
+  <title>Synthetic headline 4</title>
+  <link>https://www.dw.com/synthetic/4?maca=en-rss-en-bus-2091-rdf</link>
+  <description>Synthetic summary 4.</description>
+  <dc:date>2026-11-20T15:36:00Z</dc:date>
+  <dc:subject>Synthetic Reporter</dc:subject>
+  <dc:language>en</dc:language>
+  <dwsyn:contentID>79946928</dwsyn:contentID>
+ </item>
+ <item rdf:about="https://www.dw.com/synthetic/5?maca=en-rss-en-bus-2091-rdf">
+  <title>Synthetic headline 5</title>
+  <link>https://www.dw.com/synthetic/5?maca=en-rss-en-bus-2091-rdf</link>
+  <description>Synthetic summary 5.</description>
+  <dc:date>2026-11-20T09:43:00Z</dc:date>
+  <dc:subject>Synthetic Reporter</dc:subject>
+  <dc:language>en</dc:language>
+  <dwsyn:contentID>80000062</dwsyn:contentID>
+ </item>
+ <item rdf:about="https://www.dw.com/synthetic/6?maca=en-rss-en-bus-2091-rdf">
+  <title>Synthetic headline 6</title>
+  <link>https://www.dw.com/synthetic/6?maca=en-rss-en-bus-2091-rdf</link>
+  <description>Synthetic summary 6.</description>
+  <dc:date>2026-11-19T15:52:00Z</dc:date>
+  <dc:subject>Synthetic Reporter</dc:subject>
+  <dc:language>en</dc:language>
+  <dwsyn:contentID>79993163</dwsyn:contentID>
+ </item>
+ <item rdf:about="https://www.dw.com/synthetic/7?maca=en-rss-en-bus-2091-rdf">
+  <title>Synthetic headline 7</title>
+  <link>https://www.dw.com/synthetic/7?maca=en-rss-en-bus-2091-rdf</link>
+  <description>Synthetic summary 7.</description>
+  <dc:date>2026-11-19T09:07:00Z</dc:date>
+  <dc:subject>Synthetic Reporter</dc:subject>
+  <dc:language>en</dc:language>
+  <dwsyn:contentID>79979920</dwsyn:contentID>
+ </item>
+ <item rdf:about="https://www.dw.com/synthetic/8?maca=en-rss-en-bus-2091-rdf">
+  <title>Synthetic headline 8</title>
+  <link>https://www.dw.com/synthetic/8?maca=en-rss-en-bus-2091-rdf</link>
+  <description>Synthetic summary 8.</description>
+  <dc:date>2026-11-19T05:58:00Z</dc:date>
+  <dc:subject>Synthetic Reporter</dc:subject>
+  <dc:language>en</dc:language>
+  <dwsyn:contentID>79896537</dwsyn:contentID>
+ </item>
+ <item rdf:about="https://www.dw.com/synthetic/9?maca=en-rss-en-bus-2091-rdf">
+  <title>Synthetic headline 9</title>
+  <link>https://www.dw.com/synthetic/9?maca=en-rss-en-bus-2091-rdf</link>
+  <description>Synthetic summary 9.</description>
+  <dc:date>2026-11-17T14:53:00Z</dc:date>
+  <dc:subject>Synthetic Reporter</dc:subject>
+  <dc:language>en</dc:language>
+  <dwsyn:contentID>79970447</dwsyn:contentID>
+ </item>
+ <item rdf:about="https://www.dw.com/synthetic/10?maca=en-rss-en-bus-2091-rdf">
+  <title>Synthetic headline 10</title>
+  <link>https://www.dw.com/synthetic/10?maca=en-rss-en-bus-2091-rdf</link>
+  <description>Synthetic summary 10.</description>
+  <dc:date>2026-11-17T11:00:00Z</dc:date>
+  <dc:subject>Synthetic Reporter</dc:subject>
+  <dc:language>en</dc:language>
+  <dwsyn:contentID>79943075</dwsyn:contentID>
+ </item>
+ <item rdf:about="https://www.dw.com/synthetic/11?maca=en-rss-en-bus-2091-rdf">
+  <title>Synthetic headline 11</title>
+  <link>https://www.dw.com/synthetic/11?maca=en-rss-en-bus-2091-rdf</link>
+  <description>Synthetic summary 11.</description>
+  <dc:date>2026-11-12T15:08:00Z</dc:date>
+  <dc:subject>Synthetic Reporter</dc:subject>
+  <dc:language>en</dc:language>
+  <dwsyn:contentID>79926972</dwsyn:contentID>
+ </item>
+ <item rdf:about="https://www.dw.com/synthetic/12?maca=en-rss-en-bus-2091-rdf">
+  <title>Synthetic headline 12</title>
+  <link>https://www.dw.com/synthetic/12?maca=en-rss-en-bus-2091-rdf</link>
+  <description>Synthetic summary 12.</description>
+  <dc:date>2026-11-11T15:12:00Z</dc:date>
+  <dc:subject>Synthetic Reporter</dc:subject>
+  <dc:language>en</dc:language>
+  <dwsyn:contentID>79919917</dwsyn:contentID>
+ </item>
+ <item rdf:about="https://www.dw.com/synthetic/13?maca=en-rss-en-bus-2091-rdf">
+  <title>Synthetic headline 13</title>
+  <link>https://www.dw.com/synthetic/13?maca=en-rss-en-bus-2091-rdf</link>
+  <description>Synthetic summary 13.</description>
+  <dc:date>2026-11-10T14:32:00Z</dc:date>
+  <dc:subject>Synthetic Reporter</dc:subject>
+  <dc:language>en</dc:language>
+  <dwsyn:contentID>79909129</dwsyn:contentID>
+ </item>
+ <item rdf:about="https://www.dw.com/synthetic/14?maca=en-rss-en-bus-2091-rdf">
+  <title>Synthetic headline 14</title>
+  <link>https://www.dw.com/synthetic/14?maca=en-rss-en-bus-2091-rdf</link>
+  <description>Synthetic summary 14.</description>
+  <dc:date>2026-11-09T11:18:00Z</dc:date>
+  <dc:subject>Synthetic Reporter</dc:subject>
+  <dc:language>en</dc:language>
+  <dwsyn:contentID>79898338</dwsyn:contentID>
+ </item>
+ <item rdf:about="https://www.dw.com/synthetic/15?maca=en-rss-en-bus-2091-rdf">
+  <title>Synthetic headline 15</title>
+  <link>https://www.dw.com/synthetic/15?maca=en-rss-en-bus-2091-rdf</link>
+  <description>Synthetic summary 15.</description>
+  <dc:date>2026-11-07T08:16:00Z</dc:date>
+  <dc:subject>Synthetic Reporter</dc:subject>
+  <dc:language>en</dc:language>
+  <dwsyn:contentID>79865654</dwsyn:contentID>
+ </item>
+ <item rdf:about="https://www.dw.com/synthetic/16?maca=en-rss-en-bus-2091-rdf">
+  <title>Synthetic headline 16</title>
+  <link>https://www.dw.com/synthetic/16?maca=en-rss-en-bus-2091-rdf</link>
+  <description>Synthetic summary 16.</description>
+  <dc:date>2026-11-06T17:10:00Z</dc:date>
+  <dc:subject>Synthetic Reporter</dc:subject>
+  <dc:language>en</dc:language>
+  <dwsyn:contentID>79877759</dwsyn:contentID>
+ </item>
+ <item rdf:about="https://www.dw.com/synthetic/17?maca=en-rss-en-bus-2091-rdf">
+  <title>Synthetic headline 17</title>
+  <link>https://www.dw.com/synthetic/17?maca=en-rss-en-bus-2091-rdf</link>
+  <description>Synthetic summary 17.</description>
+  <dc:date>2026-11-06T09:29:00Z</dc:date>
+  <dc:subject>Synthetic Reporter</dc:subject>
+  <dc:language>en</dc:language>
+  <dwsyn:contentID>79871504</dwsyn:contentID>
+ </item>
+ <item rdf:about="https://www.dw.com/synthetic/18?maca=en-rss-en-bus-2091-rdf">
+  <title>Synthetic headline 18</title>
+  <link>https://www.dw.com/synthetic/18?maca=en-rss-en-bus-2091-rdf</link>
+  <description>Synthetic summary 18.</description>
+  <dc:date>2026-11-05T07:03:00Z</dc:date>
+  <dc:subject>Synthetic Reporter</dc:subject>
+  <dc:language>en</dc:language>
+  <dwsyn:contentID>79853716</dwsyn:contentID>
+ </item>
+ <item rdf:about="https://www.dw.com/synthetic/19?maca=en-rss-en-bus-2091-rdf">
+  <title>Synthetic headline 19</title>
+  <link>https://www.dw.com/synthetic/19?maca=en-rss-en-bus-2091-rdf</link>
+  <description>Synthetic summary 19.</description>
+  <dc:date>2026-11-04T10:25:00Z</dc:date>
+  <dc:subject>Synthetic Reporter</dc:subject>
+  <dc:language>en</dc:language>
+  <dwsyn:contentID>79850847</dwsyn:contentID>
+ </item>
+ <item rdf:about="https://www.dw.com/synthetic/20?maca=en-rss-en-bus-2091-rdf">
+  <title>Synthetic headline 20</title>
+  <link>https://www.dw.com/synthetic/20?maca=en-rss-en-bus-2091-rdf</link>
+  <description>Synthetic summary 20.</description>
+  <dc:date>2026-11-04T09:50:00Z</dc:date>
+  <dc:subject>Synthetic Reporter</dc:subject>
+  <dc:language>en</dc:language>
+  <dwsyn:contentID>79840593</dwsyn:contentID>
+ </item>
+</rdf:RDF>

@@ -88,7 +88,7 @@ public final class NewsFormatter {
     /**
      * 텔레그램이 <b>스스로 링크로 만들지 못하게</b> 막는다.
      *
-     * <p><b>왜 필요한가.</b> 출처 줄은 평문인데 {@code Investing.com}처럼 표기에 TLD가 들어 있으면
+     * <p><b>왜 필요한가.</b> 출처 줄은 평문인데 {@code Example.com}처럼 표기에 TLD가 들어 있으면
      * 텔레그램이 그걸 주소로 알아보고 <b>매체 홈페이지로 가는 링크를 만든다.</b> 그러면 한 통에
      * 링크가 둘이 되고, 사용자가 기사인 줄 알고 누르면 홈페이지가 열린다. 피드가 준 것이 아니라
      * (RSS item에는 {@code <link>}가 하나뿐이다) 화면에서 생겨나는 링크다.
@@ -107,7 +107,7 @@ public final class NewsFormatter {
     }
 
     /**
-     * 표기 안의 TLD 꼬리 — {@code Investing.com}의 {@code .com}이 이것이다.
+     * 표기 안의 TLD 꼬리 — {@code Example.com}의 {@code .com}이 이것이다.
      *
      * <p>점 뒤에 글자 둘 이상이 이어지고 그 뒤가 낱말 경계일 때만 문다. 문장 끝 마침표나
      * 소수점은 걸리지 않는다.

@@ -16,24 +16,24 @@ class NewsSourceTest {
     @Test
     @DisplayName("자기 매체 기사는 받는다 — 서브도메인도 자기 것이다")
     void ownsItsOwnArticles() {
-        assertThat(NewsSource.YAHOO_FINANCE.owns("https://finance.yahoo.com/news/a")).isTrue();
-        assertThat(NewsSource.INVESTING.owns("https://www.investing.com/news/a")).isTrue();
         assertThat(NewsSource.CNBC.owns("https://www.cnbc.com/2026/08/14/a.html")).isTrue();
         assertThat(NewsSource.BBC.owns("https://www.bbc.co.uk/news/articles/a")).isTrue();
         assertThat(NewsSource.BBC.owns("https://www.bbc.com/news/articles/a")).isTrue();
         assertThat(NewsSource.COINDESK.owns(
                 "https://www.coindesk.com/markets/2026/08/26/a")).isTrue();
-        // 실측 링크에 ?utm_source=rss_feed 꼬리가 붙는다 — 호스트만 보므로 통과해야 한다
-        assertThat(NewsSource.COINTELEGRAPH.owns(
-                "https://cointelegraph.com/news/a?utm_source=rss_feed&utm_medium=rss")).isTrue();
+        assertThat(NewsSource.GUARDIAN.owns("https://www.theguardian.com/business/2026/nov/24/a")).isTrue();
+        // 실측(2026-11-24) 링크에 ?maca= 꼬리가 붙는다 — 호스트만 보므로 통과해야 한다
+        assertThat(NewsSource.DW.owns("https://www.dw.com/en/a/a-80021926?maca=en-rss-en-bus-2091-rdf")).isTrue();
+        assertThat(NewsSource.THE_BLOCK.owns("https://www.theblock.co/news/markets/2026-11-24-a")).isTrue();
+        assertThat(NewsSource.DECRYPT.owns("https://decrypt.co/383851/a")).isTrue();
     }
 
     @Test
-    @DisplayName("Yahoo 피드가 실어 온 남의 기사는 안 받는다 — 우리가 고른 건 Yahoo다")
+    @DisplayName("피드가 실어 온 남의 기사는 안 받는다 — 우리가 고른 건 그 매체다")
     void rejectsSyndicatedArticlesFromOtherOutlets() {
-        // 2026-08-14 실측: 48건 중 wsj.com 1건, investors.com 7건. 둘 다 페이월이다
-        assertThat(NewsSource.YAHOO_FINANCE.owns("https://www.wsj.com/articles/a")).isFalse();
-        assertThat(NewsSource.YAHOO_FINANCE.owns("https://www.investors.com/news/a")).isFalse();
+        // 옛 Yahoo 피드(2026-08-14 실측)는 48건 중 8건이 wsj.com·investors.com이었다. 둘 다 페이월이다
+        assertThat(NewsSource.GUARDIAN.owns("https://www.wsj.com/articles/a")).isFalse();
+        assertThat(NewsSource.DECRYPT.owns("https://www.investors.com/news/a")).isFalse();
     }
 
     @Test
@@ -46,23 +46,23 @@ class NewsSourceTest {
     @Test
     @DisplayName("도메인 끝만 같은 남의 주소에 속지 않는다")
     void doesNotFallForLookalikeHosts() {
-        // endsWith("yahoo.com")만 봤다면 이것들이 전부 통과한다
-        assertThat(NewsSource.YAHOO_FINANCE.owns("https://notyahoo.com/a")).isFalse();
+        // endsWith("dw.com")만 봤다면 이것들이 전부 통과한다
+        assertThat(NewsSource.DW.owns("https://newdw.com/a")).isFalse();
         assertThat(NewsSource.CNBC.owns("https://fake-cnbc.com/a")).isFalse();
         assertThat(NewsSource.COINDESK.owns("https://notcoindesk.com/a")).isFalse();
-        assertThat(NewsSource.COINTELEGRAPH.owns("https://fake-cointelegraph.com/a")).isFalse();
+        assertThat(NewsSource.THE_BLOCK.owns("https://fake-theblock.co/a")).isFalse();
     }
 
     @Test
     @DisplayName("코인만 싣기로 한 자리는 값이 스스로 안다 — 분기문에 두면 매체를 더할 때 빠뜨린다")
     void knowsWhichFeedsAreCryptoOnly() {
-        assertThat(NewsSource.INVESTING_CRYPTO.cryptoSection()).isTrue();
         assertThat(NewsSource.COINDESK.cryptoSection()).isTrue();
-        assertThat(NewsSource.COINTELEGRAPH.cryptoSection()).isTrue();
+        assertThat(NewsSource.THE_BLOCK.cryptoSection()).isTrue();
 
-        // 같은 매체의 본 섹션은 아니다 — 섹션이 갈리는 것이 이 값의 요점이다
-        assertThat(NewsSource.INVESTING.cryptoSection()).isFalse();
-        assertThat(NewsSource.YAHOO_FINANCE.cryptoSection()).isFalse();
+        assertThat(NewsSource.GUARDIAN.cryptoSection()).isFalse();
+        assertThat(NewsSource.DW.cryptoSection()).isFalse();
+        // 코인 매체지만 AI 기사가 38%다(2026-11-24 실측) — 낱말 규칙으로 가른다
+        assertThat(NewsSource.DECRYPT.cryptoSection()).isFalse();
         assertThat(NewsSource.CNBC.cryptoSection()).isFalse();
         assertThat(NewsSource.BBC.cryptoSection()).isFalse();
         assertThat(NewsSource.AP.cryptoSection()).isFalse();

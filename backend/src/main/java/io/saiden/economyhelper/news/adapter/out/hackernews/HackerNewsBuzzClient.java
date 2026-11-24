@@ -81,8 +81,8 @@ public class HackerNewsBuzzClient implements ArticleBuzz {
         }
 
         Instant since = now.minus(window);
-        // 도메인마다 한 호출이고 서로를 모른다 — 겹친다. /news 검색은 여덟 피드의 기사를 한 번에
-        // 넘기므로 도메인이 일곱까지 되고, 콜드 응답이 1.6초(117KB)라 순차면 최대 10초를 기다렸다.
+        // 도메인마다 한 호출이고 서로를 모른다 — 겹친다. /news 검색은 전 피드의 기사를 한 번에
+        // 넘기므로 도메인이 매체 수만큼(AP는 링크가 불투명해 빠진다) 되고, 콜드 응답이 1.6초(117KB)라 순차면 최대 10초를 기다렸다.
         // hackerNews에는 리미터가 없고 브레이커만 있어 겹쳐도 막을 것이 없다
         Map<String, Integer> byNormalizedUrl = new HashMap<>();
         Concurrently.map(List.copyOf(domains), domain -> buzzOf(domain, since))

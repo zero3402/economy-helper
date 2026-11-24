@@ -111,8 +111,7 @@ public class NewsService {
         List<NewsSource> sources = List.of(NewsSource.values());
         // 최근 창 안의 발행분만 남긴다 — 묵은 기사로 자리를 채우지 않는다
         List<List<Article>> recentBySource = fetchEach(sources).stream().map(articles -> recent(articles, now)).toList();
-        // HN 반응은 전 매체 기사를 모아 **한 번에** 묻는다(rank()와 같다) — 매체마다 물으면 한 매체의 두 피드
-        // (Investing.com 본 섹션·암호화폐 섹션)가 같은 도메인을 동시에 묻는다. 캐시가 비어 있으면 둘 다 나간다
+        // HN 반응은 전 매체 기사를 모아 **한 번에** 묻는다(rank()와 같다) — 매체마다 물으면 HN 호출이 매체 수만큼 나간다
         Map<String, Integer> buzz = buzzClient.buzzByLink(
                 recentBySource.stream().flatMap(List::stream).toList(), now);
         // 1) 매체마다 관련도 없이 먼저 줄을 세워 상위 몇 건만 후보로 남긴다
@@ -343,9 +342,9 @@ public class NewsService {
     /**
      * 같은 기사가 두 번 나오지 않게 <b>링크로 한 번 거른다.</b>
      *
-     * <p><b>매체 하나가 피드를 둘 달 수 있다</b> — Investing.com이 본 섹션과 암호화폐 섹션을
-     * 함께 단다(ADR-0014). 같은 기사가 두 피드에 실리면 그대로 두 건이 된다.
-     * 실측(2026-08-19): {@code /news 금리} 3건 중 1번과 3번이 <b>글자 그대로 같은 기사</b>였다.
+     * <p><b>같은 링크가 두 피드에 실릴 수 있다</b> — 한 매체가 섹션 피드를 둘 달면 그대로 두 건이 된다.
+     * 실측(2026-08-19, 당시 Investing.com 본 섹션·암호화폐 섹션): {@code /news 금리} 3건 중 1번과
+     * 3번이 <b>글자 그대로 같은 기사</b>였다.
      *
      * <p><b>앞의 것을 남긴다.</b> 브리핑은 점수순으로 정렬한 뒤 부르므로 남는 것이 더 높은
      * 점수이고, 검색은 피드 순서가 곧 편집자가 매긴 우선순위다.
